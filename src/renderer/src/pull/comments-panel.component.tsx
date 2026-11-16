@@ -73,7 +73,7 @@ function ThreadItem({ thread: t, onJump }: { thread: CommentThread; onJump: (pat
       <div className="min-w-0 flex-1 text-[12px]">
         <div className="flex items-center gap-1.5">
           <span className="truncate font-medium">{root!.author}</span>
-          <span className="shrink-0 font-mono text-[10.5px] text-muted">{t.outdated || t.line == null ? 'outdated' : `L${t.line}`}</span>
+          <span className="shrink-0 font-mono text-[10.5px] text-muted">{describeThreadLine(t)}</span>
           {t.resolved && <span className="chip bg-ok/15 py-0 text-[10px] text-ok">resolved</span>}
           <span className="ml-auto shrink-0 text-[10.5px] text-muted">{ago((last ?? root!).createdAt)}</span>
         </div>
@@ -95,7 +95,7 @@ function Drafts({ drafts, onJump }: { drafts: readonly DraftComment[]; onJump: (
       {drafts.map((d) => (
         <button key={d.id} className="block w-full rounded px-1.5 py-1 text-left text-[12px] hover:bg-hover" onClick={() => onJump(d.path, d.side === 'RIGHT' ? d.line : null)}>
           <span className="font-mono text-[10.5px] text-muted">
-            {d.path.slice(d.path.lastIndexOf('/') + 1)}:{d.line}
+            {d.path.slice(d.path.lastIndexOf('/') + 1)}{d.line == null ? ' · file' : `:${d.line}`}
             {d.inReplyTo ? ' · reply' : ''}
           </span>
           <div className="line-clamp-2">{summarizeComment(d.body, 200)}</div>
@@ -103,4 +103,9 @@ function Drafts({ drafts, onJump }: { drafts: readonly DraftComment[]; onJump: (
       ))}
     </div>
   )
+}
+
+function describeThreadLine(t: CommentThread) {
+  if (t.onFile) return 'file'
+  return t.outdated || t.line == null ? 'outdated' : `L${t.line}`
 }

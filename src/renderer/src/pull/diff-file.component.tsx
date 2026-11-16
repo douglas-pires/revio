@@ -9,6 +9,7 @@ import { Code, EmptyHalf, Gutter, Half, RowGroup, Sign, rowBg } from './diff-cel
 import { CommentView, Composer, DraftView, Thread } from './review-comments.component'
 import { groupCommentThreads } from './comment-threads.util'
 import { DiffFileHeader } from './diff-file-header.component'
+import { FileComments } from './file-comments.component'
 import { EMPTY } from '../common/group.util'
 
 export type DiffView = 'unified' | 'split'
@@ -82,22 +83,23 @@ export const DiffFile = memo(function DiffFile(props: DiffFileProps) {
     [props.focus],
   )
 
-  const threads = useMemo(() => {
-    const m = new Map<string, ReviewComment[][]>()
+  const { threads, fileThreads } = useMemo(() => {
+    const byLine = new Map<string, ReviewComment[][]>()
+    const onFile: ReviewComment[][] = []
     for (const t of groupCommentThreads(props.comments, EMPTY, [file.path])) {
-      if (t.outdated || t.line == null) continue
-      const k = anchorKey(t.side, t.line)
-      m.set(k, [...(m.get(k) ?? []), t.comments])
+      if (t.onFile) onFile.push(t.comments)
+      else if (!t.outdated && t.line != null) byLine.set(anchorKey(t.side, t.line), [...(byLine.get(anchorKey(t.side, t.line)) ?? []), t.comments])
     }
-    return m
+    return { threads: byLine, fileThreads: onFile }
   }, [props.comments, file.path])
+  const [composingFileComment, setComposingFileComment] = useState(false)
 
   const outdated = props.comments.filter((c) => c.outdated && !c.inReplyTo)
 
   const draftsAt = useMemo(() => {
     const m = new Map<string, DraftComment[]>()
     for (const d of props.drafts) {
-      if (d.inReplyTo) continue
+      if (d.inReplyTo || d.line == null) continue
       const k = anchorKey(d.side, d.line)
       m.set(k, [...(m.get(k) ?? []), d])
     }
@@ -253,6 +255,10 @@ export const DiffFile = memo(function DiffFile(props: DiffFileProps) {
         viewed={props.viewed}
         onToggleCollapsed={() => setCollapsed(!collapsed)}
         onToggleViewed={(viewed) => props.onToggleViewed(file.path, file.sha, viewed)}
+        onCommentOnFile={() => {
+          setCollapsed(false)
+          setComposingFileComment(true)
+        }}
       />
 
       {!collapsed && !near && <div style={{ height: bodyHeight.last ?? estimateBodyHeight(rows.length) }} />}
@@ -268,6 +274,17 @@ export const DiffFile = memo(function DiffFile(props: DiffFileProps) {
               ))}
             </div>
           )}
+          <FileComments
+            path={file.path}
+            threads={fileThreads}
+            drafts={props.drafts}
+            composing={composingFileComment}
+            onCloseComposer={() => setComposingFileComment(false)}
+            onAddDraft={props.onAddDraft}
+            onUpdateDraft={props.onUpdateDraft}
+            onDeleteDraft={props.onDeleteDraft}
+            onReplyNow={props.onReplyNow}
+          />
           {outdated.length > 0 && (
             <details className="border-b border-line px-4 py-2 text-[12px] text-muted">
               <summary className="cursor-pointer">{outdated.length} outdated comment thread(s)</summary>

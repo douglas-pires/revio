@@ -4,7 +4,7 @@ import { groupCommentThreads } from '@/pull/comment-threads.util'
 
 const makeComment = (id: number, over: Partial<ReviewComment> = {}): ReviewComment => ({
   id, path: 'b.ts', line: 10, startLine: null, side: 'RIGHT', body: `c${id}`, author: 'bo', authorAvatar: '',
-  createdAt: `2026-11-0${id}T00:00:00Z`, url: '', outdated: false, ...over,
+  createdAt: `2026-11-0${id}T00:00:00Z`, url: '', outdated: false, subjectType: 'line', ...over,
 })
 
 describe('groupCommentThreads', () => {
@@ -19,6 +19,11 @@ describe('groupCommentThreads', () => {
   it('orders threads like the file list, then by line, outdated last', () => {
     const comments = [makeComment(1, { path: 'b.ts', line: 5 }), makeComment(2, { path: 'a.ts', line: null, outdated: true }), makeComment(3, { path: 'a.ts', line: 7 })]
     expect(groupCommentThreads(comments, [], ['a.ts', 'b.ts']).map((t) => t.rootId)).toEqual([3, 2, 1])
+  })
+
+  it('marks comments on the whole file, which have no line and are not outdated', () => {
+    const [thread] = groupCommentThreads([makeComment(5, { line: null, subjectType: 'file' })], [], ['b.ts'])
+    expect(thread).toMatchObject({ onFile: true, outdated: false, line: null })
   })
 
   it('keeps a reply whose first comment is missing as its own thread, unresolved when status is unknown', () => {

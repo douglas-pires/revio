@@ -32,6 +32,8 @@ export interface ReviewComment {
   createdAt: string
   url: string
   outdated: boolean
+  /** "file" for a comment on the whole file rather than on lines. */
+  subjectType: 'line' | 'file'
 }
 export interface PullDetail {
   /** When this copy was fetched from GitHub (ISO). */
@@ -67,7 +69,8 @@ export interface PullThreadStatus {
 export interface DraftComment {
   id: string
   path: string
-  line: number
+  /** Line it comments on, or null for a comment on the whole file. */
+  line: number | null
   startLine?: number
   side: DiffSide
   body: string

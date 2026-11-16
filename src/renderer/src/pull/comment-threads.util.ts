@@ -9,6 +9,8 @@ export interface CommentThread {
   line: number | null
   side: DiffSide
   outdated: boolean
+  /** A comment on the whole file, with no line. */
+  onFile: boolean
   resolved: boolean
   comments: ReviewComment[]
 }
@@ -31,6 +33,7 @@ export function groupCommentThreads(comments: readonly ReviewComment[], statuses
       line: root.line,
       side: root.side,
       outdated: root.outdated,
+      onFile: root.subjectType === 'file',
       resolved: status.get(root.id)?.resolved ?? false,
       comments: [root, ...(replies.get(root.id) ?? []).sort((a, b) => a.createdAt.localeCompare(b.createdAt))],
     }))

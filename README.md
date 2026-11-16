@@ -149,6 +149,14 @@ bar shows the open count and hides or shows the panel (remembered). The Ask Clau
 - **Keyboard:** `j` / `k` next / previous file, `v` toggles viewed and jumps to the next unviewed file (ignored while typing).
 - **Unified / Split** toggle above the files; code is syntax highlighted (Shiki, per hunk, no WebAssembly).
 
+## Comment on a whole file
+
+**+ File comment** in a file's header comments on the file without picking a line (it expands the file if needed).
+These show under **On this file** at the top of the diff, alongside GitHub's existing file comments, and in the
+comments panel as "file". They are added to your review like line comments: since GitHub's review call cannot
+carry file comments, Revio creates the review pending, adds each file comment to it, then submits it, and deletes
+the pending review if any step fails.
+
 ## Ask Claude about a selection
 
 Select code in the diff with the mouse (or use the **✦ Ask Claude** button in the comment box after picking lines in

@@ -1,8 +1,8 @@
 import type { Octokit } from '@octokit/rest'
-import type { DraftComment, PullDetail, PullFile, PullRef, PullThreadStatus, ReviewComment, SubmitReviewInput } from '@shared/pull.types'
+import type { DraftComment, PullDetail, PullFile, PullRef, PullThreadStatus, ReviewComment, ReviewEvent, SubmitReviewInput } from '@shared/pull.types'
 import { gh, smallAvatar, viewerLogin } from '../github/github.client'
 import { splitRepo } from '../github/repo-name.util'
-import { planReview } from './review-plan.util'
+import { planReview, type ReviewPlan } from './review-plan.util'
 
 /** Which review threads are resolved; REST comments do not say. A failure only hides that status. */
 async function fetchThreadStatus(octokit: Octokit, ref: PullRef): Promise<PullThreadStatus[]> {
@@ -93,7 +93,9 @@ export async function fetchPull(ref: PullRef): Promise<PullDetail> {
         authorAvatar: smallAvatar(c.user?.avatar_url),
         createdAt: c.created_at,
         url: c.html_url,
-        outdated: c.line == null,
+        // A line comment loses its line once the code it was on changes; a file comment never had one.
+        outdated: c.subject_type !== 'file' && c.line == null,
+        subjectType: c.subject_type === 'file' ? 'file' : 'line',
       }),
     ),
   }
@@ -106,16 +108,48 @@ export async function submitReview(input: SubmitReviewInput, drafts: DraftCommen
   for (const reply of plan.replies) {
     await octokit.pulls.createReplyForReviewComment({ owner, repo, pull_number: input.number, comment_id: reply.commentId, body: reply.body })
   }
-  const res = await octokit.pulls.createReview({
-    owner,
-    repo,
-    pull_number: input.number,
-    commit_id: input.headSha,
-    event: input.event,
-    body: input.body || undefined,
-    comments: plan.lineComments,
-  })
-  return { url: res.data.html_url }
+  const review = { owner, repo, pull_number: input.number, commit_id: input.headSha, body: input.body || undefined, comments: plan.lineComments }
+  if (!plan.fileComments.length) {
+    const res = await octokit.pulls.createReview({ ...review, event: input.event })
+    return { url: res.data.html_url }
+  }
+  return submitWithFileComments(octokit, review, plan.fileComments, input.event)
+}
+
+// A type alias (not an interface) so it fits Octokit's index-signature parameter type.
+type ReviewDraft = {
+  owner: string
+  repo: string
+  pull_number: number
+  commit_id: string
+  body?: string
+  comments: ReviewPlan['lineComments']
+}
+
+/**
+ * File comments can only join a review through GraphQL: create the review pending, add each file as a
+ * thread, then submit. A failure deletes the pending review so nothing is left half-posted.
+ */
+async function submitWithFileComments(octokit: Octokit, review: ReviewDraft, files: ReviewPlan['fileComments'], event: ReviewEvent) {
+  const pending = await octokit.pulls.createReview(review)
+  const ids = { owner: review.owner, repo: review.repo, pull_number: review.pull_number, review_id: pending.data.id }
+  try {
+    for (const f of files) await addFileThread(octokit, pending.data.node_id, f)
+    const res = await octokit.pulls.submitReview({ ...ids, event, body: review.body })
+    return { url: res.data.html_url }
+  } catch (err) {
+    await octokit.pulls.deletePendingReview(ids).catch(() => {})
+    throw err
+  }
+}
+
+async function addFileThread(octokit: Octokit, reviewId: string, { path, body }: { path: string; body: string }) {
+  await octokit.graphql(
+    `mutation ($review: ID!, $path: String!, $body: String!) {
+      addPullRequestReviewThread(input: { pullRequestReviewId: $review, path: $path, body: $body, subjectType: FILE }) { thread { id } }
+    }`,
+    { review: reviewId, path, body },
+  )
 }
 
 export async function replyToComment({ repo: repoFull, number }: PullRef, commentId: number, body: string) {

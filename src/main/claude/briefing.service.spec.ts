@@ -28,7 +28,7 @@ describe('prContext', () => {
   it('includes scoped guidelines, the description and existing comments', () => {
     const pr = makeDetail({
       body: 'Fixes login.',
-      comments: [{ id: 1, path: 'src/a.ts', line: 3, startLine: null, side: 'RIGHT', body: 'why?', author: 'bo', authorAvatar: '', createdAt: '', url: '', outdated: false }],
+      comments: [{ id: 1, path: 'src/a.ts', line: 3, startLine: null, side: 'RIGHT', body: 'why?', author: 'bo', authorAvatar: '', createdAt: '', url: '', outdated: false, subjectType: 'line' }],
     })
     const { context } = prContext(pr, [guide])
     expect(context).toContain('<guideline title="Web rules" scope="acme/web › apps/web/">\nNo any.\n</guideline>')

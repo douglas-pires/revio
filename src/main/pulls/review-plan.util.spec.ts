@@ -12,5 +12,11 @@ describe('planReview', () => {
       { path: 'a.ts', body: 'b', line: 12, side: 'RIGHT', start_line: 10, start_side: 'RIGHT' },
       { path: 'a.ts', body: 'b', line: 10, side: 'RIGHT' },
     ])
+    expect(plan.fileComments).toEqual([])
+  })
+
+  it('keeps comments on whole files apart, and replies to file threads stay replies', () => {
+    const plan = planReview([makeDraft({ line: null, body: 'rename this file?' }), makeDraft({ line: null, inReplyTo: 9, body: 'agreed' })])
+    expect(plan).toEqual({ replies: [{ commentId: 9, body: 'agreed' }], lineComments: [], fileComments: [{ path: 'a.ts', body: 'rename this file?' }] })
   })
 })
