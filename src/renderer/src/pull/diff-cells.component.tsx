@@ -43,6 +43,20 @@ export function Gutter(props: {
   )
 }
 
+/** A line of code: highlighted tokens when available, else the plain text. */
+export function TokenText({ tokens, text }: { tokens?: readonly Tok[]; text: string }) {
+  if (!tokens?.length) return <>{text || ' '}</>
+  return (
+    <>
+      {tokens.map((t, i) => (
+        <span key={i} className="tok" style={t.style}>
+          {t.text}
+        </span>
+      ))}
+    </>
+  )
+}
+
 export function Sign({ kind }: { kind: DiffRow['kind'] }) {
   return <td className="w-4 pl-2 align-top text-muted select-none">{kind === 'add' ? '+' : kind === 'del' ? '−' : ''}</td>
 }
@@ -50,13 +64,7 @@ export function Sign({ kind }: { kind: DiffRow['kind'] }) {
 export function Code({ row, idx, tokens }: { row: DiffRow; idx: number; tokens?: Tok[] }) {
   return (
     <td data-row={idx} className="pr-4 align-top break-all whitespace-pre-wrap select-text">
-      {tokens?.length
-        ? tokens.map((t, i) => (
-            <span key={i} className="tok" style={t.style}>
-              {t.text}
-            </span>
-          ))
-        : row.text || ' '}
+      <TokenText tokens={tokens} text={row.text} />
     </td>
   )
 }
@@ -73,13 +81,7 @@ export function Half(props: { row: DiffRow; idx: number; half: DiffSide; lineNo:
         <span className="block pl-1.5 text-muted select-none">{props.row.kind === 'add' ? '+' : props.row.kind === 'del' ? '−' : ''}</span>
       </td>
       <td onMouseEnter={props.onEnter} data-row={props.idx} data-half={props.half} className={cx('pr-3 align-top break-all whitespace-pre-wrap select-text', bg)}>
-        {props.tokens?.length
-          ? props.tokens.map((t, i) => (
-              <span key={i} className="tok" style={t.style}>
-                {t.text}
-              </span>
-            ))
-          : props.row.text || ' '}
+        <TokenText tokens={props.tokens} text={props.row.text} />
       </td>
     </>
   )

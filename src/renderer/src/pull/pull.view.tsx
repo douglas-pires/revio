@@ -145,6 +145,7 @@ export function PullView(props: {
   const commentThreads = useMemo(() => groupCommentThreads(pr?.comments ?? [], pr?.threads ?? [], orderedFiles.map((f) => f.path)), [pr, orderedFiles])
   const openThreadCount = commentThreads.filter((t) => !t.resolved).length
   const rightLines = useMemo(() => newSideLinesByPath(pr), [pr])
+  const patchOf = useCallback((path: string) => pr?.files.find((f) => f.path === path)?.patch, [pr])
 
   // ------------------------------------------------------------ navigation
 
@@ -323,6 +324,7 @@ export function PullView(props: {
                   onGenerate={generateBriefing}
                   onJump={(path, line) => goTo(path, line)}
                   validLine={(path, line) => !!rightLines.get(path)?.has(line)}
+                  patchOf={patchOf}
                   onDraft={(path, line, body) => {
                     addDraft({ path, line, side: 'RIGHT', body })
                     goTo(path, line)

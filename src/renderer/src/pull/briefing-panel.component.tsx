@@ -1,6 +1,7 @@
 import type { Briefing, BriefingRecord } from '@shared/claude.types'
 import { ago, cx } from '../common/format.util'
 import { Markdown } from '../common/markdown.component'
+import { CodeSnippet } from './code-snippet.component'
 
 const RISK = {
   low: 'bg-ok/15 text-ok',
@@ -19,6 +20,8 @@ export function BriefingPanel(props: {
   onDraft: (path: string, line: number, body: string) => void
   onAddToSummary: (text: string) => void
   validLine: (path: string, line: number) => boolean
+  /** The file's diff, for showing the code a concern points at. */
+  patchOf: (path: string) => string | undefined
 }) {
   const { record } = props
   const outdated = record && record.headSha !== props.headSha
@@ -83,7 +86,7 @@ export function BriefingPanel(props: {
         <Card title="Possible issues" tone="danger">
           <ul className="space-y-3">
             {b.concerns.map((c, i) => (
-              <ConcernItem key={i} concern={c} canDraft={!!c.path && c.line != null && props.validLine(c.path, c.line)} onJump={props.onJump} onDraft={props.onDraft} />
+              <ConcernItem key={i} concern={c} patch={c.path ? props.patchOf(c.path) : undefined} canDraft={!!c.path && c.line != null && props.validLine(c.path, c.line)} onJump={props.onJump} onDraft={props.onDraft} />
             ))}
           </ul>
         </Card>
@@ -163,11 +166,12 @@ function Card({ title, tone, children }: { title: string; tone?: 'focus' | 'dang
 type Concern = Briefing['concerns'][number]
 
 /** One possible issue: what and why, a link to where, and a shortcut to draft a comment there. */
-function ConcernItem({ concern: c, canDraft, onJump, onDraft }: { concern: Concern; canDraft: boolean; onJump: (path: string, line?: number | null) => void; onDraft: (path: string, line: number, body: string) => void }) {
+function ConcernItem({ concern: c, patch, canDraft, onJump, onDraft }: { concern: Concern; patch?: string; canDraft: boolean; onJump: (path: string, line?: number | null) => void; onDraft: (path: string, line: number, body: string) => void }) {
   return (
     <li>
       <div className="font-medium">{c.title}</div>
       <Markdown className="text-muted">{c.detail}</Markdown>
+      {patch && c.line != null && <CodeSnippet path={c.path} patch={patch} line={c.line} onOpen={() => onJump(c.path, c.line)} />}
       <div className="mt-1 flex gap-2">
         {c.path && (
           <button className="btn btn-ghost py-0 font-mono text-[11.5px]" onClick={() => onJump(c.path, c.line)}>

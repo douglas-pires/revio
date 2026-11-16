@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest'
-import { anchorFor, anchorOf, keysOf, parsePatch, parseRange, toSplit, type DiffRow } from '@/pull/diff.util'
+import { anchorFor, anchorOf, keysOf, parsePatch, parseRange, sliceAroundLine, toSplit, type DiffRow } from './diff.util'
 
 const PATCH = ['@@ -10,4 +10,5 @@ function f() {', ' keep', '-old', '+new', '+extra', ' tail', '\\ No newline at end of file'].join('\n')
 
@@ -72,5 +72,23 @@ describe('toSplit', () => {
       { kind: 'pair', left: null, right: 1 },
       { kind: 'pair', left: 2, right: null },
     ])
+  })
+})
+
+describe('sliceAroundLine', () => {
+  const rows = parsePatch(['@@ -1,6 +1,6 @@', ' a', ' b', '-c', '+C', ' d', ' e', '@@ -40,2 +40,2 @@', ' x', ' y'].join('\n'))
+  const newLines = (slice: ReturnType<typeof sliceAroundLine>) => slice.map((r) => `${r.kind}:${r.newNo ?? r.oldNo}`)
+
+  it('takes rows around the line, deleted rows included', () => {
+    expect(newLines(sliceAroundLine(rows, 3, 1))).toEqual(['del:3', 'add:3', 'ctx:4'])
+  })
+
+  it('stops at hunk boundaries', () => {
+    expect(newLines(sliceAroundLine(rows, 40, 3))).toEqual(['ctx:40', 'ctx:41'])
+    expect(newLines(sliceAroundLine(rows, 1, 2))).toEqual(['ctx:1', 'ctx:2', 'del:3'])
+  })
+
+  it('is empty when the line is not part of the diff', () => {
+    expect(sliceAroundLine(rows, 20)).toEqual([])
   })
 })

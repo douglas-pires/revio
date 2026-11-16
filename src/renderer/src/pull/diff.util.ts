@@ -90,3 +90,15 @@ export function toSplit(rows: DiffRow[]): SplitRow[] {
   flush()
   return out
 }
+
+/** Up to `radius` diff rows on each side of a new-side line, without leaving its hunk. Empty when the line is not in the diff. */
+export function sliceAroundLine(rows: readonly DiffRow[], line: number, radius = 3): LineRow[] {
+  const at = rows.findIndex((r) => r.kind !== 'hunk' && r.newNo === line)
+  if (at < 0) return []
+  const inHunk = (i: number) => i >= 0 && i < rows.length && rows[i]!.kind !== 'hunk'
+  let start = at
+  let end = at
+  while (at - start < radius && inHunk(start - 1)) start--
+  while (end - at < radius && inHunk(end + 1)) end++
+  return rows.slice(start, end + 1) as LineRow[]
+}
