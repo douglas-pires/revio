@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest'
 import type { OpenThread, ThreadComment } from '@shared/types'
-import { countWaitingOnYou, applyReply } from '@/lib/threadEdits'
+import { applyReply, countWaitingOnYou, setMembership } from '@/lib/threadEdits'
 
 const makeComment = (author: string, createdAt: string): ThreadComment => ({ author, authorAvatar: '', bot: false, body: 'hi', createdAt, url: '' })
 const makeThread = (id: string, waitingOn: OpenThread['waitingOn']): OpenThread => ({
@@ -21,5 +21,14 @@ describe('countWaitingOnYou', () => {
   it('leaves out threads resolved in this session', () => {
     const threads = [makeThread('a', 'you'), makeThread('b', 'you'), makeThread('c', 'others')]
     expect(countWaitingOnYou(threads, new Set(['b']))).toBe(1)
+  })
+})
+
+describe('setMembership', () => {
+  it('adds and removes without touching the original', () => {
+    const start = new Set(['a'])
+    expect([...setMembership(start, 'b', true)]).toEqual(['a', 'b'])
+    expect([...setMembership(start, 'a', false)]).toEqual([])
+    expect([...start]).toEqual(['a'])
   })
 })

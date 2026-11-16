@@ -17,10 +17,13 @@ const PR_FIELDS = `number title state url ${TEXT} repository { nameWithOwner }
 
 const toPrKey = (repo: string, number: number) => `${repo}#${number}`.toLowerCase()
 
-interface Notification extends NotificationInfo {
-  key: string
+interface PrRef {
   repo: string
   number: number
+}
+
+interface Notification extends NotificationInfo, PrRef {
+  key: string
   reason: string
 }
 
@@ -37,17 +40,20 @@ export async function fetchMentions(octokit: Octokit): Promise<MentionsInbox> {
     searchMentionedPrs(octokit, since),
     listTeamHandles(octokit),
   ])
-  const byKey = new Map(notifications.map((n) => [n.key, n]))
-  const candidates = new Map<string, { repo: string; number: number }>()
-  for (const p of searched) candidates.set(toPrKey(p.repo, p.number), p)
-  for (const n of notifications) if (n.reason === 'mention' || n.reason === 'team_mention') candidates.set(n.key, n)
-
-  const prs = await fetchPrTexts(octokit, [...candidates.values()].slice(0, MAX_PRS))
+  const prs = await fetchPrTexts(octokit, collectCandidates(searched, notifications).slice(0, MAX_PRS))
+  const notificationOf = new Map(notifications.map((n) => [n.key, n]))
   const mentions = prs.flatMap((pr) => {
-    const m = buildMention(pr, { viewer, teams, since: since.toISOString(), notification: byKey.get(toPrKey(pr.repository.nameWithOwner, pr.number)) })
-    return m ? [m] : []
+    const notification = notificationOf.get(toPrKey(pr.repository.nameWithOwner, pr.number))
+    return buildMention(pr, { viewer, teams, since: since.toISOString(), notification }) ?? []
   })
   return { viewer, mentions: sortMentions(mentions), windowDays: MENTION_WINDOW_DAYS, fetchedAt: new Date().toISOString() }
+}
+
+/** PRs search found, plus PRs whose notification says you or your team were mentioned. */
+function collectCandidates(searched: PrRef[], notifications: Notification[]): PrRef[] {
+  const candidates = new Map(searched.map((p) => [toPrKey(p.repo, p.number), p]))
+  for (const n of notifications) if (n.reason === 'mention' || n.reason === 'team_mention') candidates.set(n.key, n)
+  return [...candidates.values()]
 }
 
 async function listPrNotifications(octokit: Octokit, since: Date): Promise<Notification[]> {
@@ -66,7 +72,7 @@ async function listPrNotifications(octokit: Octokit, since: Date): Promise<Notif
   }
 }
 
-async function searchMentionedPrs(octokit: Octokit, since: Date) {
+async function searchMentionedPrs(octokit: Octokit, since: Date): Promise<PrRef[]> {
   const { data } = await octokit.request('GET /search/issues', { q: `is:pr mentions:@me updated:>=${since.toISOString().slice(0, 10)}`, per_page: 50 })
   return data.items.map((i) => ({ repo: i.repository_url.split('/').slice(-2).join('/'), number: i.number }))
 }
@@ -81,7 +87,7 @@ async function listTeamHandles(octokit: Octokit): Promise<string[]> {
   }
 }
 
-async function fetchPrTexts(octokit: Octokit, prs: { repo: string; number: number }[]): Promise<RawMentionPr[]> {
+async function fetchPrTexts(octokit: Octokit, prs: PrRef[]): Promise<RawMentionPr[]> {
   const found: RawMentionPr[] = []
   for (let i = 0; i < prs.length; i += PRS_PER_QUERY) {
     const chunk = prs.slice(i, i + PRS_PER_QUERY)

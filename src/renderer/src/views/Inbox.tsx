@@ -5,7 +5,7 @@ import { InboxSearch } from '../components/InboxSearch'
 import { ErrorBanner } from '../components/ErrorBanner'
 import { SectionHeading } from '../components/SectionHeading'
 import { useAsyncAction } from '../hooks/useAsyncAction'
-import { ago, cx, duration } from '../lib/format'
+import { ago, cx, describeFreshness, duration } from '../lib/format'
 import { EMPTY } from '../lib/group'
 import { readAudience, isEmptyQuery, matchesQuery, parseQuery, stackPrToSearchable, summaryToSearchable, threadToSearchable, applyAudience, type InboxQuery, type ReviewAudience } from '../lib/inboxQuery'
 import { usePrefetchOnHover } from '../hooks/usePrefetchOnHover'
@@ -14,103 +14,123 @@ import type { ScrollTarget } from '../hooks/useScrollToTarget'
 import { ThreadList } from '../components/ThreadList'
 import { countWaitingOnYou } from '../lib/threadEdits'
 
-export function Inbox({
-  inbox,
-  search,
-  onSearch,
-  onOpen,
-}: {
-  inbox: InboxData | null
-  search: string
-  onSearch: (text: string) => void
-  onOpen: (repo: string, number: number, target?: ScrollTarget) => void
-}) {
-  const refreshAction = useAsyncAction()
-  const [mode, setMode] = useState<'queue' | 'stacks' | 'threads'>('queue')
-  const threadsState = useThreads()
+type Mode = 'queue' | 'stacks' | 'threads'
+type OpenAt = (repo: string, number: number, target?: ScrollTarget) => void
+
+export function Inbox({ inbox, search, onSearch, onOpen }: { inbox: InboxData | null; search: string; onSearch: (text: string) => void; onOpen: OpenAt }) {
+  const [mode, setMode] = useState<Mode>('queue')
   const [focusStack, setFocusStack] = useState<string | null>(null)
+  const threadsState = useThreads()
+  const refreshAction = useAsyncAction()
+  const query = useMemo(() => parseQuery(search), [search])
+  const filtering = !isEmptyQuery(query)
+
   const openStack = (id: string) => {
     setMode('stacks')
     setFocusStack(id)
     requestAnimationFrame(() => document.getElementById(`stack-${id}`)?.scrollIntoView({ block: 'start', behavior: 'smooth' }))
   }
-
   const refresh = () => refreshAction.run(() => Promise.all([window.revio.refreshInbox(), threadsState.reload()]))
-
-  const query = useMemo(() => parseQuery(search), [search])
-  const filtering = !isEmptyQuery(query)
-  const { requested, reviewed, stacks } = useMemo(() => filterInbox(inbox, query), [inbox, query])
-  const stale = requested.filter((p) => p.stale)
-  const fresh = requested.filter((p) => !p.stale)
-  const threads = useMemo(
-    () => (threadsState.threads ?? EMPTY).filter((t) => !filtering || matchesQuery(threadToSearchable(t), query)),
-    [threadsState.threads, query, filtering],
-  )
-  const waitingOnYou = countWaitingOnYou(threadsState.threads ?? EMPTY, threadsState.resolved)
-  const pickAudience = (audience: ReviewAudience) => onSearch(applyAudience(search, audience))
+  const labels = { stacks: inbox?.stacks.length ?? 0, waitingOnYou: countWaitingOnYou(threadsState.threads ?? EMPTY, threadsState.resolved) }
 
   return (
     <div className="flex h-full flex-col">
       <header className="drag flex h-12 shrink-0 items-center gap-3 border-b border-line px-5">
         <h1 className="text-[14px] font-semibold whitespace-nowrap">Review inbox</h1>
-        <div className="no-drag flex rounded-md border border-line p-0.5">
-          {(['queue', 'stacks', 'threads'] as const).map((m) => (
-            <button
-              key={m}
-              onClick={() => setMode(m)}
-              className={cx('rounded px-2.5 py-0.5 text-[12px] whitespace-nowrap', mode === m ? 'bg-hover text-fg' : 'text-muted hover:text-fg')}
-            >
-              {labelMode(m, inbox?.stacks.length ?? 0, waitingOnYou)}
-            </button>
-          ))}
-        </div>
+        <ModeSwitch mode={mode} labels={labels} onChange={setMode} />
         {inbox?.viewer && <span className="whitespace-nowrap text-muted">@{inbox.viewer}</span>}
         <div className="flex-1" />
         <InboxSearch value={search} onChange={onSearch} />
-        <span className="whitespace-nowrap text-muted">{inbox ? (ago(inbox.fetchedAt) === 'now' ? 'just updated' : `updated ${ago(inbox.fetchedAt)} ago`) : 'loading…'}</span>
+        <span className="whitespace-nowrap text-muted">{describeFreshness(inbox?.fetchedAt)}</span>
         <button className="btn no-drag" onClick={() => void refresh()} disabled={refreshAction.busy}>
           {refreshAction.busy ? 'Refreshing…' : 'Refresh'}
         </button>
       </header>
-
       <div className="min-h-0 flex-1 overflow-y-auto px-5 py-4">
         <ErrorBanner className="mb-4">{refreshAction.error || inbox?.error}</ErrorBanner>
-        {!inbox && <Skeleton />}
-        {mode === 'threads' && <ErrorBanner className="mb-4">{threadsState.error}</ErrorBanner>}
-        {mode === 'threads' && !threadsState.threads && !threadsState.error && <Skeleton />}
-        {mode === 'threads' && threadsState.threads && <ThreadList
-            threads={threads}
-            resolved={threadsState.resolved}
-            filtering={filtering}
-            onOpen={onOpen}
-            onReply={threadsState.reply}
-            onResolve={threadsState.setThreadResolved}
-          />}
-        {inbox && mode !== 'threads' && !!inbox.requested.length && (
-          <div className="mb-4">
-            <AudienceBar requested={inbox.requested} active={readAudience(query)} onPick={pickAudience} />
-          </div>
-        )}
-        {inbox && mode === 'stacks' && <Stacks stacks={stacks} filtering={filtering} focus={focusStack} onOpen={onOpen} />}
-        {inbox && mode === 'queue' && (
-          <>
-            <Section title="Stale" hint="waiting longer than your stale threshold" tone="danger" items={stale} onOpen={onOpen} onStack={openStack} />
-            <Section
-              title="Needs your review"
-              items={fresh}
-              onOpen={onOpen}
-              onStack={openStack}
-              empty={stale.length ? undefined : filtering ? 'Nothing matches this search.' : 'Nothing waiting on you. 🎉'}
-            />
-            <Section title="You reviewed · still open" hint="re-review when they push" items={reviewed} onOpen={onOpen} onStack={openStack} muted />
-          </>
+        {mode === 'threads' ? (
+          <ThreadsMode state={threadsState} query={query} filtering={filtering} onOpen={onOpen} />
+        ) : (
+          <PullsMode mode={mode} inbox={inbox} query={query} filtering={filtering} focusStack={focusStack} onAudience={(a) => onSearch(applyAudience(search, a))} onOpen={onOpen} onStack={openStack} />
         )}
       </div>
     </div>
   )
 }
 
-function labelMode(mode: 'queue' | 'stacks' | 'threads', stacks: number, waitingOnYou: number) {
+function ModeSwitch({ mode, labels, onChange }: { mode: Mode; labels: { stacks: number; waitingOnYou: number }; onChange: (mode: Mode) => void }) {
+  return (
+    <div className="no-drag flex rounded-md border border-line p-0.5">
+      {(['queue', 'stacks', 'threads'] as const).map((m) => (
+        <button
+          key={m}
+          onClick={() => onChange(m)}
+          className={cx('rounded px-2.5 py-0.5 text-[12px] whitespace-nowrap', mode === m ? 'bg-hover text-fg' : 'text-muted hover:text-fg')}
+        >
+          {labelMode(m, labels.stacks, labels.waitingOnYou)}
+        </button>
+      ))}
+    </div>
+  )
+}
+
+function ThreadsMode({ state, query, filtering, onOpen }: { state: ReturnType<typeof useThreads>; query: InboxQuery; filtering: boolean; onOpen: OpenAt }) {
+  const threads = useMemo(() => (state.threads ?? EMPTY).filter((t) => !filtering || matchesQuery(threadToSearchable(t), query)), [state.threads, query, filtering])
+  return (
+    <>
+      <ErrorBanner className="mb-4">{state.error}</ErrorBanner>
+      {state.threads ? (
+        <ThreadList threads={threads} resolved={state.resolved} filtering={filtering} onOpen={onOpen} onReply={state.reply} onResolve={state.setThreadResolved} />
+      ) : (
+        !state.error && <Skeleton />
+      )}
+    </>
+  )
+}
+
+/** The Queue and Stacks views: who asked, then your requests or the stacks they belong to. */
+function PullsMode(props: {
+  mode: 'queue' | 'stacks'
+  inbox: InboxData | null
+  query: InboxQuery
+  filtering: boolean
+  focusStack: string | null
+  onAudience: (audience: ReviewAudience) => void
+  onOpen: OpenAt
+  onStack: (id: string) => void
+}) {
+  const { requested, reviewed, stacks } = useMemo(() => filterInbox(props.inbox, props.query), [props.inbox, props.query])
+  if (!props.inbox) return <Skeleton />
+  return (
+    <>
+      {!!props.inbox.requested.length && (
+        <div className="mb-4">
+          <AudienceBar requested={props.inbox.requested} active={readAudience(props.query)} onPick={props.onAudience} />
+        </div>
+      )}
+      {props.mode === 'stacks' ? (
+        <Stacks stacks={stacks} filtering={props.filtering} focus={props.focusStack} onOpen={props.onOpen} />
+      ) : (
+        <QueueSections requested={requested} reviewed={reviewed} filtering={props.filtering} onOpen={props.onOpen} onStack={props.onStack} />
+      )}
+    </>
+  )
+}
+
+function QueueSections(props: { requested: readonly PullSummary[]; reviewed: readonly PullSummary[]; filtering: boolean; onOpen: OpenAt; onStack: (id: string) => void }) {
+  const stale = props.requested.filter((p) => p.stale)
+  const fresh = props.requested.filter((p) => !p.stale)
+  const empty = stale.length ? undefined : props.filtering ? 'Nothing matches this search.' : 'Nothing waiting on you. 🎉'
+  return (
+    <>
+      <Section title="Stale" hint="waiting longer than your stale threshold" tone="danger" items={stale} onOpen={props.onOpen} onStack={props.onStack} />
+      <Section title="Needs your review" items={fresh} onOpen={props.onOpen} onStack={props.onStack} empty={empty} />
+      <Section title="You reviewed · still open" hint="re-review when they push" items={props.reviewed} onOpen={props.onOpen} onStack={props.onStack} muted />
+    </>
+  )
+}
+
+function labelMode(mode: Mode, stacks: number, waitingOnYou: number) {
   if (mode === 'queue') return 'Queue'
   if (mode === 'stacks') return stacks ? `Stacks ${stacks}` : 'Stacks'
   return waitingOnYou ? `Threads ${waitingOnYou}` : 'Threads'

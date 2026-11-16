@@ -21,7 +21,6 @@ const SOURCE_LABEL: Record<GithubTokenSource, string> = {
 export function GithubTokenSettings({ onSaved }: { onSaved: () => void }) {
   const [status, setStatus] = useState<GithubAuthStatus | null>(null)
   const [token, setToken] = useState('')
-  const [reveal, setReveal] = useState(false)
   const { busy, error, run } = useAsyncAction()
 
   useEffect(() => {
@@ -47,21 +46,12 @@ export function GithubTokenSettings({ onSaved }: { onSaved: () => void }) {
       <div className="font-medium">Access token</div>
       <TokenStatus status={status} />
       <div className="flex gap-2">
-        <div className="relative flex-1">
-          <input
-            className="input w-full pr-14 font-mono"
-            type={reveal ? 'text' : 'password'}
-            placeholder={status?.source === 'settings' ? 'Paste a new token to replace the saved one' : 'Paste a token: ghp_… or github_pat_…'}
-            spellCheck={false}
-            autoComplete="off"
-            value={token}
-            onChange={(e) => setToken(e.target.value)}
-            onKeyDown={(e) => e.key === 'Enter' && token.trim() && !busy && void save()}
-          />
-          <button className="btn-ghost absolute top-1/2 right-1 -translate-y-1/2 rounded px-1.5 text-[11px] text-muted" onClick={() => setReveal(!reveal)}>
-            {reveal ? 'Hide' : 'Show'}
-          </button>
-        </div>
+        <SecretInput
+          value={token}
+          placeholder={status?.source === 'settings' ? 'Paste a new token to replace the saved one' : 'Paste a token: ghp_… or github_pat_…'}
+          onChange={setToken}
+          onEnter={() => token.trim() && !busy && void save()}
+        />
         <button className="btn" disabled={!token.trim() || busy} onClick={() => void save()}>
           {busy ? 'Checking…' : 'Save'}
         </button>
@@ -72,18 +62,50 @@ export function GithubTokenSettings({ onSaved }: { onSaved: () => void }) {
         )}
       </div>
       {error && <div className="text-[12px] text-danger selectable">{error}</div>}
-      <div className="space-y-1 text-[12px] text-muted">
-        <div>Saved encrypted in the macOS keychain, and used before the .env file, GH_TOKEN, GITHUB_TOKEN and the GitHub CLI. Revio checks it with GitHub first.</div>
-        <div>
-          Use your GitHub CLI login: run <code className="selectable">{COPY_GH_LOGIN}</code>, then paste.
-        </div>
-        <div>
-          Or{' '}
-          <a href={NEW_TOKEN_URL} onClick={(e) => { e.preventDefault(); void window.revio.openExternal(NEW_TOKEN_URL) }} className="text-accent hover:underline">
-            create a token on GitHub
-          </a>{' '}
-          with <code>repo</code> and <code>read:org</code> already ticked.
-        </div>
+      <TokenHelp />
+    </div>
+  )
+}
+
+/** A password field with a Show/Hide toggle. */
+function SecretInput(props: { value: string; placeholder: string; onChange: (value: string) => void; onEnter: () => void }) {
+  const [reveal, setReveal] = useState(false)
+  return (
+    <div className="relative flex-1">
+      <input
+        className="input w-full pr-14 font-mono"
+        type={reveal ? 'text' : 'password'}
+        placeholder={props.placeholder}
+        spellCheck={false}
+        autoComplete="off"
+        value={props.value}
+        onChange={(e) => props.onChange(e.target.value)}
+        onKeyDown={(e) => e.key === 'Enter' && props.onEnter()}
+      />
+      <button className="btn-ghost absolute top-1/2 right-1 -translate-y-1/2 rounded px-1.5 text-[11px] text-muted" onClick={() => setReveal(!reveal)}>
+        {reveal ? 'Hide' : 'Show'}
+      </button>
+    </div>
+  )
+}
+
+function TokenHelp() {
+  const openNewToken = (e: React.MouseEvent) => {
+    e.preventDefault()
+    void window.revio.openExternal(NEW_TOKEN_URL)
+  }
+  return (
+    <div className="space-y-1 text-[12px] text-muted">
+      <div>Saved encrypted in the macOS keychain, and used before the .env file, GH_TOKEN, GITHUB_TOKEN and the GitHub CLI. Revio checks it with GitHub first.</div>
+      <div>
+        Use your GitHub CLI login: run <code className="selectable">{COPY_GH_LOGIN}</code>, then paste.
+      </div>
+      <div>
+        Or{' '}
+        <a href={NEW_TOKEN_URL} onClick={openNewToken} className="text-accent hover:underline">
+          create a token on GitHub
+        </a>{' '}
+        with <code>repo</code> and <code>read:org</code> already ticked.
       </div>
     </div>
   )

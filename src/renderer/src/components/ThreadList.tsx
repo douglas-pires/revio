@@ -84,52 +84,15 @@ function ThreadRow({ thread: t, isResolved, actions }: { thread: OpenThread; isR
       setReplying(false)
     })
   }
+  const resolve = (value: boolean) => void run(() => actions.onResolve(t.id, value))
 
   return (
     <li className="border-b border-line last:border-b-0">
       <div className="group/row flex gap-3 px-4 py-2.5 hover:bg-hover">
-        <button
-          className={cx('flex min-w-0 flex-1 gap-3 text-left', isResolved && 'opacity-50')}
-          onClick={() => actions.onOpen(t.repo, t.number, { path: t.path, line: t.line })}
-          title={t.outdated ? 'The code this thread was on has changed since; opens the file.' : 'Open the PR at this line'}
-        >
-          <img src={last.authorAvatar} alt="" className="mt-0.5 size-6 shrink-0 rounded-full bg-panel-2" />
-          <div className="min-w-0 flex-1">
-            <div className="flex items-center gap-2 text-[12px]">
-              <code className="truncate">
-                {t.path}
-                {t.line ? `:${t.line}` : ''}
-              </code>
-              {t.outdated && <span className="chip bg-panel-2 text-muted">outdated</span>}
-              {last.bot && <span className="chip bg-panel-2 text-muted">bot</span>}
-              <span className="shrink-0 text-muted">
-                {t.totalComments} comment{t.totalComments === 1 ? '' : 's'}
-              </span>
-            </div>
-            <div className={cx('mt-0.5 line-clamp-2 text-[12.5px]', t.waitingOn === 'others' && 'text-muted')}>
-              <span className="font-medium">{last.author}</span>: {summarizeComment(last.body)}
-            </div>
-          </div>
-        </button>
+        <ThreadSummary thread={t} dimmed={isResolved} onOpen={() => actions.onOpen(t.repo, t.number, { path: t.path, line: t.line })} />
         <div className="flex shrink-0 flex-col items-end gap-1">
           <span className="font-mono text-[11.5px] text-muted">{ago(t.lastActivityAt)}</span>
-          {isResolved ? (
-            <span className="flex items-center gap-1 text-[11.5px] text-ok">
-              Resolved
-              <button className="btn btn-ghost py-0 text-[11.5px]" disabled={busy} onClick={() => void run(() => actions.onResolve(t.id, false))}>
-                Undo
-              </button>
-            </span>
-          ) : (
-            <span className="flex gap-1">
-              <button className="btn btn-ghost py-0 text-[11.5px]" disabled={busy || replying} onClick={() => setReplying(true)}>
-                Reply
-              </button>
-              <button className="btn btn-ghost py-0 text-[11.5px]" disabled={busy} onClick={() => void run(() => actions.onResolve(t.id, true))}>
-                {busy && !replying ? 'Resolving…' : 'Resolve'}
-              </button>
-            </span>
-          )}
+          <ThreadButtons isResolved={isResolved} busy={busy} replying={replying} onReply={() => setReplying(true)} onResolve={resolve} />
         </div>
       </div>
       {(replying || error) && (
@@ -139,5 +102,56 @@ function ThreadRow({ thread: t, isResolved, actions }: { thread: OpenThread; isR
         </div>
       )}
     </li>
+  )
+}
+
+function ThreadSummary({ thread: t, dimmed, onOpen }: { thread: OpenThread; dimmed: boolean; onOpen: () => void }) {
+  const last = t.comments.at(-1)!
+  return (
+    <button
+      className={cx('flex min-w-0 flex-1 gap-3 text-left', dimmed && 'opacity-50')}
+      onClick={onOpen}
+      title={t.outdated ? 'The code this thread was on has changed since; opens the file.' : 'Open the PR at this line'}
+    >
+      <img src={last.authorAvatar} alt="" className="mt-0.5 size-6 shrink-0 rounded-full bg-panel-2" />
+      <div className="min-w-0 flex-1">
+        <div className="flex items-center gap-2 text-[12px]">
+          <code className="truncate">
+            {t.path}
+            {t.line ? `:${t.line}` : ''}
+          </code>
+          {t.outdated && <span className="chip bg-panel-2 text-muted">outdated</span>}
+          {last.bot && <span className="chip bg-panel-2 text-muted">bot</span>}
+          <span className="shrink-0 text-muted">
+            {t.totalComments} comment{t.totalComments === 1 ? '' : 's'}
+          </span>
+        </div>
+        <div className={cx('mt-0.5 line-clamp-2 text-[12.5px]', t.waitingOn === 'others' && 'text-muted')}>
+          <span className="font-medium">{last.author}</span>: {summarizeComment(last.body)}
+        </div>
+      </div>
+    </button>
+  )
+}
+
+function ThreadButtons(props: { isResolved: boolean; busy: boolean; replying: boolean; onReply: () => void; onResolve: (resolved: boolean) => void }) {
+  if (props.isResolved)
+    return (
+      <span className="flex items-center gap-1 text-[11.5px] text-ok">
+        Resolved
+        <button className="btn btn-ghost py-0 text-[11.5px]" disabled={props.busy} onClick={() => props.onResolve(false)}>
+          Undo
+        </button>
+      </span>
+    )
+  return (
+    <span className="flex gap-1">
+      <button className="btn btn-ghost py-0 text-[11.5px]" disabled={props.busy || props.replying} onClick={props.onReply}>
+        Reply
+      </button>
+      <button className="btn btn-ghost py-0 text-[11.5px]" disabled={props.busy} onClick={() => props.onResolve(true)}>
+        {props.busy && !props.replying ? 'Resolving…' : 'Resolve'}
+      </button>
+    </span>
   )
 }

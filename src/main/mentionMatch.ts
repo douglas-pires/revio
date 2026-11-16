@@ -67,41 +67,44 @@ function collectTexts(pr: RawMentionPr): Located[] {
 
 /** The PR's recent mentions of you (by name or team), newest first; null when there are none. */
 export function buildMention(pr: RawMentionPr, ctx: MentionContext): Mention | null {
-  const handles = [ctx.viewer, ...ctx.teams]
-  const n = ctx.notification
-  const snippets = collectTexts(pr).flatMap((t): MentionSnippet[] => {
-    if (t.author?.login === ctx.viewer || t.createdAt < ctx.since) return []
-    const handle = findMentionedHandle(t.body, handles)
-    if (!handle) return []
-    return [
-      {
-        id: t.url,
-        kind: t.kind,
-        author: t.author?.login ?? 'ghost',
-        authorAvatar: t.author?.avatarUrl ?? '',
-        body: t.body,
-        createdAt: t.createdAt,
-        url: t.url,
-        path: t.path,
-        line: t.line,
-        viaTeam: handle.toLowerCase() === ctx.viewer.toLowerCase() ? null : handle,
-        isNew: !!n?.unread && (!n.lastReadAt || t.createdAt > n.lastReadAt),
-      },
-    ]
-  })
+  const snippets = collectTexts(pr)
+    .flatMap((t) => toSnippet(t, ctx) ?? [])
+    .sort((a, b) => b.createdAt.localeCompare(a.createdAt))
   if (!snippets.length) return null
-  snippets.sort((a, b) => b.createdAt.localeCompare(a.createdAt))
   return {
     repo: pr.repository.nameWithOwner,
     number: pr.number,
     title: pr.title,
     url: pr.url,
     state: pr.state,
-    notificationId: n?.id ?? null,
+    notificationId: ctx.notification?.id ?? null,
     snippets,
     latestAt: snippets[0]!.createdAt,
   }
 }
+
+/** A recent text by someone else that mentions you or a team of yours, as a snippet; otherwise null. */
+function toSnippet(t: Located, ctx: MentionContext): MentionSnippet | null {
+  if (t.author?.login === ctx.viewer || t.createdAt < ctx.since) return null
+  const handle = findMentionedHandle(t.body, [ctx.viewer, ...ctx.teams])
+  if (!handle) return null
+  return {
+    id: t.url,
+    kind: t.kind,
+    author: t.author?.login ?? 'ghost',
+    authorAvatar: t.author?.avatarUrl ?? '',
+    body: t.body,
+    createdAt: t.createdAt,
+    url: t.url,
+    path: t.path,
+    line: t.line,
+    viaTeam: handle.toLowerCase() === ctx.viewer.toLowerCase() ? null : handle,
+    isNew: isUnreadSince(t.createdAt, ctx.notification),
+  }
+}
+
+/** Written after you last read the PR's notification, while it is unread. */
+const isUnreadSince = (createdAt: string, n: NotificationInfo | undefined) => !!n?.unread && (!n.lastReadAt || createdAt > n.lastReadAt)
 
 /** PRs with unread mentions first, then the most recent. */
 export function sortMentions(mentions: Mention[]): Mention[] {

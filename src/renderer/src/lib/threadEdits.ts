@@ -9,6 +9,14 @@ export function applyReply(threads: readonly OpenThread[], threadId: string, rep
   )
 }
 
+/** A copy of the set with `id` added or removed. */
+export function setMembership(set: ReadonlySet<string>, id: string, member: boolean): ReadonlySet<string> {
+  const next = new Set(set)
+  if (member) next.add(id)
+  else next.delete(id)
+  return next
+}
+
 /** Threads still open: resolved ones stay listed (to allow Undo) but no longer count. */
 export const countWaitingOnYou = (threads: readonly OpenThread[], resolved: ReadonlySet<string>) =>
   threads.filter((t) => t.waitingOn === 'you' && !resolved.has(t.id)).length

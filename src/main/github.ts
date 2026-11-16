@@ -6,6 +6,7 @@ import type {
   PullFile,
   PullSummary,
   PullThreadStatus,
+  Settings,
   ReviewComment,
   SubmitReviewInput,
 } from '@shared/types'
@@ -132,45 +133,57 @@ function toSummary(pr: RawPr, staleAfterHours: number, request: ReviewRequest | 
 
 let teamSlugsAllowed = true
 
+type InboxSearch = { viewer: { login: string }; requested: { nodes: (RawPr | null)[] }; reviewed: { nodes: (RawPr | null)[] } }
+
 export async function fetchInbox(stackFinder: StackFinder): Promise<Inbox> {
-  const s = store.settings()
-  const who = s.includeTeamRequests ? 'review-requested:@me' : 'user-review-requested:@me'
-  const draft = s.ignoreDrafts ? ' draft:false' : ''
+  const settings = store.settings()
   const octokit = await gh()
-  type Result = { viewer: { login: string }; requested: { nodes: (RawPr | null)[] }; reviewed: { nodes: (RawPr | null)[] } }
-  const vars = {
-    requested: `is:open is:pr archived:false ${who}${draft} sort:updated-desc`,
-    reviewed: `is:open is:pr archived:false reviewed-by:@me -author:@me${draft} sort:updated-desc`,
-  }
-  let data: Result
-  try {
-    data = await octokit.graphql<Result>(searchQuery(teamSlugsAllowed), vars)
-  } catch (err) {
-    // Team names need the read:org scope, which `gh` tokens often lack. Retry without them.
-    if (!teamSlugsAllowed || !/scopes/i.test(String(err))) throw err
-    teamSlugsAllowed = false
-    data = await octokit.graphql<Result>(searchQuery(false), vars)
-  }
+  const data = await searchInbox(octokit, buildInboxSearches(settings))
   const viewer = data.viewer.login
-  const isPr = (n: RawPr | null): n is RawPr => !!n?.id
-  // A team request can outlive your review, and search results lag a fresh review: both still match
-  // review-requested:@me. Your latest review (always current) settles whether the PR still waits on you.
-  const requested: PullSummary[] = []
-  const reviewedSinceRequest: PullSummary[] = []
-  for (const n of data.requested.nodes.filter(isPr)) {
-    const request = readReviewRequest(n, viewer)
-    if (awaitsYou(request, findLastReviewAt(n, viewer))) requested.push(toSummary(n, s.staleAfterHours, request))
-    else reviewedSinceRequest.push(toSummary(n, s.staleAfterHours, null))
-  }
-  requested.sort((a, b) => b.waitingHours - a.waitingHours)
-  const listed = new Set([...requested, ...reviewedSinceRequest].map((p) => p.id))
-  const reviewed = [
-    ...reviewedSinceRequest,
-    ...data.reviewed.nodes.filter((n): n is RawPr => isPr(n) && !listed.has(n.id)).map((n) => toSummary(n, s.staleAfterHours, null)),
-  ]
+  const { requested, reviewed } = sortInbox(data, viewer, settings.staleAfterHours)
   const stacks = await stackFinder.stacksForInbox(octokit, requested, reviewed)
   return { viewer, requested, reviewed, stacks, fetchedAt: new Date().toISOString() }
 }
+
+function buildInboxSearches(settings: Pick<Settings, 'includeTeamRequests' | 'ignoreDrafts'>) {
+  const who = settings.includeTeamRequests ? 'review-requested:@me' : 'user-review-requested:@me'
+  const draft = settings.ignoreDrafts ? ' draft:false' : ''
+  return {
+    requested: `is:open is:pr archived:false ${who}${draft} sort:updated-desc`,
+    reviewed: `is:open is:pr archived:false reviewed-by:@me -author:@me${draft} sort:updated-desc`,
+  }
+}
+
+/** Team names need the read:org scope, which `gh` tokens often lack: on a scope error, retry without them. */
+async function searchInbox(octokit: Octokit, searches: { requested: string; reviewed: string }): Promise<InboxSearch> {
+  try {
+    return await octokit.graphql<InboxSearch>(searchQuery(teamSlugsAllowed), searches)
+  } catch (err) {
+    if (!teamSlugsAllowed || !/scopes/i.test(String(err))) throw err
+    teamSlugsAllowed = false
+    return octokit.graphql<InboxSearch>(searchQuery(false), searches)
+  }
+}
+
+/**
+ * Requests still waiting on you, longest first, and PRs you reviewed. A team request can outlive your review
+ * and search lags a fresh one, so your latest review (always current) settles whether a PR still waits on you.
+ */
+function sortInbox(data: InboxSearch, viewer: string, staleAfterHours: number) {
+  const requested: PullSummary[] = []
+  const reviewedSinceRequest: PullSummary[] = []
+  for (const pr of data.requested.nodes.filter(isPr)) {
+    const request = readReviewRequest(pr, viewer)
+    if (awaitsYou(request, findLastReviewAt(pr, viewer))) requested.push(toSummary(pr, staleAfterHours, request))
+    else reviewedSinceRequest.push(toSummary(pr, staleAfterHours, null))
+  }
+  requested.sort((a, b) => b.waitingHours - a.waitingHours)
+  const listed = new Set([...requested, ...reviewedSinceRequest].map((p) => p.id))
+  const otherReviewed = data.reviewed.nodes.filter((n): n is RawPr => isPr(n) && !listed.has(n.id))
+  return { requested, reviewed: [...reviewedSinceRequest, ...otherReviewed.map((pr) => toSummary(pr, staleAfterHours, null))] }
+}
+
+const isPr = (n: RawPr | null): n is RawPr => !!n?.id
 
 // ---------------------------------------------------------------- pull detail
 

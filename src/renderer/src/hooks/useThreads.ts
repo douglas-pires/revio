@@ -1,7 +1,7 @@
 import { useCallback, useEffect, useState } from 'react'
 import type { ThreadsInbox } from '@shared/types'
 import { errorMessage } from '../lib/format'
-import { applyReply } from '../lib/threadEdits'
+import { applyReply, setMembership } from '../lib/threadEdits'
 
 /** A copy this recent is reused when the inbox opens; Refresh always fetches. */
 const THREADS_MAX_AGE_MS = 2 * 60_000
@@ -34,12 +34,7 @@ export function useThreads() {
 
   const setThreadResolved = useCallback(async (threadId: string, value: boolean) => {
     await window.revio.setThreadResolved(threadId, value)
-    setResolved((current) => {
-      const next = new Set(current)
-      if (value) next.add(threadId)
-      else next.delete(threadId)
-      return next
-    })
+    setResolved((current) => setMembership(current, threadId, value))
   }, [])
 
   return { threads: data?.threads ?? null, resolved, error, reload, reply, setThreadResolved }

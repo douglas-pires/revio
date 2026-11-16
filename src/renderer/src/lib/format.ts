@@ -4,6 +4,13 @@ export function ago(iso: string | null | undefined) {
   return duration(h)
 }
 
+/** "just updated", "updated 5m ago", or "loading…" before the first fetch. */
+export function describeFreshness(fetchedAt: string | undefined) {
+  if (!fetchedAt) return 'loading…'
+  const age = ago(fetchedAt)
+  return age === 'now' ? 'just updated' : `updated ${age} ago`
+}
+
 export function duration(h: number) {
   if (h < 1 / 60) return 'now'
   if (h < 1) return `${Math.round(h * 60)}m`

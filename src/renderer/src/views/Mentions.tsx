@@ -4,7 +4,7 @@ import type { ScrollTarget } from '../hooks/useScrollToTarget'
 import { ErrorBanner } from '../components/ErrorBanner'
 import { SectionHeading } from '../components/SectionHeading'
 import { useAsyncAction } from '../hooks/useAsyncAction'
-import { ago, cx } from '../lib/format'
+import { ago, cx, describeFreshness } from '../lib/format'
 
 type OpenAt = (repo: string, number: number, target?: ScrollTarget) => void
 
@@ -24,30 +24,34 @@ export function Mentions({ mentions, onOpen }: { mentions: MentionsInbox | null;
     onOpen(m.repo, m.number, s.path ? { path: s.path, line: s.line } : undefined)
   }
 
-  const fresh = mentions?.mentions.filter(hasNew) ?? []
-  const earlier = mentions?.mentions.filter((m) => !hasNew(m)) ?? []
-
   return (
     <div className="flex h-full flex-col">
       <header className="drag flex h-12 shrink-0 items-center gap-3 border-b border-line px-5">
         <h1 className="text-[14px] font-semibold">Mentions</h1>
         <span className="text-muted">you and your teams, last {mentions?.windowDays ?? 14} days</span>
         <div className="flex-1" />
-        <span className="whitespace-nowrap text-muted">{mentions ? `updated ${ago(mentions.fetchedAt) === 'now' ? 'just now' : `${ago(mentions.fetchedAt)} ago`}` : 'loading…'}</span>
+        <span className="whitespace-nowrap text-muted">{describeFreshness(mentions?.fetchedAt)}</span>
         <button className="btn no-drag" onClick={() => void refresh()} disabled={refreshAction.busy}>
           {refreshAction.busy ? 'Refreshing…' : 'Refresh'}
         </button>
       </header>
       <div className="min-h-0 flex-1 overflow-y-auto px-5 py-4">
         <ErrorBanner className="mb-4">{refreshAction.error || readAction.error || mentions?.error}</ErrorBanner>
-        {!mentions && <div className="space-y-2">{[0, 1, 2].map((i) => <div key={i} className="h-24 animate-pulse rounded-lg bg-panel" />)}</div>}
-        {mentions && !mentions.mentions.length && (
-          <div className="rounded-lg border border-dashed border-line px-4 py-10 text-center text-muted">No one mentioned you or your teams on a PR in the last {mentions.windowDays} days.</div>
-        )}
-        <MentionSection title="New" tone="accent" mentions={fresh} viewer={mentions?.viewer ?? ''} onOpen={open} onMarkRead={markRead} />
-        <MentionSection title="Earlier" mentions={earlier} viewer={mentions?.viewer ?? ''} onOpen={open} onMarkRead={markRead} />
+        <MentionList mentions={mentions} onOpen={open} onMarkRead={markRead} />
       </div>
     </div>
+  )
+}
+
+function MentionList({ mentions, onOpen, onMarkRead }: { mentions: MentionsInbox | null; onOpen: (m: Mention, s: MentionSnippet) => void; onMarkRead: (m: Mention) => Promise<void> }) {
+  if (!mentions) return <div className="space-y-2">{[0, 1, 2].map((i) => <div key={i} className="h-24 animate-pulse rounded-lg bg-panel" />)}</div>
+  if (!mentions.mentions.length)
+    return <div className="rounded-lg border border-dashed border-line px-4 py-10 text-center text-muted">No one mentioned you or your teams on a PR in the last {mentions.windowDays} days.</div>
+  return (
+    <>
+      <MentionSection title="New" tone="accent" mentions={mentions.mentions.filter(hasNew)} viewer={mentions.viewer} onOpen={onOpen} onMarkRead={onMarkRead} />
+      <MentionSection title="Earlier" mentions={mentions.mentions.filter((m) => !hasNew(m))} viewer={mentions.viewer} onOpen={onOpen} onMarkRead={onMarkRead} />
+    </>
   )
 }
 
