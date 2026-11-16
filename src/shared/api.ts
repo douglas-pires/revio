@@ -6,6 +6,7 @@ import type {
   Guideline,
   Inbox,
   MainEvent,
+  PullRef,
   MentionsInbox,
   PullDetail,
   PullLocalState,
@@ -32,7 +33,7 @@ export interface RevioApi {
   getMentions(): Promise<MentionsInbox>
   refreshMentions(): Promise<MentionsInbox>
   /** Marks the PR's GitHub notification read, clearing its new mentions. */
-  markMentionRead(repo: string, number: number): Promise<void>
+  markMentionRead(ref: PullRef): Promise<void>
   /** Unresolved review threads you are part of; a copy up to `maxAgeMs` old is fine (0 = always fetch). */
   getThreads(maxAgeMs?: number): Promise<ThreadsInbox>
   /** Replies in a review thread immediately and returns the posted comment. */
@@ -41,14 +42,14 @@ export interface RevioApi {
   refreshInbox(): Promise<Inbox>
 
   /** PR details; a cached copy up to `maxAgeMs` old is fine (0 = always fetch). */
-  getPull(repo: string, number: number, maxAgeMs?: number): Promise<PullDetail>
+  getPull(ref: PullRef, maxAgeMs?: number): Promise<PullDetail>
   /** The stack this PR belongs to, or null. */
-  getStack(repo: string, number: number): Promise<Stack | null>
-  getLocalState(repo: string, number: number): Promise<PullLocalState>
-  saveDrafts(repo: string, number: number, drafts: DraftComment[]): Promise<void>
-  setViewed(repo: string, number: number, path: string, sha: string | null): Promise<void>
+  getStack(ref: PullRef): Promise<Stack | null>
+  getLocalState(ref: PullRef): Promise<PullLocalState>
+  saveDrafts(ref: PullRef, drafts: DraftComment[]): Promise<void>
+  setViewed(ref: PullRef, path: string, sha: string | null): Promise<void>
   submitReview(input: SubmitReviewInput): Promise<{ url: string }>
-  replyToComment(repo: string, number: number, commentId: number, body: string): Promise<void>
+  replyToComment(ref: PullRef, commentId: number, body: string): Promise<void>
 
   listGuidelines(): Promise<Guideline[]>
   saveGuideline(g: Omit<Guideline, 'id' | 'updatedAt'> & { id?: string }): Promise<Guideline>
@@ -56,10 +57,10 @@ export interface RevioApi {
   resolveGuidelines(repo: string, paths: string[]): Promise<ResolvedGuideline[]>
   knownRepos(): Promise<string[]>
 
-  generateBriefing(repo: string, number: number): Promise<BriefingRecord>
+  generateBriefing(ref: PullRef): Promise<BriefingRecord>
   /** Answers the last user message of `thread`. Streams text via `ask-delta` events. */
-  askClaude(repo: string, number: number, thread: AskThread): Promise<{ answer: string }>
-  saveAsks(repo: string, number: number, threads: AskThread[]): Promise<void>
+  askClaude(ref: PullRef, thread: AskThread): Promise<{ answer: string }>
+  saveAsks(ref: PullRef, threads: AskThread[]): Promise<void>
 
   openExternal(url: string): Promise<void>
   onEvent(listener: (event: MainEvent) => void): () => void

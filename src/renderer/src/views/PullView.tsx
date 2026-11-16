@@ -3,6 +3,7 @@ import {
   pullKey,
   type AskThread,
   type PullDetail,
+  type PullRef,
   type ResolvedGuideline,
   type Stack,
   type ReviewEvent,
@@ -16,6 +17,7 @@ import { FileTree } from '../components/FileTree'
 import { groupByDir, initialCollapsed, newSideLinesByPath, suggestFolders } from '../lib/files'
 import { EMPTY, groupBy } from '../lib/group'
 import { useStoredChoice } from '../hooks/useStoredChoice'
+import type { OpenPull } from '../lib/navigation'
 import { CommentsPanel } from '../components/CommentsPanel'
 import { groupCommentThreads } from '../lib/commentThreads'
 import { useFileKeyboardNav } from '../hooks/useFileKeyboardNav'
@@ -36,16 +38,17 @@ const PREFETCH_MAX_AGE_MS = 2 * 60_000
 const FRESH_ENOUGH_MS = 15_000
 
 export function PullView(props: {
-  repo: string
-  number: number
+  pull: PullRef
   /** A file and line to open at, e.g. from a review thread in the inbox. */
   initialTarget?: ScrollTarget
   onBack: () => void
   onEditGuidelines: (repo: string, path?: string) => void
-  onOpenPull: (repo: string, number: number) => void
+  onOpenPull: OpenPull
 }) {
-  const { repo, number } = props
-  const key = pullKey(repo, number)
+  const { repo, number } = props.pull
+  // A stable reference for hooks; the props object may be recreated by the parent.
+  const pull = useMemo(() => ({ repo, number }), [repo, number])
+  const key = pullKey(pull)
   const [pr, setPr] = useState<PullDetail | null>(null)
   const [guides, setGuides] = useState<ResolvedGuideline[]>([])
   const [error, setError] = useState<string | null>(null)
@@ -60,14 +63,14 @@ export function PullView(props: {
   const [view, changeView] = useStoredChoice<DiffView>('revio.diffView', DIFF_VIEWS, 'unified')
   const [commentsPanel, setCommentsPanel] = useStoredChoice('revio.commentsPanel', PANEL_STATES, 'open')
   const { local, replaceLocal, addDraft, updateDraft, deleteDraft, forgetDrafts, markViewed, saveThread, setBriefingRecord } =
-    usePullLocalState(repo, number)
+    usePullLocalState(pull)
 
   /** Shows a recent copy right away when one exists (e.g. prefetched on hover), then refreshes it. */
   const load = useCallback(
     async (maxAgeMs = 0) => {
       setError(null)
       try {
-        const [p, l] = await Promise.all([window.revio.getPull(repo, number, maxAgeMs), window.revio.getLocalState(repo, number)])
+        const [p, l] = await Promise.all([window.revio.getPull(pull, maxAgeMs), window.revio.getLocalState(pull)])
         setPr(p)
         replaceLocal(l)
         setCollapsed(initialCollapsed(p, l))
@@ -77,22 +80,22 @@ export function PullView(props: {
         setError(errorMessage(e))
       }
     },
-    [repo, number, replaceLocal],
+    [pull, repo, replaceLocal],
   )
 
   const refreshInBackground = () => {
     window.revio
-      .getPull(repo, number)
+      .getPull(pull)
       .then(setPr)
       .catch(() => {})
   }
 
   useEffect(() => {
     window.revio
-      .getStack(repo, number)
+      .getStack(pull)
       .then(setStack)
       .catch(() => setStack(null))
-  }, [repo, number])
+  }, [pull])
 
   useEffect(() => {
     void load(PREFETCH_MAX_AGE_MS)
@@ -103,10 +106,10 @@ export function PullView(props: {
 
   const replyNow = useCallback(
     async (commentId: number, body: string) => {
-      await window.revio.replyToComment(repo, number, commentId, body)
-      setPr(await window.revio.getPull(repo, number))
+      await window.revio.replyToComment(pull, commentId, body)
+      setPr(await window.revio.getPull(pull))
     },
-    [repo, number],
+    [pull],
   )
 
   // ------------------------------------------------------------ ask Claude
@@ -125,7 +128,7 @@ export function PullView(props: {
   const generateBriefing = async () => {
     setBriefing({ loading: true, progress: null, error: null })
     try {
-      const record = await window.revio.generateBriefing(repo, number)
+      const record = await window.revio.generateBriefing(pull)
       setBriefingRecord(record)
       setCollapsed((c) => ({ ...c, ...Object.fromEntries(record.briefing.ignore.map((i) => [i.path, true])) }))
       setBriefing({ loading: false, progress: null, error: null })
@@ -262,7 +265,7 @@ export function PullView(props: {
         </div>
       </header>
 
-      {stack && <StackBar stack={stack} repo={repo} number={number} onOpen={props.onOpenPull} />}
+      {stack && <StackBar stack={stack} pull={pull} onOpen={props.onOpenPull} />}
 
       <div className="flex min-h-0 flex-1">
         <FileTree
@@ -397,8 +400,7 @@ export function PullView(props: {
 
         {askThread && (
           <AskPanel
-            repo={repo}
-            number={number}
+            pull={pull}
             thread={askThread}
             history={[...(askThread.messages.length ? [] : [askThread]), ...(local.asks ?? [])]}
             onSelect={(id) => setAskThread((local.asks ?? []).find((t) => t.id === id) ?? askThread)}

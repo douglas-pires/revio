@@ -345,8 +345,16 @@ export interface PullLocalState {
 export type MainEvent =
   | { type: 'mentions'; mentions: MentionsInbox }
   | { type: 'inbox'; inbox: Inbox }
-  | { type: 'open-pull'; repo: string; number: number }
+  | { type: 'open-pull'; ref: PullRef }
   | { type: 'briefing-progress'; key: string; message: string }
   | { type: 'ask-delta'; threadId: string; text: string }
 
-export const pullKey = (repo: string, number: number) => `${repo}#${number}`
+/** Which pull request: repository ("owner/name") and number. Any object with these fields qualifies. */
+export interface PullRef {
+  repo: string
+  number: number
+}
+
+export const pullKey = ({ repo, number }: PullRef) => `${repo}#${number}`
+
+export const isSamePull = (a: PullRef, b: PullRef) => a.repo === b.repo && a.number === b.number

@@ -1,6 +1,7 @@
 import { lazy, Suspense, useEffect, useState } from 'react'
 import { HighlighterContext, WorkerHighlighter } from './lib/highlight'
-import type { Inbox as InboxData, MentionsInbox } from '@shared/types'
+import { pullKey, type Inbox as InboxData, type MentionsInbox, type PullRef } from '@shared/types'
+import type { OpenPull } from './lib/navigation'
 import { cx } from './lib/format'
 import { Inbox } from './views/Inbox'
 import type { ScrollTarget } from './hooks/useScrollToTarget'
@@ -12,7 +13,7 @@ const Settings = lazy(() => import('./views/Settings').then((m) => ({ default: m
 
 export type Route =
   | { view: 'inbox' }
-  | { view: 'pull'; repo: string; number: number; target?: ScrollTarget }
+  | { view: 'pull'; pull: PullRef; target?: ScrollTarget }
   | { view: 'guidelines'; repo?: string; path?: string }
   | { view: 'mentions' }
   | { view: 'settings' }
@@ -32,13 +33,13 @@ export default function App() {
     return window.revio.onEvent((e) => {
       if (e.type === 'inbox') setInbox(e.inbox)
       if (e.type === 'mentions') setMentions(e.mentions)
-      if (e.type === 'open-pull') setRoute({ view: 'pull', repo: e.repo, number: e.number })
+      if (e.type === 'open-pull') setRoute({ view: 'pull', pull: e.ref })
     })
   }, [])
 
   const staleCount = inbox?.requested.filter((p) => p.stale).length ?? 0
   const newMentions = mentions?.mentions.filter((m) => m.snippets.some((s) => s.isNew)).length ?? 0
-  const openPull = (repo: string, number: number, target?: ScrollTarget) => setRoute({ view: 'pull', repo, number, target })
+  const openPull: OpenPull = (pull, target) => setRoute({ view: 'pull', pull: { repo: pull.repo, number: pull.number }, target })
 
   return (
     <HighlighterContext value={highlighter}>
@@ -63,13 +64,12 @@ export default function App() {
         {route.view === 'inbox' && <Inbox inbox={inbox} search={inboxSearch} onSearch={setInboxSearch} onOpen={openPull} />}
         {route.view === 'pull' && (
           <PullView
-            key={`${route.repo}#${route.number}`}
-            repo={route.repo}
-            number={route.number}
+            key={pullKey(route.pull)}
+            pull={route.pull}
             initialTarget={route.target}
             onBack={() => setRoute({ view: 'inbox' })}
             onEditGuidelines={(repo, path) => setRoute({ view: 'guidelines', repo, path })}
-            onOpenPull={(repo, number) => setRoute({ view: 'pull', repo, number })}
+            onOpenPull={openPull}
           />
         )}
         {route.view === 'guidelines' && <Guidelines initialRepo={route.repo} initialPath={route.path} />}

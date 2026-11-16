@@ -1,5 +1,5 @@
 import { summarizeComment } from '@shared/excerpt'
-import type { Mention, MentionSnippet, MentionsInbox } from '@shared/types'
+import type { Mention, MentionSnippet, MentionsInbox, PullRef } from '@shared/types'
 import { findUnalertedMentions, recordMentionAlerts, type AlertState } from './alerts'
 
 export interface MentionAlertDeps {
@@ -7,7 +7,7 @@ export interface MentionAlertDeps {
   save: () => void
   enabled: () => boolean
   show: (title: string, body: string, onClick: () => void) => void
-  openPull: (repo: string, number: number) => void
+  openPull: (ref: PullRef) => void
   showApp: () => void
 }
 
@@ -24,7 +24,7 @@ export function alertNewMentions(mentions: MentionsInbox, deps: MentionAlertDeps
   if (!deps.enabled()) return
   for (const { mention, snippet } of fresh.slice(0, MAX_SEPARATE_ALERTS)) {
     const { title, body } = describeMentionAlert(mention, snippet)
-    deps.show(title, body, () => deps.openPull(mention.repo, mention.number))
+    deps.show(title, body, () => deps.openPull(mention))
   }
   const rest = fresh.length - MAX_SEPARATE_ALERTS
   if (rest > 0) deps.show(`${rest} more mentions`, 'Open Revio → Mentions to see them all.', deps.showApp)

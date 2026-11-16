@@ -1,7 +1,7 @@
 import { app, BrowserWindow, ipcMain, shell } from 'electron'
 import { join } from 'node:path'
 import { IPC, type ApiMethod, type RevioApi } from '@shared/api'
-import { pullKey, type MainEvent } from '@shared/types'
+import { pullKey, type MainEvent, type PullRef } from '@shared/types'
 import { ask } from './ask'
 import { generateBriefing } from './claude'
 import { fetchInbox, fetchPull, gh, replyToComment, resetClient, submitReview, configureTokenResolver } from './github'
@@ -54,7 +54,7 @@ const poller = new InboxPoller({
     // Mentions refresh on the same schedule as the inbox.
     void mentionWatcher.refresh()
   },
-  onOpenPull: (repo, number) => focusAndOpen(repo, number),
+  onOpenPull: focusAndOpen,
 })
 
 function send(event: MainEvent) {
@@ -88,13 +88,13 @@ function createWindow() {
   else void win.loadFile(join(import.meta.dirname, '../renderer/index.html'))
 }
 
-function focusAndOpen(repo: string, number: number) {
+function focusAndOpen(ref: PullRef) {
   if (!win) createWindow()
   if (win?.isMinimized()) win.restore()
   win?.show()
   win?.focus()
   // Give a freshly created window a moment to mount before routing.
-  setTimeout(() => send({ type: 'open-pull', repo, number }), win?.webContents.isLoading() ? 1200 : 0)
+  setTimeout(() => send({ type: 'open-pull', ref: { repo: ref.repo, number: ref.number } }), win?.webContents.isLoading() ? 1200 : 0)
 }
 
 const handlers: { [K in ApiMethod]: (...args: Parameters<RevioApi[K]>) => ReturnType<RevioApi[K]> | Awaited<ReturnType<RevioApi[K]>> } = {
@@ -118,7 +118,7 @@ const handlers: { [K in ApiMethod]: (...args: Parameters<RevioApi[K]>) => Return
   getInbox: () => poller.latest,
   getMentions: () => mentionWatcher.latest ?? mentionWatcher.refresh(),
   refreshMentions: () => mentionWatcher.refresh(),
-  markMentionRead: (repo, number) => mentionWatcher.markRead(repo, number),
+  markMentionRead: (ref) => mentionWatcher.markRead(ref),
   getThreads: (maxAgeMs = 0) => threadFinder.get(maxAgeMs),
   replyToThread: async (threadId, body) => {
     const comment = await replyToThread(await gh(), threadId, body)
@@ -131,23 +131,23 @@ const handlers: { [K in ApiMethod]: (...args: Parameters<RevioApi[K]>) => Return
   },
   refreshInbox: () => poller.poll(),
 
-  getPull: (repo, number, maxAgeMs = 0) => pulls.get(repo, number, maxAgeMs),
-  getStack: (repo, number) => fetchStack(repo, number, poller.latest),
-  getLocalState: (repo, number) => store.pull(pullKey(repo, number)),
-  saveDrafts: (repo, number, drafts) => store.updatePull(pullKey(repo, number), (s) => void (s.drafts = drafts)),
-  setViewed: (repo, number, path, sha) =>
-    store.updatePull(pullKey(repo, number), (s) => {
+  getPull: (ref, maxAgeMs = 0) => pulls.get(ref, maxAgeMs),
+  getStack: (ref) => fetchStack(ref, poller.latest),
+  getLocalState: (ref) => store.pull(pullKey(ref)),
+  saveDrafts: (ref, drafts) => store.updatePull(pullKey(ref), (s) => void (s.drafts = drafts)),
+  setViewed: (ref, path, sha) =>
+    store.updatePull(pullKey(ref), (s) => {
       if (sha) s.viewed[path] = sha
       else delete s.viewed[path]
     }),
   submitReview: async (input) => {
-    const key = pullKey(input.repo, input.number)
+    const key = pullKey(input)
     const result = await submitReview(input, store.pull(key).drafts)
     store.updatePull(key, (s) => void (s.drafts = []))
     void poller.poll()
     return result
   },
-  replyToComment: (repo, number, id, body) => replyToComment(repo, number, id, body),
+  replyToComment: (ref, id, body) => replyToComment(ref, id, body),
 
   listGuidelines: () => store.guidelines(),
   saveGuideline: (g) => saveGuideline(g),
@@ -160,25 +160,25 @@ const handlers: { [K in ApiMethod]: (...args: Parameters<RevioApi[K]>) => Return
     return [...repos].sort()
   },
 
-  generateBriefing: async (repo, number) => {
-    const key = pullKey(repo, number)
-    const pr = pulls.peek(repo, number) ?? (await pulls.get(repo, number))
-    const guidelines = resolveGuidelines(repo, pr.files.map((f) => f.path))
+  generateBriefing: async (ref) => {
+    const key = pullKey(ref)
+    const pr = pulls.peek(ref) ?? (await pulls.get(ref))
+    const guidelines = resolveGuidelines(ref.repo, pr.files.map((f) => f.path))
     const record = await generateBriefing(pr, guidelines, (message) => send({ type: 'briefing-progress', key, message }))
     store.updatePull(key, (s) => void (s.briefing = record))
     return record
   },
 
-  askClaude: async (repo, number, thread) => {
-    const key = pullKey(repo, number)
-    const pr = pulls.peek(repo, number) ?? (await pulls.get(repo, number))
-    const guidelines = resolveGuidelines(repo, pr.files.map((f) => f.path))
+  askClaude: async (ref, thread) => {
+    const key = pullKey(ref)
+    const pr = pulls.peek(ref) ?? (await pulls.get(ref))
+    const guidelines = resolveGuidelines(ref.repo, pr.files.map((f) => f.path))
     const answer = await ask(pr, guidelines, store.pull(key).briefing, thread, (text) =>
       send({ type: 'ask-delta', threadId: thread.id, text }),
     )
     return { answer }
   },
-  saveAsks: (repo, number, threads) => store.updatePull(pullKey(repo, number), (s) => void (s.asks = threads)),
+  saveAsks: (ref, threads) => store.updatePull(pullKey(ref), (s) => void (s.asks = threads)),
 
   openExternal: async (url) => {
     if (/^https?:/.test(url)) await shell.openExternal(url)

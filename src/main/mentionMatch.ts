@@ -1,4 +1,4 @@
-import type { Mention, MentionSnippet } from '@shared/types'
+import { isSamePull, type Mention, type MentionSnippet, type PullRef } from '@shared/types'
 
 /** GitHub's GraphQL shapes for a PR's texts. */
 export interface RawText {
@@ -113,6 +113,6 @@ export function sortMentions(mentions: Mention[]): Mention[] {
 }
 
 /** Marks every snippet of a PR as read, as after marking its notification read. */
-export function markMentionRead(mentions: readonly Mention[], repo: string, number: number): Mention[] {
-  return mentions.map((m) => (m.repo === repo && m.number === number ? { ...m, snippets: m.snippets.map((s) => ({ ...s, isNew: false })) } : m))
+export function markMentionRead(mentions: readonly Mention[], ref: PullRef): Mention[] {
+  return mentions.map((m) => (isSamePull(m, ref) ? { ...m, snippets: m.snippets.map((s) => ({ ...s, isNew: false })) } : m))
 }

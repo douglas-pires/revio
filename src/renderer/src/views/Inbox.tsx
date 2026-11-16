@@ -10,14 +10,12 @@ import { EMPTY } from '../lib/group'
 import { readAudience, isEmptyQuery, matchesQuery, parseQuery, stackPrToSearchable, summaryToSearchable, threadToSearchable, applyAudience, type InboxQuery, type ReviewAudience } from '../lib/inboxQuery'
 import { usePrefetchOnHover } from '../hooks/usePrefetchOnHover'
 import { useThreads } from '../hooks/useThreads'
-import type { ScrollTarget } from '../hooks/useScrollToTarget'
+import type { OpenPull } from '../lib/navigation'
 import { ThreadList } from '../components/ThreadList'
 import { countWaitingOnYou } from '../lib/threadEdits'
 
 type Mode = 'queue' | 'stacks' | 'threads'
-type OpenAt = (repo: string, number: number, target?: ScrollTarget) => void
-
-export function Inbox({ inbox, search, onSearch, onOpen }: { inbox: InboxData | null; search: string; onSearch: (text: string) => void; onOpen: OpenAt }) {
+export function Inbox({ inbox, search, onSearch, onOpen }: { inbox: InboxData | null; search: string; onSearch: (text: string) => void; onOpen: OpenPull }) {
   const [mode, setMode] = useState<Mode>('queue')
   const [focusStack, setFocusStack] = useState<string | null>(null)
   const threadsState = useThreads()
@@ -74,7 +72,7 @@ function ModeSwitch({ mode, labels, onChange }: { mode: Mode; labels: { stacks: 
   )
 }
 
-function ThreadsMode({ state, query, filtering, onOpen }: { state: ReturnType<typeof useThreads>; query: InboxQuery; filtering: boolean; onOpen: OpenAt }) {
+function ThreadsMode({ state, query, filtering, onOpen }: { state: ReturnType<typeof useThreads>; query: InboxQuery; filtering: boolean; onOpen: OpenPull }) {
   const threads = useMemo(() => (state.threads ?? EMPTY).filter((t) => !filtering || matchesQuery(threadToSearchable(t), query)), [state.threads, query, filtering])
   return (
     <>
@@ -96,7 +94,7 @@ function PullsMode(props: {
   filtering: boolean
   focusStack: string | null
   onAudience: (audience: ReviewAudience) => void
-  onOpen: OpenAt
+  onOpen: OpenPull
   onStack: (id: string) => void
 }) {
   const { requested, reviewed, stacks } = useMemo(() => filterInbox(props.inbox, props.query), [props.inbox, props.query])
@@ -117,7 +115,7 @@ function PullsMode(props: {
   )
 }
 
-function QueueSections(props: { requested: readonly PullSummary[]; reviewed: readonly PullSummary[]; filtering: boolean; onOpen: OpenAt; onStack: (id: string) => void }) {
+function QueueSections(props: { requested: readonly PullSummary[]; reviewed: readonly PullSummary[]; filtering: boolean; onOpen: OpenPull; onStack: (id: string) => void }) {
   const stale = props.requested.filter((p) => p.stale)
   const fresh = props.requested.filter((p) => !p.stale)
   const empty = stale.length ? undefined : props.filtering ? 'Nothing matches this search.' : 'Nothing waiting on you. 🎉'
@@ -152,7 +150,7 @@ function Section(props: {
   title: string
   hint?: string
   items: readonly PullSummary[]
-  onOpen: (repo: string, number: number) => void
+  onOpen: OpenPull
   onStack: (id: string) => void
   tone?: 'danger'
   muted?: boolean
@@ -175,14 +173,14 @@ function Section(props: {
   )
 }
 
-function Row({ pr, onOpen, onStack, muted }: { pr: PullSummary; onOpen: (repo: string, number: number) => void; onStack: (id: string) => void; muted?: boolean }) {
+function Row({ pr, onOpen, onStack, muted }: { pr: PullSummary; onOpen: OpenPull; onStack: (id: string) => void; muted?: boolean }) {
   const prefetch = usePrefetchOnHover()
   const size = pr.additions + pr.deletions
   const sizeLabel = size < 50 ? 'XS' : size < 200 ? 'S' : size < 600 ? 'M' : size < 1500 ? 'L' : 'XL'
   return (
     <li
-      {...prefetch(pr.repo, pr.number)}
-      onClick={() => onOpen(pr.repo, pr.number)}
+      {...prefetch(pr)}
+      onClick={() => onOpen(pr)}
       className="flex cursor-pointer items-center gap-3 border-b border-line px-4 py-2.5 last:border-b-0 hover:bg-hover"
     >
       <img src={pr.authorAvatar} alt="" className="size-7 shrink-0 rounded-full bg-panel-2" />
@@ -242,7 +240,7 @@ function Skeleton() {
   )
 }
 
-function Stacks({ stacks, filtering, focus, onOpen }: { stacks: readonly Stack[]; filtering: boolean; focus: string | null; onOpen: (repo: string, number: number) => void }) {
+function Stacks({ stacks, filtering, focus, onOpen }: { stacks: readonly Stack[]; filtering: boolean; focus: string | null; onOpen: OpenPull }) {
   const prefetch = usePrefetchOnHover()
   if (!stacks.length)
     return (
@@ -275,8 +273,8 @@ function Stacks({ stacks, filtering, focus, onOpen }: { stacks: readonly Stack[]
               {st.nodes.map(({ pr, depth }, i) => (
                 <li
                   key={pr.id}
-                  {...prefetch(pr.repo, pr.number)}
-                  onClick={() => onOpen(pr.repo, pr.number)}
+                  {...prefetch(pr)}
+                  onClick={() => onOpen(pr)}
                   className={cx('flex cursor-pointer items-center gap-3 border-b border-line py-2 pr-4 last:border-b-0 hover:bg-hover', !pr.inbox && 'opacity-70')}
                   style={{ paddingLeft: 12 + depth * 20 }}
                 >

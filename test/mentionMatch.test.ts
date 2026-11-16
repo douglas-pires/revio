@@ -72,7 +72,7 @@ describe('sortMentions and markMentionRead', () => {
   })
 
   it('clears new on one PR only', () => {
-    const [a, b] = markMentionRead([unread, recent], 'acme/web', 1)
+    const [a, b] = markMentionRead([unread, recent], { repo: 'acme/web', number: 1 })
     expect(a!.snippets.some((s) => s.isNew)).toBe(false)
     expect(b).toBe(recent)
   })

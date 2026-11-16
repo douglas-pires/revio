@@ -1,27 +1,25 @@
 import type { Mention, MentionSnippet, MentionsInbox } from '@shared/types'
 import { summarizeAround } from '@shared/excerpt'
-import type { ScrollTarget } from '../hooks/useScrollToTarget'
+import type { OpenPull } from '../lib/navigation'
 import { ErrorBanner } from '../components/ErrorBanner'
 import { SectionHeading } from '../components/SectionHeading'
 import { useAsyncAction } from '../hooks/useAsyncAction'
 import { ago, cx, describeFreshness } from '../lib/format'
 
-type OpenAt = (repo: string, number: number, target?: ScrollTarget) => void
-
 const hasNew = (m: Mention) => m.snippets.some((s) => s.isNew)
 
 /** PRs that mention you or your teams lately, unread first. */
-export function Mentions({ mentions, onOpen }: { mentions: MentionsInbox | null; onOpen: OpenAt }) {
+export function Mentions({ mentions, onOpen }: { mentions: MentionsInbox | null; onOpen: OpenPull }) {
   const refreshAction = useAsyncAction()
   const readAction = useAsyncAction()
   const refresh = () => refreshAction.run(() => window.revio.refreshMentions())
   const markRead = async (m: Mention) => {
-    await readAction.run(() => window.revio.markMentionRead(m.repo, m.number))
+    await readAction.run(() => window.revio.markMentionRead({ repo: m.repo, number: m.number }))
   }
   /** Opening a mention reads it, as on GitHub. Review comments open at their line. */
   const open = (m: Mention, s: MentionSnippet) => {
     if (s.isNew) void markRead(m)
-    onOpen(m.repo, m.number, s.path ? { path: s.path, line: s.line } : undefined)
+    onOpen(m, s.path ? { path: s.path, line: s.line } : undefined)
   }
 
   return (

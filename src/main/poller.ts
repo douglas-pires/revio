@@ -1,5 +1,5 @@
 import { app } from 'electron'
-import type { Inbox, PullSummary } from '@shared/types'
+import type { Inbox, PullRef, PullSummary } from '@shared/types'
 import { raiseAlerts } from './alerts'
 import { InFlight } from './inFlight'
 import { showNotification } from './notify'
@@ -8,7 +8,7 @@ import { store } from './store'
 export interface PollerDeps {
   loadInbox: () => Promise<Inbox>
   onInbox: (inbox: Inbox) => void
-  onOpenPull: (repo: string, number: number) => void
+  onOpenPull: (ref: PullRef) => void
 }
 
 /** Polls GitHub on the configured interval, keeps the latest inbox, and raises review alerts. */
@@ -66,7 +66,7 @@ export class InboxPoller {
   }
 
   #notify(title: string, body: string, pr: PullSummary) {
-    showNotification(title, body, () => this.#deps.onOpenPull(pr.repo, pr.number))
+    showNotification(title, body, () => this.#deps.onOpenPull(pr))
   }
 }
 

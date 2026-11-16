@@ -1,8 +1,9 @@
-import type { Stack } from '@shared/types'
+import { isSamePull, type PullRef, type Stack } from '@shared/types'
+import type { OpenPull } from '../lib/navigation'
 import { cx } from '../lib/format'
 
-export function StackBar({ stack, repo, number, onOpen }: { stack: Stack; repo: string; number: number; onOpen: (repo: string, number: number) => void }) {
-  const idx = stack.nodes.findIndex((n) => n.pr.repo === repo && n.pr.number === number)
+export function StackBar({ stack, pull, onOpen }: { stack: Stack; pull: PullRef; onOpen: OpenPull }) {
+  const idx = stack.nodes.findIndex((n) => isSamePull(n.pr, pull))
   const me = stack.nodes[idx]?.pr
   const parent = me && stack.nodes.find((n) => n.pr.headRef === me.baseRef)?.pr
   const prev = stack.nodes[idx - 1]?.pr
@@ -14,7 +15,7 @@ export function StackBar({ stack, repo, number, onOpen }: { stack: Stack; repo: 
       <span className="chip shrink-0 bg-accent/15 text-accent" title="Stacked PRs, bottom (closest to the default branch) first">
         ⧉ Stack {idx + 1}/{stack.nodes.length}
       </span>
-      <button className="btn btn-ghost shrink-0 py-0" disabled={!prev} onClick={() => prev && onOpen(prev.repo, prev.number)} title={prev ? `#${prev.number} ${prev.title}` : undefined}>
+      <button className="btn btn-ghost shrink-0 py-0" disabled={!prev} onClick={() => prev && onOpen(prev)} title={prev ? `#${prev.number} ${prev.title}` : undefined}>
         ‹ Prev
       </button>
       <div className="flex min-w-0 flex-1 items-center gap-1 overflow-x-auto">
@@ -24,7 +25,7 @@ export function StackBar({ stack, repo, number, onOpen }: { stack: Stack; repo: 
             <span key={pr.id} className="flex shrink-0 items-center gap-1">
               {i > 0 && <span className="text-muted">{depth > stack.nodes[i - 1]!.depth ? '›' : '·'}</span>}
               <button
-                onClick={() => !current && onOpen(pr.repo, pr.number)}
+                onClick={() => !current && onOpen(pr)}
                 title={`#${pr.number} ${pr.title}\n${pr.headRef} → ${pr.baseRef}${pr.inbox ? '' : '\n(not requested from you)'}`}
                 className={cx(
                   'flex max-w-56 items-center gap-1.5 rounded px-1.5 py-0.5',
@@ -44,7 +45,7 @@ export function StackBar({ stack, repo, number, onOpen }: { stack: Stack; repo: 
           Builds on #{parent.number}, not approved yet
         </span>
       )}
-      <button className="btn btn-ghost shrink-0 py-0" disabled={!next} onClick={() => next && onOpen(next.repo, next.number)} title={next ? `#${next.number} ${next.title}` : undefined}>
+      <button className="btn btn-ghost shrink-0 py-0" disabled={!next} onClick={() => next && onOpen(next)} title={next ? `#${next.number} ${next.title}` : undefined}>
         Next ›
       </button>
     </div>

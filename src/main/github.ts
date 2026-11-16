@@ -5,6 +5,7 @@ import type {
   PullDetail,
   PullFile,
   PullSummary,
+  PullRef,
   PullThreadStatus,
   Settings,
   ReviewComment,
@@ -188,7 +189,9 @@ const isPr = (n: RawPr | null): n is RawPr => !!n?.id
 // ---------------------------------------------------------------- pull detail
 
 /** Which review threads are resolved; REST comments do not say. A failure only hides that status. */
-async function fetchThreadStatus(octokit: Octokit, owner: string, repo: string, number: number): Promise<PullThreadStatus[]> {
+async function fetchThreadStatus(octokit: Octokit, ref: PullRef): Promise<PullThreadStatus[]> {
+  const { owner, repo } = splitRepo(ref.repo)
+  const { number } = ref
   type Data = { repository: { pullRequest: { reviewThreads: { nodes: ({ id: string; isResolved: boolean; comments: { nodes: ({ databaseId: number } | null)[] } } | null)[] } } | null } }
   try {
     const data = await octokit.graphql<Data>(
@@ -226,7 +229,8 @@ async function viewerLogin(): Promise<string> {
   return data.login
 }
 
-export async function fetchPull(repoFull: string, number: number): Promise<PullDetail> {
+export async function fetchPull(ref: PullRef): Promise<PullDetail> {
+  const { repo: repoFull, number } = ref
   const octokit = await gh()
   const { owner, repo } = splitRepo(repoFull)
   const [pr, files, comments, reviews, viewer, threads] = await Promise.all([
@@ -235,7 +239,7 @@ export async function fetchPull(repoFull: string, number: number): Promise<PullD
     octokit.paginate(octokit.pulls.listReviewComments, { owner, repo, pull_number: number, per_page: 100 }),
     octokit.paginate(octokit.pulls.listReviews, { owner, repo, pull_number: number, per_page: 100 }),
     viewerLogin(),
-    fetchThreadStatus(octokit, owner, repo, number),
+    fetchThreadStatus(octokit, ref),
   ])
   const mine = reviews.filter((r) => r.user?.login === viewer && r.state !== 'PENDING')
   const decisive = mine.filter((r) => r.state === 'APPROVED' || r.state === 'CHANGES_REQUESTED' || r.state === 'DISMISSED').at(-1)
@@ -335,7 +339,7 @@ export async function submitReview(input: SubmitReviewInput, drafts: DraftCommen
   return { url: res.data.html_url }
 }
 
-export async function replyToComment(repoFull: string, number: number, commentId: number, body: string) {
+export async function replyToComment({ repo: repoFull, number }: PullRef, commentId: number, body: string) {
   const octokit = await gh()
   const { owner, repo } = splitRepo(repoFull)
   await octokit.pulls.createReplyForReviewComment({ owner, repo, pull_number: number, comment_id: commentId, body })

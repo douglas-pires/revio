@@ -1,5 +1,5 @@
 import type { Octokit } from '@octokit/rest'
-import type { Inbox, PullSummary, Stack } from '@shared/types'
+import type { Inbox, PullRef, PullSummary, Stack } from '@shared/types'
 import { gh } from './github'
 import { splitRepo } from './repoName'
 import { buildStacks, markStackPositions, summaryToMini, tagInbox, withInboxTags, type InboxTag, type MiniPr } from './stackGraph'
@@ -49,18 +49,18 @@ const signInbox = (prs: PullSummary[]) =>
 const collectStaleIds = (prs: PullSummary[]) => new Set(prs.filter((p) => p.stale).map((p) => p.id))
 
 /** The stack a single PR belongs to (it may be outside your inbox), or null when it is not stacked. */
-export async function fetchStack(repoFull: string, number: number, inbox: Inbox | null): Promise<Stack | null> {
-  const cached = inbox?.stacks.find((st) => st.nodes.some((n) => n.pr.repo === repoFull && n.pr.number === number))
+export async function fetchStack(ref: PullRef, inbox: Inbox | null): Promise<Stack | null> {
+  const cached = inbox?.stacks.find((st) => st.nodes.some((n) => n.pr.repo === ref.repo && n.pr.number === ref.number))
   if (cached) return cached
   const octokit = await gh()
-  const seed = await fetchMiniPr(octokit, repoFull, number)
+  const seed = await fetchMiniPr(octokit, ref)
   if (!seed) return null
   const requested = inbox?.requested ?? []
   const stacks = await findStacks(octokit, [seed], tagInbox(requested, inbox?.reviewed ?? []), collectStaleIds(requested))
   return stacks[0] ?? null
 }
 
-async function fetchMiniPr(octokit: Octokit, repoFull: string, number: number) {
+async function fetchMiniPr(octokit: Octokit, { repo: repoFull, number }: PullRef) {
   const { owner, repo } = splitRepo(repoFull)
   const data = await octokit.graphql<{ repository: { pullRequest: MiniPr | null } }>(
     `query($owner: String!, $repo: String!, $number: Int!) { repository(owner: $owner, name: $repo) { pullRequest(number: $number) { ${MINI} } } }`,

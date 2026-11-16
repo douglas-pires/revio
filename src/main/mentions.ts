@@ -1,5 +1,5 @@
 import type { Octokit } from '@octokit/rest'
-import type { MentionsInbox } from '@shared/types'
+import { isSamePull, pullKey, type MentionsInbox, type PullRef } from '@shared/types'
 import { InFlight } from './inFlight'
 import { buildMention, markMentionRead, sortMentions, type NotificationInfo, type RawMentionPr } from './mentionMatch'
 import { splitRepo } from './repoName'
@@ -15,14 +15,10 @@ const PR_FIELDS = `number title state url ${TEXT} repository { nameWithOwner }
   reviews(last: 30) { nodes { ${TEXT} } }
   reviewThreads(last: 30) { nodes { path line comments(last: 10) { nodes { ${TEXT} } } } }`
 
-const toPrKey = (repo: string, number: number) => `${repo}#${number}`.toLowerCase()
+/** Case-insensitive, since GitHub URLs and search results may differ in owner case. */
+const toPrKey = (ref: PullRef) => pullKey(ref).toLowerCase()
 
-interface PrRef {
-  repo: string
-  number: number
-}
-
-interface Notification extends NotificationInfo, PrRef {
+interface Notification extends NotificationInfo, PullRef {
   key: string
   reason: string
 }
@@ -43,15 +39,15 @@ export async function fetchMentions(octokit: Octokit): Promise<MentionsInbox> {
   const prs = await fetchPrTexts(octokit, collectCandidates(searched, notifications).slice(0, MAX_PRS))
   const notificationOf = new Map(notifications.map((n) => [n.key, n]))
   const mentions = prs.flatMap((pr) => {
-    const notification = notificationOf.get(toPrKey(pr.repository.nameWithOwner, pr.number))
+    const notification = notificationOf.get(toPrKey({ repo: pr.repository.nameWithOwner, number: pr.number }))
     return buildMention(pr, { viewer, teams, since: since.toISOString(), notification }) ?? []
   })
   return { viewer, mentions: sortMentions(mentions), windowDays: MENTION_WINDOW_DAYS, fetchedAt: new Date().toISOString() }
 }
 
 /** PRs search found, plus PRs whose notification says you or your team were mentioned. */
-function collectCandidates(searched: PrRef[], notifications: Notification[]): PrRef[] {
-  const candidates = new Map(searched.map((p) => [toPrKey(p.repo, p.number), p]))
+function collectCandidates(searched: PullRef[], notifications: Notification[]): PullRef[] {
+  const candidates = new Map(searched.map((p) => [toPrKey(p), p]))
   for (const n of notifications) if (n.reason === 'mention' || n.reason === 'team_mention') candidates.set(n.key, n)
   return [...candidates.values()]
 }
@@ -63,7 +59,7 @@ async function listPrNotifications(octokit: Octokit, since: Date): Promise<Notif
       const number = Number(n.subject.url?.split('/').at(-1))
       if (n.subject.type !== 'PullRequest' || !number) return []
       const repo = n.repository.full_name
-      return [{ id: n.id, unread: n.unread, lastReadAt: n.last_read_at, reason: n.reason, repo, number, key: toPrKey(repo, number) }]
+      return [{ id: n.id, unread: n.unread, lastReadAt: n.last_read_at, reason: n.reason, repo, number, key: toPrKey({ repo, number }) }]
     })
   } catch (err) {
     // Fine-grained tokens cannot read notifications; mentions still come from search, without unread state.
@@ -72,7 +68,7 @@ async function listPrNotifications(octokit: Octokit, since: Date): Promise<Notif
   }
 }
 
-async function searchMentionedPrs(octokit: Octokit, since: Date): Promise<PrRef[]> {
+async function searchMentionedPrs(octokit: Octokit, since: Date): Promise<PullRef[]> {
   const { data } = await octokit.request('GET /search/issues', { q: `is:pr mentions:@me updated:>=${since.toISOString().slice(0, 10)}`, per_page: 50 })
   return data.items.map((i) => ({ repo: i.repository_url.split('/').slice(-2).join('/'), number: i.number }))
 }
@@ -87,7 +83,7 @@ async function listTeamHandles(octokit: Octokit): Promise<string[]> {
   }
 }
 
-async function fetchPrTexts(octokit: Octokit, prs: PrRef[]): Promise<RawMentionPr[]> {
+async function fetchPrTexts(octokit: Octokit, prs: PullRef[]): Promise<RawMentionPr[]> {
   const found: RawMentionPr[] = []
   for (let i = 0; i < prs.length; i += PRS_PER_QUERY) {
     const chunk = prs.slice(i, i + PRS_PER_QUERY)
@@ -129,11 +125,11 @@ export class MentionWatcher {
   }
 
   /** Marks the PR's GitHub notification read and clears its "new" mentions. */
-  async markRead(repo: string, number: number) {
-    const mention = this.#latest?.mentions.find((m) => m.repo === repo && m.number === number)
+  async markRead(ref: PullRef) {
+    const mention = this.#latest?.mentions.find((m) => isSamePull(m, ref))
     if (mention?.notificationId) await this.#deps.markRead(mention.notificationId)
     if (!this.#latest) return
-    this.#publish({ ...this.#latest, mentions: markMentionRead(this.#latest.mentions, repo, number) })
+    this.#publish({ ...this.#latest, mentions: markMentionRead(this.#latest.mentions, ref) })
   }
 
   async #load(): Promise<MentionsInbox> {

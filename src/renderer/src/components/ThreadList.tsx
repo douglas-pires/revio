@@ -1,6 +1,6 @@
 import { memo, useState } from 'react'
 import type { OpenThread } from '@shared/types'
-import type { ScrollTarget } from '../hooks/useScrollToTarget'
+import type { OpenPull } from '../lib/navigation'
 import { useAsyncAction } from '../hooks/useAsyncAction'
 import { ago, cx } from '../lib/format'
 import { SectionHeading } from './SectionHeading'
@@ -8,10 +8,8 @@ import { summarizeComment } from '@shared/excerpt'
 import { groupBy } from '../lib/group'
 import { Composer } from './ReviewComments'
 
-type OpenAt = (repo: string, number: number, target?: ScrollTarget) => void
-
 export interface ThreadActions {
-  onOpen: OpenAt
+  onOpen: OpenPull
   onReply: (threadId: string, body: string) => Promise<void>
   onResolve: (threadId: string, resolved: boolean) => Promise<void>
 }
@@ -58,7 +56,7 @@ function PrThreads({ threads, resolved, actions }: { threads: OpenThread[]; reso
   const pr = threads[0]!
   return (
     <div className="overflow-hidden rounded-lg border border-line bg-panel">
-      <button className="flex w-full items-center gap-2 border-b border-line bg-panel-2 px-4 py-2 text-left text-[12px] hover:bg-hover" onClick={() => actions.onOpen(pr.repo, pr.number)}>
+      <button className="flex w-full items-center gap-2 border-b border-line bg-panel-2 px-4 py-2 text-left text-[12px] hover:bg-hover" onClick={() => actions.onOpen(pr)}>
         <span className="truncate font-semibold">{pr.prTitle}</span>
         {pr.isDraft && <span className="chip bg-panel text-muted">draft</span>}
         <span className="shrink-0 text-muted">
@@ -89,7 +87,7 @@ function ThreadRow({ thread: t, isResolved, actions }: { thread: OpenThread; isR
   return (
     <li className="border-b border-line last:border-b-0">
       <div className="group/row flex gap-3 px-4 py-2.5 hover:bg-hover">
-        <ThreadSummary thread={t} dimmed={isResolved} onOpen={() => actions.onOpen(t.repo, t.number, { path: t.path, line: t.line })} />
+        <ThreadSummary thread={t} dimmed={isResolved} onOpen={() => actions.onOpen(t, { path: t.path, line: t.line })} />
         <div className="flex shrink-0 flex-col items-end gap-1">
           <span className="font-mono text-[11.5px] text-muted">{ago(t.lastActivityAt)}</span>
           <ThreadButtons isResolved={isResolved} busy={busy} replying={replying} onReply={() => setReplying(true)} onResolve={resolve} />

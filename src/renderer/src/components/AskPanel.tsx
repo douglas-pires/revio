@@ -1,5 +1,5 @@
 import { useEffect, useRef, useState } from 'react'
-import type { AskThread } from '@shared/types'
+import type { AskThread, PullRef } from '@shared/types'
 import { ago, cx, errorMessage } from '../lib/format'
 import { Markdown } from './Markdown'
 
@@ -11,8 +11,7 @@ const QUICK = [
 ]
 
 export function AskPanel(props: {
-  repo: string
-  number: number
+  pull: PullRef
   thread: AskThread
   history: AskThread[]
   onSelect: (id: string) => void
@@ -54,7 +53,7 @@ export function AskPanel(props: {
     setPending('')
     setError(null)
     try {
-      const { answer } = await window.revio.askClaude(props.repo, props.number, asked)
+      const { answer } = await window.revio.askClaude(props.pull, asked)
       props.onChange({ ...asked, messages: [...asked.messages, { role: 'assistant', content: answer }] })
     } catch (e) {
       setError(errorMessage(e))

@@ -1,3 +1,4 @@
+import type { PullRef } from '@shared/types'
 import { useCallback, useEffect, useRef } from 'react'
 
 /** Hovering this long counts as intent to open (shorter would fetch every row the pointer crosses). */
@@ -15,10 +16,10 @@ export function usePrefetchOnHover() {
   useEffect(() => cancel, [cancel])
 
   return useCallback(
-    (repo: string, number: number) => ({
+    (pull: PullRef) => ({
       onMouseEnter: () => {
         cancel()
-        timer.current = setTimeout(() => void window.revio.getPull(repo, number, MAX_AGE_MS).catch(() => {}), INTENT_DELAY_MS)
+        timer.current = setTimeout(() => void window.revio.getPull({ repo: pull.repo, number: pull.number }, MAX_AGE_MS).catch(() => {}), INTENT_DELAY_MS)
       },
       onMouseLeave: cancel,
     }),

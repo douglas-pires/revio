@@ -1,8 +1,8 @@
-import type { PullDetail } from '@shared/types'
+import type { PullDetail, PullRef } from '@shared/types'
 import { pullKey } from '@shared/types'
 import { InFlight } from './inFlight'
 
-type Fetch = (repo: string, number: number) => Promise<PullDetail>
+type Fetch = (ref: PullRef) => Promise<PullDetail>
 
 /**
  * Recent PR details, so hovering a PR in the inbox can prefetch it and opening it is instant.
@@ -18,19 +18,19 @@ export class PullCache {
   }
 
   /** A cached copy no older than `maxAgeMs`, otherwise a fresh fetch (0 always fetches). */
-  get(repo: string, number: number, maxAgeMs = 0): Promise<PullDetail> {
-    const key = pullKey(repo, number)
+  get(ref: PullRef, maxAgeMs = 0): Promise<PullDetail> {
+    const key = pullKey(ref)
     const hit = this.#entries.get(key)
     if (hit && maxAgeMs > 0 && Date.now() - hit.at <= maxAgeMs) return Promise.resolve(hit.pr)
     return this.#inFlight.run(key, async () => {
-      const pr = await this.#fetch(repo, number)
+      const pr = await this.#fetch(ref)
       this.#entries.set(key, { at: Date.now(), pr })
       return pr
     })
   }
 
   /** The last fetched copy, if any, without hitting the network. */
-  peek(repo: string, number: number): PullDetail | undefined {
-    return this.#entries.get(pullKey(repo, number))?.pr
+  peek(ref: PullRef): PullDetail | undefined {
+    return this.#entries.get(pullKey(ref))?.pr
   }
 }
