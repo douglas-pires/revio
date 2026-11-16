@@ -1,0 +1,150 @@
+import type { Octokit } from '@octokit/rest'
+import type { Inbox, PullSummary, Settings } from '@shared/types'
+import { gh, tokenInUse } from '../github/github.client'
+import type { StackFinder } from '../stacks/stacks.service'
+import { store } from '../store/store.service'
+import { awaitsYou, classifyRequest, type RawReviewer, type RequestEvent, type ReviewRequest } from './review-request.util'
+
+const searchQuery = (teamSlugs: boolean) => /* GraphQL */ `
+  query ($requested: String!, $reviewed: String!) {
+    viewer { login }
+    requested: search(query: $requested, type: ISSUE, first: 50) { nodes { ...pr } }
+    reviewed: search(query: $reviewed, type: ISSUE, first: 30) { nodes { ...pr } }
+  }
+  fragment pr on PullRequest {
+    id number title url isDraft createdAt updatedAt additions deletions changedFiles
+    headRefName baseRefName reviewDecision
+    repository { nameWithOwner defaultBranchRef { name } }
+    author { login avatarUrl(size: 64) }
+    latestReviews(first: 30) { nodes { author { login } submittedAt } }
+    reviewRequests(first: 20) {
+      nodes { requestedReviewer { __typename ... on User { login } ${teamSlugs ? '... on Team { slug }' : ''} } }
+    }
+    timelineItems(itemTypes: [REVIEW_REQUESTED_EVENT], last: 30) {
+      nodes {
+        ... on ReviewRequestedEvent {
+          createdAt
+          requestedReviewer { __typename ... on User { login } ${teamSlugs ? '... on Team { slug }' : ''} }
+        }
+      }
+    }
+  }
+`
+
+interface RawPr {
+  id: string
+  number: number
+  title: string
+  url: string
+  isDraft: boolean
+  createdAt: string
+  updatedAt: string
+  additions: number
+  deletions: number
+  changedFiles: number
+  headRefName: string
+  baseRefName: string
+  reviewDecision: string | null
+  repository: { nameWithOwner: string; defaultBranchRef: { name: string } | null }
+  author: { login: string; avatarUrl: string } | null
+  latestReviews: { nodes: ({ author: { login: string } | null; submittedAt: string | null } | null)[] }
+  reviewRequests: { nodes: ({ requestedReviewer: RawReviewer } | null)[] }
+  timelineItems: { nodes: (RequestEvent | null)[] }
+}
+
+function readReviewRequest(pr: RawPr, viewer: string): ReviewRequest {
+  return classifyRequest(
+    pr.reviewRequests.nodes.map((n) => n?.requestedReviewer ?? null),
+    pr.timelineItems.nodes.filter((n): n is RequestEvent => !!n?.createdAt),
+    viewer,
+  )
+}
+
+const findLastReviewAt = (pr: RawPr, viewer: string) => pr.latestReviews.nodes.find((r) => r?.author?.login === viewer)?.submittedAt ?? null
+
+/** `request` is set for PRs waiting on your review, null for ones you already reviewed. */
+function toSummary(pr: RawPr, staleAfterHours: number, request: ReviewRequest | null): PullSummary {
+  const isRequested = !!request
+  const { viaTeam, requestedAt } = request ?? { viaTeam: null, requestedAt: null }
+  const since = new Date(requestedAt ?? pr.createdAt).getTime()
+  const waitingHours = (Date.now() - since) / 36e5
+  return {
+    id: pr.id,
+    number: pr.number,
+    title: pr.title,
+    url: pr.url,
+    repo: pr.repository.nameWithOwner,
+    author: pr.author?.login ?? 'ghost',
+    authorAvatar: pr.author?.avatarUrl ?? '',
+    isDraft: pr.isDraft,
+    createdAt: pr.createdAt,
+    updatedAt: pr.updatedAt,
+    requestedAt,
+    viaTeam,
+    additions: pr.additions,
+    deletions: pr.deletions,
+    changedFiles: pr.changedFiles,
+    headRef: pr.headRefName,
+    baseRef: pr.baseRefName,
+    reviewDecision: pr.reviewDecision,
+    defaultBranch: pr.repository.defaultBranchRef?.name ?? 'main',
+    waitingHours,
+    stale: isRequested && waitingHours >= staleAfterHours,
+  }
+}
+
+/** The token GitHub refused team names for (no read:org); a different token gets to try again. */
+let teamNamesRefusedFor: string | null = null
+const teamNamesAllowed = () => teamNamesRefusedFor !== tokenInUse()
+
+type InboxSearch = { viewer: { login: string }; requested: { nodes: (RawPr | null)[] }; reviewed: { nodes: (RawPr | null)[] } }
+
+export async function fetchInbox(stackFinder: StackFinder): Promise<Inbox> {
+  const settings = store.settings()
+  const octokit = await gh()
+  const data = await searchInbox(octokit, buildInboxSearches(settings))
+  const viewer = data.viewer.login
+  const { requested, reviewed } = sortInbox(data, viewer, settings.staleAfterHours)
+  const stacks = await stackFinder.stacksForInbox(octokit, requested, reviewed)
+  return { viewer, requested, reviewed, stacks, fetchedAt: new Date().toISOString() }
+}
+
+function buildInboxSearches(settings: Pick<Settings, 'includeTeamRequests' | 'ignoreDrafts'>) {
+  const who = settings.includeTeamRequests ? 'review-requested:@me' : 'user-review-requested:@me'
+  const draft = settings.ignoreDrafts ? ' draft:false' : ''
+  return {
+    requested: `is:open is:pr archived:false ${who}${draft} sort:updated-desc`,
+    reviewed: `is:open is:pr archived:false reviewed-by:@me -author:@me${draft} sort:updated-desc`,
+  }
+}
+
+/** Team names need the read:org scope, which `gh` tokens often lack: on a scope error, retry without them. */
+async function searchInbox(octokit: Octokit, searches: { requested: string; reviewed: string }): Promise<InboxSearch> {
+  try {
+    return await octokit.graphql<InboxSearch>(searchQuery(teamNamesAllowed()), searches)
+  } catch (err) {
+    if (!teamNamesAllowed() || !/scopes/i.test(String(err))) throw err
+    teamNamesRefusedFor = tokenInUse()
+    return octokit.graphql<InboxSearch>(searchQuery(false), searches)
+  }
+}
+
+/**
+ * Requests still waiting on you, longest first, and PRs you reviewed. A team request can outlive your review
+ * and search lags a fresh one, so your latest review (always current) settles whether a PR still waits on you.
+ */
+function sortInbox(data: InboxSearch, viewer: string, staleAfterHours: number) {
+  const requested: PullSummary[] = []
+  const reviewedSinceRequest: PullSummary[] = []
+  for (const pr of data.requested.nodes.filter(isPr)) {
+    const request = readReviewRequest(pr, viewer)
+    if (awaitsYou(request, findLastReviewAt(pr, viewer))) requested.push(toSummary(pr, staleAfterHours, request))
+    else reviewedSinceRequest.push(toSummary(pr, staleAfterHours, null))
+  }
+  requested.sort((a, b) => b.waitingHours - a.waitingHours)
+  const listed = new Set([...requested, ...reviewedSinceRequest].map((p) => p.id))
+  const otherReviewed = data.reviewed.nodes.filter((n): n is RawPr => isPr(n) && !listed.has(n.id))
+  return { requested, reviewed: [...reviewedSinceRequest, ...otherReviewed.map((pr) => toSummary(pr, staleAfterHours, null))] }
+}
+
+const isPr = (n: RawPr | null): n is RawPr => !!n?.id

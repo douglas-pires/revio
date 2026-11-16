@@ -2,7 +2,7 @@ import Anthropic from '@anthropic-ai/sdk'
 import { app } from 'electron'
 import type { AskThread, BriefingRecord, PullDetail, ResolvedGuideline } from '@shared/types'
 import { pickBackend, prContext } from './briefing.service'
-import { fetchFileAt } from '../github/github.client'
+import { fetchFileAt } from '../pulls/pull.service'
 import { runWithInput } from '../common/shell.util'
 import { store } from '../store/store.service'
 
