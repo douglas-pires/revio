@@ -1,24 +1,32 @@
 import { app, BrowserWindow, ipcMain, shell } from 'electron'
 import { join } from 'node:path'
 import { IPC, type ApiMethod, type RevioApi } from '@shared/api'
-import { pullKey, type MainEvent, type MentionsInbox } from '@shared/types'
+import { pullKey, type MainEvent } from '@shared/types'
 import { ask } from './ask'
 import { generateBriefing } from './claude'
-import { fetchInbox, fetchPull, gh, replyToComment, resetClient, submitReview } from './github'
+import { fetchInbox, fetchPull, gh, replyToComment, resetClient, submitReview, configureTokenResolver } from './github'
+import { alertNewMentions } from './mentionAlerts'
+import { loginShell } from './shell'
 import { fetchThreads, replyToThread, setThreadResolved, ThreadFinder } from './threads'
-import { githubAuthStatus, saveGithubToken } from './githubAuth'
+import { GithubTokens } from './githubAuth'
 import { deleteGuideline, resolveGuidelines, saveGuideline } from './guidelines'
 import { InboxPoller } from './poller'
 import { PullCache } from './pullCache'
 import { fetchStack, StackFinder } from './stacks'
 import { flush, store } from './store'
-import { summarizeComment } from '@shared/excerpt'
-import { findUnalertedMentions, recordMentionAlerts } from './alerts'
 import { fetchMentions, MentionWatcher } from './mentions'
 import { showNotification } from './notify'
 
 let win: BrowserWindow | null = null
 // Composition root: the long-lived services, created once and handed to whoever needs them.
+const tokens = new GithubTokens({
+  readSaved: () => store.githubToken(),
+  save: (token) => store.updateSettings({ githubToken: token }),
+  dotEnvPath: app.isPackaged ? null : join(app.getAppPath(), '.env'),
+  env: process.env,
+  readCliToken: () => loginShell('gh auth token'),
+})
+configureTokenResolver(() => tokens.resolve())
 const pulls = new PullCache(fetchPull)
 const stackFinder = new StackFinder()
 const threadFinder = new ThreadFinder(async () => fetchThreads(await gh()))
@@ -29,7 +37,14 @@ const mentionWatcher = new MentionWatcher({
   },
   onMentions: (mentions) => {
     send({ type: 'mentions', mentions })
-    alertNewMentions(mentions)
+    alertNewMentions(mentions, {
+      state: () => store.alerts(),
+      save: () => store.saveAlerts(),
+      enabled: () => store.settings().notifyOnMention,
+      show: showNotification,
+      openPull: focusAndOpen,
+      showApp: () => win?.show(),
+    })
   },
 })
 const poller = new InboxPoller({
@@ -73,23 +88,6 @@ function createWindow() {
   else void win.loadFile(join(import.meta.dirname, '../renderer/index.html'))
 }
 
-/** A desktop notification per new mention (a summary past three), unless turned off in Settings. */
-function alertNewMentions(mentions: MentionsInbox) {
-  if (mentions.error) return
-  const state = store.alerts()
-  const fresh = findUnalertedMentions(mentions, state)
-  recordMentionAlerts(mentions, state)
-  store.saveAlerts()
-  if (!store.settings().notifyOnMention || !fresh.length) return
-  for (const { mention, snippet } of fresh.slice(0, 3)) {
-    const who = snippet.viaTeam ? `@${snippet.viaTeam}` : 'you'
-    showNotification(`${snippet.author} mentioned ${who}`, `${mention.repo}#${mention.number} · ${mention.title}\n${summarizeComment(snippet.body, 140)}`, () =>
-      focusAndOpen(mention.repo, mention.number),
-    )
-  }
-  if (fresh.length > 3) showNotification(`${fresh.length - 3} more mentions`, 'Open Revio → Mentions to see them all.', () => win?.show())
-}
-
 function focusAndOpen(repo: string, number: number) {
   if (!win) createWindow()
   if (win?.isMinimized()) win.restore()
@@ -109,12 +107,12 @@ const handlers: { [K in ApiMethod]: (...args: Parameters<RevioApi[K]>) => Return
     if (affectsInbox) void poller.poll()
     return store.settings()
   },
-  githubAuthStatus: () => githubAuthStatus(),
+  githubAuthStatus: () => tokens.describe(),
   saveGithubToken: async (token) => {
-    await saveGithubToken(token)
+    await tokens.verifyAndSave(token)
     resetClient()
     void poller.poll()
-    return githubAuthStatus()
+    return tokens.describe()
   },
 
   getInbox: () => poller.latest,

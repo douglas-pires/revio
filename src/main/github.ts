@@ -9,12 +9,20 @@ import type {
   ReviewComment,
   SubmitReviewInput,
 } from '@shared/types'
-import { resolveToken } from './githubAuth'
+import type { ResolvedToken } from './githubAuth'
+import { splitRepo } from './repoName'
 import type { StackFinder } from './stacks'
 import { store } from './store'
 import { awaitsYou, classifyRequest, type RawReviewer, type RequestEvent, type ReviewRequest } from './reviewRequest'
 
 let client: { token: string; octokit: Octokit } | null = null
+let resolveToken: () => Promise<ResolvedToken> = () => Promise.reject(new Error('GitHub token sources are not set up yet.'))
+
+/** Called once by the composition root with the injected token lookup. */
+export function configureTokenResolver(resolve: () => Promise<ResolvedToken>) {
+  resolveToken = resolve
+  resetClient()
+}
 
 export async function gh(): Promise<Octokit> {
   const { token } = await resolveToken()
@@ -31,11 +39,6 @@ export function resetClient() {
   teamSlugsAllowed = true
 }
 
-export const splitRepo = (repo: string) => {
-  const [owner, name] = repo.split('/')
-  if (!owner || !name) throw new Error(`Bad repo: ${repo}`)
-  return { owner, repo: name }
-}
 
 // ---------------------------------------------------------------- inbox
 

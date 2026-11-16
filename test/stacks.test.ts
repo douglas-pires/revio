@@ -4,13 +4,7 @@ import { StackFinder } from '../src/main/stacks'
 import { summaryToMini, type MiniPr } from '../src/main/stackGraph'
 import { makeMiniPr, makeSummary } from './fixtures'
 
-vi.mock('../src/main/github', () => ({
-  gh: vi.fn(),
-  splitRepo: (full: string) => {
-    const [owner = '', repo = ''] = full.split('/')
-    return { owner, repo }
-  },
-}))
+vi.mock('../src/main/github', () => ({ gh: vi.fn() }))
 
 /** A fake GitHub that answers the aliased pullRequests(headRefName|baseRefName: …) lookups from a list of open PRs. */
 function makeFakeGithub(open: MiniPr[]) {

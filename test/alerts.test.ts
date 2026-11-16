@@ -134,3 +134,12 @@ describe('mention alerts', () => {
     expect(state.mentionsAlerted).toEqual({})
   })
 })
+
+describe('describeMentionAlert', () => {
+  it('names the team when a team was mentioned', async () => {
+    const { describeMentionAlert } = await import('../src/main/mentionAlerts')
+    const m: Mention = { repo: 'acme/web', number: 3, title: 'Speed up', url: '', state: 'OPEN', notificationId: null, snippets: [], latestAt: '' }
+    const snippet = { id: 'x', kind: 'comment' as const, author: 'bo', authorAvatar: '', body: '**ping** @acme/web-team', createdAt: '', url: '', path: null, line: null, viaTeam: 'acme/web-team', isNew: true }
+    expect(describeMentionAlert(m, snippet)).toEqual({ title: 'bo mentioned @acme/web-team', body: 'acme/web#3 · Speed up\nping @acme/web-team' })
+  })
+})

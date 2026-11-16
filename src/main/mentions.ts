@@ -2,7 +2,7 @@ import type { Octokit } from '@octokit/rest'
 import type { MentionsInbox } from '@shared/types'
 import { InFlight } from './inFlight'
 import { buildMention, markMentionRead, sortMentions, type NotificationInfo, type RawMentionPr } from './mentionMatch'
-import { splitRepo } from './github'
+import { splitRepo } from './repoName'
 
 export const MENTION_WINDOW_DAYS = 14
 /** PRs looked at per refresh; aliased lookups per GraphQL query. */

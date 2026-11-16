@@ -1,6 +1,7 @@
 import type { Octokit } from '@octokit/rest'
 import type { Inbox, PullSummary, Stack } from '@shared/types'
-import { gh, splitRepo } from './github'
+import { gh } from './github'
+import { splitRepo } from './repoName'
 import { buildStacks, markStackPositions, summaryToMini, tagInbox, withInboxTags, type InboxTag, type MiniPr } from './stackGraph'
 
 /** Stacks are re-walked at most this often while the inbox's PRs and branches stay the same. */
