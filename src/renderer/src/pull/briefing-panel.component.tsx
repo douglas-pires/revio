@@ -1,4 +1,4 @@
-import type { BriefingRecord } from '@shared/claude.types'
+import type { Briefing, BriefingRecord } from '@shared/claude.types'
 import { ago, cx } from '../common/format.util'
 import { Markdown } from '../common/markdown.component'
 
@@ -82,28 +82,9 @@ export function BriefingPanel(props: {
       {b.concerns.length > 0 && (
         <Card title="Possible issues" tone="danger">
           <ul className="space-y-3">
-            {b.concerns.map((c, i) => {
-              const canDraft = !!c.path && c.line != null && props.validLine(c.path, c.line)
-              return (
-                <li key={i}>
-                  <div className="font-medium">{c.title}</div>
-                  <Markdown className="text-muted">{c.detail}</Markdown>
-                  <div className="mt-1 flex gap-2">
-                    {c.path && (
-                      <button className="btn btn-ghost py-0 font-mono text-[11.5px]" onClick={() => props.onJump(c.path, c.line)}>
-                        {c.path}
-                        {c.line != null && `:${c.line}`}
-                      </button>
-                    )}
-                    {canDraft && (
-                      <button className="btn py-0" onClick={() => props.onDraft(c.path, c.line!, `${c.title}\n\n${c.detail}`)}>
-                        + Draft comment
-                      </button>
-                    )}
-                  </div>
-                </li>
-              )
-            })}
+            {b.concerns.map((c, i) => (
+              <ConcernItem key={i} concern={c} canDraft={!!c.path && c.line != null && props.validLine(c.path, c.line)} onJump={props.onJump} onDraft={props.onDraft} />
+            ))}
           </ul>
         </Card>
       )}
@@ -176,5 +157,30 @@ function Card({ title, tone, children }: { title: string; tone?: 'focus' | 'dang
       </h3>
       <div className="px-4 py-3">{children}</div>
     </section>
+  )
+}
+
+type Concern = Briefing['concerns'][number]
+
+/** One possible issue: what and why, a link to where, and a shortcut to draft a comment there. */
+function ConcernItem({ concern: c, canDraft, onJump, onDraft }: { concern: Concern; canDraft: boolean; onJump: (path: string, line?: number | null) => void; onDraft: (path: string, line: number, body: string) => void }) {
+  return (
+    <li>
+      <div className="font-medium">{c.title}</div>
+      <Markdown className="text-muted">{c.detail}</Markdown>
+      <div className="mt-1 flex gap-2">
+        {c.path && (
+          <button className="btn btn-ghost py-0 font-mono text-[11.5px]" onClick={() => onJump(c.path, c.line)}>
+            {c.path}
+            {c.line != null && `:${c.line}`}
+          </button>
+        )}
+        {canDraft && (
+          <button className="btn py-0" onClick={() => onDraft(c.path, c.line!, `${c.title}\n\n${c.detail}`)}>
+            + Draft comment
+          </button>
+        )}
+      </div>
+    </li>
   )
 }
