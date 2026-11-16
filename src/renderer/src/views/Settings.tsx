@@ -1,10 +1,10 @@
 import { useEffect, useState } from 'react'
 import type { Settings as S, SettingsPatch } from '@shared/types'
+import { GithubTokenSettings } from '../components/GithubTokenSettings'
 import { errorMessage } from '../lib/format'
 
 export function Settings() {
   const [s, setS] = useState<S | null>(null)
-  const [ghToken, setGhToken] = useState('')
   const [apiKey, setApiKey] = useState('')
   const [msg, setMsg] = useState<string | null>(null)
 
@@ -34,19 +34,7 @@ export function Settings() {
       <div className="min-h-0 flex-1 overflow-y-auto">
         <div className="mx-auto max-w-2xl space-y-8 px-6 py-6">
           <Group title="GitHub">
-            <Row label="Access token" hint={s.hasGithubToken ? 'A token is stored in the macOS keychain.' : 'Not set: using `gh auth token` from the GitHub CLI.'}>
-              <div className="flex gap-2">
-                <input className="input font-mono" type="password" placeholder="ghp_… (optional)" value={ghToken} onChange={(e) => setGhToken(e.target.value)} />
-                <button className="btn" disabled={!ghToken} onClick={() => void update({ githubToken: ghToken }).then(() => setGhToken(''))}>
-                  Save
-                </button>
-                {s.hasGithubToken && (
-                  <button className="btn btn-ghost" onClick={() => void update({ githubToken: null })}>
-                    Clear
-                  </button>
-                )}
-              </div>
-            </Row>
+            <GithubTokenSettings onSaved={() => void window.revio.getSettings().then(setS)} />
             <Toggle label="Include team review requests" checked={s.includeTeamRequests} onChange={(v) => update({ includeTeamRequests: v })} />
             <Toggle label="Hide draft PRs" checked={s.ignoreDrafts} onChange={(v) => update({ ignoreDrafts: v })} />
           </Group>
@@ -54,6 +42,7 @@ export function Settings() {
           <Group title="Alerts">
             <Toggle label="Notify when a review is requested (or re-requested)" checked={s.notifyOnRequest} onChange={(v) => update({ notifyOnRequest: v })} />
             <Toggle label="Notify when a review goes stale" checked={s.notifyOnStale} onChange={(v) => update({ notifyOnStale: v })} />
+            <Toggle label="Notify when you or your team are mentioned on a PR" checked={s.notifyOnMention} onChange={(v) => update({ notifyOnMention: v })} />
             <Num label="Check GitHub every" unit="minutes" value={s.pollIntervalMinutes} min={1} onChange={(v) => update({ pollIntervalMinutes: v })} />
             <Num label="Stale after" unit="hours" value={s.staleAfterHours} min={1} onChange={(v) => update({ staleAfterHours: v })} />
             <Num label="Repeat stale alert every" unit="hours (0 = once)" value={s.staleRepeatHours} min={0} onChange={(v) => update({ staleRepeatHours: v })} />

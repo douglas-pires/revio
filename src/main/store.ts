@@ -26,6 +26,7 @@ const DEFAULT_SETTINGS: StoredSettings = {
   includeTeamRequests: true,
   notifyOnRequest: true,
   notifyOnStale: true,
+  notifyOnMention: true,
   ignoreDrafts: true,
   claudeBackend: 'auto',
   claudeModel: 'claude-opus-5-5',
@@ -64,7 +65,7 @@ function load(): Db {
     settings: { ...DEFAULT_SETTINGS },
     guidelines: DEFAULT_GUIDELINES,
     pulls: {},
-    alerts: { requested: {}, staleAlertedAt: {}, seeded: false },
+    alerts: { requested: {}, staleAlertedAt: {}, seeded: false, mentionsAlerted: {}, mentionsSeeded: false },
   }
   try {
     if (existsSync(file())) {

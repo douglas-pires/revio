@@ -1,6 +1,7 @@
-import { app, Notification } from 'electron'
+import { app } from 'electron'
 import type { Inbox, PullSummary } from '@shared/types'
 import { raiseAlerts } from './alerts'
+import { showNotification } from './notify'
 import { store } from './store'
 
 export interface PollerDeps {
@@ -65,10 +66,7 @@ export class InboxPoller {
   }
 
   #notify(title: string, body: string, pr: PullSummary) {
-    if (!Notification.isSupported()) return
-    const n = new Notification({ title, body, silent: false })
-    n.on('click', () => this.#deps.onOpenPull(pr.repo, pr.number))
-    n.show()
+    showNotification(title, body, () => this.#deps.onOpenPull(pr.repo, pr.number))
   }
 }
 

@@ -96,13 +96,24 @@ export function Composer(props: {
   initial?: string
   suggestion?: string
   onCancel: () => void
-  onSubmit: (body: string) => void
+  /** Adds the comment to your pending review. Without it, the box only replies right away. */
+  onSubmit?: (body: string) => void
   onSubmitNow?: (body: string) => Promise<void>
   onAsk?: () => void
 }) {
   const [body, setBody] = useState(props.initial ?? '')
   const [busy, setBusy] = useState(false)
   const [preview, setPreview] = useState(false)
+  const sendNow = async () => {
+    if (!props.onSubmitNow || !body.trim() || busy) return
+    setBusy(true)
+    try {
+      await props.onSubmitNow(body.trim())
+    } finally {
+      setBusy(false)
+    }
+  }
+  const submit = () => (props.onSubmit ? body.trim() && props.onSubmit(body.trim()) : void sendNow())
   return (
     <div className="rounded-md border border-accent/50 bg-panel p-2">
       <div className="mb-1.5 flex items-center gap-1 text-[11.5px] text-muted">
@@ -137,11 +148,11 @@ export function Composer(props: {
         <textarea
           autoFocus
           className="input min-h-20 resize-y font-sans"
-          placeholder="Leave a comment (markdown). ⌘↵ to add"
+          placeholder={`Leave a comment (markdown). ⌘↵ to ${props.onSubmit ? 'add' : 'send'}`}
           value={body}
           onChange={(e) => setBody(e.target.value)}
           onKeyDown={(e) => {
-            if (e.key === 'Enter' && e.metaKey && body.trim()) props.onSubmit(body.trim())
+            if (e.key === 'Enter' && e.metaKey) submit()
             if (e.key === 'Escape') props.onCancel()
           }}
         />
@@ -151,24 +162,15 @@ export function Composer(props: {
           Cancel
         </button>
         {props.onSubmitNow && (
-          <button
-            className="btn"
-            disabled={!body.trim() || busy}
-            onClick={async () => {
-              setBusy(true)
-              try {
-                await props.onSubmitNow!(body.trim())
-              } finally {
-                setBusy(false)
-              }
-            }}
-          >
+          <button className={cx('btn', !props.onSubmit && 'btn-primary')} disabled={!body.trim() || busy} onClick={() => void sendNow()}>
             {busy ? 'Sending…' : 'Reply now'}
           </button>
         )}
-        <button className="btn btn-primary" disabled={!body.trim()} onClick={() => props.onSubmit(body.trim())}>
-          {props.initial ? 'Update' : 'Add to review'}
-        </button>
+        {props.onSubmit && (
+          <button className="btn btn-primary" disabled={!body.trim()} onClick={submit}>
+            {props.initial ? 'Update' : 'Add to review'}
+          </button>
+        )}
       </div>
     </div>
   )

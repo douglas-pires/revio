@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useMemo, useState } from 'react'
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import {
   pullKey,
   type AskThread,
@@ -9,18 +9,23 @@ import {
 } from '@shared/types'
 import { BriefingPanel } from '../components/BriefingPanel'
 import { AskPanel } from '../components/AskPanel'
-import { DiffFile, type AskSelection } from '../components/DiffFile'
+import { DiffFile, type AskSelection, type DiffView } from '../components/DiffFile'
 import { Markdown } from '../components/Markdown'
 import { FileTree } from '../components/FileTree'
 import { groupByDir, initialCollapsed, newSideLinesByPath, suggestFolders } from '../lib/files'
 import { EMPTY, groupBy } from '../lib/group'
-import { useDiffViewPreference } from '../hooks/useDiffViewPreference'
+import { useStoredChoice } from '../hooks/useStoredChoice'
+import { CommentsPanel } from '../components/CommentsPanel'
+import { groupCommentThreads } from '../lib/commentThreads'
 import { useFileKeyboardNav } from '../hooks/useFileKeyboardNav'
 import { usePullLocalState } from '../hooks/usePullLocalState'
 import { useScrollToTarget, type ScrollTarget } from '../hooks/useScrollToTarget'
 import { MyReviewChip, ReviewPopover } from '../components/ReviewPopover'
 import { StackBar } from '../components/StackBar'
 import { cx, errorMessage } from '../lib/format'
+
+const DIFF_VIEWS: readonly DiffView[] = ['unified', 'split']
+const PANEL_STATES = ['open', 'closed'] as const
 
 type Tab = 'overview' | 'files'
 
@@ -32,6 +37,8 @@ const FRESH_ENOUGH_MS = 15_000
 export function PullView(props: {
   repo: string
   number: number
+  /** A file and line to open at, e.g. from a review thread in the inbox. */
+  initialTarget?: ScrollTarget
   onBack: () => void
   onEditGuidelines: (repo: string, path?: string) => void
   onOpenPull: (repo: string, number: number) => void
@@ -49,7 +56,8 @@ export function PullView(props: {
   const [reviewOpen, setReviewOpen] = useState<ReviewEvent | false>(false)
   const [reviewBody, setReviewBody] = useState('')
   const [askThread, setAskThread] = useState<AskThread | null>(null)
-  const [view, changeView] = useDiffViewPreference()
+  const [view, changeView] = useStoredChoice<DiffView>('revio.diffView', DIFF_VIEWS, 'unified')
+  const [commentsPanel, setCommentsPanel] = useStoredChoice('revio.commentsPanel', PANEL_STATES, 'open')
   const { local, replaceLocal, addDraft, updateDraft, deleteDraft, forgetDrafts, markViewed, saveThread, setBriefingRecord } =
     usePullLocalState(repo, number)
 
@@ -135,6 +143,8 @@ export function PullView(props: {
 
   /** Folder-grouped order, shared by the sidebar, the diff list and j/k. */
   const orderedFiles = useMemo(() => (pr ? groupByDir(pr.files).flatMap(([, fs]) => fs) : []), [pr])
+  const commentThreads = useMemo(() => groupCommentThreads(pr?.comments ?? [], pr?.threads ?? [], orderedFiles.map((f) => f.path)), [pr, orderedFiles])
+  const openThreadCount = commentThreads.filter((t) => !t.resolved).length
   const rightLines = useMemo(() => newSideLinesByPath(pr), [pr])
 
   // ------------------------------------------------------------ navigation
@@ -148,6 +158,14 @@ export function PullView(props: {
     setScrollTarget({ path, line })
   }, [])
   const clearScrollTarget = useCallback(() => setScrollTarget(null), [])
+  // Jump to the requested line once, after the first load has set which files start collapsed.
+  const pendingTarget = useRef(props.initialTarget)
+  useEffect(() => {
+    const target = pendingTarget.current
+    if (!pr || !target) return
+    pendingTarget.current = undefined
+    goTo(target.path, target.line)
+  }, [pr, goTo])
   useScrollToTarget(scrollTarget, tab === 'files', clearScrollTarget)
 
   const toggleCollapsed = useCallback((path: string, value: boolean) => setCollapsed((c) => ({ ...c, [path]: value })), [])
@@ -268,7 +286,16 @@ export function PullView(props: {
               </button>
             ))}
             {tab === 'files' && (
-              <span className="mb-1.5 ml-auto self-center text-[11.5px] text-muted">
+              <button
+                className={cx('mb-1.5 ml-auto self-center rounded px-2 py-0.5 text-[12px]', commentsPanel === 'open' ? 'bg-hover text-fg' : 'text-muted hover:text-fg')}
+                title={commentsPanel === 'open' ? 'Hide the comments panel' : 'Show every comment thread in a panel'}
+                onClick={() => setCommentsPanel(commentsPanel === 'open' ? 'closed' : 'open')}
+              >
+                💬 {openThreadCount}
+              </button>
+            )}
+            {tab === 'files' && (
+              <span className="mb-1.5 ml-3 self-center text-[11.5px] text-muted">
                 <kbd className="kbd">j</kbd>/<kbd className="kbd">k</kbd> files · <kbd className="kbd">v</kbd> viewed
               </span>
             )}
@@ -362,6 +389,10 @@ export function PullView(props: {
             )}
           </div>
         </section>
+
+        {tab === 'files' && commentsPanel === 'open' && !askThread && (
+          <CommentsPanel threads={commentThreads} drafts={local.drafts} current={current} onJump={goTo} onClose={() => setCommentsPanel('closed')} />
+        )}
 
         {askThread && (
           <AskPanel

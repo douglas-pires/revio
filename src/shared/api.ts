@@ -2,9 +2,11 @@ import type {
   AskThread,
   BriefingRecord,
   DraftComment,
+  GithubAuthStatus,
   Guideline,
   Inbox,
   MainEvent,
+  MentionsInbox,
   PullDetail,
   PullLocalState,
   ResolvedGuideline,
@@ -12,14 +14,30 @@ import type {
   SettingsPatch,
   Stack,
   SubmitReviewInput,
+  ThreadComment,
+  ThreadsInbox,
 } from './types'
 
 /** Everything the renderer can ask the main process to do. Exposed as `window.revio`. */
 export interface RevioApi {
   getSettings(): Promise<Settings>
   updateSettings(patch: SettingsPatch): Promise<Settings>
+  /** Which GitHub token is in use, whose it is and what it may do. */
+  githubAuthStatus(): Promise<GithubAuthStatus>
+  /** Verifies the token with GitHub, then stores it encrypted and refreshes the inbox. */
+  saveGithubToken(token: string): Promise<GithubAuthStatus>
 
   getInbox(): Promise<Inbox | null>
+  /** PRs that mention you or your teams recently (the last fetch, or a fresh one the first time). */
+  getMentions(): Promise<MentionsInbox>
+  refreshMentions(): Promise<MentionsInbox>
+  /** Marks the PR's GitHub notification read, clearing its new mentions. */
+  markMentionRead(repo: string, number: number): Promise<void>
+  /** Unresolved review threads you are part of; a copy up to `maxAgeMs` old is fine (0 = always fetch). */
+  getThreads(maxAgeMs?: number): Promise<ThreadsInbox>
+  /** Replies in a review thread immediately and returns the posted comment. */
+  replyToThread(threadId: string, body: string): Promise<ThreadComment>
+  setThreadResolved(threadId: string, resolved: boolean): Promise<void>
   refreshInbox(): Promise<Inbox>
 
   /** PR details; a cached copy up to `maxAgeMs` old is fine (0 = always fetch). */

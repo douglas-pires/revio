@@ -9,14 +9,16 @@ Electron 45 · TypeScript 7 · React 19 · Tailwind 4 · electron-vite.
 
 ```bash
 npm install
-npm run dev        # hot-reloading dev app
+npm run dev        # dev app; reloads the window and restarts on main-process changes (--watch)
 npm run typecheck  # tsc 7 (native) for main, renderer and tests
 npm test           # Vitest: diff parsing, alerts, stacks, guidelines, caching, Claude context
 npm run dist       # build a .dmg into dist/
 ```
 
-**GitHub:** uses `gh auth token` automatically. To see team names on team review requests, the token needs
-`read:org` (`gh auth refresh -s read:org`), or paste a token in Settings (stored encrypted via the macOS keychain).
+**GitHub:** Revio uses, in order: a token pasted in **Settings → GitHub** (checked with GitHub, then stored encrypted
+via the macOS keychain), `GITHUB_TOKEN` (or `GH_TOKEN`) in the project's `.env` when running from source, then
+`GH_TOKEN` / `GITHUB_TOKEN` from the environment, then `gh auth token`. Settings shows which one is in use, the
+account and its scopes. Team names on team review requests need `read:org`; Settings warns when the token lacks it.
 
 **Claude:** "Auto" uses an Anthropic API key if one is set (Settings or `ANTHROPIC_API_KEY`), otherwise your local
 Claude Code login via `claude -p` with structured JSON output. Default model: `claude-opus-5-5`.
@@ -42,7 +44,7 @@ mocked; nothing hits the network. React components are not tested yet.
 
 | Where | What |
 | --- | --- |
-| `src/main/poller.ts` | Polls GitHub every N minutes and shows notifications. Dock badge = queue size. |
+| `src/main/poller.ts` | Polls GitHub every N minutes and shows notifications. Dock badge = queue size. A PR leaves the queue once you have reviewed it since you were asked, even if a team request remains or search has not caught up. |
 | `src/main/alerts.ts` | When to alert: new/re-requested reviews and stale ones (first run records the backlog silently). No Electron, so it is unit-tested. |
 | `src/main/github.ts` | GraphQL inbox search (requested + reviewed-and-still-open), PR files/comments, review submission. |
 | `src/main/stacks.ts` / `stackGraph.ts` | Walks branch links on GitHub (batched GraphQL) / turns the PRs found into ordered stacks. |
@@ -50,6 +52,34 @@ mocked; nothing hits the network. React components are not tested yet.
 | `src/main/claude.ts` | Builds the prompt (guides + description + full diff + existing comments) and returns a typed briefing. |
 | `src/main/store.ts` | JSON store in `~/Library/Application Support/Revio/revio.json` (settings, guides, drafts, viewed files, briefings); `pullState.ts` prunes PRs untouched for 45 days. |
 | `src/renderer/` | Inbox, PR view (Overview with briefing / Files changed), Guides editor, Settings. |
+
+## Inbox search
+
+The search box (press `/`) takes free text plus GitHub's qualifiers:
+
+| Qualifier | Keeps |
+| --- | --- |
+| `user-review-requested:@me` | Requests addressed to you directly |
+| `team-review-requested:web` (or `org/web`, `*` for any team) | Requests that reach you through a team |
+| `review-requested:@me` | Every open request, hiding PRs you already reviewed |
+| `repo:`, `author:`, `head:`, `base:` | One repository (owner/name or name), author, or branch |
+| `is:stale`, `is:draft`, `is:stacked`, `is:approved`, `is:changes-requested` | Those states |
+| `is:bot` | Threads whose last comment is from a bot (`-is:bot` hides them) |
+
+Prefix any qualifier with `-` to exclude it. The **Requested from: All · Me · @team** buttons rewrite the query the
+same way. Without the `read:org` scope GitHub hides team names, so team requests are grouped as `@team`;
+`gh auth refresh -s read:org` shows the real names. The search is kept while you open a PR and come back.
+
+## Threads
+
+The inbox's **Threads** tab lists unresolved review threads on open PRs you are involved in (yours, or ones you
+commented on), in two groups: **Waiting on your reply** (someone else spoke last) and **Waiting on others** (your
+comment has no answer yet), oldest first and grouped by PR. The tab count is how many wait on you. Clicking a
+thread opens the PR at that file and line; outdated threads open the file. **Reply** posts right away (⌘↵) and moves
+the thread to *Waiting on others*; **Resolve** resolves it on GitHub and keeps the row with **Undo** until the next refresh. The search box filters threads too (PR,
+file path, comment text, `repo:`, `author:`, `-is:bot`). It covers the 30 most recently updated PRs you are involved
+in, and the last 10 comments of each thread; general PR conversation comments are not included, since only review
+threads can be resolved. Threads load when the inbox opens (reused for 2 minutes) and on **Refresh**.
 
 ## Stacked PRs
 
@@ -66,6 +96,30 @@ and a warning when the PR it builds on is not approved yet.
 PR descriptions, comments, guides and Claude answers render like GitHub: inline HTML (`<details>`, `<img width>`,
 `<p align>`…) sanitized with GitHub's allow-list, and ```` ```mermaid ```` blocks drawn as diagrams (loaded on demand,
 follows light/dark; click a diagram to zoom, hover for **Source**). Images that need a GitHub login become links.
+
+## Mentions
+
+The **Mentions** item in the sidebar lists PRs where someone mentioned you (`@you`) or one of your teams
+(`@org/team`, needs `read:org`) in the last 14 days: in the description, a comment, a review or a review comment.
+Each mention shows who, where (file and line for review comments) and the text around the mention, newest first.
+**New** means unread in your GitHub notifications; the sidebar badge counts PRs with new mentions.
+
+- Clicking a mention opens the PR (at the line for review comments) and marks its GitHub notification read, as
+  github.com does. **Mark read** does only the latter. **GitHub ↗** opens the comment on GitHub, useful for
+  conversation comments, which Revio's PR view does not show.
+- Candidates come from both `mentions:@me` search and your notifications, because search misses some review
+  comments and a notification keeps only its latest reason. Mentions in code blocks or quoted replies don't count,
+  nor do your own comments.
+- A desktop notification fires for each new mention (Settings → Alerts → "Notify when you or your team are
+  mentioned"); the first fetch after install records existing ones silently. Mentions refresh with the inbox.
+- Fine-grained tokens cannot read notifications: mentions still show, but none are marked new.
+
+## Comments panel
+
+On **Files changed**, the right-hand panel lists every review thread grouped by file (in file-list order), with who
+started it, a preview, replies and the last replier. Open threads show by default; **Show N resolved** reveals the
+rest. Your pending (draft) comments are listed at the top. Clicking an item jumps to its line. The 💬 button in the tab
+bar shows the open count and hides or shows the panel (remembered). The Ask Claude panel takes its place while open.
 
 ## Diff tips
 

@@ -13,6 +13,7 @@ export interface Settings {
   includeTeamRequests: boolean
   notifyOnRequest: boolean
   notifyOnStale: boolean
+  notifyOnMention: boolean
   /** Skip draft PRs in the inbox and alerts. */
   ignoreDrafts: boolean
   claudeBackend: ClaudeBackend
@@ -20,6 +21,19 @@ export interface Settings {
   /** Secrets are never sent back to the renderer, only whether they are set. */
   hasGithubToken: boolean
   hasAnthropicKey: boolean
+}
+
+/** Where the GitHub token in use comes from. */
+export type GithubTokenSource = 'settings' | 'dotenv' | 'GH_TOKEN' | 'GITHUB_TOKEN' | 'gh-cli' | 'none'
+
+export interface GithubAuthStatus {
+  source: GithubTokenSource
+  login: string | null
+  /** Classic token scopes; null for fine-grained tokens, whose permissions GitHub does not report. */
+  scopes: string[] | null
+  /** Whether the token can read team names (read:org). Null when unknown. */
+  canSeeTeams: boolean | null
+  error?: string
 }
 
 export interface SettingsPatch extends Partial<Omit<Settings, 'hasGithubToken' | 'hasAnthropicKey'>> {
@@ -109,6 +123,82 @@ export interface Inbox {
   error?: string
 }
 
+export interface ThreadComment {
+  author: string
+  authorAvatar: string
+  /** Comment from a bot account (linters, AI reviewers, CI). */
+  bot: boolean
+  body: string
+  createdAt: string
+  url: string
+}
+
+/** An unresolved review thread you are part of, on an open PR. */
+export interface OpenThread {
+  id: string
+  repo: string
+  number: number
+  prTitle: string
+  prUrl: string
+  prAuthor: string
+  isDraft: boolean
+  path: string
+  /** Line on the new side, or null when the code it was on has changed (outdated). */
+  line: number | null
+  outdated: boolean
+  /** The latest comments, oldest first. */
+  comments: ThreadComment[]
+  totalComments: number
+  /** "you": someone else spoke last. "others": your comment has no answer yet. */
+  waitingOn: 'you' | 'others'
+  lastActivityAt: string
+}
+
+export interface ThreadsInbox {
+  threads: OpenThread[]
+  fetchedAt: string
+}
+
+/** One comment (or PR description) that mentions you or one of your teams. */
+export interface MentionSnippet {
+  id: string
+  kind: 'description' | 'comment' | 'review' | 'review-comment'
+  author: string
+  authorAvatar: string
+  body: string
+  createdAt: string
+  url: string
+  /** File and line for review comments, so the PR can open there. */
+  path: string | null
+  line: number | null
+  /** The team handle that was mentioned (org/slug), or null when you were mentioned by name. */
+  viaTeam: string | null
+  /** Unread on GitHub: newer than when you last read this PR's notification. */
+  isNew: boolean
+}
+
+/** A PR with mentions of you in the recent window, newest mention first. */
+export interface Mention {
+  repo: string
+  number: number
+  title: string
+  url: string
+  state: 'OPEN' | 'CLOSED' | 'MERGED'
+  /** GitHub notification thread, used to mark it read. */
+  notificationId: string | null
+  snippets: MentionSnippet[]
+  latestAt: string
+}
+
+export interface MentionsInbox {
+  /** Your login, to find @you in the text. */
+  viewer: string
+  mentions: Mention[]
+  windowDays: number
+  fetchedAt: string
+  error?: string
+}
+
 export type DiffSide = 'LEFT' | 'RIGHT'
 
 export interface PullFile {
@@ -161,6 +251,14 @@ export interface PullDetail {
   deletions: number
   files: PullFile[]
   comments: ReviewComment[]
+  /** Review thread status, keyed by the thread's first comment. Empty if GitHub would not say. */
+  threads: PullThreadStatus[]
+}
+
+export interface PullThreadStatus {
+  id: string
+  rootCommentId: number
+  resolved: boolean
 }
 
 export interface DraftComment {
@@ -245,6 +343,7 @@ export interface PullLocalState {
 }
 
 export type MainEvent =
+  | { type: 'mentions'; mentions: MentionsInbox }
   | { type: 'inbox'; inbox: Inbox }
   | { type: 'open-pull'; repo: string; number: number }
   | { type: 'briefing-progress'; key: string; message: string }

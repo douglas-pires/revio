@@ -5,32 +5,24 @@ import type {
   PullDetail,
   PullFile,
   PullSummary,
+  PullThreadStatus,
   ReviewComment,
   SubmitReviewInput,
 } from '@shared/types'
-import { loginShell } from './shell'
+import { resolveToken } from './githubAuth'
 import type { StackFinder } from './stacks'
 import { store } from './store'
+import { awaitsYou, classifyRequest, type RawReviewer, type RequestEvent, type ReviewRequest } from './reviewRequest'
 
 let client: { token: string; octokit: Octokit } | null = null
 
-async function resolveToken(): Promise<string> {
-  const stored = store.githubToken()
-  if (stored) return stored
-  const env = process.env.GH_TOKEN || process.env.GITHUB_TOKEN
-  if (env) return env
-  try {
-    const token = await loginShell('gh auth token')
-    if (token) return token
-  } catch {
-    /* fall through */
-  }
-  throw new Error('No GitHub token. Run `gh auth login`, or paste a token in Settings.')
-}
-
 export async function gh(): Promise<Octokit> {
-  const token = await resolveToken()
-  if (client?.token !== token) client = { token, octokit: new Octokit({ auth: token, userAgent: 'revio' }) }
+  const { token } = await resolveToken()
+  if (client?.token !== token) {
+    client = { token, octokit: new Octokit({ auth: token, userAgent: 'revio' }) }
+    // A different token may have read:org even if the last one did not.
+    teamSlugsAllowed = true
+  }
   return client.octokit
 }
 
@@ -58,6 +50,10 @@ const searchQuery = (teamSlugs: boolean) => /* GraphQL */ `
     headRefName baseRefName reviewDecision
     repository { nameWithOwner defaultBranchRef { name } }
     author { login avatarUrl(size: 64) }
+    latestReviews(first: 30) { nodes { author { login } submittedAt } }
+    reviewRequests(first: 20) {
+      nodes { requestedReviewer { __typename ... on User { login } ${teamSlugs ? '... on Team { slug }' : ''} } }
+    }
     timelineItems(itemTypes: [REVIEW_REQUESTED_EVENT], last: 30) {
       nodes {
         ... on ReviewRequestedEvent {
@@ -85,17 +81,25 @@ interface RawPr {
   reviewDecision: string | null
   repository: { nameWithOwner: string; defaultBranchRef: { name: string } | null }
   author: { login: string; avatarUrl: string } | null
-  timelineItems: {
-    nodes: ({ createdAt: string; requestedReviewer: { __typename: string; login?: string; slug?: string } | null } | null)[]
-  }
+  latestReviews: { nodes: ({ author: { login: string } | null; submittedAt: string | null } | null)[] }
+  reviewRequests: { nodes: ({ requestedReviewer: RawReviewer } | null)[] }
+  timelineItems: { nodes: (RequestEvent | null)[] }
 }
 
-function toSummary(pr: RawPr, viewer: string, staleAfterHours: number, isRequested: boolean): PullSummary {
-  const events = pr.timelineItems.nodes.filter((n): n is NonNullable<typeof n> => !!n?.requestedReviewer)
-  const mine = events.filter((e) => e.requestedReviewer?.login === viewer).at(-1)
-  const team = events.filter((e) => e.requestedReviewer?.__typename === 'Team').at(-1)
-  const req = mine ?? team
-  const requestedAt = req?.createdAt ?? null
+function requestOf(pr: RawPr, viewer: string): ReviewRequest {
+  return classifyRequest(
+    pr.reviewRequests.nodes.map((n) => n?.requestedReviewer ?? null),
+    pr.timelineItems.nodes.filter((n): n is RequestEvent => !!n?.createdAt),
+    viewer,
+  )
+}
+
+const lastReviewBy = (pr: RawPr, viewer: string) => pr.latestReviews.nodes.find((r) => r?.author?.login === viewer)?.submittedAt ?? null
+
+/** `request` is set for PRs waiting on your review, null for ones you already reviewed. */
+function toSummary(pr: RawPr, staleAfterHours: number, request: ReviewRequest | null): PullSummary {
+  const isRequested = !!request
+  const { viaTeam, requestedAt } = request ?? { viaTeam: null, requestedAt: null }
   const since = new Date(requestedAt ?? pr.createdAt).getTime()
   const waitingHours = (Date.now() - since) / 36e5
   return {
@@ -110,7 +114,7 @@ function toSummary(pr: RawPr, viewer: string, staleAfterHours: number, isRequest
     createdAt: pr.createdAt,
     updatedAt: pr.updatedAt,
     requestedAt,
-    viaTeam: !mine && team ? (team.requestedReviewer?.slug ?? 'team') : null,
+    viaTeam,
     additions: pr.additions,
     deletions: pr.deletions,
     changedFiles: pr.changedFiles,
@@ -145,19 +149,49 @@ export async function fetchInbox(stackFinder: StackFinder): Promise<Inbox> {
     data = await octokit.graphql<Result>(searchQuery(false), vars)
   }
   const viewer = data.viewer.login
-  const requested = data.requested.nodes
-    .filter((n): n is RawPr => !!n?.id)
-    .map((n) => toSummary(n, viewer, s.staleAfterHours, true))
-    .sort((a, b) => b.waitingHours - a.waitingHours)
-  const requestedIds = new Set(requested.map((p) => p.id))
-  const reviewed = data.reviewed.nodes
-    .filter((n): n is RawPr => !!n?.id && !requestedIds.has(n.id))
-    .map((n) => toSummary(n, viewer, s.staleAfterHours, false))
+  const isPr = (n: RawPr | null): n is RawPr => !!n?.id
+  // A team request can outlive your review, and search results lag a fresh review: both still match
+  // review-requested:@me. Your latest review (always current) settles whether the PR still waits on you.
+  const requested: PullSummary[] = []
+  const reviewedSinceRequest: PullSummary[] = []
+  for (const n of data.requested.nodes.filter(isPr)) {
+    const request = requestOf(n, viewer)
+    if (awaitsYou(request, lastReviewBy(n, viewer))) requested.push(toSummary(n, s.staleAfterHours, request))
+    else reviewedSinceRequest.push(toSummary(n, s.staleAfterHours, null))
+  }
+  requested.sort((a, b) => b.waitingHours - a.waitingHours)
+  const listed = new Set([...requested, ...reviewedSinceRequest].map((p) => p.id))
+  const reviewed = [
+    ...reviewedSinceRequest,
+    ...data.reviewed.nodes.filter((n): n is RawPr => isPr(n) && !listed.has(n.id)).map((n) => toSummary(n, s.staleAfterHours, null)),
+  ]
   const stacks = await stackFinder.stacksForInbox(octokit, requested, reviewed)
   return { viewer, requested, reviewed, stacks, fetchedAt: new Date().toISOString() }
 }
 
 // ---------------------------------------------------------------- pull detail
+
+/** Which review threads are resolved; REST comments do not say. A failure only hides that status. */
+async function fetchThreadStatus(octokit: Octokit, owner: string, repo: string, number: number): Promise<PullThreadStatus[]> {
+  type Data = { repository: { pullRequest: { reviewThreads: { nodes: ({ id: string; isResolved: boolean; comments: { nodes: ({ databaseId: number } | null)[] } } | null)[] } } | null } }
+  try {
+    const data = await octokit.graphql<Data>(
+      `query ($owner: String!, $repo: String!, $number: Int!) {
+        repository(owner: $owner, name: $repo) { pullRequest(number: $number) {
+          reviewThreads(first: 100) { nodes { id isResolved comments(first: 1) { nodes { databaseId } } } }
+        } }
+      }`,
+      { owner, repo, number },
+    )
+    return (data.repository.pullRequest?.reviewThreads.nodes ?? []).flatMap((t) => {
+      const rootCommentId = t?.comments.nodes[0]?.databaseId
+      return t && rootCommentId ? [{ id: t.id, rootCommentId, resolved: t.isResolved }] : []
+    })
+  } catch (err) {
+    console.error('[revio] thread status lookup failed:', err instanceof Error ? err.message : err)
+    return []
+  }
+}
 
 /** GitHub serves 460px avatars by default; the app shows them at 20–28px. */
 function smallAvatar(url: string | undefined) {
@@ -179,12 +213,13 @@ async function viewerLogin(): Promise<string> {
 export async function fetchPull(repoFull: string, number: number): Promise<PullDetail> {
   const octokit = await gh()
   const { owner, repo } = splitRepo(repoFull)
-  const [pr, files, comments, reviews, viewer] = await Promise.all([
+  const [pr, files, comments, reviews, viewer, threads] = await Promise.all([
     octokit.pulls.get({ owner, repo, pull_number: number }),
     octokit.paginate(octokit.pulls.listFiles, { owner, repo, pull_number: number, per_page: 100 }),
     octokit.paginate(octokit.pulls.listReviewComments, { owner, repo, pull_number: number, per_page: 100 }),
     octokit.paginate(octokit.pulls.listReviews, { owner, repo, pull_number: number, per_page: 100 }),
     viewerLogin(),
+    fetchThreadStatus(octokit, owner, repo, number),
   ])
   const mine = reviews.filter((r) => r.user?.login === viewer && r.state !== 'PENDING')
   const decisive = mine.filter((r) => r.state === 'APPROVED' || r.state === 'CHANGES_REQUESTED' || r.state === 'DISMISSED').at(-1)
@@ -225,6 +260,7 @@ export async function fetchPull(repoFull: string, number: number): Promise<PullD
         patch: f.patch,
       }),
     ),
+    threads,
     comments: comments.map(
       (c): ReviewComment => ({
         id: c.id,

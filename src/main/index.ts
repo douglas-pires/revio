@@ -1,23 +1,44 @@
 import { app, BrowserWindow, ipcMain, shell } from 'electron'
 import { join } from 'node:path'
 import { IPC, type ApiMethod, type RevioApi } from '@shared/api'
-import { pullKey, type MainEvent } from '@shared/types'
+import { pullKey, type MainEvent, type MentionsInbox } from '@shared/types'
 import { ask } from './ask'
 import { generateBriefing } from './claude'
-import { fetchInbox, fetchPull, replyToComment, resetClient, submitReview } from './github'
+import { fetchInbox, fetchPull, gh, replyToComment, resetClient, submitReview } from './github'
+import { fetchThreads, replyToThread, setThreadResolved, ThreadFinder } from './threads'
+import { githubAuthStatus, saveGithubToken } from './githubAuth'
 import { deleteGuideline, resolveGuidelines, saveGuideline } from './guidelines'
 import { InboxPoller } from './poller'
 import { PullCache } from './pullCache'
 import { fetchStack, StackFinder } from './stacks'
 import { flush, store } from './store'
+import { excerpt } from '@shared/excerpt'
+import { takeNewMentions } from './alerts'
+import { fetchMentions, MentionWatcher } from './mentions'
+import { showNotification } from './notify'
 
 let win: BrowserWindow | null = null
 // Composition root: the long-lived services, created once and handed to whoever needs them.
 const pulls = new PullCache(fetchPull)
 const stackFinder = new StackFinder()
+const threadFinder = new ThreadFinder(async () => fetchThreads(await gh()))
+const mentionWatcher = new MentionWatcher({
+  load: async () => fetchMentions(await gh()),
+  markRead: async (notificationId) => {
+    await (await gh()).request('PATCH /notifications/threads/{thread_id}', { thread_id: Number(notificationId) })
+  },
+  onMentions: (mentions) => {
+    send({ type: 'mentions', mentions })
+    alertNewMentions(mentions)
+  },
+})
 const poller = new InboxPoller({
   loadInbox: () => fetchInbox(stackFinder),
-  onInbox: (inbox) => send({ type: 'inbox', inbox }),
+  onInbox: (inbox) => {
+    send({ type: 'inbox', inbox })
+    // Mentions refresh on the same schedule as the inbox.
+    void mentionWatcher.refresh()
+  },
   onOpenPull: (repo, number) => focusAndOpen(repo, number),
 })
 
@@ -52,6 +73,21 @@ function createWindow() {
   else void win.loadFile(join(import.meta.dirname, '../renderer/index.html'))
 }
 
+/** A desktop notification per new mention (a summary past three), unless turned off in Settings. */
+function alertNewMentions(mentions: MentionsInbox) {
+  if (mentions.error) return
+  const fresh = takeNewMentions(mentions, store.alerts())
+  store.saveAlerts()
+  if (!store.settings().notifyOnMention || !fresh.length) return
+  for (const { mention, snippet } of fresh.slice(0, 3)) {
+    const who = snippet.viaTeam ? `@${snippet.viaTeam}` : 'you'
+    showNotification(`${snippet.author} mentioned ${who}`, `${mention.repo}#${mention.number} · ${mention.title}\n${excerpt(snippet.body, 140)}`, () =>
+      focusAndOpen(mention.repo, mention.number),
+    )
+  }
+  if (fresh.length > 3) showNotification(`${fresh.length - 3} more mentions`, 'Open Revio → Mentions to see them all.', () => win?.show())
+}
+
 function focusAndOpen(repo: string, number: number) {
   if (!win) createWindow()
   if (win?.isMinimized()) win.restore()
@@ -67,12 +103,32 @@ const handlers: { [K in ApiMethod]: (...args: Parameters<RevioApi[K]>) => Return
     store.updateSettings(patch)
     if (patch.githubToken !== undefined) resetClient()
     if (patch.pollIntervalMinutes !== undefined) poller.reschedule()
-    if (patch.includeTeamRequests !== undefined || patch.ignoreDrafts !== undefined || patch.staleAfterHours !== undefined)
-      void poller.poll()
+    const affectsInbox = [patch.githubToken, patch.includeTeamRequests, patch.ignoreDrafts, patch.staleAfterHours].some((v) => v !== undefined)
+    if (affectsInbox) void poller.poll()
     return store.settings()
+  },
+  githubAuthStatus: () => githubAuthStatus(),
+  saveGithubToken: async (token) => {
+    await saveGithubToken(token)
+    resetClient()
+    void poller.poll()
+    return githubAuthStatus()
   },
 
   getInbox: () => poller.latest,
+  getMentions: () => mentionWatcher.latest ?? mentionWatcher.refresh(),
+  refreshMentions: () => mentionWatcher.refresh(),
+  markMentionRead: (repo, number) => mentionWatcher.markRead(repo, number),
+  getThreads: (maxAgeMs = 0) => threadFinder.get(maxAgeMs),
+  replyToThread: async (threadId, body) => {
+    const comment = await replyToThread(await gh(), threadId, body)
+    threadFinder.forget()
+    return comment
+  },
+  setThreadResolved: async (threadId, resolved) => {
+    await setThreadResolved(await gh(), threadId, resolved)
+    threadFinder.forget()
+  },
   refreshInbox: () => poller.poll(),
 
   getPull: (repo, number, maxAgeMs = 0) => pulls.get(repo, number, maxAgeMs),

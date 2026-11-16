@@ -53,6 +53,7 @@ export function makeDetail(over: Partial<PullDetail> = {}): PullDetail {
     deletions: 0,
     files: [makeFile()],
     comments: [],
+    threads: [],
     ...over,
   }
 }

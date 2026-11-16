@@ -1,4 +1,4 @@
-import type { Inbox, PullSummary, Settings } from '@shared/types'
+import type { Inbox, Mention, MentionSnippet, MentionsInbox, PullSummary, Settings } from '@shared/types'
 
 export interface AlertState {
   /** requestedAt we last alerted about, per PR node id. */
@@ -7,6 +7,10 @@ export interface AlertState {
   staleAlertedAt: Record<string, string>
   /** False until the first successful poll, so a fresh install does not alert on the whole backlog. */
   seeded: boolean
+  /** Mentions already alerted, by comment URL, with when they were written (to prune old ones). */
+  mentionsAlerted: Record<string, string>
+  /** False until the first mentions fetch, which records existing mentions silently. */
+  mentionsSeeded: boolean
 }
 
 export type AlertSettings = Pick<Settings, 'notifyOnRequest' | 'notifyOnStale' | 'staleRepeatHours'>
@@ -85,4 +89,23 @@ export function formatHours(h: number) {
   if (h < 1) return `${Math.max(1, Math.round(h * 60))}m`
   if (h < 48) return `${Math.round(h)}h`
   return `${Math.round(h / 24)}d`
+}
+
+/**
+ * New (unread) mentions not alerted before. The first fetch after install records them silently.
+ * Forgets entries that dropped out of the fetched window. Mutates `state`; the caller persists it.
+ */
+export function takeNewMentions(inbox: MentionsInbox, state: AlertState): { mention: Mention; snippet: MentionSnippet }[] {
+  const fresh: { mention: Mention; snippet: MentionSnippet }[] = []
+  const live = new Set<string>()
+  for (const mention of inbox.mentions)
+    for (const snippet of mention.snippets) {
+      live.add(snippet.id)
+      if (!snippet.isNew || state.mentionsAlerted[snippet.id]) continue
+      state.mentionsAlerted[snippet.id] = snippet.createdAt
+      if (state.mentionsSeeded) fresh.push({ mention, snippet })
+    }
+  for (const id of Object.keys(state.mentionsAlerted)) if (!live.has(id)) delete state.mentionsAlerted[id]
+  state.mentionsSeeded = true
+  return fresh
 }

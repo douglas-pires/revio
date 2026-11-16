@@ -1,5 +1,6 @@
 import { useEffect, useRef } from 'react'
 import type { PullFile } from '@shared/types'
+import { isTyping } from '../lib/keyboard'
 
 interface NavState {
   enabled: boolean
@@ -9,9 +10,6 @@ interface NavState {
   goTo: (path: string, expand: boolean) => void
   markViewed: (path: string, sha: string, viewed: boolean) => void
 }
-
-const isTyping = (target: EventTarget | null) =>
-  target instanceof HTMLElement && (target.isContentEditable || /^(INPUT|TEXTAREA|SELECT)$/.test(target.tagName))
 
 /** Next file index for j/k, clamped to the list; starts at the first file when nothing is current. */
 function stepIndex(index: number, key: 'j' | 'k', length: number) {

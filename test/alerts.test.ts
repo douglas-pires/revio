@@ -1,6 +1,6 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest'
-import type { Inbox, PullSummary } from '@shared/types'
-import { formatHours, isStaleAlertDue, raiseAlerts, recordRequest, requestChange, type AlertSettings, type AlertState, type Notify } from '../src/main/alerts'
+import type { Inbox, Mention, MentionsInbox, PullSummary } from '@shared/types'
+import { formatHours, isStaleAlertDue, raiseAlerts, recordRequest, requestChange, takeNewMentions, type AlertSettings, type AlertState, type Notify } from '../src/main/alerts'
 import { makeSummary } from './fixtures'
 
 const HOUR = 36e5
@@ -11,7 +11,7 @@ const makeInbox = (...requested: PullSummary[]): Inbox => ({ viewer: 'me', reque
 let state: AlertState
 const runAlerts = (inbox: Inbox, notify: Notify, now = NOW, alertSettings = settings) => raiseAlerts(inbox, { settings: alertSettings, state, notify, now })
 beforeEach(() => {
-  state = { requested: {}, staleAlertedAt: {}, seeded: true }
+  state = { requested: {}, staleAlertedAt: {}, seeded: true, mentionsAlerted: {}, mentionsSeeded: true }
 })
 
 describe('raiseAlerts', () => {
@@ -101,4 +101,31 @@ describe('formatHours', () => {
     [5, '5h'],
     [49, '2d'],
   ])('%d → %s', (h, s) => expect(formatHours(h)).toBe(s))
+})
+
+describe('takeNewMentions', () => {
+  const snippet = (id: string, isNew: boolean) => ({
+    id, kind: 'comment' as const, author: 'bo', authorAvatar: '', body: '@me', createdAt: '2026-11-10T00:00:00Z', url: id, path: null, line: null, viaTeam: null, isNew,
+  })
+  const mention = (...snippets: ReturnType<typeof snippet>[]): Mention => ({ repo: 'acme/web', number: 1, title: 't', url: '', state: 'OPEN', notificationId: 'N', snippets, latestAt: '' })
+  const makeMentions = (...mentions: Mention[]): MentionsInbox => ({ viewer: 'me', mentions, windowDays: 14, fetchedAt: '' })
+
+  it('records the first fetch silently', () => {
+    state.mentionsSeeded = false
+    expect(takeNewMentions(makeMentions(mention(snippet('a', true))), state)).toEqual([])
+    expect(state.mentionsSeeded).toBe(true)
+    expect(takeNewMentions(makeMentions(mention(snippet('a', true))), state)).toEqual([])
+  })
+
+  it('alerts once per new mention, never for read ones', () => {
+    const first = takeNewMentions(makeMentions(mention(snippet('a', true), snippet('b', false))), state)
+    expect(first.map((f) => f.snippet.id)).toEqual(['a'])
+    expect(takeNewMentions(makeMentions(mention(snippet('a', true))), state)).toEqual([])
+  })
+
+  it('forgets mentions that left the window', () => {
+    takeNewMentions(makeMentions(mention(snippet('a', true))), state)
+    takeNewMentions(makeMentions(), state)
+    expect(state.mentionsAlerted).toEqual({})
+  })
 })

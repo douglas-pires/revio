@@ -1,34 +1,44 @@
 import { lazy, Suspense, useEffect, useState } from 'react'
 import { HighlighterContext, WorkerHighlighter } from './lib/highlight'
-import type { Inbox as InboxData } from '@shared/types'
+import type { Inbox as InboxData, MentionsInbox } from '@shared/types'
 import { cx } from './lib/format'
 import { Inbox } from './views/Inbox'
+import type { ScrollTarget } from './hooks/useScrollToTarget'
 // The inbox is the first screen; everything else (markdown, diff, highlighting) loads when first opened.
 const PullView = lazy(() => import('./views/PullView').then((m) => ({ default: m.PullView })))
 const Guidelines = lazy(() => import('./views/Guidelines').then((m) => ({ default: m.Guidelines })))
+const Mentions = lazy(() => import('./views/Mentions').then((m) => ({ default: m.Mentions })))
 const Settings = lazy(() => import('./views/Settings').then((m) => ({ default: m.Settings })))
 
 export type Route =
   | { view: 'inbox' }
-  | { view: 'pull'; repo: string; number: number }
+  | { view: 'pull'; repo: string; number: number; target?: ScrollTarget }
   | { view: 'guidelines'; repo?: string; path?: string }
+  | { view: 'mentions' }
   | { view: 'settings' }
 
 export default function App() {
   const [route, setRoute] = useState<Route>({ view: 'inbox' })
   const [inbox, setInbox] = useState<InboxData | null>(null)
+  const [mentions, setMentions] = useState<MentionsInbox | null>(null)
+  // Lives here so the inbox search survives opening a PR and coming back.
+  const [inboxSearch, setInboxSearch] = useState('')
   const [highlighter] = useState(() => new WorkerHighlighter())
   useEffect(() => () => highlighter.dispose(), [highlighter])
 
   useEffect(() => {
     void window.revio.getInbox().then((i) => i && setInbox(i))
+    void window.revio.getMentions().then(setMentions)
     return window.revio.onEvent((e) => {
       if (e.type === 'inbox') setInbox(e.inbox)
+      if (e.type === 'mentions') setMentions(e.mentions)
       if (e.type === 'open-pull') setRoute({ view: 'pull', repo: e.repo, number: e.number })
     })
   }, [])
 
   const staleCount = inbox?.requested.filter((p) => p.stale).length ?? 0
+  const newMentions = mentions?.mentions.filter((m) => m.snippets.some((s) => s.isNew)).length ?? 0
+  const openPull = (repo: string, number: number, target?: ScrollTarget) => setRoute({ view: 'pull', repo, number, target })
 
   return (
     <HighlighterContext value={highlighter}>
@@ -36,6 +46,9 @@ export default function App() {
       <nav className="drag flex w-[68px] shrink-0 flex-col items-center gap-1 border-r border-line bg-panel pt-11 pb-3">
         <NavButton active={route.view === 'inbox' || route.view === 'pull'} label="Inbox" onClick={() => setRoute({ view: 'inbox' })} badge={inbox?.requested.length} badgeTone={staleCount ? 'danger' : 'accent'}>
           <path d="M3 13h4l2 3h6l2-3h4M3 13l3-8h12l3 8v6H3z" />
+        </NavButton>
+        <NavButton active={route.view === 'mentions'} label="Mentions" onClick={() => setRoute({ view: 'mentions' })} badge={newMentions} badgeTone="accent">
+          <path d="M16 12a4 4 0 1 1-8 0 4 4 0 0 1 8 0zM16 12v1.5a2.5 2.5 0 0 0 5 0V12a9 9 0 1 0-3.6 7.2" />
         </NavButton>
         <NavButton active={route.view === 'guidelines'} label="Guides" onClick={() => setRoute({ view: 'guidelines' })}>
           <path d="M5 4h11l3 3v13H5zM9 9h6M9 13h6M9 17h4" />
@@ -47,18 +60,20 @@ export default function App() {
       </nav>
       <main className="min-w-0 flex-1">
         <Suspense fallback={<div className="flex h-full items-center justify-center text-muted">Loading…</div>}>
-        {route.view === 'inbox' && <Inbox inbox={inbox} onOpen={(repo, number) => setRoute({ view: 'pull', repo, number })} />}
+        {route.view === 'inbox' && <Inbox inbox={inbox} search={inboxSearch} onSearch={setInboxSearch} onOpen={openPull} />}
         {route.view === 'pull' && (
           <PullView
             key={`${route.repo}#${route.number}`}
             repo={route.repo}
             number={route.number}
+            initialTarget={route.target}
             onBack={() => setRoute({ view: 'inbox' })}
             onEditGuidelines={(repo, path) => setRoute({ view: 'guidelines', repo, path })}
             onOpenPull={(repo, number) => setRoute({ view: 'pull', repo, number })}
           />
         )}
         {route.view === 'guidelines' && <Guidelines initialRepo={route.repo} initialPath={route.path} />}
+        {route.view === 'mentions' && <Mentions mentions={mentions} onOpen={openPull} />}
         {route.view === 'settings' && <Settings />}
         </Suspense>
       </main>
