@@ -1,26 +1,23 @@
-import { app, BrowserWindow, ipcMain, shell } from 'electron'
+import { app, BrowserWindow } from 'electron'
 import { join } from 'node:path'
-import { IPC, type ApiMethod, type RevioApi } from '@shared/api.contract'
-import { pullKey, type MainEvent, type PullRef } from '@shared/types'
-import { ask } from './claude/ask.service'
-import { generateBriefing } from './claude/briefing.service'
-import { configureTokenResolver, gh, resetClient } from './github/github.client'
-import { fetchInbox } from './inbox/inbox.service'
-import { fetchPull, replyToComment, submitReview } from './pulls/pull.service'
-import { alertNewMentions } from './mentions/mention-alerts.service'
-import { loginShell } from './common/shell.util'
-import { fetchThreads, replyToThread, setThreadResolved, ThreadFinder } from './threads/threads.service'
-import { GithubTokens } from './github/github-tokens.service'
-import { deleteGuideline, resolveGuidelines, saveGuideline } from './guidelines/guidelines.service'
-import { InboxPoller } from './inbox/inbox.poller'
-import { PullCache } from './pulls/pull.cache'
-import { fetchStack, StackFinder } from './stacks/stacks.service'
-import { flush, store } from './store/store.service'
-import { fetchMentions, MentionWatcher } from './mentions/mentions.service'
 import { showNotification } from './alerts/notification.service'
+import { registerApi } from './app/api.controller'
+import { AppWindow } from './app/app.window'
+import { loginShell } from './common/shell.util'
+import { configureTokenResolver, gh } from './github/github.client'
+import { GithubTokens } from './github/github-tokens.service'
+import { InboxPoller } from './inbox/inbox.poller'
+import { fetchInbox } from './inbox/inbox.service'
+import { alertNewMentions } from './mentions/mention-alerts.service'
+import { fetchMentions, MentionWatcher } from './mentions/mentions.service'
+import { PullCache } from './pulls/pull.cache'
+import { fetchPull } from './pulls/pull.service'
+import { StackFinder } from './stacks/stacks.service'
+import { flush, store } from './store/store.service'
+import { fetchThreads, ThreadFinder } from './threads/threads.service'
 
-let win: BrowserWindow | null = null
-// Composition root: the long-lived services, created once and handed to whoever needs them.
+// Composition root: creates the long-lived services once and hands them to whoever needs them.
+const window = new AppWindow()
 const tokens = new GithubTokens({
   readSaved: () => store.githubToken(),
   save: (token) => store.updateSettings({ githubToken: token }),
@@ -31,175 +28,43 @@ const tokens = new GithubTokens({
 configureTokenResolver(() => tokens.resolve())
 const pulls = new PullCache(fetchPull)
 const stackFinder = new StackFinder()
-const threadFinder = new ThreadFinder(async () => fetchThreads(await gh()))
-const mentionWatcher = new MentionWatcher({
+const threads = new ThreadFinder(async () => fetchThreads(await gh()))
+const mentions = new MentionWatcher({
   load: async () => fetchMentions(await gh()),
   markRead: async (notificationId) => {
     await (await gh()).request('PATCH /notifications/threads/{thread_id}', { thread_id: Number(notificationId) })
   },
-  onMentions: (mentions) => {
-    send({ type: 'mentions', mentions })
-    alertNewMentions(mentions, {
+  onMentions: (latest) => {
+    window.send({ type: 'mentions', mentions: latest })
+    alertNewMentions(latest, {
       state: () => store.alerts(),
       save: () => store.saveAlerts(),
       enabled: () => store.settings().notifyOnMention,
       show: showNotification,
-      openPull: focusAndOpen,
-      showApp: () => win?.show(),
+      openPull: (ref) => window.focusAndOpen(ref),
+      showApp: () => window.show(),
     })
   },
 })
 const poller = new InboxPoller({
   loadInbox: () => fetchInbox(stackFinder),
   onInbox: (inbox) => {
-    send({ type: 'inbox', inbox })
+    window.send({ type: 'inbox', inbox })
     // Mentions refresh on the same schedule as the inbox.
-    void mentionWatcher.refresh()
+    void mentions.refresh()
   },
-  onOpenPull: focusAndOpen,
+  onOpenPull: (ref) => window.focusAndOpen(ref),
 })
 
-function send(event: MainEvent) {
-  win?.webContents.send(IPC.event, event)
-}
-
-function createWindow() {
-  win = new BrowserWindow({
-    width: 1440,
-    height: 900,
-    minWidth: 960,
-    minHeight: 600,
-    show: false,
-    title: 'Revio',
-    titleBarStyle: 'hiddenInset',
-    trafficLightPosition: { x: 14, y: 14 },
-    backgroundColor: '#0b0d12',
-    webPreferences: {
-      preload: join(import.meta.dirname, '../preload/index.cjs'),
-      contextIsolation: true,
-      sandbox: true,
-    },
-  })
-  win.once('ready-to-show', () => win?.show())
-  win.on('closed', () => (win = null))
-  win.webContents.setWindowOpenHandler(({ url }) => {
-    if (/^https?:/.test(url)) void shell.openExternal(url)
-    return { action: 'deny' }
-  })
-  if (process.env.ELECTRON_RENDERER_URL) void win.loadURL(process.env.ELECTRON_RENDERER_URL)
-  else void win.loadFile(join(import.meta.dirname, '../renderer/index.html'))
-}
-
-function focusAndOpen(ref: PullRef) {
-  if (!win) createWindow()
-  if (win?.isMinimized()) win.restore()
-  win?.show()
-  win?.focus()
-  // Give a freshly created window a moment to mount before routing.
-  setTimeout(() => send({ type: 'open-pull', ref: { repo: ref.repo, number: ref.number } }), win?.webContents.isLoading() ? 1200 : 0)
-}
-
-const handlers: { [K in ApiMethod]: (...args: Parameters<RevioApi[K]>) => ReturnType<RevioApi[K]> | Awaited<ReturnType<RevioApi[K]>> } = {
-  getSettings: () => store.settings(),
-  updateSettings: (patch) => {
-    store.updateSettings(patch)
-    if (patch.githubToken !== undefined) resetClient()
-    if (patch.pollIntervalMinutes !== undefined) poller.reschedule()
-    const affectsInbox = [patch.githubToken, patch.includeTeamRequests, patch.ignoreDrafts, patch.staleAfterHours].some((v) => v !== undefined)
-    if (affectsInbox) void poller.poll()
-    return store.settings()
-  },
-  githubAuthStatus: () => tokens.describe(),
-  saveGithubToken: async (token) => {
-    await tokens.verifyAndSave(token)
-    resetClient()
-    void poller.poll()
-    return tokens.describe()
-  },
-
-  getInbox: () => poller.latest,
-  getMentions: () => mentionWatcher.latest ?? mentionWatcher.refresh(),
-  refreshMentions: () => mentionWatcher.refresh(),
-  markMentionRead: (ref) => mentionWatcher.markRead(ref),
-  getThreads: (maxAgeMs = 0) => threadFinder.get(maxAgeMs),
-  replyToThread: async (threadId, body) => {
-    const comment = await replyToThread(await gh(), threadId, body)
-    threadFinder.forget()
-    return comment
-  },
-  setThreadResolved: async (threadId, resolved) => {
-    await setThreadResolved(await gh(), threadId, resolved)
-    threadFinder.forget()
-  },
-  refreshInbox: () => poller.poll(),
-
-  getPull: (ref, maxAgeMs = 0) => pulls.get(ref, maxAgeMs),
-  getStack: (ref) => fetchStack(ref, poller.latest),
-  getLocalState: (ref) => store.pull(pullKey(ref)),
-  saveDrafts: (ref, drafts) => store.updatePull(pullKey(ref), (s) => void (s.drafts = drafts)),
-  setViewed: (ref, path, sha) =>
-    store.updatePull(pullKey(ref), (s) => {
-      if (sha) s.viewed[path] = sha
-      else delete s.viewed[path]
-    }),
-  submitReview: async (input) => {
-    const key = pullKey(input)
-    const result = await submitReview(input, store.pull(key).drafts)
-    store.updatePull(key, (s) => void (s.drafts = []))
-    void poller.poll()
-    return result
-  },
-  replyToComment: (ref, id, body) => replyToComment(ref, id, body),
-
-  listGuidelines: () => store.guidelines(),
-  saveGuideline: (g) => saveGuideline(g),
-  deleteGuideline: (id) => deleteGuideline(id),
-  resolveGuidelines: (repo, paths) => resolveGuidelines(repo, paths),
-  knownRepos: () => {
-    const inbox = poller.latest
-    const repos = new Set<string>(store.guidelines().map((g) => g.repo).filter((r) => r !== '*'))
-    for (const p of [...(inbox?.requested ?? []), ...(inbox?.reviewed ?? [])]) repos.add(p.repo)
-    return [...repos].sort()
-  },
-
-  generateBriefing: async (ref) => {
-    const key = pullKey(ref)
-    const pr = pulls.peek(ref) ?? (await pulls.get(ref))
-    const guidelines = resolveGuidelines(ref.repo, pr.files.map((f) => f.path))
-    const record = await generateBriefing(pr, guidelines, (message) => send({ type: 'briefing-progress', key, message }))
-    store.updatePull(key, (s) => void (s.briefing = record))
-    return record
-  },
-
-  askClaude: async (ref, thread) => {
-    const key = pullKey(ref)
-    const pr = pulls.peek(ref) ?? (await pulls.get(ref))
-    const guidelines = resolveGuidelines(ref.repo, pr.files.map((f) => f.path))
-    const answer = await ask(pr, guidelines, store.pull(key).briefing, thread, (text) =>
-      send({ type: 'ask-delta', threadId: thread.id, text }),
-    )
-    return { answer }
-  },
-  saveAsks: (ref, threads) => store.updatePull(pullKey(ref), (s) => void (s.asks = threads)),
-
-  openExternal: async (url) => {
-    if (/^https?:/.test(url)) await shell.openExternal(url)
-  },
-}
-
-ipcMain.handle(IPC.invoke, async (_e, method: ApiMethod, args: unknown[]) => {
-  const fn = handlers[method] as (...a: unknown[]) => unknown
-  if (!fn) throw new Error(`Unknown method ${method}`)
-  return fn(...args)
-})
+registerApi({ store, tokens, poller, pulls, threads, mentions, window })
 
 app.setName('Revio')
 
 app.whenReady().then(() => {
-  createWindow()
+  window.create()
   poller.start()
   app.on('activate', () => {
-    if (BrowserWindow.getAllWindows().length === 0) createWindow()
+    if (BrowserWindow.getAllWindows().length === 0) window.create()
   })
 })
 
