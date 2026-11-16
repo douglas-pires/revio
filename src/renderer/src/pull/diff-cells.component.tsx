@@ -30,7 +30,12 @@ export function Gutter(props: {
         props.kind === 'del' && 'bg-del-strong/40',
       )}
     >
-      <span className="pointer-events-none absolute top-0.5 -right-2.5 z-[1] hidden size-4 items-center justify-center rounded bg-accent text-[13px] leading-none text-accent-fg group-hover:flex">
+      {/* Drawn over the next column, but a child of this cell: a press on it reaches the cell's handler. */}
+      <span
+        role="button"
+        aria-label="Comment on this line"
+        className="absolute top-0.5 -right-2.5 z-[1] hidden size-4 cursor-pointer items-center justify-center rounded bg-accent text-[13px] leading-none text-accent-fg group-hover:flex"
+      >
         +
       </span>
       {props.children}
