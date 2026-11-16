@@ -1,4 +1,4 @@
-import type { PullRef } from '@shared/types'
+import type { PullRef } from '@shared/pull.types'
 import { useCallback, useEffect, useRef } from 'react'
 
 /** Hovering this long counts as intent to open (shorter would fetch every row the pointer crosses). */

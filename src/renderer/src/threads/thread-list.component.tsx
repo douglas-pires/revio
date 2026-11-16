@@ -1,5 +1,5 @@
 import { memo, useState } from 'react'
-import type { OpenThread } from '@shared/types'
+import type { OpenThread } from '@shared/thread.types'
 import type { OpenPull } from '../common/navigation.types'
 import { useAsyncAction } from '../common/use-async-action.hook'
 import { ago, cx } from '../common/format.util'

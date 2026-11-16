@@ -1,5 +1,6 @@
 import type { Octokit } from '@octokit/rest'
-import type { Inbox, PullRef, PullSummary, Stack } from '@shared/types'
+import type { Inbox, PullSummary, Stack } from '@shared/inbox.types'
+import type { PullRef } from '@shared/pull.types'
 import { gh } from '../github/github.client'
 import { splitRepo } from '../github/repo-name.util'
 import { buildStacks, markStackPositions, summaryToMini, tagInbox, withInboxTags, type InboxTag, type MiniPr } from './stack-graph.util'

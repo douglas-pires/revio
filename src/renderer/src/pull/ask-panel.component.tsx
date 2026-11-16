@@ -1,5 +1,6 @@
 import { useEffect, useRef, useState } from 'react'
-import type { AskThread, PullRef } from '@shared/types'
+import type { AskThread } from '@shared/claude.types'
+import type { PullRef } from '@shared/pull.types'
 import { ago, cx, errorMessage } from '../common/format.util'
 import { Markdown } from '../common/markdown.component'
 

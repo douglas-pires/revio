@@ -1,5 +1,5 @@
 import { useEffect, useState } from 'react'
-import type { GithubAuthStatus, GithubTokenSource } from '@shared/types'
+import type { GithubAuthStatus, GithubTokenSource } from '@shared/settings.types'
 import { useAsyncAction } from '../common/use-async-action.hook'
 import { cx } from '../common/format.util'
 import { ErrorBanner } from '../common/error-banner.component'

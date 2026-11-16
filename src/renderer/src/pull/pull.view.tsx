@@ -1,13 +1,8 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
-import {
-  pullKey,
-  type AskThread,
-  type PullDetail,
-  type PullRef,
-  type ResolvedGuideline,
-  type Stack,
-  type ReviewEvent,
-} from '@shared/types'
+import type { AskThread } from '@shared/claude.types'
+import type { ResolvedGuideline } from '@shared/guideline.types'
+import type { Stack } from '@shared/inbox.types'
+import { pullKey, type PullDetail, type PullRef, type ReviewEvent } from '@shared/pull.types'
 import { BriefingPanel } from './briefing-panel.component'
 import { ErrorBanner } from '../common/error-banner.component'
 import { AskPanel } from './ask-panel.component'

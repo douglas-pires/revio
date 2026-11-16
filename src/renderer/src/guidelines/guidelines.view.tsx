@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useState } from 'react'
-import type { Guideline } from '@shared/types'
+import type { Guideline } from '@shared/guideline.types'
 import { Markdown } from '../common/markdown.component'
 import { cx, errorMessage } from '../common/format.util'
 

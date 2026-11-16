@@ -1,5 +1,6 @@
 import type { Octokit } from '@octokit/rest'
-import { isSamePull, pullKey, type MentionsInbox, type PullRef } from '@shared/types'
+import type { MentionsInbox } from '@shared/mention.types'
+import { isSamePull, pullKey, type PullRef } from '@shared/pull.types'
 import { InFlight } from '../common/in-flight.util'
 import { buildMention, markMentionRead, sortMentions, type NotificationInfo, type RawMentionPr } from './mention-match.util'
 import { splitRepo } from '../github/repo-name.util'

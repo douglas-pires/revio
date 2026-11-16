@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest'
-import type { ReviewComment } from '@shared/types'
+import type { ReviewComment } from '@shared/pull.types'
 import { groupCommentThreads } from '@/pull/comment-threads.util'
 
 const makeComment = (id: number, over: Partial<ReviewComment> = {}): ReviewComment => ({

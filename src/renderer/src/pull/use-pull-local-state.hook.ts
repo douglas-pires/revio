@@ -1,5 +1,6 @@
 import { useCallback, useState } from 'react'
-import type { AskThread, BriefingRecord, DraftComment, PullLocalState, PullRef } from '@shared/types'
+import type { AskThread, BriefingRecord } from '@shared/claude.types'
+import type { DraftComment, PullLocalState, PullRef } from '@shared/pull.types'
 
 const EMPTY_STATE: PullLocalState = { drafts: [], viewed: {} }
 

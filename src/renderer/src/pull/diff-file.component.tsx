@@ -1,5 +1,6 @@
 import { memo, useEffect, useMemo, useRef, useState } from 'react'
-import type { DiffSide, DraftComment, FocusItem, PullFile, ReviewComment } from '@shared/types'
+import type { FocusItem } from '@shared/claude.types'
+import type { DiffSide, DraftComment, PullFile, ReviewComment } from '@shared/pull.types'
 import { anchorFor, anchorKey, keysOf, parsePatch, parseRange, toSplit, type DiffRow, type LineRow } from './diff.util'
 import { cx } from '../common/format.util'
 import { useHighlighter, type Tok } from '../highlight/highlight.service'

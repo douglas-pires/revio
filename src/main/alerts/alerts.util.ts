@@ -1,4 +1,6 @@
-import type { Inbox, Mention, MentionSnippet, MentionsInbox, PullSummary, Settings } from '@shared/types'
+import type { Inbox, PullSummary } from '@shared/inbox.types'
+import type { Mention, MentionSnippet, MentionsInbox } from '@shared/mention.types'
+import type { Settings } from '@shared/settings.types'
 
 export interface AlertState {
   /** requestedAt we last alerted about, per PR node id. */

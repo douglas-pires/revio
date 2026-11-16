@@ -1,5 +1,5 @@
 import type { Octokit } from '@octokit/rest'
-import type { DraftComment, PullDetail, PullFile, PullRef, PullThreadStatus, ReviewComment, SubmitReviewInput } from '@shared/types'
+import type { DraftComment, PullDetail, PullFile, PullRef, PullThreadStatus, ReviewComment, SubmitReviewInput } from '@shared/pull.types'
 import { gh, smallAvatar, viewerLogin } from '../github/github.client'
 import { splitRepo } from '../github/repo-name.util'
 

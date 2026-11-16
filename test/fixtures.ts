@@ -1,4 +1,6 @@
-import type { Guideline, PullDetail, PullFile, PullSummary } from '@shared/types'
+import type { Guideline } from '@shared/guideline.types'
+import type { PullSummary } from '@shared/inbox.types'
+import type { PullDetail, PullFile } from '@shared/pull.types'
 import type { MiniPr } from '../src/main/stacks/stack-graph.util'
 
 export function makeSummary(over: Partial<PullSummary> = {}): PullSummary {

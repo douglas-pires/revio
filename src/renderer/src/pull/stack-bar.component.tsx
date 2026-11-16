@@ -1,4 +1,5 @@
-import { isSamePull, type PullRef, type Stack } from '@shared/types'
+import type { Stack } from '@shared/inbox.types'
+import { isSamePull, type PullRef } from '@shared/pull.types'
 import type { OpenPull } from '../common/navigation.types'
 import { cx } from '../common/format.util'
 

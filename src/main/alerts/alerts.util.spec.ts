@@ -1,5 +1,6 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest'
-import type { Inbox, Mention, MentionsInbox, PullSummary } from '@shared/types'
+import type { Inbox, PullSummary } from '@shared/inbox.types'
+import type { Mention, MentionsInbox } from '@shared/mention.types'
 import { formatHours, isStaleAlertDue, raiseAlerts, recordRequest, requestChange, findUnalertedMentions, recordMentionAlerts, type AlertSettings, type AlertState, type Notify } from './alerts.util'
 import { makeSummary } from '../../../test/fixtures'
 

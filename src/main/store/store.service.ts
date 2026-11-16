@@ -1,7 +1,9 @@
 import { app, safeStorage } from 'electron'
 import { existsSync, mkdirSync, readFileSync, renameSync, writeFileSync } from 'node:fs'
 import { join } from 'node:path'
-import type { Guideline, PullLocalState, Settings } from '@shared/types'
+import type { Guideline } from '@shared/guideline.types'
+import type { PullLocalState } from '@shared/pull.types'
+import type { Settings } from '@shared/settings.types'
 import type { AlertState } from '../alerts/alerts.util'
 import { pruneStalePulls } from '../pulls/pull-state.util'
 

@@ -1,4 +1,4 @@
-import type { DiffSide, PullThreadStatus, ReviewComment } from '@shared/types'
+import type { DiffSide, PullThreadStatus, ReviewComment } from '@shared/pull.types'
 
 /** A review thread on this PR: its first comment, the replies, and whether it is resolved. */
 export interface CommentThread {

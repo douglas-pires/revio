@@ -1,5 +1,5 @@
 import { memo } from 'react'
-import type { PullFile } from '@shared/types'
+import type { PullFile } from '@shared/pull.types'
 import { groupByDir } from './files.util'
 import { cx } from '../common/format.util'
 

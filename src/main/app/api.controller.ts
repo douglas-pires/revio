@@ -1,6 +1,6 @@
 import { ipcMain, shell } from 'electron'
 import { IPC, type ApiMethod, type RevioApi } from '@shared/api.contract'
-import { pullKey, type PullRef } from '@shared/types'
+import { pullKey, type PullRef } from '@shared/pull.types'
 import { ask } from '../claude/ask.service'
 import { generateBriefing } from '../claude/briefing.service'
 import { gh, resetClient } from '../github/github.client'

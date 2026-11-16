@@ -1,5 +1,5 @@
 import { useMemo, useState } from 'react'
-import type { Inbox as InboxData, PullSummary, Stack } from '@shared/types'
+import type { Inbox as InboxData, PullSummary, Stack } from '@shared/inbox.types'
 import { AudienceBar } from './audience-bar.component'
 import { InboxSearch } from './inbox-search.component'
 import { ErrorBanner } from '../common/error-banner.component'

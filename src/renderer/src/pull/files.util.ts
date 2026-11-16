@@ -1,4 +1,4 @@
-import type { PullDetail, PullLocalState } from '@shared/types'
+import type { PullDetail, PullLocalState } from '@shared/pull.types'
 import { parsePatch } from './diff.util'
 import { isGenerated } from '../common/format.util'
 

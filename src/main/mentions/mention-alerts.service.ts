@@ -1,5 +1,6 @@
 import { summarizeComment } from '@shared/excerpt.util'
-import type { Mention, MentionSnippet, MentionsInbox, PullRef } from '@shared/types'
+import type { Mention, MentionSnippet, MentionsInbox } from '@shared/mention.types'
+import type { PullRef } from '@shared/pull.types'
 import { findUnalertedMentions, recordMentionAlerts, type AlertState } from '../alerts/alerts.util'
 
 export interface MentionAlertDeps {

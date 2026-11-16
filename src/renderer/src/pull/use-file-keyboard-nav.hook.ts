@@ -1,5 +1,5 @@
 import { useEffect, useRef } from 'react'
-import type { PullFile } from '@shared/types'
+import type { PullFile } from '@shared/pull.types'
 import { isTyping } from '../common/keyboard.util'
 
 interface NavState {

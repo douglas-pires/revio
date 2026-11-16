@@ -1,4 +1,4 @@
-import type { OpenThread, ThreadComment } from '@shared/types'
+import type { OpenThread, ThreadComment } from '@shared/thread.types'
 
 /** The thread list after your reply: the reply is the latest comment, so the thread now waits on others. */
 export function applyReply(threads: readonly OpenThread[], threadId: string, reply: ThreadComment): OpenThread[] {

@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest'
-import type { OpenThread, ThreadComment } from '@shared/types'
+import type { OpenThread, ThreadComment } from '@shared/thread.types'
 import { applyReply, countWaitingOnYou, setMembership } from '@/threads/thread-edits.util'
 
 const makeComment = (author: string, createdAt: string): ThreadComment => ({ author, authorAvatar: '', bot: false, body: 'hi', createdAt, url: '' })

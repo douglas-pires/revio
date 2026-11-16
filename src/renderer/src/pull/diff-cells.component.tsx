@@ -1,4 +1,4 @@
-import type { DiffSide } from '@shared/types'
+import type { DiffSide } from '@shared/pull.types'
 import type { DiffRow } from './diff.util'
 import { cx } from '../common/format.util'
 import type { Tok } from '../highlight/highlight.service'

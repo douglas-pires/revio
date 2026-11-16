@@ -1,5 +1,6 @@
 import type { Octokit } from '@octokit/rest'
-import type { Inbox, PullSummary, Settings } from '@shared/types'
+import type { Inbox, PullSummary } from '@shared/inbox.types'
+import type { Settings } from '@shared/settings.types'
 import { gh, tokenInUse } from '../github/github.client'
 import type { StackFinder } from '../stacks/stacks.service'
 import { store } from '../store/store.service'

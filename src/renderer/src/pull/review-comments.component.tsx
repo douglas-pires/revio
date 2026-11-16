@@ -1,5 +1,5 @@
 import { useState } from 'react'
-import type { DraftComment, ReviewComment } from '@shared/types'
+import type { DraftComment, ReviewComment } from '@shared/pull.types'
 import { ago, cx } from '../common/format.util'
 import { Markdown } from '../common/markdown.component'
 

@@ -1,5 +1,6 @@
 import { app } from 'electron'
-import type { Inbox, PullRef, PullSummary } from '@shared/types'
+import type { Inbox, PullSummary } from '@shared/inbox.types'
+import type { PullRef } from '@shared/pull.types'
 import { raiseAlerts } from '../alerts/alerts.util'
 import { InFlight } from '../common/in-flight.util'
 import { showNotification } from '../alerts/notification.service'

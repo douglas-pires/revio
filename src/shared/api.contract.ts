@@ -1,23 +1,11 @@
-import type {
-  AskThread,
-  BriefingRecord,
-  DraftComment,
-  GithubAuthStatus,
-  Guideline,
-  Inbox,
-  MainEvent,
-  PullRef,
-  MentionsInbox,
-  PullDetail,
-  PullLocalState,
-  ResolvedGuideline,
-  Settings,
-  SettingsPatch,
-  Stack,
-  SubmitReviewInput,
-  ThreadComment,
-  ThreadsInbox,
-} from './types'
+import type { AskThread, BriefingRecord } from './claude.types'
+import type { MainEvent } from './event.types'
+import type { Guideline, ResolvedGuideline } from './guideline.types'
+import type { Inbox, Stack } from './inbox.types'
+import type { MentionsInbox } from './mention.types'
+import type { DraftComment, PullDetail, PullLocalState, PullRef, SubmitReviewInput } from './pull.types'
+import type { GithubAuthStatus, Settings, SettingsPatch } from './settings.types'
+import type { ThreadComment, ThreadsInbox } from './thread.types'
 
 /** Everything the renderer can ask the main process to do. Exposed as `window.revio`. */
 export interface RevioApi {

@@ -1,7 +1,8 @@
 import { BrowserWindow, shell } from 'electron'
 import { join } from 'node:path'
 import { IPC } from '@shared/api.contract'
-import type { MainEvent, PullRef } from '@shared/types'
+import type { MainEvent } from '@shared/event.types'
+import type { PullRef } from '@shared/pull.types'
 
 /** Delay before routing in a window that is still loading, so the renderer has mounted. */
 const MOUNT_DELAY_MS = 1200

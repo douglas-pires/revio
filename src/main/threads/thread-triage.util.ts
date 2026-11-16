@@ -1,4 +1,4 @@
-import type { OpenThread, ThreadComment } from '@shared/types'
+import type { OpenThread, ThreadComment } from '@shared/thread.types'
 
 /** GitHub's GraphQL shapes for a PR and its review threads. */
 export interface RawAuthor {

@@ -1,5 +1,5 @@
 import { useEffect, useState } from 'react'
-import type { Settings as S, SettingsPatch } from '@shared/types'
+import type { Settings as S, SettingsPatch } from '@shared/settings.types'
 import { GithubTokenSettings } from './github-token-settings.component'
 import { errorMessage } from '../common/format.util'
 

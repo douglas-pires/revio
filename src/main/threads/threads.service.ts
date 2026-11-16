@@ -1,5 +1,5 @@
 import type { Octokit } from '@octokit/rest'
-import type { ThreadComment, ThreadsInbox } from '@shared/types'
+import type { ThreadComment, ThreadsInbox } from '@shared/thread.types'
 import { InFlight } from '../common/in-flight.util'
 import { toThreadComment, triageThreads, type RawThreadComment, type RawThreadPr } from './thread-triage.util'
 

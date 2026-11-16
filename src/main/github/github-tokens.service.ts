@@ -1,7 +1,7 @@
 import { Octokit } from '@octokit/rest'
 import { readFileSync } from 'node:fs'
 import { parseEnv } from 'node:util'
-import type { GithubAuthStatus, GithubTokenSource } from '@shared/types'
+import type { GithubAuthStatus, GithubTokenSource } from '@shared/settings.types'
 
 export interface ResolvedToken {
   token: string

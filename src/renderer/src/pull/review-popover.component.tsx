@@ -1,5 +1,5 @@
 import { useState } from 'react'
-import type { PullDetail, ReviewEvent } from '@shared/types'
+import type { PullDetail, ReviewEvent } from '@shared/pull.types'
 import { cx, errorMessage } from '../common/format.util'
 
 export function MyReviewChip({ review }: { review: NonNullable<PullDetail['myReview']> }) {

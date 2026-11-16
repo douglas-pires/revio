@@ -1,5 +1,5 @@
 import { randomUUID } from 'node:crypto'
-import type { Guideline, ResolvedGuideline } from '@shared/types'
+import type { Guideline, ResolvedGuideline } from '@shared/guideline.types'
 import { store } from '../store/store.service'
 
 export const normalizePath = (p: string) => {

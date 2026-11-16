@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest'
 import { prContext } from './briefing.service'
-import type { ResolvedGuideline } from '@shared/types'
+import type { ResolvedGuideline } from '@shared/guideline.types'
 
 import { makeDetail, makeFile } from '../../../test/fixtures'
 

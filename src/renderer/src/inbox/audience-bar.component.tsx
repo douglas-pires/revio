@@ -1,5 +1,5 @@
 import { memo } from 'react'
-import type { PullSummary } from '@shared/types'
+import type { PullSummary } from '@shared/inbox.types'
 import { countTeams, type ReviewAudience } from './inbox-query.util'
 import { cx } from '../common/format.util'
 

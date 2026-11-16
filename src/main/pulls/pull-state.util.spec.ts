@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest'
-import type { PullLocalState } from '@shared/types'
+import type { PullLocalState } from '@shared/pull.types'
 import { pruneStalePulls } from './pull-state.util'
 
 const DAY = 864e5

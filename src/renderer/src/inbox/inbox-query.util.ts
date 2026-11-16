@@ -1,4 +1,5 @@
-import type { OpenThread, PullSummary, StackPr } from '@shared/types'
+import type { PullSummary, StackPr } from '@shared/inbox.types'
+import type { OpenThread } from '@shared/thread.types'
 
 /**
  * GitHub-style search for the inbox: free text plus qualifiers such as

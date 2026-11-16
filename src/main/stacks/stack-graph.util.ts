@@ -1,4 +1,4 @@
-import type { PullSummary, Stack, StackPr } from '@shared/types'
+import type { PullSummary, Stack, StackPr } from '@shared/inbox.types'
 
 /** The PR fields stack detection needs, in GitHub's GraphQL shape. */
 export interface MiniPr {

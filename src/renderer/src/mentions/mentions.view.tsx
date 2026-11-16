@@ -1,4 +1,4 @@
-import type { Mention, MentionSnippet, MentionsInbox } from '@shared/types'
+import type { Mention, MentionSnippet, MentionsInbox } from '@shared/mention.types'
 import { summarizeAround } from '@shared/excerpt.util'
 import type { OpenPull } from '../common/navigation.types'
 import { ErrorBanner } from '../common/error-banner.component'

@@ -1,5 +1,5 @@
-import type { PullDetail, PullRef } from '@shared/types'
-import { pullKey } from '@shared/types'
+import type { PullDetail, PullRef } from '@shared/pull.types'
+import { pullKey } from '@shared/pull.types'
 import { InFlight } from '../common/in-flight.util'
 
 type Fetch = (ref: PullRef) => Promise<PullDetail>

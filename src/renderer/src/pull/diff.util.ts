@@ -1,4 +1,4 @@
-import type { DiffSide } from '@shared/types'
+import type { DiffSide } from '@shared/pull.types'
 
 export type DiffRow =
   | { kind: 'hunk'; text: string; oldStart: number; newStart: number }

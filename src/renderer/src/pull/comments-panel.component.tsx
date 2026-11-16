@@ -1,5 +1,5 @@
 import { memo, useState } from 'react'
-import type { DraftComment } from '@shared/types'
+import type { DraftComment } from '@shared/pull.types'
 import type { CommentThread } from './comment-threads.util'
 import { summarizeComment } from '@shared/excerpt.util'
 import { ago, cx } from '../common/format.util'

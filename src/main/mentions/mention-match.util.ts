@@ -1,4 +1,5 @@
-import { isSamePull, type Mention, type MentionSnippet, type PullRef } from '@shared/types'
+import type { Mention, MentionSnippet } from '@shared/mention.types'
+import { isSamePull, type PullRef } from '@shared/pull.types'
 
 /** GitHub's GraphQL shapes for a PR's texts. */
 export interface RawText {

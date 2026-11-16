@@ -1,4 +1,4 @@
-import type { BriefingRecord } from '@shared/types'
+import type { BriefingRecord } from '@shared/claude.types'
 import { ago, cx } from '../common/format.util'
 import { Markdown } from '../common/markdown.component'
 

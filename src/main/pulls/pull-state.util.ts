@@ -1,4 +1,4 @@
-import type { PullLocalState } from '@shared/types'
+import type { PullLocalState } from '@shared/pull.types'
 
 /** Local state for PRs untouched this long (merged, closed, abandoned) is dropped on startup. */
 export const PULL_STATE_TTL_MS = 45 * 24 * 36e5

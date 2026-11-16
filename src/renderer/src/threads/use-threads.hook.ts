@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useState } from 'react'
-import type { ThreadsInbox } from '@shared/types'
+import type { ThreadsInbox } from '@shared/thread.types'
 import { errorMessage } from '../common/format.util'
 import { applyReply, setMembership } from './thread-edits.util'
 

@@ -10,7 +10,8 @@ import {
   applyAudience,
   type Searchable,
 } from '@/inbox/inbox-query.util'
-import type { OpenThread, StackPr } from '@shared/types'
+import type { StackPr } from '@shared/inbox.types'
+import type { OpenThread } from '@shared/thread.types'
 import { makeSummary } from '../../../../test/fixtures'
 
 const direct = summaryToSearchable(makeSummary({ id: 'D', title: 'Fix login redirect', author: 'ana' }), true)
