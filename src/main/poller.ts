@@ -1,6 +1,7 @@
 import { app } from 'electron'
 import type { Inbox, PullSummary } from '@shared/types'
 import { raiseAlerts } from './alerts'
+import { InFlight } from './inFlight'
 import { showNotification } from './notify'
 import { store } from './store'
 
@@ -14,7 +15,7 @@ export interface PollerDeps {
 export class InboxPoller {
   #latest: Inbox | null = null
   #timer: NodeJS.Timeout | null = null
-  #inFlight: Promise<Inbox> | null = null
+  readonly #inFlight = new InFlight<Inbox>()
   readonly #deps: PollerDeps
 
   constructor(deps: PollerDeps) {
@@ -36,8 +37,7 @@ export class InboxPoller {
 
   /** Fetches now; concurrent callers share one request. */
   poll(): Promise<Inbox> {
-    this.#inFlight ??= this.#fetch().finally(() => (this.#inFlight = null))
-    return this.#inFlight
+    return this.#inFlight.run('inbox', () => this.#fetch())
   }
 
   #schedule(delay: number) {

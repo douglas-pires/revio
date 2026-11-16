@@ -1,5 +1,6 @@
 import type { Octokit } from '@octokit/rest'
 import type { ThreadComment, ThreadsInbox } from '@shared/types'
+import { InFlight } from './inFlight'
 import { toThreadComment, triageThreads, type RawThreadComment, type RawThreadPr } from './threadTriage'
 
 /** Open PRs you are involved in (author, commenter, mentioned, assigned), most recently updated first. */
@@ -59,7 +60,7 @@ export async function setThreadResolved(octokit: Octokit, threadId: string, reso
 /** The last threads fetch, reused for `maxAgeMs`; concurrent callers share one request. */
 export class ThreadFinder {
   #last: ThreadsInbox | null = null
-  #inFlight: Promise<ThreadsInbox> | null = null
+  readonly #inFlight = new InFlight<ThreadsInbox>()
   readonly #load: () => Promise<ThreadsInbox>
 
   constructor(load: () => Promise<ThreadsInbox>) {
@@ -69,10 +70,7 @@ export class ThreadFinder {
   get(maxAgeMs = 0): Promise<ThreadsInbox> {
     const last = this.#last
     if (last && maxAgeMs > 0 && Date.now() - Date.parse(last.fetchedAt) <= maxAgeMs) return Promise.resolve(last)
-    this.#inFlight ??= this.#load()
-      .then((result) => (this.#last = result))
-      .finally(() => (this.#inFlight = null))
-    return this.#inFlight
+    return this.#inFlight.run('threads', async () => (this.#last = await this.#load()))
   }
 
   /** Drops the cached copy after you change a thread, so the next read is fresh. */

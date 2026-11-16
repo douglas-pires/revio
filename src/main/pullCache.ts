@@ -1,5 +1,6 @@
 import type { PullDetail } from '@shared/types'
 import { pullKey } from '@shared/types'
+import { InFlight } from './inFlight'
 
 type Fetch = (repo: string, number: number) => Promise<PullDetail>
 
@@ -9,7 +10,7 @@ type Fetch = (repo: string, number: number) => Promise<PullDetail>
  */
 export class PullCache {
   #entries = new Map<string, { at: number; pr: PullDetail }>()
-  #inFlight = new Map<string, Promise<PullDetail>>()
+  readonly #inFlight = new InFlight<PullDetail>()
   readonly #fetch: Fetch
 
   constructor(fetch: Fetch) {
@@ -21,17 +22,11 @@ export class PullCache {
     const key = pullKey(repo, number)
     const hit = this.#entries.get(key)
     if (hit && maxAgeMs > 0 && Date.now() - hit.at <= maxAgeMs) return Promise.resolve(hit.pr)
-    let pending = this.#inFlight.get(key)
-    if (!pending) {
-      pending = this.#fetch(repo, number)
-        .then((pr) => {
-          this.#entries.set(key, { at: Date.now(), pr })
-          return pr
-        })
-        .finally(() => this.#inFlight.delete(key))
-      this.#inFlight.set(key, pending)
-    }
-    return pending
+    return this.#inFlight.run(key, async () => {
+      const pr = await this.#fetch(repo, number)
+      this.#entries.set(key, { at: Date.now(), pr })
+      return pr
+    })
   }
 
   /** The last fetched copy, if any, without hitting the network. */

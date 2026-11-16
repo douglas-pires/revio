@@ -8,6 +8,7 @@ import {
   type ReviewEvent,
 } from '@shared/types'
 import { BriefingPanel } from '../components/BriefingPanel'
+import { ErrorBanner } from '../components/ErrorBanner'
 import { AskPanel } from '../components/AskPanel'
 import { DiffFile, type AskSelection, type DiffView } from '../components/DiffFile'
 import { Markdown } from '../components/Markdown'
@@ -194,7 +195,7 @@ export function PullView(props: {
         <button className="btn mb-4" onClick={props.onBack}>
           ← Inbox
         </button>
-        <div className="selectable rounded-md border border-danger/40 bg-danger/10 px-3 py-2 text-danger">{error}</div>
+        <ErrorBanner>{error}</ErrorBanner>
       </div>
     )
   if (!pr) return <div className="flex h-full items-center justify-center text-muted">Loading {repo}#{number}…</div>

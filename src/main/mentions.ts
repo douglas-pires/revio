@@ -1,5 +1,6 @@
 import type { Octokit } from '@octokit/rest'
 import type { MentionsInbox } from '@shared/types'
+import { InFlight } from './inFlight'
 import { buildMention, markMentionRead, sortMentions, type NotificationInfo, type RawMentionPr } from './mentionMatch'
 import { splitRepo } from './github'
 
@@ -106,7 +107,7 @@ export interface MentionWatcherDeps {
 /** Keeps the latest mentions; concurrent refreshes share one request. Errors keep the last good list. */
 export class MentionWatcher {
   #latest: MentionsInbox | null = null
-  #inFlight: Promise<MentionsInbox> | null = null
+  readonly #inFlight = new InFlight<MentionsInbox>()
   readonly #deps: MentionWatcherDeps
 
   constructor(deps: MentionWatcherDeps) {
@@ -118,8 +119,7 @@ export class MentionWatcher {
   }
 
   refresh(): Promise<MentionsInbox> {
-    this.#inFlight ??= this.#load().finally(() => (this.#inFlight = null))
-    return this.#inFlight
+    return this.#inFlight.run('mentions', () => this.#load())
   }
 
   /** Marks the PR's GitHub notification read and clears its "new" mentions. */

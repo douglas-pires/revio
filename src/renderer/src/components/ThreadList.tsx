@@ -1,7 +1,9 @@
 import { memo, useState } from 'react'
 import type { OpenThread } from '@shared/types'
 import type { ScrollTarget } from '../hooks/useScrollToTarget'
-import { ago, cx, errorMessage } from '../lib/format'
+import { useAsyncAction } from '../hooks/useAsyncAction'
+import { ago, cx } from '../lib/format'
+import { SectionHeading } from './SectionHeading'
 import { excerpt } from '@shared/excerpt'
 import { groupBy } from '../lib/group'
 import { Composer } from './ReviewComments'
@@ -42,11 +44,7 @@ function ThreadSection(props: { title: string; hint: string; tone?: 'accent'; th
   const byPr = groupBy(props.threads, (t) => `${t.repo}#${t.number}`)
   return (
     <section className="mb-6">
-      <h2 className="mb-2 flex items-baseline gap-2 text-[11px] font-semibold tracking-wide text-muted uppercase">
-        <span className={props.tone === 'accent' ? 'text-accent' : ''}>{props.title}</span>
-        <span className="font-normal normal-case">{open}</span>
-        <span className="font-normal tracking-normal normal-case">· {props.hint}</span>
-      </h2>
+      <SectionHeading title={props.title} count={open} hint={props.hint} tone={props.tone} />
       <div className="space-y-3">
         {[...byPr.values()].map((list) => (
           <PrThreads key={list[0]!.id} threads={list} resolved={props.resolved} actions={props.actions} />
@@ -78,26 +76,14 @@ function PrThreads({ threads, resolved, actions }: { threads: OpenThread[]; reso
 
 function ThreadRow({ thread: t, isResolved, actions }: { thread: OpenThread; isResolved: boolean; actions: ThreadActions }) {
   const [replying, setReplying] = useState(false)
-  const [busy, setBusy] = useState(false)
-  const [error, setError] = useState<string | null>(null)
+  const { busy, error, run } = useAsyncAction()
   const last = t.comments.at(-1)!
-
-  const run = async (action: () => Promise<void>) => {
-    setBusy(true)
-    setError(null)
-    try {
-      await action()
-    } catch (e) {
-      setError(errorMessage(e))
-    } finally {
-      setBusy(false)
-    }
-  }
-  const sendReply = (body: string) =>
-    run(async () => {
+  const sendReply = async (body: string) => {
+    await run(async () => {
       await actions.onReply(t.id, body)
       setReplying(false)
     })
+  }
 
   return (
     <li className="border-b border-line last:border-b-0">

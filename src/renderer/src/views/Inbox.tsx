@@ -2,7 +2,10 @@ import { useMemo, useState } from 'react'
 import type { Inbox as InboxData, PullSummary, Stack } from '@shared/types'
 import { AudienceBar } from '../components/AudienceBar'
 import { InboxSearch } from '../components/InboxSearch'
-import { ago, cx, duration, errorMessage } from '../lib/format'
+import { ErrorBanner } from '../components/ErrorBanner'
+import { SectionHeading } from '../components/SectionHeading'
+import { useAsyncAction } from '../hooks/useAsyncAction'
+import { ago, cx, duration } from '../lib/format'
 import { EMPTY } from '../lib/group'
 import { audienceOf, isEmptyQuery, matchesQuery, parseQuery, stackPrToSearchable, summaryToSearchable, threadToSearchable, withAudience, type InboxQuery, type ReviewAudience } from '../lib/inboxQuery'
 import { usePrefetchOnHover } from '../hooks/usePrefetchOnHover'
@@ -22,8 +25,7 @@ export function Inbox({
   onSearch: (text: string) => void
   onOpen: (repo: string, number: number, target?: ScrollTarget) => void
 }) {
-  const [refreshing, setRefreshing] = useState(false)
-  const [error, setError] = useState<string | null>(null)
+  const refreshAction = useAsyncAction()
   const [mode, setMode] = useState<'queue' | 'stacks' | 'threads'>('queue')
   const threadsState = useThreads()
   const [focusStack, setFocusStack] = useState<string | null>(null)
@@ -33,17 +35,7 @@ export function Inbox({
     requestAnimationFrame(() => document.getElementById(`stack-${id}`)?.scrollIntoView({ block: 'start', behavior: 'smooth' }))
   }
 
-  const refresh = async () => {
-    setRefreshing(true)
-    setError(null)
-    try {
-      await Promise.all([window.revio.refreshInbox(), threadsState.reload()])
-    } catch (e) {
-      setError(errorMessage(e))
-    } finally {
-      setRefreshing(false)
-    }
-  }
+  const refresh = () => refreshAction.run(() => Promise.all([window.revio.refreshInbox(), threadsState.reload()]))
 
   const query = useMemo(() => parseQuery(search), [search])
   const filtering = !isEmptyQuery(query)
@@ -76,21 +68,15 @@ export function Inbox({
         <div className="flex-1" />
         <InboxSearch value={search} onChange={onSearch} />
         <span className="whitespace-nowrap text-muted">{inbox ? (ago(inbox.fetchedAt) === 'now' ? 'just updated' : `updated ${ago(inbox.fetchedAt)} ago`) : 'loading…'}</span>
-        <button className="btn no-drag" onClick={refresh} disabled={refreshing}>
-          {refreshing ? 'Refreshing…' : 'Refresh'}
+        <button className="btn no-drag" onClick={() => void refresh()} disabled={refreshAction.busy}>
+          {refreshAction.busy ? 'Refreshing…' : 'Refresh'}
         </button>
       </header>
 
       <div className="min-h-0 flex-1 overflow-y-auto px-5 py-4">
-        {(error || inbox?.error) && (
-          <div className="mb-4 rounded-md border border-danger/40 bg-danger/10 px-3 py-2 text-danger selectable">
-            {error || inbox?.error}
-          </div>
-        )}
+        <ErrorBanner className="mb-4">{refreshAction.error || inbox?.error}</ErrorBanner>
         {!inbox && <Skeleton />}
-        {mode === 'threads' && threadsState.error && (
-          <div className="mb-4 rounded-md border border-danger/40 bg-danger/10 px-3 py-2 text-danger selectable">{threadsState.error}</div>
-        )}
+        {mode === 'threads' && <ErrorBanner className="mb-4">{threadsState.error}</ErrorBanner>}
         {mode === 'threads' && !threadsState.threads && !threadsState.error && <Skeleton />}
         {mode === 'threads' && threadsState.threads && <ThreadList
             threads={threads}
@@ -155,11 +141,7 @@ function Section(props: {
   if (!props.items.length && !props.empty) return null
   return (
     <section className="mb-6">
-      <h2 className="mb-2 flex items-baseline gap-2 text-[11px] font-semibold tracking-wide text-muted uppercase">
-        <span className={props.tone === 'danger' ? 'text-danger' : ''}>{props.title}</span>
-        <span className="font-normal normal-case">{props.items.length}</span>
-        {props.hint && <span className="font-normal tracking-normal normal-case">· {props.hint}</span>}
-      </h2>
+      <SectionHeading title={props.title} count={props.items.length} hint={props.hint} tone={props.tone} />
       {!props.items.length ? (
         <div className="rounded-lg border border-dashed border-line px-4 py-8 text-center text-muted">{props.empty}</div>
       ) : (

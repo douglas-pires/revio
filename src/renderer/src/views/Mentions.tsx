@@ -1,8 +1,10 @@
-import { useState } from 'react'
 import type { Mention, MentionSnippet, MentionsInbox } from '@shared/types'
 import { excerptAround } from '@shared/excerpt'
 import type { ScrollTarget } from '../hooks/useScrollToTarget'
-import { ago, cx, errorMessage } from '../lib/format'
+import { ErrorBanner } from '../components/ErrorBanner'
+import { SectionHeading } from '../components/SectionHeading'
+import { useAsyncAction } from '../hooks/useAsyncAction'
+import { ago, cx } from '../lib/format'
 
 type OpenAt = (repo: string, number: number, target?: ScrollTarget) => void
 
@@ -10,23 +12,12 @@ const hasNew = (m: Mention) => m.snippets.some((s) => s.isNew)
 
 /** PRs that mention you or your teams lately, unread first. */
 export function Mentions({ mentions, onOpen }: { mentions: MentionsInbox | null; onOpen: OpenAt }) {
-  const [refreshing, setRefreshing] = useState(false)
-  const [error, setError] = useState<string | null>(null)
-
-  const run = async (action: () => Promise<unknown>) => {
-    setError(null)
-    try {
-      await action()
-    } catch (e) {
-      setError(errorMessage(e))
-    }
+  const refreshAction = useAsyncAction()
+  const readAction = useAsyncAction()
+  const refresh = () => refreshAction.run(() => window.revio.refreshMentions())
+  const markRead = async (m: Mention) => {
+    await readAction.run(() => window.revio.markMentionRead(m.repo, m.number))
   }
-  const refresh = async () => {
-    setRefreshing(true)
-    await run(() => window.revio.refreshMentions())
-    setRefreshing(false)
-  }
-  const markRead = (m: Mention) => run(() => window.revio.markMentionRead(m.repo, m.number))
   /** Opening a mention reads it, as on GitHub. Review comments open at their line. */
   const open = (m: Mention, s: MentionSnippet) => {
     if (s.isNew) void markRead(m)
@@ -43,14 +34,12 @@ export function Mentions({ mentions, onOpen }: { mentions: MentionsInbox | null;
         <span className="text-muted">you and your teams, last {mentions?.windowDays ?? 14} days</span>
         <div className="flex-1" />
         <span className="whitespace-nowrap text-muted">{mentions ? `updated ${ago(mentions.fetchedAt) === 'now' ? 'just now' : `${ago(mentions.fetchedAt)} ago`}` : 'loading…'}</span>
-        <button className="btn no-drag" onClick={() => void refresh()} disabled={refreshing}>
-          {refreshing ? 'Refreshing…' : 'Refresh'}
+        <button className="btn no-drag" onClick={() => void refresh()} disabled={refreshAction.busy}>
+          {refreshAction.busy ? 'Refreshing…' : 'Refresh'}
         </button>
       </header>
       <div className="min-h-0 flex-1 overflow-y-auto px-5 py-4">
-        {(error || mentions?.error) && (
-          <div className="mb-4 rounded-md border border-danger/40 bg-danger/10 px-3 py-2 text-danger selectable">{error || mentions?.error}</div>
-        )}
+        <ErrorBanner className="mb-4">{refreshAction.error || readAction.error || mentions?.error}</ErrorBanner>
         {!mentions && <div className="space-y-2">{[0, 1, 2].map((i) => <div key={i} className="h-24 animate-pulse rounded-lg bg-panel" />)}</div>}
         {mentions && !mentions.mentions.length && (
           <div className="rounded-lg border border-dashed border-line px-4 py-10 text-center text-muted">No one mentioned you or your teams on a PR in the last {mentions.windowDays} days.</div>
@@ -73,10 +62,7 @@ function MentionSection(props: {
   if (!props.mentions.length) return null
   return (
     <section className="mb-6">
-      <h2 className="mb-2 flex items-baseline gap-2 text-[11px] font-semibold tracking-wide text-muted uppercase">
-        <span className={props.tone === 'accent' ? 'text-accent' : ''}>{props.title}</span>
-        <span className="font-normal normal-case">{props.mentions.length}</span>
-      </h2>
+      <SectionHeading title={props.title} count={props.mentions.length} tone={props.tone} />
       <div className="space-y-3">
         {props.mentions.map((m) => (
           <MentionCard key={`${m.repo}#${m.number}`} mention={m} viewer={props.viewer} onOpen={props.onOpen} onMarkRead={props.onMarkRead} />
