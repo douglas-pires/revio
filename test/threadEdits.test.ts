@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest'
 import type { OpenThread, ThreadComment } from '@shared/types'
-import { countWaitingOnYou, withReply } from '@/lib/threadEdits'
+import { countWaitingOnYou, applyReply } from '@/lib/threadEdits'
 
 const makeComment = (author: string, createdAt: string): ThreadComment => ({ author, authorAvatar: '', bot: false, body: 'hi', createdAt, url: '' })
 const makeThread = (id: string, waitingOn: OpenThread['waitingOn']): OpenThread => ({
@@ -8,9 +8,9 @@ const makeThread = (id: string, waitingOn: OpenThread['waitingOn']): OpenThread 
   comments: [makeComment('bo', 't1')], totalComments: 1, waitingOn, lastActivityAt: 't1',
 })
 
-describe('withReply', () => {
+describe('applyReply', () => {
   it('appends your reply and moves the thread to waiting on others', () => {
-    const [a, b] = withReply([makeThread('a', 'you'), makeThread('b', 'you')], 'a', makeComment('me', 't2'))
+    const [a, b] = applyReply([makeThread('a', 'you'), makeThread('b', 'you')], 'a', makeComment('me', 't2'))
     expect(a).toMatchObject({ waitingOn: 'others', totalComments: 2, lastActivityAt: 't2' })
     expect(a!.comments.map((c) => c.author)).toEqual(['bo', 'me'])
     expect(b).toMatchObject({ waitingOn: 'you', totalComments: 1 })

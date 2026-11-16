@@ -37,7 +37,7 @@ export interface MentionContext {
 const escapeRegExp = (s: string) => s.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')
 
 /** Text a person actually wrote: no code, no quoted replies (they repeat someone else's mention). */
-function authoredText(body: string) {
+function stripQuotesAndCode(body: string) {
   return body
     .replace(/```[\s\S]*?```/g, ' ')
     .replace(/`[^`\n]*`/g, ' ')
@@ -48,13 +48,13 @@ function authoredText(body: string) {
 
 /** The first of `handles` mentioned as @handle in the body, or null. Case-insensitive, whole handles only. */
 export function findMentionedHandle(body: string, handles: readonly string[]): string | null {
-  const text = authoredText(body)
+  const text = stripQuotesAndCode(body)
   return handles.find((h) => new RegExp(`(^|[^\\w/@-])@${escapeRegExp(h)}(?![\\w/-])`, 'i').test(text)) ?? null
 }
 
 type Located = RawText & { kind: MentionSnippet['kind']; path: string | null; line: number | null }
 
-function textsOf(pr: RawMentionPr): Located[] {
+function collectTexts(pr: RawMentionPr): Located[] {
   const at = (kind: MentionSnippet['kind'], path: string | null = null, line: number | null = null) => (t: RawText | null): Located[] =>
     t ? [{ ...t, kind, path, line }] : []
   return [
@@ -69,7 +69,7 @@ function textsOf(pr: RawMentionPr): Located[] {
 export function buildMention(pr: RawMentionPr, ctx: MentionContext): Mention | null {
   const handles = [ctx.viewer, ...ctx.teams]
   const n = ctx.notification
-  const snippets = textsOf(pr).flatMap((t): MentionSnippet[] => {
+  const snippets = collectTexts(pr).flatMap((t): MentionSnippet[] => {
     if (t.author?.login === ctx.viewer || t.createdAt < ctx.since) return []
     const handle = findMentionedHandle(t.body, handles)
     if (!handle) return []

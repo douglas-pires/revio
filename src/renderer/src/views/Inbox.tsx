@@ -7,7 +7,7 @@ import { SectionHeading } from '../components/SectionHeading'
 import { useAsyncAction } from '../hooks/useAsyncAction'
 import { ago, cx, duration } from '../lib/format'
 import { EMPTY } from '../lib/group'
-import { audienceOf, isEmptyQuery, matchesQuery, parseQuery, stackPrToSearchable, summaryToSearchable, threadToSearchable, withAudience, type InboxQuery, type ReviewAudience } from '../lib/inboxQuery'
+import { readAudience, isEmptyQuery, matchesQuery, parseQuery, stackPrToSearchable, summaryToSearchable, threadToSearchable, applyAudience, type InboxQuery, type ReviewAudience } from '../lib/inboxQuery'
 import { usePrefetchOnHover } from '../hooks/usePrefetchOnHover'
 import { useThreads } from '../hooks/useThreads'
 import type { ScrollTarget } from '../hooks/useScrollToTarget'
@@ -47,7 +47,7 @@ export function Inbox({
     [threadsState.threads, query, filtering],
   )
   const waitingOnYou = countWaitingOnYou(threadsState.threads ?? EMPTY, threadsState.resolved)
-  const pickAudience = (audience: ReviewAudience) => onSearch(withAudience(search, audience))
+  const pickAudience = (audience: ReviewAudience) => onSearch(applyAudience(search, audience))
 
   return (
     <div className="flex h-full flex-col">
@@ -60,7 +60,7 @@ export function Inbox({
               onClick={() => setMode(m)}
               className={cx('rounded px-2.5 py-0.5 text-[12px] whitespace-nowrap', mode === m ? 'bg-hover text-fg' : 'text-muted hover:text-fg')}
             >
-              {modeLabel(m, inbox?.stacks.length ?? 0, waitingOnYou)}
+              {labelMode(m, inbox?.stacks.length ?? 0, waitingOnYou)}
             </button>
           ))}
         </div>
@@ -88,7 +88,7 @@ export function Inbox({
           />}
         {inbox && mode !== 'threads' && !!inbox.requested.length && (
           <div className="mb-4">
-            <AudienceBar requested={inbox.requested} active={audienceOf(query)} onPick={pickAudience} />
+            <AudienceBar requested={inbox.requested} active={readAudience(query)} onPick={pickAudience} />
           </div>
         )}
         {inbox && mode === 'stacks' && <Stacks stacks={stacks} filtering={filtering} focus={focusStack} onOpen={onOpen} />}
@@ -110,7 +110,7 @@ export function Inbox({
   )
 }
 
-function modeLabel(mode: 'queue' | 'stacks' | 'threads', stacks: number, waitingOnYou: number) {
+function labelMode(mode: 'queue' | 'stacks' | 'threads', stacks: number, waitingOnYou: number) {
   if (mode === 'queue') return 'Queue'
   if (mode === 'stacks') return stacks ? `Stacks ${stacks}` : 'Stacks'
   return waitingOnYou ? `Threads ${waitingOnYou}` : 'Threads'

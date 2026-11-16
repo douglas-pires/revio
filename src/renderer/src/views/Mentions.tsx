@@ -1,5 +1,5 @@
 import type { Mention, MentionSnippet, MentionsInbox } from '@shared/types'
-import { excerptAround } from '@shared/excerpt'
+import { summarizeAround } from '@shared/excerpt'
 import type { ScrollTarget } from '../hooks/useScrollToTarget'
 import { ErrorBanner } from '../components/ErrorBanner'
 import { SectionHeading } from '../components/SectionHeading'
@@ -126,7 +126,7 @@ function SnippetRow({ snippet: s, viewer, onOpen }: { snippet: MentionSnippet; v
               </code>
             )}
           </div>
-          <div className={cx('mt-0.5 line-clamp-3 text-[12.5px]', !s.isNew && 'text-muted')}>{excerptAround(s.body, s.viaTeam ?? viewer)}</div>
+          <div className={cx('mt-0.5 line-clamp-3 text-[12.5px]', !s.isNew && 'text-muted')}>{summarizeAround(s.body, s.viaTeam ?? viewer)}</div>
         </div>
       </button>
       <div className="flex shrink-0 flex-col items-end gap-1">

@@ -1,7 +1,7 @@
 import type { OpenThread, ThreadComment } from '@shared/types'
 
 /** The thread list after your reply: the reply is the latest comment, so the thread now waits on others. */
-export function withReply(threads: readonly OpenThread[], threadId: string, reply: ThreadComment): OpenThread[] {
+export function applyReply(threads: readonly OpenThread[], threadId: string, reply: ThreadComment): OpenThread[] {
   return threads.map((t) =>
     t.id === threadId
       ? { ...t, comments: [...t.comments, reply], totalComments: t.totalComments + 1, waitingOn: 'others', lastActivityAt: reply.createdAt }

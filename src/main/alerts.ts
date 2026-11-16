@@ -91,21 +91,23 @@ export function formatHours(h: number) {
   return `${Math.round(h / 24)}d`
 }
 
+type MentionAlert = { mention: Mention; snippet: MentionSnippet }
+
+/** New (unread) mentions not alerted before. Empty until the first fetch has been recorded. Does not change state. */
+export function findUnalertedMentions(inbox: MentionsInbox, state: AlertState): MentionAlert[] {
+  if (!state.mentionsSeeded) return []
+  return inbox.mentions.flatMap((mention) =>
+    mention.snippets.filter((s) => s.isNew && !state.mentionsAlerted[s.id]).map((snippet) => ({ mention, snippet })),
+  )
+}
+
 /**
- * New (unread) mentions not alerted before. The first fetch after install records them silently.
- * Forgets entries that dropped out of the fetched window. Mutates `state`; the caller persists it.
+ * Remembers every new mention as alerted, forgets mentions that left the fetched window, and marks the
+ * first fetch as recorded (so a fresh install does not alert on the backlog). Mutates `state`.
  */
-export function takeNewMentions(inbox: MentionsInbox, state: AlertState): { mention: Mention; snippet: MentionSnippet }[] {
-  const fresh: { mention: Mention; snippet: MentionSnippet }[] = []
-  const live = new Set<string>()
-  for (const mention of inbox.mentions)
-    for (const snippet of mention.snippets) {
-      live.add(snippet.id)
-      if (!snippet.isNew || state.mentionsAlerted[snippet.id]) continue
-      state.mentionsAlerted[snippet.id] = snippet.createdAt
-      if (state.mentionsSeeded) fresh.push({ mention, snippet })
-    }
+export function recordMentionAlerts(inbox: MentionsInbox, state: AlertState) {
+  const live = new Set(inbox.mentions.flatMap((m) => m.snippets.map((s) => s.id)))
+  for (const m of inbox.mentions) for (const s of m.snippets) if (s.isNew) state.mentionsAlerted[s.id] ??= s.createdAt
   for (const id of Object.keys(state.mentionsAlerted)) if (!live.has(id)) delete state.mentionsAlerted[id]
   state.mentionsSeeded = true
-  return fresh
 }

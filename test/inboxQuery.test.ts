@@ -1,13 +1,13 @@
 import { describe, expect, it } from 'vitest'
 import {
-  audienceOf,
+  readAudience,
   countTeams,
   matchesQuery,
   parseQuery,
   stackPrToSearchable,
   summaryToSearchable,
   threadToSearchable,
-  withAudience,
+  applyAudience,
   type Searchable,
 } from '@/lib/inboxQuery'
 import type { OpenThread, StackPr } from '@shared/types'
@@ -98,16 +98,16 @@ describe('threads', () => {
   })
 })
 
-describe('withAudience', () => {
+describe('applyAudience', () => {
   it('swaps the review qualifier and keeps the rest of the query', () => {
-    expect(withAudience('repo:acme/web login ', { kind: 'me' })).toBe('user-review-requested:@me repo:acme/web login ')
-    expect(withAudience('user-review-requested:@me login', { kind: 'team', team: 'web' })).toBe('team-review-requested:web login ')
-    expect(withAudience('-team-review-requested:web login', { kind: 'all' })).toBe('login ')
-    expect(withAudience('team-review-requested:web', { kind: 'all' })).toBe('')
+    expect(applyAudience('repo:acme/web login ', { kind: 'me' })).toBe('user-review-requested:@me repo:acme/web login ')
+    expect(applyAudience('user-review-requested:@me login', { kind: 'team', team: 'web' })).toBe('team-review-requested:web login ')
+    expect(applyAudience('-team-review-requested:web login', { kind: 'all' })).toBe('login ')
+    expect(applyAudience('team-review-requested:web', { kind: 'all' })).toBe('')
   })
 })
 
-describe('audienceOf', () => {
+describe('readAudience', () => {
   it.each([
     ['', { kind: 'all' }],
     ['login', { kind: 'all' }],
@@ -115,7 +115,7 @@ describe('audienceOf', () => {
     ['team-review-requested:acme/Web', { kind: 'team', team: 'web' }],
     ['review-requested:@me', null],
     ['-user-review-requested:@me', null],
-  ])('%j', (text, audience) => expect(audienceOf(parseQuery(text))).toEqual(audience))
+  ])('%j', (text, audience) => expect(readAudience(parseQuery(text))).toEqual(audience))
 })
 
 describe('countTeams', () => {

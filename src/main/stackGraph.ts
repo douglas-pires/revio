@@ -62,14 +62,14 @@ export function buildStacks(prs: Iterable<MiniPr>, seedIds: Set<string>, tag: In
   return stacks
 }
 
-const branchKey = (pr: MiniPr, branch: string) => `${pr.repository.nameWithOwner}|${branch}`
+const toBranchKey = (pr: MiniPr, branch: string) => `${pr.repository.nameWithOwner}|${branch}`
 
 function findParent(nodes: MiniPr[]) {
-  const byHead = new Map(nodes.map((n) => [branchKey(n, n.headRefName), n]))
+  const byHead = new Map(nodes.map((n) => [toBranchKey(n, n.headRefName), n]))
   return (n: MiniPr) => {
     // A PR on the default branch is a stack bottom, even when a fork PR's head branch is also called "main".
     if (n.baseRefName === n.repository.defaultBranchRef?.name) return undefined
-    const parent = byHead.get(branchKey(n, n.baseRefName))
+    const parent = byHead.get(toBranchKey(n, n.baseRefName))
     return parent && parent.id !== n.id ? parent : undefined
   }
 }

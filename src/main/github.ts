@@ -86,7 +86,7 @@ interface RawPr {
   timelineItems: { nodes: (RequestEvent | null)[] }
 }
 
-function requestOf(pr: RawPr, viewer: string): ReviewRequest {
+function readReviewRequest(pr: RawPr, viewer: string): ReviewRequest {
   return classifyRequest(
     pr.reviewRequests.nodes.map((n) => n?.requestedReviewer ?? null),
     pr.timelineItems.nodes.filter((n): n is RequestEvent => !!n?.createdAt),
@@ -94,7 +94,7 @@ function requestOf(pr: RawPr, viewer: string): ReviewRequest {
   )
 }
 
-const lastReviewBy = (pr: RawPr, viewer: string) => pr.latestReviews.nodes.find((r) => r?.author?.login === viewer)?.submittedAt ?? null
+const findLastReviewAt = (pr: RawPr, viewer: string) => pr.latestReviews.nodes.find((r) => r?.author?.login === viewer)?.submittedAt ?? null
 
 /** `request` is set for PRs waiting on your review, null for ones you already reviewed. */
 function toSummary(pr: RawPr, staleAfterHours: number, request: ReviewRequest | null): PullSummary {
@@ -155,8 +155,8 @@ export async function fetchInbox(stackFinder: StackFinder): Promise<Inbox> {
   const requested: PullSummary[] = []
   const reviewedSinceRequest: PullSummary[] = []
   for (const n of data.requested.nodes.filter(isPr)) {
-    const request = requestOf(n, viewer)
-    if (awaitsYou(request, lastReviewBy(n, viewer))) requested.push(toSummary(n, s.staleAfterHours, request))
+    const request = readReviewRequest(n, viewer)
+    if (awaitsYou(request, findLastReviewAt(n, viewer))) requested.push(toSummary(n, s.staleAfterHours, request))
     else reviewedSinceRequest.push(toSummary(n, s.staleAfterHours, null))
   }
   requested.sort((a, b) => b.waitingHours - a.waitingHours)

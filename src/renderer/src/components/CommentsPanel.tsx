@@ -1,7 +1,7 @@
 import { memo, useState } from 'react'
 import type { DraftComment } from '@shared/types'
 import type { CommentThread } from '../lib/commentThreads'
-import { excerpt } from '@shared/excerpt'
+import { summarizeComment } from '@shared/excerpt'
 import { ago, cx } from '../lib/format'
 import { groupBy } from '../lib/group'
 
@@ -77,7 +77,7 @@ function ThreadItem({ thread: t, onJump }: { thread: CommentThread; onJump: (pat
           {t.resolved && <span className="chip bg-ok/15 py-0 text-[10px] text-ok">resolved</span>}
           <span className="ml-auto shrink-0 text-[10.5px] text-muted">{ago((last ?? root!).createdAt)}</span>
         </div>
-        <div className="line-clamp-2 text-muted">{excerpt(root!.body, 200)}</div>
+        <div className="line-clamp-2 text-muted">{summarizeComment(root!.body, 200)}</div>
         {last && (
           <div className="mt-0.5 truncate text-[11px] text-muted">
             {replies.length} repl{replies.length === 1 ? 'y' : 'ies'} · last by <span className="text-fg">{last.author}</span>
@@ -98,7 +98,7 @@ function Drafts({ drafts, onJump }: { drafts: readonly DraftComment[]; onJump: (
             {d.path.slice(d.path.lastIndexOf('/') + 1)}:{d.line}
             {d.inReplyTo ? ' · reply' : ''}
           </span>
-          <div className="line-clamp-2">{excerpt(d.body, 200)}</div>
+          <div className="line-clamp-2">{summarizeComment(d.body, 200)}</div>
         </button>
       ))}
     </div>

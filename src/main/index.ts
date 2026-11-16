@@ -12,8 +12,8 @@ import { InboxPoller } from './poller'
 import { PullCache } from './pullCache'
 import { fetchStack, StackFinder } from './stacks'
 import { flush, store } from './store'
-import { excerpt } from '@shared/excerpt'
-import { takeNewMentions } from './alerts'
+import { summarizeComment } from '@shared/excerpt'
+import { findUnalertedMentions, recordMentionAlerts } from './alerts'
 import { fetchMentions, MentionWatcher } from './mentions'
 import { showNotification } from './notify'
 
@@ -76,12 +76,14 @@ function createWindow() {
 /** A desktop notification per new mention (a summary past three), unless turned off in Settings. */
 function alertNewMentions(mentions: MentionsInbox) {
   if (mentions.error) return
-  const fresh = takeNewMentions(mentions, store.alerts())
+  const state = store.alerts()
+  const fresh = findUnalertedMentions(mentions, state)
+  recordMentionAlerts(mentions, state)
   store.saveAlerts()
   if (!store.settings().notifyOnMention || !fresh.length) return
   for (const { mention, snippet } of fresh.slice(0, 3)) {
     const who = snippet.viaTeam ? `@${snippet.viaTeam}` : 'you'
-    showNotification(`${snippet.author} mentioned ${who}`, `${mention.repo}#${mention.number} · ${mention.title}\n${excerpt(snippet.body, 140)}`, () =>
+    showNotification(`${snippet.author} mentioned ${who}`, `${mention.repo}#${mention.number} · ${mention.title}\n${summarizeComment(snippet.body, 140)}`, () =>
       focusAndOpen(mention.repo, mention.number),
     )
   }

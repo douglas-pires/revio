@@ -1,6 +1,6 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest'
 import type { Inbox, Mention, MentionsInbox, PullSummary } from '@shared/types'
-import { formatHours, isStaleAlertDue, raiseAlerts, recordRequest, requestChange, takeNewMentions, type AlertSettings, type AlertState, type Notify } from '../src/main/alerts'
+import { formatHours, isStaleAlertDue, raiseAlerts, recordRequest, requestChange, findUnalertedMentions, recordMentionAlerts, type AlertSettings, type AlertState, type Notify } from '../src/main/alerts'
 import { makeSummary } from './fixtures'
 
 const HOUR = 36e5
@@ -103,29 +103,34 @@ describe('formatHours', () => {
   ])('%d → %s', (h, s) => expect(formatHours(h)).toBe(s))
 })
 
-describe('takeNewMentions', () => {
+describe('mention alerts', () => {
   const snippet = (id: string, isNew: boolean) => ({
     id, kind: 'comment' as const, author: 'bo', authorAvatar: '', body: '@me', createdAt: '2026-11-10T00:00:00Z', url: id, path: null, line: null, viaTeam: null, isNew,
   })
   const mention = (...snippets: ReturnType<typeof snippet>[]): Mention => ({ repo: 'acme/web', number: 1, title: 't', url: '', state: 'OPEN', notificationId: 'N', snippets, latestAt: '' })
   const makeMentions = (...mentions: Mention[]): MentionsInbox => ({ viewer: 'me', mentions, windowDays: 14, fetchedAt: '' })
+  const alertIds = (inbox: MentionsInbox) => findUnalertedMentions(inbox, state).map((a) => a.snippet.id)
 
-  it('records the first fetch silently', () => {
+  it('finds nothing before the first fetch is recorded, which is silent', () => {
     state.mentionsSeeded = false
-    expect(takeNewMentions(makeMentions(mention(snippet('a', true))), state)).toEqual([])
+    const inbox = makeMentions(mention(snippet('a', true)))
+    expect(alertIds(inbox)).toEqual([])
+    recordMentionAlerts(inbox, state)
     expect(state.mentionsSeeded).toBe(true)
-    expect(takeNewMentions(makeMentions(mention(snippet('a', true))), state)).toEqual([])
+    expect(alertIds(inbox)).toEqual([])
   })
 
-  it('alerts once per new mention, never for read ones', () => {
-    const first = takeNewMentions(makeMentions(mention(snippet('a', true), snippet('b', false))), state)
-    expect(first.map((f) => f.snippet.id)).toEqual(['a'])
-    expect(takeNewMentions(makeMentions(mention(snippet('a', true))), state)).toEqual([])
+  it('finds each new mention once, never read ones, and finding does not record', () => {
+    const inbox = makeMentions(mention(snippet('a', true), snippet('b', false)))
+    expect(alertIds(inbox)).toEqual(['a'])
+    expect(alertIds(inbox)).toEqual(['a'])
+    recordMentionAlerts(inbox, state)
+    expect(alertIds(inbox)).toEqual([])
   })
 
   it('forgets mentions that left the window', () => {
-    takeNewMentions(makeMentions(mention(snippet('a', true))), state)
-    takeNewMentions(makeMentions(), state)
+    recordMentionAlerts(makeMentions(mention(snippet('a', true))), state)
+    recordMentionAlerts(makeMentions(), state)
     expect(state.mentionsAlerted).toEqual({})
   })
 })

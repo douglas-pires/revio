@@ -22,12 +22,12 @@ export class StackFinder {
 
   async stacksForInbox(octokit: Octokit, requested: PullSummary[], reviewed: PullSummary[]): Promise<Stack[]> {
     const all = [...requested, ...reviewed]
-    const signature = inboxSignature(all)
+    const signature = signInbox(all)
     if (this.#cache && this.#cache.signature === signature && Date.now() - this.#cache.at < STACK_TTL_MS) {
       return withInboxTags(this.#cache.stacks, requested, reviewed)
     }
     try {
-      const stacks = await findStacks(octokit, all.map(summaryToMini), tagInbox(requested, reviewed), staleIdsOf(all))
+      const stacks = await findStacks(octokit, all.map(summaryToMini), tagInbox(requested, reviewed), collectStaleIds(all))
       this.#cache = { signature, at: Date.now(), stacks }
       markStackPositions(stacks, all)
       return stacks
@@ -39,13 +39,13 @@ export class StackFinder {
 }
 
 /** Changes whenever a PR joins or leaves the inbox, moves branches, or changes review decision. */
-const inboxSignature = (prs: PullSummary[]) =>
+const signInbox = (prs: PullSummary[]) =>
   prs
     .map((p) => `${p.id}:${p.headRef}:${p.baseRef}:${p.reviewDecision}`)
     .sort()
     .join('|')
 
-const staleIdsOf = (prs: PullSummary[]) => new Set(prs.filter((p) => p.stale).map((p) => p.id))
+const collectStaleIds = (prs: PullSummary[]) => new Set(prs.filter((p) => p.stale).map((p) => p.id))
 
 /** The stack a single PR belongs to (it may be outside your inbox), or null when it is not stacked. */
 export async function fetchStack(repoFull: string, number: number, inbox: Inbox | null): Promise<Stack | null> {
@@ -55,7 +55,7 @@ export async function fetchStack(repoFull: string, number: number, inbox: Inbox 
   const seed = await fetchMiniPr(octokit, repoFull, number)
   if (!seed) return null
   const requested = inbox?.requested ?? []
-  const stacks = await findStacks(octokit, [seed], tagInbox(requested, inbox?.reviewed ?? []), staleIdsOf(requested))
+  const stacks = await findStacks(octokit, [seed], tagInbox(requested, inbox?.reviewed ?? []), collectStaleIds(requested))
   return stacks[0] ?? null
 }
 
@@ -80,7 +80,7 @@ async function collectLinkedPrs(octokit: Octokit, seeds: MiniPr[]): Promise<Map<
   const asked = new Set<string>()
   let frontier = seeds
   for (let round = 0; round < MAX_ROUNDS && frontier.length; round++) {
-    const found = await runLookups(octokit, lookupsFor(frontier, asked))
+    const found = await runLookups(octokit, planLookups(frontier, asked))
     frontier = []
     for (const n of found) {
       if (prs.has(n.id)) continue
@@ -99,7 +99,7 @@ interface Lookup {
 }
 
 /** The branch lookups this round still needs; `asked` remembers earlier rounds so none repeats. */
-function lookupsFor(frontier: MiniPr[], asked: Set<string>): Lookup[] {
+function planLookups(frontier: MiniPr[], asked: Set<string>): Lookup[] {
   const lookups: Lookup[] = []
   const add = (lookup: Lookup) => {
     const key = `${lookup.repo}|${lookup.field}|${lookup.ref}`
@@ -120,7 +120,7 @@ async function runLookups(octokit: Octokit, lookups: Lookup[]): Promise<MiniPr[]
   const found: MiniPr[] = []
   for (let i = 0; i < lookups.length; i += LOOKUPS_PER_QUERY) {
     const chunk = lookups.slice(i, i + LOOKUPS_PER_QUERY)
-    const data = await octokit.graphql<Record<string, { pullRequests: { nodes: (MiniPr | null)[] } } | null>>(lookupQuery(chunk))
+    const data = await octokit.graphql<Record<string, { pullRequests: { nodes: (MiniPr | null)[] } } | null>>(buildLookupQuery(chunk))
     chunk.forEach((_, k) => {
       for (const n of data[`l${k}`]?.pullRequests.nodes ?? []) if (n) found.push(n)
     })
@@ -128,7 +128,7 @@ async function runLookups(octokit: Octokit, lookups: Lookup[]): Promise<MiniPr[]
   return found
 }
 
-function lookupQuery(chunk: Lookup[]) {
+function buildLookupQuery(chunk: Lookup[]) {
   const parts = chunk.map((l, k) => {
     const { owner, repo } = splitRepo(l.repo)
     return `l${k}: repository(owner: ${JSON.stringify(owner)}, name: ${JSON.stringify(repo)}) {

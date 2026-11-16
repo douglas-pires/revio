@@ -4,7 +4,7 @@ import type { ScrollTarget } from '../hooks/useScrollToTarget'
 import { useAsyncAction } from '../hooks/useAsyncAction'
 import { ago, cx } from '../lib/format'
 import { SectionHeading } from './SectionHeading'
-import { excerpt } from '@shared/excerpt'
+import { summarizeComment } from '@shared/excerpt'
 import { groupBy } from '../lib/group'
 import { Composer } from './ReviewComments'
 
@@ -107,7 +107,7 @@ function ThreadRow({ thread: t, isResolved, actions }: { thread: OpenThread; isR
               </span>
             </div>
             <div className={cx('mt-0.5 line-clamp-2 text-[12.5px]', t.waitingOn === 'others' && 'text-muted')}>
-              <span className="font-medium">{last.author}</span>: {excerpt(last.body)}
+              <span className="font-medium">{last.author}</span>: {summarizeComment(last.body)}
             </div>
           </div>
         </button>

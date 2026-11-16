@@ -15,7 +15,7 @@ const PR_FIELDS = `number title state url ${TEXT} repository { nameWithOwner }
   reviews(last: 30) { nodes { ${TEXT} } }
   reviewThreads(last: 30) { nodes { path line comments(last: 10) { nodes { ${TEXT} } } } }`
 
-const prKey = (repo: string, number: number) => `${repo}#${number}`.toLowerCase()
+const toPrKey = (repo: string, number: number) => `${repo}#${number}`.toLowerCase()
 
 interface Notification extends NotificationInfo {
   key: string
@@ -39,12 +39,12 @@ export async function fetchMentions(octokit: Octokit): Promise<MentionsInbox> {
   ])
   const byKey = new Map(notifications.map((n) => [n.key, n]))
   const candidates = new Map<string, { repo: string; number: number }>()
-  for (const p of searched) candidates.set(prKey(p.repo, p.number), p)
+  for (const p of searched) candidates.set(toPrKey(p.repo, p.number), p)
   for (const n of notifications) if (n.reason === 'mention' || n.reason === 'team_mention') candidates.set(n.key, n)
 
   const prs = await fetchPrTexts(octokit, [...candidates.values()].slice(0, MAX_PRS))
   const mentions = prs.flatMap((pr) => {
-    const m = buildMention(pr, { viewer, teams, since: since.toISOString(), notification: byKey.get(prKey(pr.repository.nameWithOwner, pr.number)) })
+    const m = buildMention(pr, { viewer, teams, since: since.toISOString(), notification: byKey.get(toPrKey(pr.repository.nameWithOwner, pr.number)) })
     return m ? [m] : []
   })
   return { viewer, mentions: sortMentions(mentions), windowDays: MENTION_WINDOW_DAYS, fetchedAt: new Date().toISOString() }
@@ -57,7 +57,7 @@ async function listPrNotifications(octokit: Octokit, since: Date): Promise<Notif
       const number = Number(n.subject.url?.split('/').at(-1))
       if (n.subject.type !== 'PullRequest' || !number) return []
       const repo = n.repository.full_name
-      return [{ id: n.id, unread: n.unread, lastReadAt: n.last_read_at, reason: n.reason, repo, number, key: prKey(repo, number) }]
+      return [{ id: n.id, unread: n.unread, lastReadAt: n.last_read_at, reason: n.reason, repo, number, key: toPrKey(repo, number) }]
     })
   } catch (err) {
     // Fine-grained tokens cannot read notifications; mentions still come from search, without unread state.
