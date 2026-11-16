@@ -7,6 +7,9 @@ import { useHighlighter, type Tok } from '../highlight/highlight.service'
 import { useNearViewport } from './use-near-viewport.hook'
 import { Code, EmptyHalf, Gutter, Half, RowGroup, Sign, rowBg } from './diff-cells.component'
 import { CommentView, Composer, DraftView, Thread } from './review-comments.component'
+import { groupCommentThreads } from './comment-threads.util'
+import { DiffFileHeader } from './diff-file-header.component'
+import { EMPTY } from '../common/group.util'
 
 export type DiffView = 'unified' | 'split'
 
@@ -46,8 +49,6 @@ interface Selection {
 
 type Anchor = { side: DiffSide; line: number }
 
-const STATUS: Record<string, string> = { added: 'A', removed: 'D', modified: 'M', renamed: 'R', copied: 'C', changed: 'M' }
-
 export const DiffFile = memo(function DiffFile(props: DiffFileProps) {
   const { file, collapsed, view } = props
   const setCollapsed = (value: boolean) => props.onToggleCollapsed(file.path, value)
@@ -82,16 +83,14 @@ export const DiffFile = memo(function DiffFile(props: DiffFileProps) {
   )
 
   const threads = useMemo(() => {
-    const roots = props.comments.filter((c) => !c.inReplyTo && !c.outdated)
-    const byRoot = new Map<number, ReviewComment[]>()
-    for (const c of props.comments) if (c.inReplyTo) byRoot.set(c.inReplyTo, [...(byRoot.get(c.inReplyTo) ?? []), c])
     const m = new Map<string, ReviewComment[][]>()
-    for (const r of roots) {
-      const k = anchorKey(r.side, r.line!)
-      m.set(k, [...(m.get(k) ?? []), [r, ...(byRoot.get(r.id) ?? [])]])
+    for (const t of groupCommentThreads(props.comments, EMPTY, [file.path])) {
+      if (t.outdated || t.line == null) continue
+      const k = anchorKey(t.side, t.line)
+      m.set(k, [...(m.get(k) ?? []), t.comments])
     }
     return m
-  }, [props.comments])
+  }, [props.comments, file.path])
 
   const outdated = props.comments.filter((c) => c.outdated && !c.inReplyTo)
 
@@ -238,8 +237,6 @@ export const DiffFile = memo(function DiffFile(props: DiffFileProps) {
     setFloating({ x: e.clientX, y: e.clientY, side, start: Math.min(...nums), end: Math.max(...nums) })
   }
 
-  const commentCount = props.comments.length + props.drafts.length
-
   return (
     <div
       ref={container}
@@ -247,43 +244,16 @@ export const DiffFile = memo(function DiffFile(props: DiffFileProps) {
       onBlur={(e) => !e.currentTarget.contains(e.relatedTarget as Node | null) && setFocusWithin(false)}
       id={`file-${file.path}`}
       className={cx('scroll-mt-2 overflow-hidden rounded-lg border bg-panel', props.current ? 'border-accent ring-1 ring-accent/40' : 'border-line')}>
-      <div className="sticky top-0 z-10 flex items-center gap-2 border-b border-line bg-panel-2 px-3 py-1.5">
-        <button className="btn btn-ghost px-1" onClick={() => setCollapsed(!collapsed)} title={collapsed ? 'Expand' : 'Collapse'}>
-          <svg viewBox="0 0 16 16" className={cx('size-3.5 transition', collapsed && '-rotate-90')} fill="currentColor">
-            <path d="M4 6l4 4 4-4z" />
-          </svg>
-        </button>
-        <span className="chip bg-panel font-mono text-muted">{STATUS[file.status] ?? '?'}</span>
-        <span className="selectable truncate font-mono text-[12px]">
-          {file.previousPath && <span className="text-muted">{file.previousPath} → </span>}
-          {file.path}
-        </span>
-        <span className="font-mono text-[11.5px]">
-          <span className="text-ok">+{file.additions}</span> <span className="text-danger">−{file.deletions}</span>
-        </span>
-        {props.focus.length > 0 && (
-          <span className="chip bg-focus/15 text-focus" title={props.focus.map((f) => f.reason).join('\n')}>
-            ● focus
-          </span>
-        )}
-        {props.ignoreReason && (
-          <span className="chip bg-panel text-muted" title={props.ignoreReason}>
-            skip
-          </span>
-        )}
-        {commentCount > 0 && <span className="chip bg-accent/15 text-accent">{commentCount} 💬</span>}
-        <div className="flex-1" />
-        <label className="flex cursor-pointer items-center gap-1.5 text-[12px] text-muted">
-          <input
-            type="checkbox"
-            checked={props.viewed}
-            onChange={(e) => {
-              props.onToggleViewed(file.path, file.sha, e.target.checked)
-            }}
-          />
-          Viewed
-        </label>
-      </div>
+      <DiffFileHeader
+        file={file}
+        collapsed={collapsed}
+        focus={props.focus}
+        ignoreReason={props.ignoreReason}
+        commentCount={props.comments.length + props.drafts.length}
+        viewed={props.viewed}
+        onToggleCollapsed={() => setCollapsed(!collapsed)}
+        onToggleViewed={(viewed) => props.onToggleViewed(file.path, file.sha, viewed)}
+      />
 
       {!collapsed && !near && <div style={{ height: bodyHeight.last ?? estimateBodyHeight(rows.length) }} />}
       {!collapsed && near && (

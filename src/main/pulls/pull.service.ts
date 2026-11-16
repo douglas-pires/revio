@@ -2,6 +2,7 @@ import type { Octokit } from '@octokit/rest'
 import type { DraftComment, PullDetail, PullFile, PullRef, PullThreadStatus, ReviewComment, SubmitReviewInput } from '@shared/pull.types'
 import { gh, smallAvatar, viewerLogin } from '../github/github.client'
 import { splitRepo } from '../github/repo-name.util'
+import { planReview } from './review-plan.util'
 
 /** Which review threads are resolved; REST comments do not say. A failure only hides that status. */
 async function fetchThreadStatus(octokit: Octokit, ref: PullRef): Promise<PullThreadStatus[]> {
@@ -101,28 +102,10 @@ export async function fetchPull(ref: PullRef): Promise<PullDetail> {
 export async function submitReview(input: SubmitReviewInput, drafts: DraftComment[]): Promise<{ url: string }> {
   const octokit = await gh()
   const { owner, repo } = splitRepo(input.repo)
-
-  // Replies to existing threads cannot be part of a review payload; post them first.
-  for (const d of drafts.filter((d) => d.inReplyTo)) {
-    await octokit.pulls.createReplyForReviewComment({
-      owner,
-      repo,
-      pull_number: input.number,
-      comment_id: d.inReplyTo!,
-      body: d.body,
-    })
+  const plan = planReview(drafts)
+  for (const reply of plan.replies) {
+    await octokit.pulls.createReplyForReviewComment({ owner, repo, pull_number: input.number, comment_id: reply.commentId, body: reply.body })
   }
-
-  const comments = drafts
-    .filter((d) => !d.inReplyTo)
-    .map((d) => ({
-      path: d.path,
-      body: d.body,
-      line: d.line,
-      side: d.side,
-      ...(d.startLine && d.startLine !== d.line ? { start_line: d.startLine, start_side: d.side } : {}),
-    }))
-
   const res = await octokit.pulls.createReview({
     owner,
     repo,
@@ -130,7 +113,7 @@ export async function submitReview(input: SubmitReviewInput, drafts: DraftCommen
     commit_id: input.headSha,
     event: input.event,
     body: input.body || undefined,
-    comments,
+    comments: plan.lineComments,
   })
   return { url: res.data.html_url }
 }
