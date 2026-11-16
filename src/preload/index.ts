@@ -1,5 +1,5 @@
 import { contextBridge, ipcRenderer } from 'electron'
-import { IPC, type RevioApi } from '../shared/api'
+import { IPC, type RevioApi } from '../shared/api.contract'
 import type { MainEvent } from '../shared/types'
 
 const invoke =
