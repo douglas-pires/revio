@@ -1,6 +1,5 @@
 import type { Octokit } from '@octokit/rest'
 import type { ThreadComment, ThreadsInbox } from '@shared/thread.types'
-import { InFlight } from '../common/in-flight.util'
 import { toThreadComment, triageThreads, type RawThreadComment, type RawThreadPr } from './thread-triage.util'
 
 /** Open PRs you are involved in (author, commenter, mentioned, assigned), most recently updated first. */
@@ -55,26 +54,4 @@ export async function replyToThread(octokit: Octokit, threadId: string, body: st
 export async function setThreadResolved(octokit: Octokit, threadId: string, resolved: boolean): Promise<void> {
   const mutation = resolved ? 'resolveReviewThread' : 'unresolveReviewThread'
   await octokit.graphql(`mutation ($id: ID!) { ${mutation}(input: { threadId: $id }) { thread { isResolved } } }`, { id: threadId })
-}
-
-/** The last threads fetch, reused for `maxAgeMs`; concurrent callers share one request. */
-export class ThreadFinder {
-  #last: ThreadsInbox | null = null
-  readonly #inFlight = new InFlight<ThreadsInbox>()
-  readonly #load: () => Promise<ThreadsInbox>
-
-  constructor(load: () => Promise<ThreadsInbox>) {
-    this.#load = load
-  }
-
-  get(maxAgeMs = 0): Promise<ThreadsInbox> {
-    const last = this.#last
-    if (last && maxAgeMs > 0 && Date.now() - Date.parse(last.fetchedAt) <= maxAgeMs) return Promise.resolve(last)
-    return this.#inFlight.run('threads', async () => (this.#last = await this.#load()))
-  }
-
-  /** Drops the cached copy after you change a thread, so the next read is fresh. */
-  forget() {
-    this.#last = null
-  }
 }

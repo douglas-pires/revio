@@ -25,16 +25,18 @@ Claude Code login via `claude -p` with structured JSON output. Default model: `c
 
 ## Tests
 
-`test/` covers the logic that is easy to get subtly wrong: diff parsing and split pairing, comment anchors,
-review/stale alert rules, stack detection (against a fake GitHub GraphQL), guideline scoping and ordering,
-the PR cache, state pruning, and how the Claude prompt fits diffs into its budget. Electron and GitHub are
-mocked; nothing hits the network. React components are not tested yet.
+Specs sit next to the code they cover (`inbox-query.util.ts` → `inbox-query.util.spec.ts`); shared fixtures and the
+Electron mock live in `test/`. They cover the logic that is easy to get subtly wrong: diff parsing and split pairing,
+comment anchors, review/stale/mention alert rules, team vs direct requests, stack detection (against a fake GitHub
+GraphQL), guideline scoping, search qualifiers, thread and mention triage, token lookup order, caches, state pruning,
+and how the Claude prompt fits diffs into its budget. Electron and GitHub are mocked; nothing hits the network.
+React components are not tested yet.
 
 ## Performance notes
 
 - The inbox is the only screen in the startup bundle (~235 KB minified); the PR page, guides and settings load on first use.
-- Syntax highlighting runs in a Web Worker (`src/renderer/src/workers/highlight.worker.ts`); grammars load per language.
-- A file's diff body renders only near the visible area (`useNearViewport`), with a same-height placeholder elsewhere.
+- Syntax highlighting runs in a Web Worker (`src/renderer/src/highlight/highlight.worker.ts`); grammars load per language.
+- A file's diff body renders only near the visible area (`use-near-viewport.hook.ts`), with a same-height placeholder elsewhere.
   Bodies with a selection or a focused comment box never unmount.
 - Hovering an inbox row for 150 ms prefetches the PR; a copy up to 2 minutes old opens instantly and refreshes in the background.
 - Stack detection is cached for 15 minutes while the inbox's PRs and branches are unchanged.
@@ -42,16 +44,32 @@ mocked; nothing hits the network. React components are not tested yet.
 
 ## How it fits together
 
+Code is grouped by domain. File names are kebab-case `<name>.<role>.ts`, NestJS style:
+
+| Role | Holds |
+| --- | --- |
+| `.service` | Talks to GitHub, Claude, disk or the OS for one domain |
+| `.util` | Pure logic, no I/O; the most tested part |
+| `.client` / `.cache` / `.poller` / `.watcher` | The GitHub client; time-limited caches; scheduled refreshes |
+| `.controller` / `.window` | The IPC API handlers; the app window (main process) |
+| `.types` / `.contract` | Shared types per domain; the renderer ↔ main API |
+| `.view` / `.component` / `.hook` / `.worker` | Screens; React components; React hooks; Web Workers (renderer) |
+| `.spec` | Tests, beside the file they cover |
+
 | Where | What |
 | --- | --- |
-| `src/main/poller.ts` | Polls GitHub every N minutes and shows notifications. Dock badge = queue size. A PR leaves the queue once you have reviewed it since you were asked, even if a team request remains or search has not caught up. |
-| `src/main/alerts.ts` | When to alert: new/re-requested reviews and stale ones (first run records the backlog silently). No Electron, so it is unit-tested. |
-| `src/main/github.ts` | GraphQL inbox search (requested + reviewed-and-still-open), PR files/comments, review submission. |
-| `src/main/stacks.ts` / `stackGraph.ts` | Walks branch links on GitHub (batched GraphQL) / turns the PRs found into ordered stacks. |
-| `src/main/guidelines.ts` | Guides stack: all repos → repo root → folders (only when the PR touches that folder). |
-| `src/main/claude.ts` | Builds the prompt (guides + description + full diff + existing comments) and returns a typed briefing. |
-| `src/main/store.ts` | JSON store in `~/Library/Application Support/Revio/revio.json` (settings, guides, drafts, viewed files, briefings); `pullState.ts` prunes PRs untouched for 45 days. |
-| `src/renderer/` | Inbox, PR view (Overview with briefing / Files changed), Guides editor, Settings. |
+| `src/main/index.ts` | Composition root: creates the services once and wires them together. |
+| `src/main/app/` | `api.controller.ts` answers renderer calls by domain; `app.window.ts` owns the window. |
+| `src/main/inbox/` | Inbox search and sorting, the poller (dock badge = queue size), direct vs team requests. A PR leaves the queue once you have reviewed it since you were asked, even if a team request remains or search lags. |
+| `src/main/alerts/` | When to alert (new/re-requested, stale, mentions; first run records the backlog silently), and macOS notifications. |
+| `src/main/pulls/` | PR details, thread status, reviews, replies; the PR cache; pruning of PRs untouched for 45 days. |
+| `src/main/stacks/` | Walks branch links on GitHub (batched GraphQL) / turns the PRs found into ordered stacks. |
+| `src/main/threads/`, `src/main/mentions/` | Unresolved review threads; PRs that mention you or your teams. |
+| `src/main/github/` | The authenticated client and which token it uses. |
+| `src/main/guidelines/`, `src/main/claude/` | Review guides (all repos → repo → folder); briefings and Ask Claude. |
+| `src/main/store/` | JSON store in `~/Library/Application Support/Revio/revio.json`; tokens encrypted via the macOS keychain. |
+| `src/renderer/src/` | One folder per screen or feature (`inbox`, `threads`, `mentions`, `pull`, `settings`, `guidelines`, `highlight`) plus `common` for shared UI and helpers. |
+| `src/shared/` | Types per domain and the IPC contract, used by both processes. |
 
 ## Inbox search
 

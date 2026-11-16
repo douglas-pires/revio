@@ -7,12 +7,13 @@ import { gh, resetClient } from '../github/github.client'
 import type { GithubTokens } from '../github/github-tokens.service'
 import { deleteGuideline, resolveGuidelines, saveGuideline } from '../guidelines/guidelines.service'
 import type { InboxPoller } from '../inbox/inbox.poller'
-import type { MentionWatcher } from '../mentions/mentions.service'
+import type { MentionWatcher } from '../mentions/mentions.watcher'
 import type { PullCache } from '../pulls/pull.cache'
 import { replyToComment, submitReview } from '../pulls/pull.service'
 import { fetchStack } from '../stacks/stacks.service'
 import type { store as appStore } from '../store/store.service'
-import { replyToThread, setThreadResolved, type ThreadFinder } from '../threads/threads.service'
+import type { ThreadCache } from '../threads/threads.cache'
+import { replyToThread, setThreadResolved } from '../threads/threads.service'
 import type { AppWindow } from './app.window'
 
 type ApiHandlers = { [K in ApiMethod]: (...args: Parameters<RevioApi[K]>) => ReturnType<RevioApi[K]> | Awaited<ReturnType<RevioApi[K]>> }
@@ -22,7 +23,7 @@ export interface ApiDeps {
   tokens: GithubTokens
   poller: InboxPoller
   pulls: PullCache
-  threads: ThreadFinder
+  threads: ThreadCache
   mentions: MentionWatcher
   window: AppWindow
 }

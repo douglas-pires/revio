@@ -9,12 +9,14 @@ import { GithubTokens } from './github/github-tokens.service'
 import { InboxPoller } from './inbox/inbox.poller'
 import { fetchInbox } from './inbox/inbox.service'
 import { alertNewMentions } from './mentions/mention-alerts.service'
-import { fetchMentions, MentionWatcher } from './mentions/mentions.service'
+import { fetchMentions } from './mentions/mentions.service'
+import { MentionWatcher } from './mentions/mentions.watcher'
 import { PullCache } from './pulls/pull.cache'
 import { fetchPull } from './pulls/pull.service'
 import { StackFinder } from './stacks/stacks.service'
 import { flush, store } from './store/store.service'
-import { fetchThreads, ThreadFinder } from './threads/threads.service'
+import { ThreadCache } from './threads/threads.cache'
+import { fetchThreads } from './threads/threads.service'
 
 // Composition root: creates the long-lived services once and hands them to whoever needs them.
 const window = new AppWindow()
@@ -28,7 +30,7 @@ const tokens = new GithubTokens({
 configureTokenResolver(() => tokens.resolve())
 const pulls = new PullCache(fetchPull)
 const stackFinder = new StackFinder()
-const threads = new ThreadFinder(async () => fetchThreads(await gh()))
+const threads = new ThreadCache(async () => fetchThreads(await gh()))
 const mentions = new MentionWatcher({
   load: async () => fetchMentions(await gh()),
   markRead: async (notificationId) => {
