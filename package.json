@@ -14,6 +14,7 @@
     "start": "electron-vite preview",
     "typecheck": "tsc -p tsconfig.node.json --noEmit && tsc -p tsconfig.web.json --noEmit && tsc -p tsconfig.test.json --noEmit",
     "dist": "electron-vite build && electron-builder --mac",
+    "dist:adhoc": "electron-vite build && electron-builder --mac -c.mac.identity=-",
     "test": "vitest run",
     "test:watch": "vitest"
   },
@@ -59,8 +60,7 @@
       ],
       "category": "public.app-category.developer-tools",
       "icon": "build/icon.icns",
-      "identity": "-",
-      "hardenedRuntime": false
+      "hardenedRuntime": true
     },
     "publish": [
       {

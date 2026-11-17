@@ -24,11 +24,30 @@ build published as a GitHub release (`Revio-<version>-arm64.dmg`, plus a zip). T
 major.minor with the run number as the patch (0.1.42), so each build is newer than the last; bump major or minor in
 `package.json` for bigger releases. `npm run dist` builds the same thing locally into `dist/` without publishing.
 
-Builds are ad-hoc signed, not with an Apple Developer ID, so macOS will not open a downloaded copy with a double
-click the first time ("Apple could not verify…"). Click **Done**, then open **System Settings → Privacy & Security**,
-scroll to Security and click **Open Anyway** next to the Revio message (macOS 15 and later dropped right-click → Open).
-Or clear the download flag once: `xattr -dr com.apple.quarantine /Applications/Revio.app`. With a Developer ID certificate in the repository secrets, electron-builder can sign and
-notarize instead.
+### Signing
+
+Release builds are signed with a Developer ID and notarized by Apple, so a downloaded copy opens with a double click.
+The workflow does this when these repository secrets are set (**Settings → Secrets and variables → Actions**):
+
+| Secret | What it is |
+| --- | --- |
+| `MAC_CERT_P12_BASE64` | Your **Developer ID Application** certificate and its private key, exported from Keychain Access as a `.p12`, then base64-encoded: `base64 -i cert.p12 \| pbcopy` |
+| `MAC_CERT_PASSWORD` | The password you set when exporting the `.p12` |
+| `APPLE_API_KEY_P8` | The contents of an App Store Connect API key file (`AuthKey_XXXXXXXXXX.p8`), used to notarize |
+| `APPLE_API_KEY_ID` | That key's ID (the `XXXXXXXXXX` in the file name) |
+| `APPLE_API_ISSUER` | The Issuer ID shown above the key list in App Store Connect → Users and Access → Integrations |
+
+Create the certificate at developer.apple.com → Certificates (type **Developer ID Application**) or in Xcode → Settings
+→ Accounts → Manage Certificates. Create the API key in App Store Connect → Users and Access → Integrations → App
+Store Connect API, with the **Developer** role; the `.p8` can be downloaded only once.
+
+The workflow checks the result with `codesign`, `stapler` and `spctl`, and fails the run if Apple did not accept it.
+Without the secrets it falls back to an ad-hoc build, which macOS blocks on first launch ("Apple could not verify…");
+allow it with **System Settings → Privacy & Security → Open Anyway** (shown for about an hour after a double-click
+attempt) or `xattr -dr com.apple.quarantine /Applications/Revio.app`.
+
+Locally, `npm run dist` signs with a Developer ID in your keychain if there is one (and notarizes if the `APPLE_API_*`
+variables are set, with `APPLE_API_KEY` as the path to the `.p8`); `npm run dist:adhoc` builds without one.
 
 ### Updates
 
@@ -36,8 +55,8 @@ Installed builds check the latest GitHub release a little after launch and every
 Updates…** and **Settings → Updates** check on demand. When a newer version is out, a bar at the top offers
 **Download** (the dmg for this Mac) and **What's new**. Install it by dragging the new Revio into Applications. The
 repository is private, so the check uses your GitHub token, and the download opens in your browser where you are
-signed in to GitHub. The app cannot replace itself (that needs a Developer ID signature). Running from source only
-checks when you ask, since any release looks newer than the source version.
+signed in to GitHub. Running from source only checks when you ask, since any release looks newer than the source
+version.
 
 On macOS, `npm install` and `npm run dev` rename the development `Electron.app` in `node_modules` to `Revio.app`
 (`scripts/brand-dev-electron.mjs`), so ⌘Tab, the menu bar and the Dock show Revio and its icon instead of Electron.
