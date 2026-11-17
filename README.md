@@ -158,6 +158,16 @@ comments panel as "file". They are added to your review like line comments: sinc
 carry file comments, Revio creates the review pending, adds each file comment to it, then submits it, and deletes
 the pending review if any step fails.
 
+## Blame and file history (GitLens-style)
+
+- **Blame** above the files turns on line blame: hover a line to see who last changed it, when, and the commit
+  message, after the code. Click it to open the commit on GitHub. Blame is for the PR head and loads per file as you
+  scroll to it.
+- **History** in a file's header opens the file's last 30 commits in a side panel, with this PR's own commits marked.
+  Expand one to see what it changed in that file, copy its sha or open it on GitHub.
+
+Blame, history and commit diffs are cached per commit sha, since they never change for one.
+
 ## Reactions
 
 Review comments show their emoji reactions. Click one to add or take back yours, or **☺+** to pick any of GitHub's

@@ -186,3 +186,11 @@ input,
 .prose-revio [align='center'] {
   text-align: center;
 }
+
+/* Blame shows on the hovered line only, like GitLens's current-line blame. */
+.blame-note {
+  display: none;
+}
+tr:hover .blame-note {
+  display: inline-block;
+}

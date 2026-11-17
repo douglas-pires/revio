@@ -6,6 +6,7 @@ import { AppWindow } from './app/app.window'
 import { loginShell } from './common/shell.util'
 import { configureTokenResolver, gh } from './github/github.client'
 import { GithubTokens } from './github/github-tokens.service'
+import { HistoryCache } from './history/history.cache'
 import { InboxPoller } from './inbox/inbox.poller'
 import { fetchInbox } from './inbox/inbox.service'
 import { alertNewMentions } from './mentions/mention-alerts.service'
@@ -29,6 +30,7 @@ const tokens = new GithubTokens({
 })
 configureTokenResolver(() => tokens.resolve())
 const pulls = new PullCache(fetchPull)
+const history = new HistoryCache(gh)
 const stackFinder = new StackFinder()
 const threads = new ThreadCache(async () => fetchThreads(await gh()))
 const mentions = new MentionWatcher({
@@ -58,7 +60,7 @@ const poller = new InboxPoller({
   onOpenPull: (ref) => window.focusAndOpen(ref),
 })
 
-registerApi({ store, tokens, poller, pulls, threads, mentions, window })
+registerApi({ store, tokens, poller, pulls, history, threads, mentions, window })
 
 app.setName('Revio')
 

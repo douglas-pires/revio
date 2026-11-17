@@ -4,7 +4,7 @@ import { EmptyHalf, Half, RowGroup } from './diff-cells.component'
 import { HunkRow } from './hunk-row.component'
 import type { DiffTableProps } from './diff-table.types'
 
-export function SplitDiff({ rows, tokens, selection, inFocus, notesFor, onMouseUp }: DiffTableProps) {
+export function SplitDiff({ rows, tokens, selection, inFocus, notesFor, onMouseUp, noteFor }: DiffTableProps) {
   const split = useMemo(() => toSplit(rows), [rows])
   return (
     <table onMouseUp={onMouseUp} className="w-full table-fixed border-collapse font-mono text-[12px] leading-[20px]">
@@ -34,7 +34,7 @@ export function SplitDiff({ rows, tokens, selection, inFocus, notesFor, onMouseU
                   <EmptyHalf />
                 )}
                 {R ? (
-                  <Half row={R} idx={sr.right!} half="RIGHT" lineNo={R.newNo} tokens={tokens?.get(sr.right!)} selected={selection.contains(ra)} focus={inFocus(R)} onDown={(shift) => selection.press(ra, shift)} onEnter={() => selection.over(ra)} divider />
+                  <Half row={R} idx={sr.right!} half="RIGHT" lineNo={R.newNo} tokens={tokens?.get(sr.right!)} selected={selection.contains(ra)} focus={inFocus(R)} onDown={(shift) => selection.press(ra, shift)} onEnter={() => selection.over(ra)} divider note={noteFor?.(R)} />
                 ) : (
                   <EmptyHalf divider />
                 )}

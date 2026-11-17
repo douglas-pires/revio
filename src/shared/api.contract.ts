@@ -1,6 +1,7 @@
 import type { AskThread, BriefingRecord } from './claude.types'
 import type { MainEvent } from './event.types'
 import type { Guideline, ResolvedGuideline } from './guideline.types'
+import type { BlameRange, FileAtCommit, FileHistoryEntry } from './history.types'
 import type { Inbox, Stack } from './inbox.types'
 import type { MentionsInbox } from './mention.types'
 import type { DraftComment, PullDetail, PullLocalState, PullRef, SubmitReviewInput } from './pull.types'
@@ -41,6 +42,13 @@ export interface RevioApi {
   replyToComment(ref: PullRef, commentId: number, body: string): Promise<void>
   /** Adds or removes your reaction on a review comment (by its GraphQL id) and returns its reactions after. */
   setReaction(ref: PullRef, subjectId: string, content: ReactionContent, on: boolean): Promise<ReactionSummary[]>
+
+  /** Who last changed each line of a file at a commit. */
+  getBlame(at: FileAtCommit): Promise<BlameRange[]>
+  /** Recent commits that changed a file, up to `at.sha`, flagging this PR's own. */
+  getFileHistory(ref: PullRef, at: FileAtCommit): Promise<FileHistoryEntry[]>
+  /** What a commit changed in a file, as a unified diff, or null when GitHub has none. */
+  getCommitFilePatch(at: FileAtCommit): Promise<string | null>
 
   listGuidelines(): Promise<Guideline[]>
   saveGuideline(g: Omit<Guideline, 'id' | 'updatedAt'> & { id?: string }): Promise<Guideline>

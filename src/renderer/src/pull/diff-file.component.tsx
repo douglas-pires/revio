@@ -1,7 +1,10 @@
 import { memo, useMemo, useRef, useState } from 'react'
 import type { FocusItem } from '@shared/claude.types'
 import type { DiffSide, DraftComment, PullFile, ReviewComment } from '@shared/pull.types'
-import { diffSnippet, newSideText, parsePatch, parseRange, type DiffRow } from './diff.util'
+import { diffSnippet, newSideText, parsePatch, parseRange, type DiffRow, type LineRow } from './diff.util'
+import { blameAt } from '@shared/history.util'
+import { useBlame } from './use-blame.hook'
+import { BlameNote } from './blame-note.component'
 import { cx } from '../common/format.util'
 import { useNearViewport } from './use-near-viewport.hook'
 import { indexFileComments } from './comment-threads.util'
@@ -30,6 +33,12 @@ export interface AskSelection {
 
 export interface DiffFileProps {
   file: PullFile
+  /** Where the file lives, for blame and history. */
+  repo: string
+  headSha: string
+  /** Show who last changed each line on hover. */
+  blame: boolean
+  onShowHistory: (path: string) => void
   view: DiffView
   comments: readonly ReviewComment[]
   drafts: readonly DraftComment[]
@@ -65,6 +74,7 @@ export const DiffFile = memo(function DiffFile(props: DiffFileProps) {
   const near = useNearViewport(container, !!selection.sel || focusWithin)
   const bodyHeight = useBodyHeight(near && !collapsed)
   const tokens = useRowTokens(file.path, file.patch, rows, near && !collapsed)
+  const blame = useBlame({ repo: props.repo, sha: props.headSha, path: file.path }, props.blame && near && !collapsed && file.status !== 'removed')
 
   const focusRanges = useMemo(() => props.focus.map((f) => parseRange(f.lines)).filter((r) => r != null), [props.focus])
   const index = useMemo(() => indexFileComments(file.path, props.comments, props.drafts), [file.path, props.comments, props.drafts])
@@ -107,7 +117,15 @@ export const DiffFile = memo(function DiffFile(props: DiffFileProps) {
     )
   }
 
-  const table: DiffTableProps = { rows, tokens, selection, inFocus, notesFor, onMouseUp: textAsk.onMouseUp }
+  const blameRanges = props.blame ? blame.ranges : null
+  const noteFor = blameRanges
+    ? (row: LineRow) => {
+        const range = row.kind !== 'del' && row.newNo != null ? blameAt(blameRanges, row.newNo) : undefined
+        return range && <BlameNote range={range} />
+      }
+    : undefined
+
+  const table: DiffTableProps = { rows, tokens, selection, inFocus, notesFor, onMouseUp: textAsk.onMouseUp, noteFor }
 
   return (
     <div
@@ -126,6 +144,8 @@ export const DiffFile = memo(function DiffFile(props: DiffFileProps) {
         viewed={props.viewed}
         onToggleCollapsed={() => setCollapsed(!collapsed)}
         onToggleViewed={(viewed) => props.onToggleViewed(file.path, file.sha, viewed)}
+        onShowHistory={() => props.onShowHistory(file.path)}
+        blameError={props.blame ? blame.error : null}
         onCommentOnFile={() => {
           setCollapsed(false)
           setComposingFileComment(true)

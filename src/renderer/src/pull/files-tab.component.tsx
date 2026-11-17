@@ -3,7 +3,7 @@ import type { DraftComment, PullFile, ReviewComment } from '@shared/pull.types'
 import { EMPTY } from '../common/group.util'
 import { DiffFile, type DiffFileProps, type DiffView } from './diff-file.component'
 
-type FileCallbacks = Pick<DiffFileProps, 'onToggleCollapsed' | 'onToggleViewed' | 'onAddDraft' | 'onUpdateDraft' | 'onDeleteDraft' | 'onReplyNow' | 'onAsk'>
+type FileCallbacks = Pick<DiffFileProps, 'repo' | 'headSha' | 'blame' | 'onShowHistory' | 'onToggleCollapsed' | 'onToggleViewed' | 'onAddDraft' | 'onUpdateDraft' | 'onDeleteDraft' | 'onReplyNow' | 'onAsk'>
 
 /** Every changed file's diff, in the sidebar's order. */
 export function FilesTab(
@@ -26,6 +26,10 @@ export function FilesTab(
           key={f.path}
           file={f}
           view={props.view}
+          repo={props.repo}
+          headSha={props.headSha}
+          blame={props.blame}
+          onShowHistory={props.onShowHistory}
           comments={props.commentsByPath.get(f.path) ?? EMPTY}
           drafts={props.draftsByPath.get(f.path) ?? EMPTY}
           focus={props.focusByPath.get(f.path) ?? EMPTY}

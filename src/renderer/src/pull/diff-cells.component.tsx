@@ -61,16 +61,17 @@ export function Sign({ kind }: { kind: DiffRow['kind'] }) {
   return <td className="w-4 pl-2 align-top text-muted select-none">{kind === 'add' ? '+' : kind === 'del' ? '−' : ''}</td>
 }
 
-export function Code({ row, idx, tokens }: { row: DiffRow; idx: number; tokens?: Tok[] }) {
+export function Code({ row, idx, tokens, note }: { row: DiffRow; idx: number; tokens?: Tok[]; note?: React.ReactNode }) {
   return (
     <td data-row={idx} className="pr-4 align-top break-all whitespace-pre-wrap select-text">
       <TokenText tokens={tokens} text={row.text} />
+      {note}
     </td>
   )
 }
 
 /** One side of a split row. The `group` hover lives on a wrapper so each half shows its own + button. */
-export function Half(props: { row: DiffRow; idx: number; half: DiffSide; lineNo: number | null; tokens?: Tok[]; selected: boolean; focus: boolean; onDown: (shift: boolean) => void; onEnter: () => void; divider?: boolean }) {
+export function Half(props: { row: DiffRow; idx: number; half: DiffSide; lineNo: number | null; tokens?: Tok[]; selected: boolean; focus: boolean; onDown: (shift: boolean) => void; onEnter: () => void; divider?: boolean; note?: React.ReactNode }) {
   const bg = props.selected ? 'bg-accent/20' : props.row.kind === 'ctx' ? '' : rowBg(props.row.kind)
   return (
     <>
@@ -82,6 +83,7 @@ export function Half(props: { row: DiffRow; idx: number; half: DiffSide; lineNo:
       </td>
       <td onMouseEnter={props.onEnter} data-row={props.idx} data-half={props.half} className={cx('pr-3 align-top break-all whitespace-pre-wrap select-text', bg)}>
         <TokenText tokens={props.tokens} text={props.row.text} />
+        {props.note}
       </td>
     </>
   )

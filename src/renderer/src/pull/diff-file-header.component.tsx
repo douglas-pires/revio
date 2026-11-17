@@ -15,6 +15,9 @@ export function DiffFileHeader(props: {
   onToggleCollapsed: () => void
   onToggleViewed: (viewed: boolean) => void
   onCommentOnFile: () => void
+  onShowHistory: () => void
+  /** Why blame could not load for this file, if it failed. */
+  blameError?: string | null
 }) {
   return (
     <div className="sticky top-0 z-10 flex items-center gap-2 border-b border-line bg-panel-2 px-3 py-1.5">
@@ -42,7 +45,15 @@ export function DiffFileHeader(props: {
         </span>
       )}
       {props.commentCount > 0 && <span className="chip shrink-0 bg-accent/15 whitespace-nowrap text-accent">{props.commentCount} 💬</span>}
+      {props.blameError && (
+        <span className="chip shrink-0 bg-danger/10 text-danger" title={props.blameError}>
+          no blame
+        </span>
+      )}
       <div className="flex-1" />
+      <button className="btn btn-ghost shrink-0 py-0 text-[12px] whitespace-nowrap text-muted hover:text-fg" onClick={props.onShowHistory} title="Commits that changed this file">
+        History
+      </button>
       <button className="btn btn-ghost shrink-0 py-0 text-[12px] whitespace-nowrap text-muted hover:text-fg" onClick={props.onCommentOnFile} title="Comment on the whole file, without picking a line">
         + File comment
       </button>

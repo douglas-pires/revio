@@ -23,10 +23,12 @@ import { PullTabBar, type PullTab } from './pull-tab-bar.component'
 import { OverviewTab } from './overview-tab.component'
 import { FilesTab } from './files-tab.component'
 import { MentionedComment } from './mentioned-comment.component'
+import { FileHistoryPanel } from './file-history-panel.component'
 import { ReactionsContext, type SetReaction } from './use-reactions.hook'
 
 const DIFF_VIEWS: readonly DiffView[] = ['unified', 'split']
 const PANEL_STATES = ['open', 'closed'] as const
+const BLAME_STATES = ['off', 'on'] as const
 
 export function PullView(props: {
   pull: PullRef
@@ -47,6 +49,9 @@ export function PullView(props: {
   const fileTarget = props.initialTarget && !isConversationTarget(props.initialTarget) ? props.initialTarget : undefined
   const [view, changeView] = useStoredChoice<DiffView>('revio.diffView', DIFF_VIEWS, 'unified')
   const [commentsPanel, setCommentsPanel] = useStoredChoice('revio.commentsPanel', PANEL_STATES, 'open')
+  const [blame, setBlame] = useStoredChoice('revio.blame', BLAME_STATES, 'off')
+  /** The file whose history is open in the side panel. */
+  const [historyPath, setHistoryPath] = useState<string | null>(null)
   const { local, replaceLocal, addDraft, updateDraft, deleteDraft, forgetDrafts, markViewed, saveThread, setBriefingRecord } = usePullLocalState(pull)
 
   const showFiles = useCallback(() => setTab('files'), [])
@@ -150,7 +155,12 @@ export function PullView(props: {
             onTab={setTab}
             openThreadCount={commentThreads.filter((t) => !t.resolved).length}
             commentsPanelOpen={commentsPanel === 'open'}
-            onToggleCommentsPanel={() => setCommentsPanel(commentsPanel === 'open' ? 'closed' : 'open')}
+            onToggleCommentsPanel={() => {
+              setHistoryPath(null)
+              setCommentsPanel(commentsPanel === 'open' ? 'closed' : 'open')
+            }}
+            blame={blame === 'on'}
+            onToggleBlame={() => setBlame(blame === 'on' ? 'off' : 'on')}
             view={view}
             onView={changeView}
           />
@@ -185,6 +195,10 @@ export function PullView(props: {
               <FilesTab
                 files={orderedFiles}
                 view={view}
+                repo={repo}
+                headSha={pr.headSha}
+                blame={blame === 'on'}
+                onShowHistory={setHistoryPath}
                 commentsByPath={commentsByPath}
                 draftsByPath={draftsByPath}
                 focusByPath={focusByPath}
@@ -204,7 +218,11 @@ export function PullView(props: {
           </div>
         </section>
 
-        {tab === 'files' && commentsPanel === 'open' && !askThread && (
+        {tab === 'files' && historyPath && !askThread && (
+          <FileHistoryPanel key={historyPath} repo={repo} headSha={pr.headSha} path={historyPath} pull={pull} onClose={() => setHistoryPath(null)} />
+        )}
+
+        {tab === 'files' && commentsPanel === 'open' && !historyPath && !askThread && (
           <CommentsPanel threads={commentThreads} drafts={local.drafts} current={nav.current} onJump={goTo} onClose={() => setCommentsPanel('closed')} />
         )}
 

@@ -1,16 +1,24 @@
 import { useEffect, useState } from 'react'
 import { cx } from '../common/format.util'
 import { useHighlighter, type Tok } from '../highlight/highlight.service'
-import type { LineRow } from './diff.util'
+import type { DiffRow } from './diff.util'
 import { rowBg, TokenText } from './diff-cells.component'
 
-/** Read-only, highlighted diff rows; `markLine` (new side) gets the focus marker. */
-export function StaticDiff({ path, rows, sourceLength, markLine }: { path: string; rows: readonly LineRow[]; sourceLength: number; markLine?: number }) {
+/** Read-only, highlighted diff rows (hunk headers included); `markLine` (new side) gets the focus marker. */
+export function StaticDiff({ path, rows, sourceLength, markLine }: { path: string; rows: readonly DiffRow[]; sourceLength: number; markLine?: number }) {
   const tokens = useStaticTokens(path, rows, sourceLength)
   return (
     <table className="w-full border-collapse font-mono text-[11.5px] leading-[18px]">
       <tbody>
         {rows.map((row, i) => {
+          if (row.kind === 'hunk')
+            return (
+              <tr key={i} className="bg-hunk text-muted">
+                <td colSpan={3} className="px-2 py-0.5">
+                  {row.text}
+                </td>
+              </tr>
+            )
           const marked = markLine != null && row.kind !== 'del' && row.newNo === markLine
           return (
             <tr key={i} className={cx(rowBg(row.kind), marked && 'shadow-[inset_3px_0_0_var(--color-focus)] !bg-focus/15')}>
@@ -27,7 +35,7 @@ export function StaticDiff({ path, rows, sourceLength, markLine }: { path: strin
   )
 }
 
-function useStaticTokens(path: string, rows: readonly LineRow[], sourceLength: number) {
+function useStaticTokens(path: string, rows: readonly DiffRow[], sourceLength: number) {
   const highlighter = useHighlighter()
   const [tokens, setTokens] = useState<Map<number, Tok[]> | null>(null)
   useEffect(() => {

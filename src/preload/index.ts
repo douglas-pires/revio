@@ -23,7 +23,7 @@ const api = new Proxy({} as RevioApi, {
 // contextBridge cannot clone a Proxy, so expose a plain object built from the method list.
 const methods = [
   'getSettings', 'updateSettings', 'githubAuthStatus', 'saveGithubToken', 'getInbox', 'getMentions', 'refreshMentions', 'markMentionRead', 'getThreads', 'replyToThread', 'setThreadResolved', 'refreshInbox', 'getPull', 'getStack', 'getLocalState', 'saveDrafts',
-  'setViewed', 'submitReview', 'replyToComment', 'setReaction', 'listGuidelines', 'saveGuideline', 'deleteGuideline',
+  'setViewed', 'submitReview', 'replyToComment', 'setReaction', 'getBlame', 'getFileHistory', 'getCommitFilePatch', 'listGuidelines', 'saveGuideline', 'deleteGuideline',
   'resolveGuidelines', 'knownRepos', 'generateBriefing', 'askClaude', 'saveAsks', 'openExternal', 'onEvent',
 ] as const satisfies readonly (keyof RevioApi)[]
 

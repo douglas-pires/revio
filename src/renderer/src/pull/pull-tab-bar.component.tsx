@@ -12,6 +12,8 @@ export function PullTabBar(props: {
   onToggleCommentsPanel: () => void
   view: DiffView
   onView: (view: DiffView) => void
+  blame: boolean
+  onToggleBlame: () => void
 }) {
   const { tab } = props
   return (
@@ -33,6 +35,14 @@ export function PullTabBar(props: {
             onClick={props.onToggleCommentsPanel}
           >
             💬 {props.openThreadCount}
+          </button>
+          <button
+            aria-pressed={props.blame}
+            className={cx('mb-1.5 ml-3 self-center rounded px-2 py-0.5 text-[12px]', props.blame ? 'bg-hover text-fg' : 'text-muted hover:text-fg')}
+            title={props.blame ? 'Stop showing who last changed each line' : 'Show who last changed each line when you hover it'}
+            onClick={props.onToggleBlame}
+          >
+            Blame
           </button>
           <span className="mb-1.5 ml-3 self-center text-[11.5px] text-muted">
             <kbd className="kbd">j</kbd>/<kbd className="kbd">k</kbd> files · <kbd className="kbd">v</kbd> viewed

@@ -4,7 +4,7 @@ import { Code, Gutter, RowGroup, Sign, rowBg } from './diff-cells.component'
 import { HunkRow } from './hunk-row.component'
 import type { DiffTableProps } from './diff-table.types'
 
-export function UnifiedDiff({ rows, tokens, selection, inFocus, notesFor, onMouseUp }: DiffTableProps) {
+export function UnifiedDiff({ rows, tokens, selection, inFocus, notesFor, onMouseUp, noteFor }: DiffTableProps) {
   return (
     <table onMouseUp={onMouseUp} className="w-full border-collapse font-mono text-[12px] leading-[20px]">
       <tbody>
@@ -20,7 +20,7 @@ export function UnifiedDiff({ rows, tokens, selection, inFocus, notesFor, onMous
                   <span className="inline-block w-8">{row.newNo ?? ''}</span>
                 </Gutter>
                 <Sign kind={row.kind} />
-                <Code row={row} idx={i} tokens={tokens?.get(i)} />
+                <Code row={row} idx={i} tokens={tokens?.get(i)} note={noteFor?.(row)} />
               </tr>
               {notes && (
                 <tr>
