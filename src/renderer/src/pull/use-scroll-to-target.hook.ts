@@ -22,7 +22,8 @@ export function useScrollToTarget(target: ScrollTarget | null, active: boolean, 
       const fileEl = document.getElementById(`file-${target.path}`)
       const exact = findExact(fileEl, target)
       if (fileEl && (exact || (!target.line && !target.commentId) || frame >= MAX_FRAMES)) {
-        ;(exact ?? fileEl).scrollIntoView({ block: exact ? 'center' : 'start' })
+        // A comment can be taller than the window, so it lands at the top (below the sticky file header); a line is centered.
+        ;(exact ?? fileEl).scrollIntoView({ block: exact?.matches('tr') ? 'center' : 'start' })
         if (exact) flash(exact)
         onDone()
         return
