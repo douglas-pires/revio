@@ -152,6 +152,13 @@ bar shows the open count and hides or shows the panel (remembered). The Ask Clau
 - **Unified / Split** toggle above the files; code is syntax highlighted (Shiki, per hunk, no WebAssembly).
 - Click a branch name in the PR header to copy it (e.g. to `git checkout` it locally).
 
+## Back and forward
+
+Revio keeps a browser-style history of the screens you visit. Go back and forward with the arrows at the top of the
+sidebar, **Go → Back / Forward** (`⌘[` / `⌘]`), your mouse's side buttons, or a three-finger swipe (when "Swipe
+between pages" is on in System Settings). The ← in a PR's header goes back too. Returning to a PR does not repeat
+the jump it was opened with.
+
 ## Comment on a whole file
 
 **+ File comment** in a file's header comments on the file without picking a line (it expands the file if needed).

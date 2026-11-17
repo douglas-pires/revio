@@ -2,8 +2,9 @@ import { lazy, Suspense, useEffect, useState } from 'react'
 import { HighlighterContext, WorkerHighlighter } from './highlight/highlight.service'
 import type { Inbox as InboxData } from '@shared/inbox.types'
 import type { MentionsInbox } from '@shared/mention.types'
-import { pullKey, type PullRef } from '@shared/pull.types'
-import type { OpenPull, PullTarget } from './common/navigation.types'
+import { pullKey } from '@shared/pull.types'
+import type { OpenPull } from './common/navigation.types'
+import { useRouteHistory } from './common/use-route-history.hook'
 import { cx } from './common/format.util'
 import { Inbox } from './inbox/inbox.view'
 // The inbox is the first screen; everything else (markdown, diff, highlighting) loads when first opened.
@@ -12,15 +13,9 @@ const Guidelines = lazy(() => import('./guidelines/guidelines.view').then((m) =>
 const Mentions = lazy(() => import('./mentions/mentions.view').then((m) => ({ default: m.Mentions })))
 const Settings = lazy(() => import('./settings/settings.view').then((m) => ({ default: m.Settings })))
 
-export type Route =
-  | { view: 'inbox' }
-  | { view: 'pull'; pull: PullRef; target?: PullTarget }
-  | { view: 'guidelines'; repo?: string; path?: string }
-  | { view: 'mentions' }
-  | { view: 'settings' }
 
 export default function App() {
-  const [route, setRoute] = useState<Route>({ view: 'inbox' })
+  const { route, go: setRoute, back, forward, canGoBack, canGoForward } = useRouteHistory({ view: 'inbox' })
   const [inbox, setInbox] = useState<InboxData | null>(null)
   const [mentions, setMentions] = useState<MentionsInbox | null>(null)
   // Lives here so the inbox search survives opening a PR and coming back.
@@ -46,6 +41,7 @@ export default function App() {
     <HighlighterContext value={highlighter}>
     <div className="flex h-full">
       <nav className="drag flex w-[68px] shrink-0 flex-col items-center gap-1 border-r border-line bg-panel pt-11 pb-3">
+        <HistoryArrows canGoBack={canGoBack} canGoForward={canGoForward} onBack={back} onForward={forward} />
         <NavButton active={route.view === 'inbox' || route.view === 'pull'} label="Inbox" onClick={() => setRoute({ view: 'inbox' })} badge={inbox?.requested.length} badgeTone={staleCount ? 'danger' : 'accent'}>
           <path d="M3 13h4l2 3h6l2-3h4M3 13l3-8h12l3 8v6H3z" />
         </NavButton>
@@ -68,7 +64,7 @@ export default function App() {
             key={pullKey(route.pull)}
             pull={route.pull}
             initialTarget={route.target}
-            onBack={() => setRoute({ view: 'inbox' })}
+            onBack={() => (canGoBack ? back() : setRoute({ view: 'inbox' }))}
             onEditGuidelines={(repo, path) => setRoute({ view: 'guidelines', repo, path })}
             onOpenPull={openPull}
           />
@@ -114,5 +110,28 @@ function NavButton(props: {
         </span>
       )}
     </button>
+  )
+}
+
+/** Back and forward through the screens you visited (also ⌘[ / ⌘], swipes and mouse side buttons). */
+function HistoryArrows(props: { canGoBack: boolean; canGoForward: boolean; onBack: () => void; onForward: () => void }) {
+  const arrow = (label: string, enabled: boolean, onClick: () => void, d: string) => (
+    <button
+      aria-label={label}
+      title={label}
+      disabled={!enabled}
+      onClick={onClick}
+      className="no-drag flex size-6 items-center justify-center rounded text-muted hover:bg-hover hover:text-fg disabled:opacity-30 disabled:hover:bg-transparent"
+    >
+      <svg viewBox="0 0 24 24" className="size-4" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+        <path d={d} />
+      </svg>
+    </button>
+  )
+  return (
+    <div className="mb-1 flex gap-0.5">
+      {arrow('Back (⌘[)', props.canGoBack, props.onBack, 'M15 6l-6 6 6 6')}
+      {arrow('Forward (⌘])', props.canGoForward, props.onForward, 'M9 6l6 6-6 6')}
+    </div>
   )
 }

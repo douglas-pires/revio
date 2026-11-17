@@ -3,6 +3,7 @@ import { join } from 'node:path'
 import { showNotification } from './alerts/notification.service'
 import { registerApi } from './app/api.controller'
 import { AppWindow } from './app/app.window'
+import { installAppMenu } from './app/app.menu'
 import { loginShell } from './common/shell.util'
 import { configureTokenResolver, gh } from './github/github.client'
 import { GithubTokens } from './github/github-tokens.service'
@@ -65,6 +66,7 @@ registerApi({ store, tokens, poller, pulls, history, threads, mentions, window }
 app.setName('Revio')
 
 app.whenReady().then(() => {
+  installAppMenu({ navigate: (direction) => window.send({ type: 'navigate', direction }) })
   // Packaged builds take the icon from the bundle; in development the dock would show Electron's.
   if (!app.isPackaged) app.dock?.setIcon(join(app.getAppPath(), 'build/icon.png'))
   window.create()

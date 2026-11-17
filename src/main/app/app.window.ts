@@ -26,6 +26,11 @@ export class AppWindow {
     })
     win.once('ready-to-show', () => win.show())
     win.on('closed', () => (this.#win = null))
+    // Three-finger swipe (with "Swipe between pages" on in System Settings) goes back and forward.
+    win.on('swipe', (_e, direction) => {
+      if (direction === 'right') this.send({ type: 'navigate', direction: 'back' })
+      if (direction === 'left') this.send({ type: 'navigate', direction: 'forward' })
+    })
     win.webContents.setWindowOpenHandler(({ url }) => {
       if (/^https?:/.test(url)) void shell.openExternal(url)
       return { action: 'deny' }
