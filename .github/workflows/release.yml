@@ -51,8 +51,18 @@ jobs:
 
       - run: npm run build
 
-      - name: Package and publish
+      - name: Package
+        env:
+          CSC_IDENTITY_AUTO_DISCOVERY: 'false'
+        run: npx electron-builder --mac --arm64 --publish never
+
+      # One release with every file, created in a single call. electron-builder's own publishing uploads the dmg and
+      # zip in parallel, and each upload tried to create the release, so all but the first failed.
+      - name: Publish
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-          CSC_IDENTITY_AUTO_DISCOVERY: 'false'
-        run: npx electron-builder --mac --arm64 --publish always -c.releaseInfo.releaseNotesFile=release-notes.md
+        run: |
+          shopt -s nullglob
+          files=(dist/*.dmg dist/*.zip dist/*.blockmap dist/latest-mac.yml)
+          gh release create "v${{ steps.version.outputs.version }}" "${files[@]}" \
+            --target "$GITHUB_SHA" --title "${{ steps.version.outputs.version }}" --notes-file release-notes.md
