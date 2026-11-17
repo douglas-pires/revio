@@ -17,6 +17,9 @@ npm test           # Vitest: diff parsing, alerts, stacks, guidelines, caching, 
 npm run dist       # build a .dmg into dist/
 ```
 
+On macOS, `npm install` and `npm run dev` rename the development `Electron.app` in `node_modules` to `Revio.app`
+(`scripts/brand-dev-electron.mjs`), so ⌘Tab, the menu bar and the Dock show Revio and its icon instead of Electron.
+
 **GitHub:** Revio uses, in order: a token pasted in **Settings → GitHub** (checked with GitHub, then stored encrypted
 via the macOS keychain), `GITHUB_TOKEN` (or `GH_TOKEN`) in the project's `.env` when running from source, then
 `GH_TOKEN` / `GITHUB_TOKEN` from the environment, then `gh auth token`. Settings shows which one is in use, the
