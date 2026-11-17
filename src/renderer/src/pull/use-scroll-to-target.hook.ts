@@ -5,6 +5,8 @@ export interface ScrollTarget {
   line: number | null
   /** A review comment in that file to land on, e.g. the one that mentioned you. */
   commentId?: number
+  /** Open the reply box of that comment's thread. */
+  reply?: boolean
 }
 
 const MAX_FRAMES = 60

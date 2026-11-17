@@ -40,6 +40,8 @@ export interface RevioApi {
   setViewed(ref: PullRef, path: string, sha: string | null): Promise<void>
   submitReview(input: SubmitReviewInput): Promise<{ url: string }>
   replyToComment(ref: PullRef, commentId: number, body: string): Promise<void>
+  /** Posts a comment in the PR conversation and returns its link. */
+  commentOnPull(ref: PullRef, body: string): Promise<{ url: string }>
   /** Adds or removes your reaction on a review comment (by its GraphQL id) and returns its reactions after. */
   setReaction(ref: PullRef, subjectId: string, content: ReactionContent, on: boolean): Promise<ReactionSummary[]>
 

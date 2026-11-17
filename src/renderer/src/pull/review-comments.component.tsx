@@ -1,8 +1,9 @@
-import { useState } from 'react'
+import { useCallback, useState } from 'react'
 import type { DraftComment, ReviewComment } from '@shared/pull.types'
 import { ago, cx } from '../common/format.util'
 import { Markdown } from '../common/markdown.component'
 import { ReactionBar } from './reaction-bar.component'
+import { useOpenReplyIfTarget } from './use-reply-target.hook'
 
 export function CommentView({ c }: { c: ReviewComment }) {
   return (
@@ -54,6 +55,8 @@ function Thread(props: {
   onDeleteDraft: (id: string) => void
 }) {
   const [replying, setReplying] = useState(false)
+  const openReply = useCallback(() => setReplying(true), [])
+  useOpenReplyIfTarget(props.thread.map((c) => c.id), openReply)
   return (
     <div className="space-y-2 rounded-md border border-line bg-panel p-3">
       {props.thread.map((c) => (

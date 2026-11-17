@@ -175,6 +175,14 @@ export async function replyToComment({ repo: repoFull, number }: PullRef, commen
   await octokit.pulls.createReplyForReviewComment({ owner, repo, pull_number: number, comment_id: commentId, body })
 }
 
+/** Posts a comment in the PR conversation (not on code) and returns its link. */
+export async function commentOnPull({ repo: repoFull, number }: PullRef, body: string): Promise<{ url: string }> {
+  const octokit = await gh()
+  const { owner, repo } = splitRepo(repoFull)
+  const { data } = await octokit.issues.createComment({ owner, repo, issue_number: number, body })
+  return { url: data.html_url }
+}
+
 const fileCache = new Map<string, string | null>()
 
 /** Raw file content at a commit, or null when missing/binary/too large. Cached per sha. */

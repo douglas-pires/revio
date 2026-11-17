@@ -25,6 +25,7 @@ import { FilesTab } from './files-tab.component'
 import { MentionedComment } from './mentioned-comment.component'
 import { FileHistoryPanel } from './file-history-panel.component'
 import { ReactionsContext, type SetReaction } from './use-reactions.hook'
+import { ReplyTargetContext } from './use-reply-target.hook'
 
 const DIFF_VIEWS: readonly DiffView[] = ['unified', 'split']
 const PANEL_STATES = ['open', 'closed'] as const
@@ -47,6 +48,8 @@ export function PullView(props: {
   const [askThread, setAskThread] = useState<AskThread | null>(null)
   const [quote, setQuote] = useState<ConversationQuote | null>(() => (props.initialTarget && isConversationTarget(props.initialTarget) ? props.initialTarget.conversation : null))
   const fileTarget = props.initialTarget && !isConversationTarget(props.initialTarget) ? props.initialTarget : undefined
+  const [replyToId, setReplyToId] = useState(fileTarget?.reply ? (fileTarget.commentId ?? null) : null)
+  const replyTarget = useMemo(() => ({ commentId: replyToId, consume: () => setReplyToId(null) }), [replyToId])
   const [view, changeView] = useStoredChoice<DiffView>('revio.diffView', DIFF_VIEWS, 'unified')
   const [commentsPanel, setCommentsPanel] = useStoredChoice('revio.commentsPanel', PANEL_STATES, 'open')
   const [blame, setBlame] = useStoredChoice('revio.blame', BLAME_STATES, 'off')
@@ -123,6 +126,7 @@ export function PullView(props: {
 
   return (
     <ReactionsContext value={setReaction}>
+    <ReplyTargetContext value={replyTarget}>
     <div className="flex h-full flex-col">
       <PullHeader
         pr={pr}
@@ -171,7 +175,7 @@ export function PullView(props: {
                 pr={pr}
                 guides={guides}
                 onEditGuidelines={props.onEditGuidelines}
-                mentioned={quote && <MentionedComment quote={quote} onDismiss={() => setQuote(null)} />}
+                mentioned={quote && <MentionedComment quote={quote} onReply={(body) => window.revio.commentOnPull(pull, body)} onDismiss={() => setQuote(null)} />}
                 briefing={
                   <BriefingPanel
                     record={local.briefing}
@@ -243,6 +247,7 @@ export function PullView(props: {
         )}
       </div>
     </div>
+    </ReplyTargetContext>
     </ReactionsContext>
   )
 }

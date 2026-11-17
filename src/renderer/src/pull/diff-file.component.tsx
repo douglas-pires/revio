@@ -165,7 +165,7 @@ export const DiffFile = memo(function DiffFile(props: DiffFileProps) {
             onCloseComposer={() => setComposingFileComment(false)}
             actions={actions}
           />
-          <OutdatedComments threads={index.outdatedThreads} />
+          <OutdatedComments path={file.path} threads={index.outdatedThreads} allDrafts={props.drafts} actions={actions} />
           {!file.patch ? (
             <div className="px-4 py-6 text-center text-muted">Binary file or diff too large to display.</div>
           ) : view === 'unified' ? (

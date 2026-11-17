@@ -19,7 +19,7 @@ export function Mentions({ mentions, onOpen }: { mentions: MentionsInbox | null;
   /** Opening a mention reads it, as on GitHub. Review comments open at that comment in the diff; others on the overview. */
   const open = (m: Mention, s: MentionSnippet) => {
     if (s.isNew) void markRead(m)
-    onOpen(m, s.path ? { path: s.path, line: s.line, commentId: s.commentId ?? undefined } : { conversation: s })
+    onOpen(m, s.path ? { path: s.path, line: s.line, commentId: s.commentId ?? undefined, reply: true } : { conversation: s })
   }
 
   return (

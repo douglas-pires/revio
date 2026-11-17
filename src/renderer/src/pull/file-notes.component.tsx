@@ -1,6 +1,6 @@
 import type { FocusItem } from '@shared/claude.types'
-import type { ReviewComment } from '@shared/pull.types'
-import { CommentView } from './review-comments.component'
+import type { DraftComment, ReviewComment } from '@shared/pull.types'
+import { ReviewThread, type CommentActions } from './review-comments.component'
 
 /** Why the briefing asks you to look at parts of this file. */
 export function FocusReasons({ focus }: { focus: readonly FocusItem[] }) {
@@ -18,18 +18,14 @@ export function FocusReasons({ focus }: { focus: readonly FocusItem[] }) {
 }
 
 /** Threads on lines that are no longer in the diff, replies included, folded away. */
-export function OutdatedComments({ threads }: { threads: readonly ReviewComment[][] }) {
+export function OutdatedComments({ path, threads, allDrafts, actions }: { path: string; threads: readonly ReviewComment[][]; allDrafts: readonly DraftComment[]; actions: CommentActions }) {
   if (!threads.length) return null
   return (
-    <details className="border-b border-line px-4 py-2 text-[12px] text-muted">
-      <summary className="cursor-pointer">{threads.length} outdated comment thread(s)</summary>
-      <div className="mt-2 space-y-2">
+    <details className="border-b border-line px-4 py-2 text-[12px]">
+      <summary className="cursor-pointer text-muted">{threads.length} outdated comment thread(s)</summary>
+      <div className="mt-2 max-w-3xl space-y-2">
         {threads.map((t) => (
-          <div key={t[0]!.id} className="space-y-2 rounded-md border border-line bg-panel p-3">
-            {t.map((c) => (
-              <CommentView key={c.id} c={c} />
-            ))}
-          </div>
+          <ReviewThread key={t[0]!.id} path={path} thread={t} allDrafts={allDrafts} actions={actions} />
         ))}
       </div>
     </details>

@@ -170,6 +170,13 @@ the pending review if any step fails.
 
 Blame, history and commit diffs are cached per commit sha, since they never change for one.
 
+## Replying from a mention
+
+Opening a mention of a review comment lands on that comment with its thread's reply box open: **Reply now** posts
+right away, **Add to review** holds it for your review. Outdated threads can be replied to as well. A mention in the
+PR conversation (or description) shows at the top of the overview with a quote reply ready, posted as a conversation
+comment.
+
 ## Reactions
 
 Review comments show their emoji reactions. Click one to add or take back yours, or **☺+** to pick any of GitHub's
