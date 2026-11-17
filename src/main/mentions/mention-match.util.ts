@@ -1,5 +1,6 @@
 import type { Mention, MentionSnippet } from '@shared/mention.types'
 import { isSamePull, type PullRef } from '@shared/pull.types'
+import { reviewCommentIdFromUrl } from '@shared/github-url.util'
 
 /** GitHub's GraphQL shapes for a PR's texts. */
 export interface RawText {
@@ -99,6 +100,7 @@ function toSnippet(t: Located, ctx: MentionContext): MentionSnippet | null {
     url: t.url,
     path: t.path,
     line: t.line,
+    commentId: t.kind === 'review-comment' ? reviewCommentIdFromUrl(t.url) : null,
     viaTeam: handle.toLowerCase() === ctx.viewer.toLowerCase() ? null : handle,
     isNew: isUnreadSince(t.createdAt, ctx.notification),
   }

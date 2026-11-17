@@ -106,7 +106,7 @@ describe('formatHours', () => {
 
 describe('mention alerts', () => {
   const snippet = (id: string, isNew: boolean) => ({
-    id, kind: 'comment' as const, author: 'bo', authorAvatar: '', body: '@me', createdAt: '2026-11-10T00:00:00Z', url: id, path: null, line: null, viaTeam: null, isNew,
+    id, kind: 'comment' as const, author: 'bo', authorAvatar: '', body: '@me', createdAt: '2026-11-10T00:00:00Z', url: id, path: null, line: null, commentId: null, viaTeam: null, isNew,
   })
   const mention = (...snippets: ReturnType<typeof snippet>[]): Mention => ({ repo: 'acme/web', number: 1, title: 't', url: '', state: 'OPEN', notificationId: 'N', snippets, latestAt: '' })
   const makeMentions = (...mentions: Mention[]): MentionsInbox => ({ viewer: 'me', mentions, windowDays: 14, fetchedAt: '' })
@@ -140,7 +140,7 @@ describe('describeMentionAlert', () => {
   it('names the team when a team was mentioned', async () => {
     const { describeMentionAlert } = await import('../mentions/mention-alerts.service')
     const m: Mention = { repo: 'acme/web', number: 3, title: 'Speed up', url: '', state: 'OPEN', notificationId: null, snippets: [], latestAt: '' }
-    const snippet = { id: 'x', kind: 'comment' as const, author: 'bo', authorAvatar: '', body: '**ping** @acme/web-team', createdAt: '', url: '', path: null, line: null, viaTeam: 'acme/web-team', isNew: true }
+    const snippet = { id: 'x', kind: 'comment' as const, author: 'bo', authorAvatar: '', body: '**ping** @acme/web-team', createdAt: '', url: '', path: null, line: null, commentId: null, viaTeam: 'acme/web-team', isNew: true }
     expect(describeMentionAlert(m, snippet)).toEqual({ title: 'bo mentioned @acme/web-team', body: 'acme/web#3 · Speed up\nping @acme/web-team' })
   })
 })

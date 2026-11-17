@@ -13,11 +13,11 @@ export function useFileNavigation(opts: { pr: PullDetail | null; onFilesTab: boo
   const [scrollTarget, setScrollTarget] = useState<ScrollTarget | null>(null)
 
   const goTo = useCallback(
-    (path: string, line: number | null = null, expand = true) => {
+    (path: string, line: number | null = null, expand = true, commentId?: number) => {
       showFiles()
       setCurrent(path)
       if (expand) setCollapsed((c) => ({ ...c, [path]: false }))
-      setScrollTarget({ path, line })
+      setScrollTarget({ path, line, commentId })
     },
     [showFiles],
   )
@@ -27,7 +27,7 @@ export function useFileNavigation(opts: { pr: PullDetail | null; onFilesTab: boo
     const target = pendingTarget.current
     if (!pr || !target) return
     pendingTarget.current = undefined
-    goTo(target.path, target.line)
+    goTo(target.path, target.line, true, target.commentId)
   }, [pr, goTo])
 
   const clearScrollTarget = useCallback(() => setScrollTarget(null), [])

@@ -17,15 +17,19 @@ export function FocusReasons({ focus }: { focus: readonly FocusItem[] }) {
   )
 }
 
-/** Comments on lines that are no longer in the diff, folded away. */
-export function OutdatedComments({ comments }: { comments: readonly ReviewComment[] }) {
-  if (!comments.length) return null
+/** Threads on lines that are no longer in the diff, replies included, folded away. */
+export function OutdatedComments({ threads }: { threads: readonly ReviewComment[][] }) {
+  if (!threads.length) return null
   return (
     <details className="border-b border-line px-4 py-2 text-[12px] text-muted">
-      <summary className="cursor-pointer">{comments.length} outdated comment thread(s)</summary>
+      <summary className="cursor-pointer">{threads.length} outdated comment thread(s)</summary>
       <div className="mt-2 space-y-2">
-        {comments.map((c) => (
-          <CommentView key={c.id} c={c} />
+        {threads.map((t) => (
+          <div key={t[0]!.id} className="space-y-2 rounded-md border border-line bg-panel p-3">
+            {t.map((c) => (
+              <CommentView key={c.id} c={c} />
+            ))}
+          </div>
         ))}
       </div>
     </details>

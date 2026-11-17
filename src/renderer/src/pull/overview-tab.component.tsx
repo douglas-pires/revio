@@ -5,10 +5,11 @@ import { Markdown } from '../common/markdown.component'
 import { suggestFolders } from './files.util'
 
 /** The briefing, the guides that apply, and the PR description. */
-export function OverviewTab(props: { pr: PullDetail; guides: readonly ResolvedGuideline[]; briefing: ReactNode; onEditGuidelines: (repo: string, path?: string) => void }) {
+export function OverviewTab(props: { pr: PullDetail; guides: readonly ResolvedGuideline[]; briefing: ReactNode; mentioned?: ReactNode; onEditGuidelines: (repo: string, path?: string) => void }) {
   const { pr } = props
   return (
     <div className="mx-auto max-w-4xl space-y-6 px-6 py-5">
+      {props.mentioned}
       {props.briefing}
       <GuidesSection repo={pr.repo} paths={pr.files.map((f) => f.path)} guides={props.guides} onEdit={props.onEditGuidelines} />
       <section>

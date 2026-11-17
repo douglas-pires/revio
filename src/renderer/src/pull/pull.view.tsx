@@ -9,12 +9,11 @@ import { FileTree } from './file-tree.component'
 import { groupByDir, initialCollapsed, newSideLinesByPath } from './files.util'
 import { groupBy } from '../common/group.util'
 import { useStoredChoice } from '../common/use-stored-choice.hook'
-import type { OpenPull } from '../common/navigation.types'
+import { isConversationTarget, type ConversationQuote, type OpenPull, type PullTarget } from '../common/navigation.types'
 import { CommentsPanel } from './comments-panel.component'
 import { groupCommentThreads } from './comment-threads.util'
 import { useFileKeyboardNav } from './use-file-keyboard-nav.hook'
 import { usePullLocalState } from './use-pull-local-state.hook'
-import type { ScrollTarget } from './use-scroll-to-target.hook'
 import { usePullDetail } from './use-pull-detail.hook'
 import { useBriefing } from './use-briefing.hook'
 import { useFileNavigation } from './use-file-navigation.hook'
@@ -23,14 +22,15 @@ import { PullHeader } from './pull-header.component'
 import { PullTabBar, type PullTab } from './pull-tab-bar.component'
 import { OverviewTab } from './overview-tab.component'
 import { FilesTab } from './files-tab.component'
+import { MentionedComment } from './mentioned-comment.component'
 
 const DIFF_VIEWS: readonly DiffView[] = ['unified', 'split']
 const PANEL_STATES = ['open', 'closed'] as const
 
 export function PullView(props: {
   pull: PullRef
-  /** A file and line to open at, e.g. from a review thread in the inbox. */
-  initialTarget?: ScrollTarget
+  /** Where to open: a file, line or comment (e.g. from a review thread or a mention), or a conversation comment. */
+  initialTarget?: PullTarget
   onBack: () => void
   onEditGuidelines: (repo: string, path?: string) => void
   onOpenPull: OpenPull
@@ -42,6 +42,8 @@ export function PullView(props: {
   const [reviewOpen, setReviewOpen] = useState<ReviewEvent | false>(false)
   const [reviewBody, setReviewBody] = useState('')
   const [askThread, setAskThread] = useState<AskThread | null>(null)
+  const [quote, setQuote] = useState<ConversationQuote | null>(() => (props.initialTarget && isConversationTarget(props.initialTarget) ? props.initialTarget.conversation : null))
+  const fileTarget = props.initialTarget && !isConversationTarget(props.initialTarget) ? props.initialTarget : undefined
   const [view, changeView] = useStoredChoice<DiffView>('revio.diffView', DIFF_VIEWS, 'unified')
   const [commentsPanel, setCommentsPanel] = useStoredChoice('revio.commentsPanel', PANEL_STATES, 'open')
   const { local, replaceLocal, addDraft, updateDraft, deleteDraft, forgetDrafts, markViewed, saveThread, setBriefingRecord } = usePullLocalState(pull)
@@ -52,7 +54,7 @@ export function PullView(props: {
     replaceLocal(l)
     nav.replaceCollapsed(initialCollapsed(p, l))
   })
-  const nav = useFileNavigation({ pr, onFilesTab: tab === 'files', showFiles, initialTarget: props.initialTarget })
+  const nav = useFileNavigation({ pr, onFilesTab: tab === 'files', showFiles, initialTarget: fileTarget })
   const { goTo } = nav
   const briefing = useBriefing(pull, (record) => {
     setBriefingRecord(record)
@@ -155,6 +157,7 @@ export function PullView(props: {
                 pr={pr}
                 guides={guides}
                 onEditGuidelines={props.onEditGuidelines}
+                mentioned={quote && <MentionedComment quote={quote} onDismiss={() => setQuote(null)} />}
                 briefing={
                   <BriefingPanel
                     record={local.briefing}

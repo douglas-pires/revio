@@ -3,10 +3,9 @@ import { HighlighterContext, WorkerHighlighter } from './highlight/highlight.ser
 import type { Inbox as InboxData } from '@shared/inbox.types'
 import type { MentionsInbox } from '@shared/mention.types'
 import { pullKey, type PullRef } from '@shared/pull.types'
-import type { OpenPull } from './common/navigation.types'
+import type { OpenPull, PullTarget } from './common/navigation.types'
 import { cx } from './common/format.util'
 import { Inbox } from './inbox/inbox.view'
-import type { ScrollTarget } from './pull/use-scroll-to-target.hook'
 // The inbox is the first screen; everything else (markdown, diff, highlighting) loads when first opened.
 const PullView = lazy(() => import('./pull/pull.view').then((m) => ({ default: m.PullView })))
 const Guidelines = lazy(() => import('./guidelines/guidelines.view').then((m) => ({ default: m.Guidelines })))
@@ -15,7 +14,7 @@ const Settings = lazy(() => import('./settings/settings.view').then((m) => ({ de
 
 export type Route =
   | { view: 'inbox' }
-  | { view: 'pull'; pull: PullRef; target?: ScrollTarget }
+  | { view: 'pull'; pull: PullRef; target?: PullTarget }
   | { view: 'guidelines'; repo?: string; path?: string }
   | { view: 'mentions' }
   | { view: 'settings' }

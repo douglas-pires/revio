@@ -10,6 +10,8 @@ export interface MentionSnippet {
   /** File and line for review comments, so the PR can open there. */
   path: string | null
   line: number | null
+  /** The review comment's id, so the PR can open at that comment. */
+  commentId: number | null
   /** The team handle that was mentioned (org/slug), or null when you were mentioned by name. */
   viaTeam: string | null
   /** Unread on GitHub: newer than when you last read this PR's notification. */

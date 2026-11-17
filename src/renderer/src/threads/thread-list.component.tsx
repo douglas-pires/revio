@@ -7,6 +7,7 @@ import { SectionHeading } from '../common/section-heading.component'
 import { summarizeComment } from '@shared/excerpt.util'
 import { groupBy } from '../common/group.util'
 import { Composer } from '../pull/review-comments.component'
+import { reviewCommentIdFromUrl } from '@shared/github-url.util'
 
 export interface ThreadActions {
   onOpen: OpenPull
@@ -87,7 +88,7 @@ function ThreadRow({ thread: t, isResolved, actions }: { thread: OpenThread; isR
   return (
     <li className="border-b border-line last:border-b-0">
       <div className="group/row flex gap-3 px-4 py-2.5 hover:bg-hover">
-        <ThreadSummary thread={t} dimmed={isResolved} onOpen={() => actions.onOpen(t, { path: t.path, line: t.line })} />
+        <ThreadSummary thread={t} dimmed={isResolved} onOpen={() => actions.onOpen(t, { path: t.path, line: t.line, commentId: reviewCommentIdFromUrl(t.comments.at(-1)?.url ?? '') ?? undefined })} />
         <div className="flex shrink-0 flex-col items-end gap-1">
           <span className="font-mono text-[11.5px] text-muted">{ago(t.lastActivityAt)}</span>
           <ThreadButtons isResolved={isResolved} busy={busy} replying={replying} onReply={() => setReplying(true)} onResolve={resolve} />

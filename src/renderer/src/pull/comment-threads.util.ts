@@ -45,18 +45,18 @@ export function groupCommentThreads(comments: readonly ReviewComment[], statuses
 export interface FileCommentIndex {
   threadsByLine: Map<string, ReviewComment[][]>
   fileThreads: ReviewComment[][]
-  /** First comments of threads whose line is gone from the diff. */
-  outdated: ReviewComment[]
+  /** Threads whose line is gone from the diff. */
+  outdatedThreads: ReviewComment[][]
   /** New line comments; replies and file comments are shown elsewhere. */
   draftsByLine: Map<string, DraftComment[]>
 }
 
 export function indexFileComments(path: string, comments: readonly ReviewComment[], drafts: readonly DraftComment[]): FileCommentIndex {
   const push = <T,>(m: Map<string, T[]>, k: string, v: T) => m.set(k, [...(m.get(k) ?? []), v])
-  const index: FileCommentIndex = { threadsByLine: new Map(), fileThreads: [], outdated: [], draftsByLine: new Map() }
+  const index: FileCommentIndex = { threadsByLine: new Map(), fileThreads: [], outdatedThreads: [], draftsByLine: new Map() }
   for (const t of groupCommentThreads(comments, [], [path])) {
     if (t.onFile) index.fileThreads.push(t.comments)
-    else if (t.outdated || t.line == null) index.outdated.push(t.comments[0]!)
+    else if (t.outdated || t.line == null) index.outdatedThreads.push(t.comments)
     else push(index.threadsByLine, anchorKey(t.side, t.line), t.comments)
   }
   for (const d of drafts) if (!d.inReplyTo && d.line != null) push(index.draftsByLine, anchorKey(d.side, d.line), d)

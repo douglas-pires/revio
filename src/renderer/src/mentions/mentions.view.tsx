@@ -16,10 +16,10 @@ export function Mentions({ mentions, onOpen }: { mentions: MentionsInbox | null;
   const markRead = async (m: Mention) => {
     await readAction.run(() => window.revio.markMentionRead({ repo: m.repo, number: m.number }))
   }
-  /** Opening a mention reads it, as on GitHub. Review comments open at their line. */
+  /** Opening a mention reads it, as on GitHub. Review comments open at that comment in the diff; others on the overview. */
   const open = (m: Mention, s: MentionSnippet) => {
     if (s.isNew) void markRead(m)
-    onOpen(m, s.path ? { path: s.path, line: s.line } : undefined)
+    onOpen(m, s.path ? { path: s.path, line: s.line, commentId: s.commentId ?? undefined } : { conversation: s })
   }
 
   return (
@@ -112,7 +112,7 @@ const WHERE: Record<MentionSnippet['kind'], string> = {
 function SnippetRow({ snippet: s, viewer, onOpen }: { snippet: MentionSnippet; viewer: string; onOpen: () => void }) {
   return (
     <li className="group/row flex gap-3 border-b border-line px-4 py-2.5 last:border-b-0 hover:bg-hover">
-      <button className="flex min-w-0 flex-1 gap-3 text-left" onClick={onOpen} title={s.path ? 'Open the PR at this line' : 'Open the PR'}>
+      <button className="flex min-w-0 flex-1 gap-3 text-left" onClick={onOpen} title={s.path ? 'Open the PR at this comment' : 'Open the PR and show this comment'}>
         <span className={cx('mt-2.5 size-2 shrink-0 rounded-full', s.isNew ? 'bg-accent' : 'bg-transparent')} aria-label={s.isNew ? 'new' : undefined} />
         <img src={s.authorAvatar} alt="" className="mt-0.5 size-6 shrink-0 rounded-full bg-panel-2" />
         <div className="min-w-0 flex-1">

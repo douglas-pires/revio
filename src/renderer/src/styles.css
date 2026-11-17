@@ -118,7 +118,7 @@ input,
     background: color-mix(in srgb, var(--color-focus) 35%, transparent);
   }
 }
-tr.flash {
+.flash {
   animation: flash 1.2s ease-out;
 }
 

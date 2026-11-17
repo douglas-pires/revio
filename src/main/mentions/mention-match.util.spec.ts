@@ -39,13 +39,13 @@ describe('buildMention', () => {
       body: 'cc @me (too old: before the window)',
       comments: { nodes: [text('bo', '@me thoughts?', '2026-11-03T00:00:00Z'), text('me', 'note to @me', '2026-11-04T00:00:00Z'), null] },
       reviews: { nodes: [text('cy', 'LGTM @acme/web-team', '2026-11-05T00:00:00Z')] },
-      reviewThreads: { nodes: [{ path: 'src/a.ts', line: 12, comments: { nodes: [text('bo', '@me is this right?', '2026-11-06T00:00:00Z')] } }] },
+      reviewThreads: { nodes: [{ path: 'src/a.ts', line: 12, comments: { nodes: [text('bo', '@me is this right?', '2026-11-06T00:00:00Z', 'https://github.com/o/r/pull/1#discussion_r42')] } }] },
     })
     const m = buildMention(pr, ctx)!
-    expect(m.snippets.map((s) => [s.kind, s.author, s.viaTeam, s.path, s.line])).toEqual([
-      ['review-comment', 'bo', null, 'src/a.ts', 12],
-      ['review', 'cy', 'acme/web-team', null, null],
-      ['comment', 'bo', null, null, null],
+    expect(m.snippets.map((s) => [s.kind, s.author, s.viaTeam, s.path, s.line, s.commentId])).toEqual([
+      ['review-comment', 'bo', null, 'src/a.ts', 12, 42],
+      ['review', 'cy', 'acme/web-team', null, null, null],
+      ['comment', 'bo', null, null, null, null],
     ])
     expect(m.latestAt).toBe('2026-11-06T00:00:00Z')
   })

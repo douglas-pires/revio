@@ -41,11 +41,12 @@ describe('indexFileComments', () => {
       makeComment(2, { inReplyTo: 1 }),
       makeComment(3, { line: null, subjectType: 'file' }),
       makeComment(4, { line: null, outdated: true }),
+      makeComment(5, { line: null, outdated: true, inReplyTo: 4 }),
     ]
     const index = indexFileComments('b.ts', comments, [])
     expect(index.threadsByLine.get('RIGHT:10')!.map((t) => t.map((c) => c.id))).toEqual([[1, 2]])
     expect(index.fileThreads.map((t) => t[0]!.id)).toEqual([3])
-    expect(index.outdated.map((c) => c.id)).toEqual([4])
+    expect(index.outdatedThreads.map((t) => t.map((c) => c.id))).toEqual([[4, 5]])
   })
 
   it('keys new line drafts and leaves out replies and file drafts', () => {

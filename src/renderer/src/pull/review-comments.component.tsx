@@ -5,7 +5,7 @@ import { Markdown } from '../common/markdown.component'
 
 export function CommentView({ c }: { c: ReviewComment }) {
   return (
-    <div className="flex gap-2">
+    <div data-comment-id={c.id} className="flex scroll-mt-2 gap-2 rounded">
       <img src={c.authorAvatar} alt="" className="mt-0.5 size-5 shrink-0 rounded-full" />
       <div className="min-w-0 flex-1">
         <div className="text-[12px]">
