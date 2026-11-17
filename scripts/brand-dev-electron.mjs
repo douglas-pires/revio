@@ -1,10 +1,11 @@
 // Renames the development Electron.app to Revio.app, so ⌘Tab, the menu bar and the Dock say "Revio" (with its icon)
 // while running `npm run dev`. macOS takes an app's name from its bundle folder as well as its Info.plist, so both
 // change, and Electron's path.txt (which `electron` and electron-vite use to find the binary) points at the new folder.
-// Packaged builds are named by electron-builder and do not need this. Runs after `npm install` (which may restore
-// Electron.app) and before `npm run dev`; it does nothing when already done.
+// Packaged builds are named by electron-builder and do not need this. Runs after `npm install` and before
+// `npm run dev`; it does nothing when already done.
 import { execFileSync } from 'node:child_process'
 import { copyFileSync, existsSync, readFileSync, renameSync, rmSync, writeFileSync } from 'node:fs'
+import { createRequire } from 'node:module'
 import { dirname, join } from 'node:path'
 import { fileURLToPath } from 'node:url'
 
@@ -17,7 +18,16 @@ const pathFile = join(electronDir, 'path.txt')
 const icon = join(root, 'build/icon.icns')
 const LSREGISTER = '/System/Library/Frameworks/CoreServices.framework/Frameworks/LaunchServices.framework/Support/lsregister'
 
-if (process.platform !== 'darwin' || process.env.CI || !existsSync(pathFile)) process.exit(0)
+if (process.platform !== 'darwin' || process.env.CI || !existsSync(electronDir)) process.exit(0)
+
+// Electron 45+ downloads its binary the first time it is required, not on install; fetch it now so there is a bundle
+// to rename before the first `npm run dev`.
+try {
+  createRequire(import.meta.url)(electronDir)
+} catch (err) {
+  console.warn('[brand-dev-electron] could not fetch Electron yet:', err instanceof Error ? err.message : err)
+}
+if (!existsSync(pathFile)) process.exit(0)
 
 const brandedPath = `${NAME}.app/Contents/MacOS/Electron`
 if (existsSync(original)) {
