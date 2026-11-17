@@ -65,6 +65,8 @@ registerApi({ store, tokens, poller, pulls, history, threads, mentions, window }
 app.setName('Revio')
 
 app.whenReady().then(() => {
+  // Packaged builds take the icon from the bundle; in development the dock would show Electron's.
+  if (!app.isPackaged) app.dock?.setIcon(join(app.getAppPath(), 'build/icon.png'))
   window.create()
   poller.start()
   app.on('activate', () => {

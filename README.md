@@ -1,3 +1,5 @@
+<img src="build/icon.png" alt="" width="96" align="left">
+
 # Revio
 
 A desktop app for doing code reviews faster: a review inbox with alerts, your own review guides per repo/folder,
