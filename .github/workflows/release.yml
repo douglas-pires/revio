@@ -1,0 +1,58 @@
+# Builds an installable Revio for macOS on every push to main and publishes it as a GitHub release.
+# The version is the package.json major.minor plus the run number (e.g. 0.1.42), so every build is newer than the
+# last; the app's "Check for updates" compares against the latest release. Builds are ad-hoc signed (no Apple
+# Developer ID), so the first launch of a downloaded copy needs right-click → Open.
+name: Release
+
+on:
+  push:
+    branches: [main]
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+concurrency:
+  group: release
+  cancel-in-progress: false
+
+jobs:
+  release:
+    runs-on: macos-15
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 24
+          cache: npm
+
+      - run: npm ci
+
+      - run: npm run typecheck
+
+      - run: npm test
+
+      - name: Set the version
+        id: version
+        run: |
+          base=$(node -p "require('./package.json').version.split('.').slice(0, 2).join('.')")
+          version="$base.${{ github.run_number }}"
+          npm version "$version" --no-git-tag-version
+          echo "version=$version" >> "$GITHUB_OUTPUT"
+
+      - name: Release notes
+        run: |
+          previous=$(git describe --tags --abbrev=0 --match 'v*' 2>/dev/null || true)
+          range=${previous:+$previous..}HEAD
+          git log --no-merges --format='- %s' "$range" | head -50 > release-notes.md
+
+      - run: npm run build
+
+      - name: Package and publish
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          CSC_IDENTITY_AUTO_DISCOVERY: 'false'
+        run: npx electron-builder --mac --arm64 --publish always -c.releaseInfo.releaseNotesFile=release-notes.md

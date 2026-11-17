@@ -17,6 +17,18 @@ npm test           # Vitest: diff parsing, alerts, stacks, guidelines, caching, 
 npm run dist       # build a .dmg into dist/
 ```
 
+## Releases
+
+Every push to `main` runs `.github/workflows/release.yml` on a macOS runner: typecheck, tests, then an Apple-silicon
+build published as a GitHub release (`Revio-<version>-arm64.dmg`, plus a zip). The version is `package.json`'s
+major.minor with the run number as the patch (0.1.42), so each build is newer than the last; bump major or minor in
+`package.json` for bigger releases. `npm run dist` builds the same thing locally into `dist/` without publishing.
+
+Builds are ad-hoc signed, not with an Apple Developer ID, so macOS will not open a downloaded copy with a double
+click the first time: right-click Revio in Applications → Open (or run `xattr -dr com.apple.quarantine
+/Applications/Revio.app`). With a Developer ID certificate in the repository secrets, electron-builder can sign and
+notarize instead.
+
 On macOS, `npm install` and `npm run dev` rename the development `Electron.app` in `node_modules` to `Revio.app`
 (`scripts/brand-dev-electron.mjs`), so ⌘Tab, the menu bar and the Dock show Revio and its icon instead of Electron.
 
