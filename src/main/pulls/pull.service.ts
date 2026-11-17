@@ -83,6 +83,7 @@ export async function fetchPull(ref: PullRef): Promise<PullDetail> {
     isDraft: !!p.draft,
     additions: p.additions,
     deletions: p.deletions,
+    commitCount: p.commits,
     files: files.map(
       (f): PullFile => ({
         path: f.filename,

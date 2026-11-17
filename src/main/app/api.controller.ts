@@ -126,11 +126,13 @@ function pullHandlers({ store, poller, pulls }: ApiDeps): Pick<ApiHandlers, Pull
   }
 }
 
-function historyHandlers({ history }: ApiDeps): Pick<ApiHandlers, 'getBlame' | 'getFileHistory' | 'getCommitFilePatch'> {
+function historyHandlers({ history }: ApiDeps): Pick<ApiHandlers, 'getBlame' | 'getFileHistory' | 'getCommitFilePatch' | 'getCommitFiles' | 'getPullCommits'> {
   return {
     getBlame: (at) => history.blame(at),
     getFileHistory: (ref, at) => history.fileHistory(ref, at),
     getCommitFilePatch: (at) => history.commitFilePatch(at),
+    getCommitFiles: (at) => history.commitFiles(at),
+    getPullCommits: (ref, headSha) => history.pullCommits(ref, headSha),
   }
 }
 

@@ -168,7 +168,10 @@ the pending review if any step fails.
 - **History** in a file's header opens the file's last 30 commits in a side panel, with this PR's own commits marked.
   Expand one to see what it changed in that file, copy its sha or open it on GitHub.
 
-Blame, history and commit diffs are cached per commit sha, since they never change for one.
+- **Commits** tab: the PR's commits, oldest first like GitHub, with author, age and a copyable sha. Expand one for its
+  full message and the files it changed, each opening to its diff.
+
+Blame, history, commit files and the commit list are cached per commit sha, since they never change for one.
 
 ## Searching comments
 

@@ -60,6 +60,8 @@ export interface PullDetail {
   isDraft: boolean
   additions: number
   deletions: number
+  /** How many commits the PR has. */
+  commitCount: number
   files: PullFile[]
   comments: ReviewComment[]
   /** Review thread status, keyed by the thread's first comment. Empty if GitHub would not say. */

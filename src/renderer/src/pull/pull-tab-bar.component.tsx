@@ -1,12 +1,15 @@
 import { cx } from '../common/format.util'
 import type { DiffView } from './diff-file.component'
 
-export type PullTab = 'overview' | 'files'
+export type PullTab = 'overview' | 'files' | 'commits'
+
+const LABELS: Record<PullTab, string> = { overview: 'Overview', files: 'Files changed', commits: 'Commits' }
 
 /** Overview / Files changed, plus the diff tools shown on the files tab. */
 export function PullTabBar(props: {
   tab: PullTab
   onTab: (tab: PullTab) => void
+  commitCount: number
   openThreadCount: number
   commentsPanelOpen: boolean
   onToggleCommentsPanel: () => void
@@ -18,13 +21,14 @@ export function PullTabBar(props: {
   const { tab } = props
   return (
     <div className="flex shrink-0 gap-1 border-b border-line px-4 pt-2">
-      {(['overview', 'files'] as const).map((t) => (
+      {(['overview', 'files', 'commits'] as const).map((t) => (
         <button
           key={t}
           onClick={() => props.onTab(t)}
           className={cx('-mb-px border-b-2 px-3 py-1.5 font-medium', tab === t ? 'border-accent text-fg' : 'border-transparent text-muted hover:text-fg')}
         >
-          {t === 'overview' ? 'Overview' : 'Files changed'}
+          {LABELS[t]}
+          {t === 'commits' && <span className="ml-1.5 rounded-full bg-panel-2 px-1.5 text-[11px] text-muted">{props.commitCount}</span>}
         </button>
       ))}
       {tab === 'files' && (

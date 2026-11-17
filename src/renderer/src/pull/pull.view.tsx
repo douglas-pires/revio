@@ -24,6 +24,7 @@ import { OverviewTab } from './overview-tab.component'
 import { FilesTab } from './files-tab.component'
 import { MentionedComment } from './mentioned-comment.component'
 import { FileHistoryPanel } from './file-history-panel.component'
+import { CommitsTab } from './commits-tab.component'
 import { ReactionsContext, type SetReaction } from './use-reactions.hook'
 import { ReplyTargetContext } from './use-reply-target.hook'
 
@@ -157,6 +158,7 @@ export function PullView(props: {
           <PullTabBar
             tab={tab}
             onTab={setTab}
+            commitCount={pr.commitCount}
             openThreadCount={commentThreads.filter((t) => !t.resolved).length}
             commentsPanelOpen={commentsPanel === 'open'}
             onToggleCommentsPanel={() => {
@@ -194,6 +196,8 @@ export function PullView(props: {
                 }
               />
             )}
+
+            {tab === 'commits' && <CommitsTab pull={pull} headSha={pr.headSha} />}
 
             {tab === 'files' && (
               <FilesTab

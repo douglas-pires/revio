@@ -1,4 +1,4 @@
-import type { BlameRange, CommitSummary, FileHistoryEntry } from './history.types'
+import type { BlameRange, CommitFile, CommitSummary, FileHistoryEntry } from './history.types'
 
 /** The blame range covering `line`, or undefined. Ranges must be sorted by start, as GitHub returns them. */
 export function blameAt(ranges: readonly BlameRange[], line: number): BlameRange | undefined {
@@ -17,4 +17,9 @@ export function blameAt(ranges: readonly BlameRange[], line: number): BlameRange
 /** Flags the commits that belong to the PR. */
 export function markPrCommits(commits: readonly CommitSummary[], prShas: ReadonlySet<string>): FileHistoryEntry[] {
   return commits.map((c) => ({ ...c, inThisPr: prShas.has(c.sha) }))
+}
+
+/** The commit's diff for `path`, matching renames by their old name too; null when it has none. */
+export function patchOfFile(files: readonly CommitFile[], path: string): string | null {
+  return files.find((f) => f.path === path || f.previousPath === path)?.patch ?? null
 }

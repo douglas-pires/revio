@@ -30,3 +30,25 @@ export interface FileAtCommit {
   sha: string
   path: string
 }
+
+/** One of the PR's commits, with its full message. */
+export interface PullCommit extends CommitSummary {
+  message: string
+}
+
+/** A file a commit changed. */
+export interface CommitFile {
+  path: string
+  previousPath?: string
+  status: string
+  additions: number
+  deletions: number
+  /** Unified diff; missing for binary or very large changes. */
+  patch?: string
+}
+
+/** A commit in a repository. */
+export interface CommitRef {
+  repo: string
+  sha: string
+}

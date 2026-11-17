@@ -1,7 +1,7 @@
 import type { AskThread, BriefingRecord } from './claude.types'
 import type { MainEvent } from './event.types'
 import type { Guideline, ResolvedGuideline } from './guideline.types'
-import type { BlameRange, FileAtCommit, FileHistoryEntry } from './history.types'
+import type { BlameRange, CommitFile, CommitRef, FileAtCommit, FileHistoryEntry, PullCommit } from './history.types'
 import type { Inbox, Stack } from './inbox.types'
 import type { MentionsInbox } from './mention.types'
 import type { DraftComment, PullDetail, PullLocalState, PullRef, SubmitReviewInput } from './pull.types'
@@ -51,6 +51,10 @@ export interface RevioApi {
   getFileHistory(ref: PullRef, at: FileAtCommit): Promise<FileHistoryEntry[]>
   /** What a commit changed in a file, as a unified diff, or null when GitHub has none. */
   getCommitFilePatch(at: FileAtCommit): Promise<string | null>
+  /** The files a commit changed, with their diffs. */
+  getCommitFiles(at: CommitRef): Promise<CommitFile[]>
+  /** The PR's commits, oldest first, as of `headSha`. */
+  getPullCommits(ref: PullRef, headSha: string): Promise<PullCommit[]>
 
   listGuidelines(): Promise<Guideline[]>
   saveGuideline(g: Omit<Guideline, 'id' | 'updatedAt'> & { id?: string }): Promise<Guideline>

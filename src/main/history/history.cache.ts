@@ -1,16 +1,18 @@
-import type { BlameRange, FileAtCommit, FileHistoryEntry } from '@shared/history.types'
+import type { BlameRange, CommitFile, CommitRef, FileAtCommit, FileHistoryEntry, PullCommit } from '@shared/history.types'
+import { patchOfFile } from '@shared/history.util'
 import { pullKey, type PullRef } from '@shared/pull.types'
 import type { Octokit } from '@octokit/rest'
 import { MemoCache } from '../common/memo.cache'
-import { fetchBlame, fetchCommitFilePatch, fetchFileHistory } from './history.service'
+import { fetchBlame, fetchCommitFiles, fetchFileHistory, fetchPullCommits } from './history.service'
 
 const keyOf = (at: FileAtCommit) => `${at.repo}@${at.sha}:${at.path}`
 
-/** Blame, file history and commit patches, kept per commit sha since they never change for one. */
+/** Blame, file history, commit files and PR commits, kept per commit sha since they never change for one. */
 export class HistoryCache {
   readonly #blame = new MemoCache<BlameRange[]>(100)
   readonly #history = new MemoCache<FileHistoryEntry[]>(100)
-  readonly #patches = new MemoCache<string | null>(300)
+  readonly #commitFiles = new MemoCache<CommitFile[]>(100)
+  readonly #pullCommits = new MemoCache<PullCommit[]>(50)
   readonly #octokit: () => Promise<Octokit>
 
   constructor(octokit: () => Promise<Octokit>) {
@@ -25,7 +27,16 @@ export class HistoryCache {
     return this.#history.get(`${pullKey(pull)} ${keyOf(at)}`, async () => fetchFileHistory(await this.#octokit(), pull, at))
   }
 
-  commitFilePatch(at: FileAtCommit) {
-    return this.#patches.get(keyOf(at), async () => fetchCommitFilePatch(await this.#octokit(), at))
+  commitFiles(at: CommitRef) {
+    return this.#commitFiles.get(`${at.repo}@${at.sha}`, async () => fetchCommitFiles(await this.#octokit(), at))
+  }
+
+  async commitFilePatch(at: FileAtCommit) {
+    return patchOfFile(await this.commitFiles(at), at.path)
+  }
+
+  /** Keyed by head sha: a new push lists again. */
+  pullCommits(pull: PullRef, headSha: string) {
+    return this.#pullCommits.get(`${pullKey(pull)}@${headSha}`, async () => fetchPullCommits(await this.#octokit(), pull))
   }
 }
