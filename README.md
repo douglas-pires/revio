@@ -29,6 +29,15 @@ click the first time: right-click Revio in Applications → Open (or run `xattr 
 /Applications/Revio.app`). With a Developer ID certificate in the repository secrets, electron-builder can sign and
 notarize instead.
 
+### Updates
+
+Installed builds check the latest GitHub release a little after launch and every 6 hours; **Revio → Check for
+Updates…** and **Settings → Updates** check on demand. When a newer version is out, a bar at the top offers
+**Download** (the dmg for this Mac) and **What's new**. Install it by dragging the new Revio into Applications. The
+repository is private, so the check uses your GitHub token, and the download opens in your browser where you are
+signed in to GitHub. The app cannot replace itself (that needs a Developer ID signature). Running from source only
+checks when you ask, since any release looks newer than the source version.
+
 On macOS, `npm install` and `npm run dev` rename the development `Electron.app` in `node_modules` to `Revio.app`
 (`scripts/brand-dev-electron.mjs`), so ⌘Tab, the menu bar and the Dock show Revio and its icon instead of Electron.
 

@@ -2,6 +2,7 @@ import { useEffect, useState } from 'react'
 import type { Settings as S, SettingsPatch } from '@shared/settings.types'
 import { GithubTokenSettings } from './github-token-settings.component'
 import { errorMessage } from '../common/format.util'
+import { UpdateSettings } from '../updates/update-settings.component'
 
 export function Settings() {
   const [s, setS] = useState<S | null>(null)
@@ -33,6 +34,10 @@ export function Settings() {
       </header>
       <div className="min-h-0 flex-1 overflow-y-auto">
         <div className="mx-auto max-w-2xl space-y-8 px-6 py-6">
+          <Group title="Updates">
+            <UpdateSettings />
+          </Group>
+
           <Group title="GitHub">
             <GithubTokenSettings onSaved={() => void window.revio.getSettings().then(setS)} />
             <Toggle label="Include team review requests" checked={s.includeTeamRequests} onChange={(v) => update({ includeTeamRequests: v })} />

@@ -6,6 +6,7 @@ import type { Inbox, Stack } from './inbox.types'
 import type { MentionsInbox } from './mention.types'
 import type { DraftComment, PullDetail, PullLocalState, PullRef, SubmitReviewInput } from './pull.types'
 import type { ReactionContent, ReactionSummary } from './reaction.types'
+import type { UpdateStatus } from './update.types'
 import type { GithubAuthStatus, Settings, SettingsPatch } from './settings.types'
 import type { ThreadComment, ThreadsInbox } from './thread.types'
 
@@ -66,6 +67,11 @@ export interface RevioApi {
   /** Answers the last user message of `thread`. Streams text via `ask-delta` events. */
   askClaude(ref: PullRef, thread: AskThread): Promise<{ answer: string }>
   saveAsks(ref: PullRef, threads: AskThread[]): Promise<void>
+
+  /** The result of the last update check. */
+  getUpdateStatus(): Promise<UpdateStatus>
+  /** Checks GitHub for a newer release now. */
+  checkForUpdates(): Promise<UpdateStatus>
 
   openExternal(url: string): Promise<void>
   onEvent(listener: (event: MainEvent) => void): () => void

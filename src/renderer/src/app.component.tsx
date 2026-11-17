@@ -7,6 +7,8 @@ import type { OpenPull } from './common/navigation.types'
 import { useRouteHistory } from './common/use-route-history.hook'
 import { cx } from './common/format.util'
 import { Inbox } from './inbox/inbox.view'
+import { UpdateBanner } from './updates/update-banner.component'
+import { useUpdateStatus } from './updates/use-update-status.hook'
 // The inbox is the first screen; everything else (markdown, diff, highlighting) loads when first opened.
 const PullView = lazy(() => import('./pull/pull.view').then((m) => ({ default: m.PullView })))
 const Guidelines = lazy(() => import('./guidelines/guidelines.view').then((m) => ({ default: m.Guidelines })))
@@ -17,6 +19,7 @@ const Settings = lazy(() => import('./settings/settings.view').then((m) => ({ de
 export default function App() {
   const { route, go: setRoute, back, forward, canGoBack, canGoForward } = useRouteHistory({ view: 'inbox' })
   const [inbox, setInbox] = useState<InboxData | null>(null)
+  const updateStatus = useUpdateStatus()
   const [mentions, setMentions] = useState<MentionsInbox | null>(null)
   // Lives here so the inbox search survives opening a PR and coming back.
   const [inboxSearch, setInboxSearch] = useState('')
@@ -56,7 +59,9 @@ export default function App() {
           <path d="M12 15a3 3 0 1 0 0-6 3 3 0 0 0 0 6zM19.4 15a1.7 1.7 0 0 0 .3 1.8l.1.1a2 2 0 1 1-2.8 2.8l-.1-.1a1.7 1.7 0 0 0-1.8-.3 1.7 1.7 0 0 0-1 1.5V21a2 2 0 1 1-4 0v-.1a1.7 1.7 0 0 0-1.1-1.5 1.7 1.7 0 0 0-1.8.3l-.1.1a2 2 0 1 1-2.8-2.8l.1-.1a1.7 1.7 0 0 0 .3-1.8 1.7 1.7 0 0 0-1.5-1H3a2 2 0 1 1 0-4h.1a1.7 1.7 0 0 0 1.5-1.1 1.7 1.7 0 0 0-.3-1.8l-.1-.1a2 2 0 1 1 2.8-2.8l.1.1a1.7 1.7 0 0 0 1.8.3H9a1.7 1.7 0 0 0 1-1.5V3a2 2 0 1 1 4 0v.1a1.7 1.7 0 0 0 1 1.5 1.7 1.7 0 0 0 1.8-.3l.1-.1a2 2 0 1 1 2.8 2.8l-.1.1a1.7 1.7 0 0 0-.3 1.8V9a1.7 1.7 0 0 0 1.5 1H21a2 2 0 1 1 0 4h-.1a1.7 1.7 0 0 0-1.5 1z" />
         </NavButton>
       </nav>
-      <main className="min-w-0 flex-1">
+      <main className="flex min-w-0 flex-1 flex-col">
+        <UpdateBanner status={updateStatus} />
+        <div className="min-h-0 flex-1">
         <Suspense fallback={<div className="flex h-full items-center justify-center text-muted">Loading…</div>}>
         {route.view === 'inbox' && <Inbox inbox={inbox} search={inboxSearch} onSearch={setInboxSearch} onOpen={openPull} />}
         {route.view === 'pull' && (
@@ -73,6 +78,7 @@ export default function App() {
         {route.view === 'mentions' && <Mentions mentions={mentions} onOpen={openPull} />}
         {route.view === 'settings' && <Settings />}
         </Suspense>
+        </div>
       </main>
     </div>
     </HighlighterContext>

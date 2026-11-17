@@ -2,15 +2,17 @@ import { Menu, type MenuItemConstructorOptions } from 'electron'
 
 export interface MenuActions {
   navigate: (direction: 'back' | 'forward') => void
+  checkForUpdates: () => void
 }
 
-/** The macOS menu bar: the standard app, edit, view and window menus, plus Go (back/forward). */
+/** The macOS menu bar: the standard app, edit, view and window menus, plus Go (back/forward) and Check for Updates. */
 export function installAppMenu(actions: MenuActions) {
   const template: MenuItemConstructorOptions[] = [
     {
       role: 'appMenu',
       submenu: [
         { role: 'about' },
+        { label: 'Check for Updates…', click: actions.checkForUpdates },
         { type: 'separator' },
         { role: 'services' },
         { type: 'separator' },

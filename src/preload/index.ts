@@ -24,7 +24,7 @@ const api = new Proxy({} as RevioApi, {
 const methods = [
   'getSettings', 'updateSettings', 'githubAuthStatus', 'saveGithubToken', 'getInbox', 'getMentions', 'refreshMentions', 'markMentionRead', 'getThreads', 'replyToThread', 'setThreadResolved', 'refreshInbox', 'getPull', 'getStack', 'getLocalState', 'saveDrafts',
   'setViewed', 'submitReview', 'replyToComment', 'setReaction', 'commentOnPull', 'getBlame', 'getFileHistory', 'getCommitFilePatch', 'getCommitFiles', 'getPullCommits', 'listGuidelines', 'saveGuideline', 'deleteGuideline',
-  'resolveGuidelines', 'knownRepos', 'generateBriefing', 'askClaude', 'saveAsks', 'openExternal', 'onEvent',
+  'resolveGuidelines', 'knownRepos', 'generateBriefing', 'askClaude', 'saveAsks', 'getUpdateStatus', 'checkForUpdates', 'openExternal', 'onEvent',
 ] as const satisfies readonly (keyof RevioApi)[]
 
 contextBridge.exposeInMainWorld('revio', Object.fromEntries(methods.map((m) => [m, api[m]])))

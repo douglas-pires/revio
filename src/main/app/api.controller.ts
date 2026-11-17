@@ -7,6 +7,7 @@ import { gh, resetClient } from '../github/github.client'
 import type { GithubTokens } from '../github/github-tokens.service'
 import { deleteGuideline, resolveGuidelines, saveGuideline } from '../guidelines/guidelines.service'
 import type { HistoryCache } from '../history/history.cache'
+import type { UpdatePoller } from '../updates/update.poller'
 import type { InboxPoller } from '../inbox/inbox.poller'
 import type { MentionWatcher } from '../mentions/mentions.watcher'
 import type { PullCache } from '../pulls/pull.cache'
@@ -26,6 +27,7 @@ export interface ApiDeps {
   poller: InboxPoller
   pulls: PullCache
   history: HistoryCache
+  updates: UpdatePoller
   threads: ThreadCache
   mentions: MentionWatcher
   window: AppWindow
@@ -38,6 +40,8 @@ export function registerApi(deps: ApiDeps) {
     ...inboxHandlers(deps),
     ...pullHandlers(deps),
     ...historyHandlers(deps),
+    getUpdateStatus: () => deps.updates.status,
+    checkForUpdates: () => deps.updates.check(),
     ...guidelineHandlers(deps),
     ...claudeHandlers(deps),
     openExternal: async (url) => {

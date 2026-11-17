@@ -1,4 +1,5 @@
 import { app, BrowserWindow } from 'electron'
+import { readFileSync } from 'node:fs'
 import { join } from 'node:path'
 import { showNotification } from './alerts/notification.service'
 import { registerApi } from './app/api.controller'
@@ -8,6 +9,10 @@ import { loginShell } from './common/shell.util'
 import { configureTokenResolver, gh } from './github/github.client'
 import { GithubTokens } from './github/github-tokens.service'
 import { HistoryCache } from './history/history.cache'
+import { showUpdateResult } from './updates/update-dialog.service'
+import { UpdatePoller } from './updates/update.poller'
+import { releaseSourceOf } from './updates/release.util'
+import { fetchLatestRelease } from './updates/updates.service'
 import { InboxPoller } from './inbox/inbox.poller'
 import { fetchInbox } from './inbox/inbox.service'
 import { alertNewMentions } from './mentions/mention-alerts.service'
@@ -32,6 +37,13 @@ const tokens = new GithubTokens({
 configureTokenResolver(() => tokens.resolve())
 const pulls = new PullCache(fetchPull)
 const history = new HistoryCache(gh)
+const releaseSource = releaseSourceOf(JSON.parse(readFileSync(join(app.getAppPath(), 'package.json'), 'utf8')))
+const updates = new UpdatePoller({
+  current: app.getVersion(),
+  sourceName: releaseSource && `${releaseSource.owner}/${releaseSource.repo}`,
+  loadLatest: async () => (releaseSource ? fetchLatestRelease(await gh(), releaseSource, process.arch) : null),
+  onStatus: (status) => window.send({ type: 'update', status }),
+})
 const stackFinder = new StackFinder()
 const threads = new ThreadCache(async () => fetchThreads(await gh()))
 const mentions = new MentionWatcher({
@@ -61,12 +73,17 @@ const poller = new InboxPoller({
   onOpenPull: (ref) => window.focusAndOpen(ref),
 })
 
-registerApi({ store, tokens, poller, pulls, history, threads, mentions, window })
+registerApi({ store, tokens, poller, pulls, history, updates, threads, mentions, window })
 
 app.setName('Revio')
 
 app.whenReady().then(() => {
-  installAppMenu({ navigate: (direction) => window.send({ type: 'navigate', direction }) })
+  installAppMenu({
+    navigate: (direction) => window.send({ type: 'navigate', direction }),
+    checkForUpdates: () => void updates.check().then(showUpdateResult),
+  })
+  // Development runs from source, where a release would always look newer; check there only from the menu.
+  if (app.isPackaged) updates.start()
   // Packaged builds take the icon from the bundle; in development the dock would show Electron's.
   if (!app.isPackaged) app.dock?.setIcon(join(app.getAppPath(), 'build/icon.png'))
   window.create()
