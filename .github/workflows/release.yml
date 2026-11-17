@@ -1,7 +1,7 @@
 # Builds an installable Revio for macOS on every push to main and publishes it as a GitHub release.
 # The version is the package.json major.minor plus the run number (e.g. 0.1.42), so every build is newer than the
 # last; the app's "Check for updates" compares against the latest release. Builds are ad-hoc signed (no Apple
-# Developer ID), so the first launch of a downloaded copy needs right-click → Open.
+# Developer ID), so the first launch of a downloaded copy needs Privacy & Security → Open Anyway (see README).
 name: Release
 
 on:

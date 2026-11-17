@@ -25,8 +25,9 @@ major.minor with the run number as the patch (0.1.42), so each build is newer th
 `package.json` for bigger releases. `npm run dist` builds the same thing locally into `dist/` without publishing.
 
 Builds are ad-hoc signed, not with an Apple Developer ID, so macOS will not open a downloaded copy with a double
-click the first time: right-click Revio in Applications → Open (or run `xattr -dr com.apple.quarantine
-/Applications/Revio.app`). With a Developer ID certificate in the repository secrets, electron-builder can sign and
+click the first time ("Apple could not verify…"). Click **Done**, then open **System Settings → Privacy & Security**,
+scroll to Security and click **Open Anyway** next to the Revio message (macOS 15 and later dropped right-click → Open).
+Or clear the download flag once: `xattr -dr com.apple.quarantine /Applications/Revio.app`. With a Developer ID certificate in the repository secrets, electron-builder can sign and
 notarize instead.
 
 ### Updates
