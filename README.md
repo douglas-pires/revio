@@ -148,6 +148,7 @@ bar shows the open count and hides or shows the panel (remembered). The Ask Clau
 - "Viewed" resets automatically when a file changes in a new push.
 - **Keyboard:** `j` / `k` next / previous file, `v` toggles viewed and jumps to the next unviewed file (ignored while typing).
 - **Unified / Split** toggle above the files; code is syntax highlighted (Shiki, per hunk, no WebAssembly).
+- Click a branch name in the PR header to copy it (e.g. to `git checkout` it locally).
 
 ## Comment on a whole file
 

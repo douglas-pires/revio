@@ -1,4 +1,5 @@
 import type { PullDetail, ReviewEvent } from '@shared/pull.types'
+import { BranchNames } from './branch-names.component'
 import { MyReviewChip, ReviewPopover } from './review-popover.component'
 
 export function PullHeader(props: {
@@ -28,7 +29,7 @@ export function PullHeader(props: {
           {pr.title} <span className="font-normal text-muted">#{pr.number}</span>
         </div>
         <div className="truncate text-[12px] text-muted">
-          {pr.repo} · {pr.author} wants to merge <code className="text-fg">{pr.headRef}</code> into <code className="text-fg">{pr.baseRef}</code> ·{' '}
+          {pr.repo} · {pr.author} wants to merge <BranchNames head={pr.headRef} base={pr.baseRef} /> ·{' '}
           <span className="text-ok">+{pr.additions}</span> <span className="text-danger">−{pr.deletions}</span>
         </div>
       </div>
