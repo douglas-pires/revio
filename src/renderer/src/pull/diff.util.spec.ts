@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest'
-import { anchorFor, anchorOf, keysOf, parsePatch, parseRange, sliceAroundLine, toSplit, type DiffRow } from './diff.util'
+import { anchorFor, anchorOf, diffSnippet, keysOf, lineRangeOfRows, newSideText, parsePatch, parseRange, sliceAroundLine, toSplit, type DiffRow } from './diff.util'
 
 const PATCH = ['@@ -10,4 +10,5 @@ function f() {', ' keep', '-old', '+new', '+extra', ' tail', '\\ No newline at end of file'].join('\n')
 
@@ -90,5 +90,44 @@ describe('sliceAroundLine', () => {
 
   it('is empty when the line is not part of the diff', () => {
     expect(sliceAroundLine(rows, 20)).toEqual([])
+  })
+})
+
+describe('diffSnippet', () => {
+  const rows = parsePatch(PATCH)
+
+  it('marks added and removed rows across the new-side range', () => {
+    expect(diffSnippet(rows, 'RIGHT', 10, 11)).toBe(' keep\n-old\n+new')
+  })
+
+  it('leaves out added rows for an old-side range', () => {
+    expect(diffSnippet(rows, 'LEFT', 11, 12)).toBe('-old\n tail')
+  })
+
+  it('is empty when no row is in range', () => {
+    expect(diffSnippet(rows, 'RIGHT', 90, 95)).toBe('')
+  })
+})
+
+describe('newSideText', () => {
+  it('joins the new-side text of the range', () => {
+    expect(newSideText(parsePatch(PATCH), 11, 12)).toBe('new\nextra')
+  })
+})
+
+describe('lineRangeOfRows', () => {
+  const rows = parsePatch(PATCH)
+
+  it('uses the new side unless only deleted rows are selected', () => {
+    expect(lineRangeOfRows(rows, 1, 4)).toEqual({ side: 'RIGHT', start: 10, end: 12 })
+    expect(lineRangeOfRows(rows, 2, 2)).toEqual({ side: 'LEFT', start: 11, end: 11 })
+  })
+
+  it('keeps the split-view half the selection started in, in either order', () => {
+    expect(lineRangeOfRows(rows, 5, 1, 'LEFT')).toEqual({ side: 'LEFT', start: 10, end: 12 })
+  })
+
+  it('is null for a selection over the hunk header only', () => {
+    expect(lineRangeOfRows(rows, 0, 0)).toBeNull()
   })
 })

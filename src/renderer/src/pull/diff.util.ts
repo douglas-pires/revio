@@ -102,3 +102,39 @@ export function sliceAroundLine(rows: readonly DiffRow[], line: number, radius =
   while (end - at < radius && inHunk(end + 1)) end++
   return rows.slice(start, end + 1) as LineRow[]
 }
+
+const inRange = (n: number | null, start: number, end: number) => n != null && n >= start && n <= end
+
+/** Diff rows covering (side, start..end) with +/- markers, as shown to Claude. Old-side snippets leave out added rows. */
+export function diffSnippet(rows: readonly DiffRow[], side: DiffSide, start: number, end: number): string {
+  const hits = rows.flatMap((r, i) => (r.kind !== 'hunk' && inRange(side === 'LEFT' ? r.oldNo : r.newNo, start, end) ? [i] : []))
+  if (!hits.length) return ''
+  return rows
+    .slice(hits[0], hits.at(-1)! + 1)
+    .filter((r): r is LineRow => r.kind !== 'hunk' && !(side === 'LEFT' && r.kind === 'add'))
+    .map((r) => `${r.kind === 'add' ? '+' : r.kind === 'del' ? '-' : ' '}${r.text}`)
+    .join('\n')
+}
+
+/** The new-side text of lines start..end, used to prefill a suggestion. */
+export function newSideText(rows: readonly DiffRow[], start: number, end: number): string {
+  return rows
+    .filter((r): r is LineRow => r.kind !== 'hunk' && inRange(r.newNo, start, end))
+    .map((r) => r.text)
+    .join('\n')
+}
+
+/**
+ * The line range a text selection over rows i0..i1 covers. `half` is the split-view side the selection
+ * started in; in unified view a selection of only deleted rows is on the old side.
+ */
+export function lineRangeOfRows(rows: readonly DiffRow[], i0: number, i1: number, half?: DiffSide): { side: DiffSide; start: number; end: number } | null {
+  const slice = rows.slice(Math.min(i0, i1), Math.max(i0, i1) + 1).filter((r): r is LineRow => r.kind !== 'hunk')
+  const side: DiffSide = half ?? (slice.length && slice.every((r) => r.kind === 'del') ? 'LEFT' : 'RIGHT')
+  const nums = slice.flatMap((r) => {
+    const n = side === 'LEFT' ? (r.kind === 'add' ? null : r.oldNo) : r.kind === 'del' ? null : r.newNo
+    return n == null ? [] : [n]
+  })
+  if (!nums.length) return null
+  return { side, start: Math.min(...nums), end: Math.max(...nums) }
+}

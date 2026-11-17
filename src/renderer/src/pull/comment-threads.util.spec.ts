@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest'
-import type { ReviewComment } from '@shared/pull.types'
-import { groupCommentThreads } from '@/pull/comment-threads.util'
+import type { DraftComment, ReviewComment } from '@shared/pull.types'
+import { groupCommentThreads, indexFileComments } from '@/pull/comment-threads.util'
 
 const makeComment = (id: number, over: Partial<ReviewComment> = {}): ReviewComment => ({
   id, path: 'b.ts', line: 10, startLine: null, side: 'RIGHT', body: `c${id}`, author: 'bo', authorAvatar: '',
@@ -29,5 +29,30 @@ describe('groupCommentThreads', () => {
   it('keeps a reply whose first comment is missing as its own thread, unresolved when status is unknown', () => {
     const [thread] = groupCommentThreads([makeComment(4, { inReplyTo: 99 })], [], ['b.ts'])
     expect(thread).toMatchObject({ rootId: 4, threadId: null, resolved: false })
+  })
+})
+
+describe('indexFileComments', () => {
+  const draft = (id: string, over: Partial<DraftComment> = {}): DraftComment => ({ id, path: 'b.ts', side: 'RIGHT', line: 10, body: id, ...over })
+
+  it('files threads under their line, on the file, or as outdated', () => {
+    const comments = [
+      makeComment(1),
+      makeComment(2, { inReplyTo: 1 }),
+      makeComment(3, { line: null, subjectType: 'file' }),
+      makeComment(4, { line: null, outdated: true }),
+    ]
+    const index = indexFileComments('b.ts', comments, [])
+    expect(index.threadsByLine.get('RIGHT:10')!.map((t) => t.map((c) => c.id))).toEqual([[1, 2]])
+    expect(index.fileThreads.map((t) => t[0]!.id)).toEqual([3])
+    expect(index.outdated.map((c) => c.id)).toEqual([4])
+  })
+
+  it('keys new line drafts and leaves out replies and file drafts', () => {
+    const index = indexFileComments('b.ts', [], [draft('a'), draft('b', { side: 'LEFT', line: 3 }), draft('r', { inReplyTo: 1 }), draft('f', { line: null })])
+    expect([...index.draftsByLine].map(([k, ds]) => [k, ds.map((d) => d.id)])).toEqual([
+      ['RIGHT:10', ['a']],
+      ['LEFT:3', ['b']],
+    ])
   })
 })

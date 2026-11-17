@@ -1,4 +1,5 @@
-import type { DiffSide, PullThreadStatus, ReviewComment } from '@shared/pull.types'
+import type { DiffSide, DraftComment, PullThreadStatus, ReviewComment } from '@shared/pull.types'
+import { anchorKey } from './diff.util'
 
 /** A review thread on this PR: its first comment, the replies, and whether it is resolved. */
 export interface CommentThread {
@@ -38,4 +39,26 @@ export function groupCommentThreads(comments: readonly ReviewComment[], statuses
       comments: [root, ...(replies.get(root.id) ?? []).sort((a, b) => a.createdAt.localeCompare(b.createdAt))],
     }))
     .sort((a, b) => (fileRank.get(a.path) ?? Infinity) - (fileRank.get(b.path) ?? Infinity) || (a.line ?? Infinity) - (b.line ?? Infinity))
+}
+
+/** One file's comments and drafts, keyed by `anchorKey(side, line)` for the diff rows that show them. */
+export interface FileCommentIndex {
+  threadsByLine: Map<string, ReviewComment[][]>
+  fileThreads: ReviewComment[][]
+  /** First comments of threads whose line is gone from the diff. */
+  outdated: ReviewComment[]
+  /** New line comments; replies and file comments are shown elsewhere. */
+  draftsByLine: Map<string, DraftComment[]>
+}
+
+export function indexFileComments(path: string, comments: readonly ReviewComment[], drafts: readonly DraftComment[]): FileCommentIndex {
+  const push = <T,>(m: Map<string, T[]>, k: string, v: T) => m.set(k, [...(m.get(k) ?? []), v])
+  const index: FileCommentIndex = { threadsByLine: new Map(), fileThreads: [], outdated: [], draftsByLine: new Map() }
+  for (const t of groupCommentThreads(comments, [], [path])) {
+    if (t.onFile) index.fileThreads.push(t.comments)
+    else if (t.outdated || t.line == null) index.outdated.push(t.comments[0]!)
+    else push(index.threadsByLine, anchorKey(t.side, t.line), t.comments)
+  }
+  for (const d of drafts) if (!d.inReplyTo && d.line != null) push(index.draftsByLine, anchorKey(d.side, d.line), d)
+  return index
 }
