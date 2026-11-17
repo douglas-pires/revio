@@ -3,28 +3,43 @@ import type { DraftComment, PullDetail, PullFile, PullRef, PullThreadStatus, Rev
 import { gh, smallAvatar, viewerLogin } from '../github/github.client'
 import { splitRepo } from '../github/repo-name.util'
 import { planReview, type ReviewPlan } from './review-plan.util'
+import type { ReactionSummary } from '@shared/reaction.types'
+import { toReactionSummaries, type RawReactionGroup } from '@shared/reaction.util'
+import { REACTION_GROUPS } from '../reactions/reactions.service'
 
-/** Which review threads are resolved; REST comments do not say. A failure only hides that status. */
-async function fetchThreadStatus(octokit: Octokit, ref: PullRef): Promise<PullThreadStatus[]> {
+interface ThreadMeta {
+  threads: PullThreadStatus[]
+  /** Reactions per review comment id. */
+  reactions: Map<number, ReactionSummary[]>
+}
+
+/** Thread resolution and comment reactions, which REST does not give. Empty if GitHub would not say. */
+async function fetchThreadMeta(octokit: Octokit, ref: PullRef): Promise<ThreadMeta> {
   const { owner, repo } = splitRepo(ref.repo)
   const { number } = ref
-  type Data = { repository: { pullRequest: { reviewThreads: { nodes: ({ id: string; isResolved: boolean; comments: { nodes: ({ databaseId: number } | null)[] } } | null)[] } } | null } }
+  type RawComment = { databaseId: number; reactionGroups: RawReactionGroup[] | null }
+  type Data = { repository: { pullRequest: { reviewThreads: { nodes: ({ id: string; isResolved: boolean; comments: { nodes: (RawComment | null)[] } } | null)[] } } | null } }
   try {
     const data = await octokit.graphql<Data>(
       `query ($owner: String!, $repo: String!, $number: Int!) {
         repository(owner: $owner, name: $repo) { pullRequest(number: $number) {
-          reviewThreads(first: 100) { nodes { id isResolved comments(first: 1) { nodes { databaseId } } } }
+          reviewThreads(first: 100) { nodes { id isResolved comments(first: 50) { nodes { databaseId ${REACTION_GROUPS} } } } }
         } }
       }`,
       { owner, repo, number },
     )
-    return (data.repository.pullRequest?.reviewThreads.nodes ?? []).flatMap((t) => {
-      const rootCommentId = t?.comments.nodes[0]?.databaseId
-      return t && rootCommentId ? [{ id: t.id, rootCommentId, resolved: t.isResolved }] : []
-    })
+    const nodes = (data.repository.pullRequest?.reviewThreads.nodes ?? []).flatMap((t) => (t ? [t] : []))
+    const comments = nodes.flatMap((t) => t.comments.nodes.flatMap((c) => (c ? [c] : [])))
+    return {
+      threads: nodes.flatMap((t) => {
+        const rootCommentId = t.comments.nodes[0]?.databaseId
+        return rootCommentId ? [{ id: t.id, rootCommentId, resolved: t.isResolved }] : []
+      }),
+      reactions: new Map(comments.map((c) => [c.databaseId, toReactionSummaries(c.reactionGroups ?? [])])),
+    }
   } catch (err) {
     console.error('[revio] thread status lookup failed:', err instanceof Error ? err.message : err)
-    return []
+    return { threads: [], reactions: new Map() }
   }
 }
 
@@ -32,13 +47,13 @@ export async function fetchPull(ref: PullRef): Promise<PullDetail> {
   const { repo: repoFull, number } = ref
   const octokit = await gh()
   const { owner, repo } = splitRepo(repoFull)
-  const [pr, files, comments, reviews, viewer, threads] = await Promise.all([
+  const [pr, files, comments, reviews, viewer, meta] = await Promise.all([
     octokit.pulls.get({ owner, repo, pull_number: number }),
     octokit.paginate(octokit.pulls.listFiles, { owner, repo, pull_number: number, per_page: 100 }),
     octokit.paginate(octokit.pulls.listReviewComments, { owner, repo, pull_number: number, per_page: 100 }),
     octokit.paginate(octokit.pulls.listReviews, { owner, repo, pull_number: number, per_page: 100 }),
     viewerLogin(),
-    fetchThreadStatus(octokit, ref),
+    fetchThreadMeta(octokit, ref),
   ])
   const mine = reviews.filter((r) => r.user?.login === viewer && r.state !== 'PENDING')
   const decisive = mine.filter((r) => r.state === 'APPROVED' || r.state === 'CHANGES_REQUESTED' || r.state === 'DISMISSED').at(-1)
@@ -79,10 +94,11 @@ export async function fetchPull(ref: PullRef): Promise<PullDetail> {
         patch: f.patch,
       }),
     ),
-    threads,
+    threads: meta.threads,
     comments: comments.map(
       (c): ReviewComment => ({
         id: c.id,
+        nodeId: c.node_id,
         inReplyTo: c.in_reply_to_id,
         path: c.path,
         line: c.line ?? null,
@@ -96,6 +112,7 @@ export async function fetchPull(ref: PullRef): Promise<PullDetail> {
         // A line comment loses its line once the code it was on changes; a file comment never had one.
         outdated: c.subject_type !== 'file' && c.line == null,
         subjectType: c.subject_type === 'file' ? 'file' : 'line',
+        reactions: meta.reactions.get(c.id) ?? [],
       }),
     ),
   }

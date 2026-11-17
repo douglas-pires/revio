@@ -23,6 +23,7 @@ import { PullTabBar, type PullTab } from './pull-tab-bar.component'
 import { OverviewTab } from './overview-tab.component'
 import { FilesTab } from './files-tab.component'
 import { MentionedComment } from './mentioned-comment.component'
+import { ReactionsContext, type SetReaction } from './use-reactions.hook'
 
 const DIFF_VIEWS: readonly DiffView[] = ['unified', 'split']
 const PANEL_STATES = ['open', 'closed'] as const
@@ -60,6 +61,8 @@ export function PullView(props: {
     setBriefingRecord(record)
     nav.collapseFiles(record.briefing.ignore.map((i) => i.path))
   })
+
+  const setReaction: SetReaction = useCallback((subjectId, content, on) => window.revio.setReaction(pull, subjectId, content, on), [pull])
 
   const startAsk = useCallback((sel: AskSelection) => {
     setAskThread({ id: crypto.randomUUID(), ...sel, messages: [], createdAt: new Date().toISOString() })
@@ -114,6 +117,7 @@ export function PullView(props: {
   const asks = local.asks ?? []
 
   return (
+    <ReactionsContext value={setReaction}>
     <div className="flex h-full flex-col">
       <PullHeader
         pr={pr}
@@ -221,5 +225,6 @@ export function PullView(props: {
         )}
       </div>
     </div>
+    </ReactionsContext>
   )
 }

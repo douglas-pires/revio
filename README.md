@@ -158,6 +158,12 @@ comments panel as "file". They are added to your review like line comments: sinc
 carry file comments, Revio creates the review pending, adds each file comment to it, then submits it, and deletes
 the pending review if any step fails.
 
+## Reactions
+
+Review comments show their emoji reactions. Click one to add or take back yours, or **☺+** to pick any of GitHub's
+eight (👍 👎 😄 🎉 😕 ❤️ 🚀 👀). Your reaction shows right away and is sent to GitHub at once (not held for the review);
+if GitHub refuses, it is rolled back with the reason.
+
 ## Ask Claude about a selection
 
 Select code in the diff with the mouse (or use the **✦ Ask Claude** button in the comment box after picking lines in

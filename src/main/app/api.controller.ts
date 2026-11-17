@@ -10,6 +10,7 @@ import type { InboxPoller } from '../inbox/inbox.poller'
 import type { MentionWatcher } from '../mentions/mentions.watcher'
 import type { PullCache } from '../pulls/pull.cache'
 import { replyToComment, submitReview } from '../pulls/pull.service'
+import { setReaction } from '../reactions/reactions.service'
 import { fetchStack } from '../stacks/stacks.service'
 import type { store as appStore } from '../store/store.service'
 import type { ThreadCache } from '../threads/threads.cache'
@@ -91,7 +92,7 @@ function inboxHandlers({ poller, mentions, threads }: ApiDeps): Pick<ApiHandlers
   }
 }
 
-type PullMethods = 'getPull' | 'getStack' | 'getLocalState' | 'saveDrafts' | 'setViewed' | 'submitReview' | 'replyToComment' | 'saveAsks'
+type PullMethods = 'getPull' | 'getStack' | 'getLocalState' | 'saveDrafts' | 'setViewed' | 'submitReview' | 'replyToComment' | 'setReaction' | 'saveAsks'
 
 function pullHandlers({ store, poller, pulls }: ApiDeps): Pick<ApiHandlers, PullMethods> {
   return {
@@ -112,6 +113,11 @@ function pullHandlers({ store, poller, pulls }: ApiDeps): Pick<ApiHandlers, Pull
       return result
     },
     replyToComment: (ref, id, body) => replyToComment(ref, id, body),
+    setReaction: async (ref, subjectId, content, on) => {
+      const reactions = await setReaction(await gh(), subjectId, content, on)
+      pulls.forget(ref)
+      return reactions
+    },
     saveAsks: (ref, asks) => store.updatePull(pullKey(ref), (s) => void (s.asks = asks)),
   }
 }

@@ -4,7 +4,7 @@ import { groupCommentThreads, indexFileComments } from '@/pull/comment-threads.u
 
 const makeComment = (id: number, over: Partial<ReviewComment> = {}): ReviewComment => ({
   id, path: 'b.ts', line: 10, startLine: null, side: 'RIGHT', body: `c${id}`, author: 'bo', authorAvatar: '',
-  createdAt: `2026-11-0${id}T00:00:00Z`, url: '', outdated: false, subjectType: 'line', ...over,
+  createdAt: `2026-11-0${id}T00:00:00Z`, url: '', outdated: false, subjectType: 'line', nodeId: `N${id}`, reactions: [], ...over,
 })
 
 describe('groupCommentThreads', () => {

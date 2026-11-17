@@ -4,6 +4,7 @@ import type { Guideline, ResolvedGuideline } from './guideline.types'
 import type { Inbox, Stack } from './inbox.types'
 import type { MentionsInbox } from './mention.types'
 import type { DraftComment, PullDetail, PullLocalState, PullRef, SubmitReviewInput } from './pull.types'
+import type { ReactionContent, ReactionSummary } from './reaction.types'
 import type { GithubAuthStatus, Settings, SettingsPatch } from './settings.types'
 import type { ThreadComment, ThreadsInbox } from './thread.types'
 
@@ -38,6 +39,8 @@ export interface RevioApi {
   setViewed(ref: PullRef, path: string, sha: string | null): Promise<void>
   submitReview(input: SubmitReviewInput): Promise<{ url: string }>
   replyToComment(ref: PullRef, commentId: number, body: string): Promise<void>
+  /** Adds or removes your reaction on a review comment (by its GraphQL id) and returns its reactions after. */
+  setReaction(ref: PullRef, subjectId: string, content: ReactionContent, on: boolean): Promise<ReactionSummary[]>
 
   listGuidelines(): Promise<Guideline[]>
   saveGuideline(g: Omit<Guideline, 'id' | 'updatedAt'> & { id?: string }): Promise<Guideline>

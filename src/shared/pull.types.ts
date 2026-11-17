@@ -1,3 +1,4 @@
+import type { ReactionSummary } from './reaction.types'
 import type { AskThread, BriefingRecord } from './claude.types'
 
 /** Which pull request: repository ("owner/name") and number. Any object with these fields qualifies. */
@@ -21,6 +22,8 @@ export interface PullFile {
 }
 export interface ReviewComment {
   id: number
+  /** GraphQL id, for reacting to the comment. */
+  nodeId: string
   inReplyTo?: number
   path: string
   line: number | null
@@ -34,6 +37,7 @@ export interface ReviewComment {
   outdated: boolean
   /** "file" for a comment on the whole file rather than on lines. */
   subjectType: 'line' | 'file'
+  reactions: ReactionSummary[]
 }
 export interface PullDetail {
   /** When this copy was fetched from GitHub (ISO). */

@@ -6,3 +6,4 @@ DevTools listening on ws://127.0.0.1:9334/devtools/browser/0af43b18-26fc-4118-88
 [83026:1117/121851.432763:ERROR:net/cert/internal/trust_store_mac.cc:807] Error parsing certificate:
 ERROR: Failed parsing certificate policies
 
+/Users/douglas/Stay22/revio/node_modules/electron/dist/Electron.app/Contents/MacOS/Electron exited with signal SIGTERM

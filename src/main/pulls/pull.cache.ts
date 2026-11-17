@@ -29,6 +29,11 @@ export class PullCache {
     })
   }
 
+  /** Drops the cached copy, e.g. after a change the copy does not show yet. */
+  forget(ref: PullRef): void {
+    this.#entries.delete(pullKey(ref))
+  }
+
   /** The last fetched copy, if any, without hitting the network. */
   peek(ref: PullRef): PullDetail | undefined {
     return this.#entries.get(pullKey(ref))?.pr

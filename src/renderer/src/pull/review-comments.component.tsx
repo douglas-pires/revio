@@ -2,6 +2,7 @@ import { useState } from 'react'
 import type { DraftComment, ReviewComment } from '@shared/pull.types'
 import { ago, cx } from '../common/format.util'
 import { Markdown } from '../common/markdown.component'
+import { ReactionBar } from './reaction-bar.component'
 
 export function CommentView({ c }: { c: ReviewComment }) {
   return (
@@ -15,6 +16,7 @@ export function CommentView({ c }: { c: ReviewComment }) {
           </a>
         </div>
         <Markdown className="text-[12.5px]">{c.body}</Markdown>
+        <ReactionBar subjectId={c.nodeId} reactions={c.reactions} />
       </div>
     </div>
   )
