@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest'
 import type { DraftComment, ReviewComment } from '@shared/pull.types'
-import { groupCommentThreads, indexFileComments } from '@/pull/comment-threads.util'
+import { groupCommentThreads, indexFileComments, matchingComment, searchDrafts, searchThreads } from '@/pull/comment-threads.util'
 
 const makeComment = (id: number, over: Partial<ReviewComment> = {}): ReviewComment => ({
   id, path: 'b.ts', line: 10, startLine: null, side: 'RIGHT', body: `c${id}`, author: 'bo', authorAvatar: '',
@@ -55,5 +55,32 @@ describe('indexFileComments', () => {
       ['RIGHT:10', ['a']],
       ['LEFT:3', ['b']],
     ])
+  })
+})
+
+describe('searching comments', () => {
+  const threads = groupCommentThreads(
+    [makeComment(1, { body: 'Please add a Retry here' }), makeComment(2, { inReplyTo: 1, author: 'cy', body: 'done' }), makeComment(3, { path: 'a.ts', body: 'naming' })],
+    [],
+    ['a.ts', 'b.ts'],
+  )
+
+  it('matches comment text, authors and paths, ignoring case', () => {
+    expect(searchThreads(threads, 'retry').map((t) => t.rootId)).toEqual([1])
+    expect(searchThreads(threads, 'CY').map((t) => t.rootId)).toEqual([1])
+    expect(searchThreads(threads, 'a.ts').map((t) => t.rootId)).toEqual([3])
+    expect(searchThreads(threads, '  ')).toHaveLength(2)
+    expect(searchThreads(threads, 'nothing')).toEqual([])
+  })
+
+  it('names the comment that matched', () => {
+    expect(matchingComment(threads[1]!, 'done')?.id).toBe(2)
+  })
+
+  it('searches drafts by text and path', () => {
+    const drafts: DraftComment[] = [{ id: 'd', path: 'src/x.ts', side: 'RIGHT', line: 1, body: 'typo' }]
+    expect(searchDrafts(drafts, 'TYPO')).toHaveLength(1)
+    expect(searchDrafts(drafts, 'x.ts')).toHaveLength(1)
+    expect(searchDrafts(drafts, 'zzz')).toEqual([])
   })
 })

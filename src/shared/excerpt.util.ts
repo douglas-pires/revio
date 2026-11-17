@@ -5,8 +5,13 @@ export function summarizeComment(body: string, max = 280) {
 
 /** The readable text around the first @handle, so a long comment still shows why you were mentioned. */
 export function summarizeAround(body: string, handle: string, max = 280) {
+  return excerptAround(body, `@${handle}`, max)
+}
+
+/** The readable text around the first case-insensitive match of `needle`, from the start when it is early or missing. */
+export function excerptAround(body: string, needle: string, max = 280) {
   const text = toPlainText(body)
-  const at = text.toLowerCase().indexOf(`@${handle.toLowerCase()}`)
+  const at = needle ? text.toLowerCase().indexOf(needle.toLowerCase()) : -1
   if (at < max * 0.6) return text.slice(0, max)
   const start = Math.max(0, at - Math.round(max * 0.3))
   return `…${text.slice(start, start + max)}`

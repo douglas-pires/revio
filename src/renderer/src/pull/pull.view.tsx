@@ -227,7 +227,7 @@ export function PullView(props: {
         )}
 
         {tab === 'files' && commentsPanel === 'open' && !historyPath && !askThread && (
-          <CommentsPanel threads={commentThreads} drafts={local.drafts} current={nav.current} onJump={goTo} onClose={() => setCommentsPanel('closed')} />
+          <CommentsPanel threads={commentThreads} drafts={local.drafts} current={nav.current} onJump={(path, line, commentId) => goTo(path, line, true, commentId)} onClose={() => setCommentsPanel('closed')} />
         )}
 
         {askThread && (

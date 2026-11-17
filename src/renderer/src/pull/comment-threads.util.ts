@@ -62,3 +62,23 @@ export function indexFileComments(path: string, comments: readonly ReviewComment
   for (const d of drafts) if (!d.inReplyTo && d.line != null) push(index.draftsByLine, anchorKey(d.side, d.line), d)
   return index
 }
+
+const includesFolded = (text: string, q: string) => text.toLowerCase().includes(q)
+
+/** The thread's comment that matches `query` (text or author), or null. The file path matching counts as the first comment. */
+export function matchingComment(t: CommentThread, query: string): ReviewComment | null {
+  const q = query.trim().toLowerCase()
+  if (!q) return t.comments[0] ?? null
+  return t.comments.find((c) => includesFolded(c.body, q) || includesFolded(c.author, q)) ?? (includesFolded(t.path, q) ? (t.comments[0] ?? null) : null)
+}
+
+/** Threads with a comment, author or file path matching `query`, resolved ones included. */
+export function searchThreads(threads: readonly CommentThread[], query: string): CommentThread[] {
+  return threads.filter((t) => matchingComment(t, query))
+}
+
+/** Your pending comments whose text or file path matches `query`. */
+export function searchDrafts(drafts: readonly DraftComment[], query: string): DraftComment[] {
+  const q = query.trim().toLowerCase()
+  return q ? drafts.filter((d) => includesFolded(d.body, q) || includesFolded(d.path, q)) : [...drafts]
+}

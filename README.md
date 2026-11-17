@@ -170,6 +170,12 @@ the pending review if any step fails.
 
 Blame, history and commit diffs are cached per commit sha, since they never change for one.
 
+## Searching comments
+
+The comments panel on the right has a search box (`/` to focus, Escape to clear). It filters threads and your pending
+comments by text, author or file path, resolved and outdated threads included, marks the match, and clicking a result
+lands on the matching comment.
+
 ## Replying from a mention
 
 Opening a mention of a review comment lands on that comment with its thread's reply box open: **Reply now** posts

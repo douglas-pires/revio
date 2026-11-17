@@ -1,21 +1,30 @@
-import { memo, useState } from 'react'
+import { memo, useEffect, useRef, useState } from 'react'
 import type { DraftComment } from '@shared/pull.types'
-import type { CommentThread } from './comment-threads.util'
-import { summarizeComment } from '@shared/excerpt.util'
+import { matchingComment, searchDrafts, searchThreads, type CommentThread } from './comment-threads.util'
+import { excerptAround } from '@shared/excerpt.util'
+import { isTyping } from '../common/keyboard.util'
+import { MatchText } from '../common/match-text.component'
 import { ago, cx } from '../common/format.util'
 import { groupBy } from '../common/group.util'
+
+/** Goes to a file, line and (optionally) a comment in the diff. */
+type JumpTo = (path: string, line: number | null, commentId?: number) => void
 
 /** Right-hand sidebar: every review thread and your pending comments, grouped by file. Click to jump. */
 export const CommentsPanel = memo(function CommentsPanel(props: {
   threads: readonly CommentThread[]
   drafts: readonly DraftComment[]
   current: string | null
-  onJump: (path: string, line: number | null) => void
+  onJump: JumpTo
   onClose: () => void
 }) {
   const [showResolved, setShowResolved] = useState(false)
+  const [query, setQuery] = useState('')
+  const searching = query.trim() !== ''
   const resolvedCount = props.threads.filter((t) => t.resolved).length
-  const visible = showResolved ? props.threads : props.threads.filter((t) => !t.resolved)
+  // A search looks through resolved threads too.
+  const visible = searching ? searchThreads(props.threads, query) : showResolved ? props.threads : props.threads.filter((t) => !t.resolved)
+  const drafts = searchDrafts(props.drafts, query)
   const byFile = groupBy(visible, (t) => t.path)
 
   return (
@@ -33,16 +42,19 @@ export const CommentsPanel = memo(function CommentsPanel(props: {
           ✕
         </button>
       </div>
+      <CommentSearch query={query} onChange={setQuery} matches={searching ? visible.length + drafts.length : null} />
       <div className="min-h-0 flex-1 overflow-y-auto px-1.5 pb-3">
-        {props.drafts.length > 0 && <Drafts drafts={props.drafts} onJump={props.onJump} />}
-        {!visible.length && !props.drafts.length && (
-          <div className="px-3 py-8 text-center text-[12px] text-muted">{props.threads.length ? 'Every thread is resolved.' : 'No review comments yet.'}</div>
+        {drafts.length > 0 && <Drafts drafts={drafts} query={query} onJump={props.onJump} />}
+        {!visible.length && !drafts.length && (
+          <div className="px-3 py-8 text-center text-[12px] text-muted">
+            {searching ? `No comment mentions “${query.trim()}”.` : props.threads.length ? 'Every thread is resolved.' : 'No review comments yet.'}
+          </div>
         )}
         {[...byFile].map(([path, threads]) => (
           <div key={path} className="mb-2">
             <FileHeading path={path} current={path === props.current} />
             {threads.map((t) => (
-              <ThreadItem key={t.rootId} thread={t} onJump={props.onJump} />
+              <ThreadItem key={t.rootId} thread={t} query={query} onJump={props.onJump} />
             ))}
           </div>
         ))}
@@ -60,24 +72,67 @@ function FileHeading({ path, current }: { path: string; current: boolean }) {
   )
 }
 
-function ThreadItem({ thread: t, onJump }: { thread: CommentThread; onJump: (path: string, line: number | null) => void }) {
+/** Filters the panel; `/` focuses it and Escape clears it. */
+function CommentSearch({ query, onChange, matches }: { query: string; onChange: (q: string) => void; matches: number | null }) {
+  const input = useRef<HTMLInputElement>(null)
+  useEffect(() => {
+    const onKey = (e: KeyboardEvent) => {
+      if (e.key !== '/' || e.metaKey || e.ctrlKey || isTyping(e.target)) return
+      e.preventDefault()
+      input.current?.focus()
+    }
+    window.addEventListener('keydown', onKey)
+    return () => window.removeEventListener('keydown', onKey)
+  }, [])
+  return (
+    <div className="px-3 pb-2">
+      <input
+        ref={input}
+        type="search"
+        aria-label="Search comments"
+        placeholder="Search comments  /"
+        className="input py-1 text-[12px]"
+        value={query}
+        onChange={(e) => onChange(e.target.value)}
+        onKeyDown={(e) => {
+          if (e.key === 'Escape') {
+            onChange('')
+            e.currentTarget.blur()
+          }
+        }}
+      />
+      {matches != null && (
+        <div className="mt-1 text-[11px] text-muted">
+          {matches} match{matches === 1 ? '' : 'es'}
+        </div>
+      )}
+    </div>
+  )
+}
+
+function ThreadItem({ thread: t, query, onJump }: { thread: CommentThread; query: string; onJump: JumpTo }) {
   const [root, ...replies] = t.comments
   const last = replies.at(-1)
+  const shown = matchingComment(t, query) ?? root!
   return (
     <button
       className={cx('flex w-full gap-2 rounded px-1.5 py-1.5 text-left hover:bg-hover', t.resolved && 'opacity-60')}
-      onClick={() => onJump(t.path, t.side === 'RIGHT' && !t.outdated ? t.line : null)}
+      onClick={() => onJump(t.path, t.side === 'RIGHT' && !t.outdated ? t.line : null, shown.id)}
       title={t.outdated ? 'The code this thread was on has changed since' : `Go to line ${t.line}`}
     >
       <img src={root!.authorAvatar} alt="" className="mt-0.5 size-5 shrink-0 rounded-full bg-panel-2" />
       <div className="min-w-0 flex-1 text-[12px]">
         <div className="flex items-center gap-1.5">
-          <span className="truncate font-medium">{root!.author}</span>
+          <span className="truncate font-medium">
+            <MatchText text={shown.author} query={query} />
+          </span>
           <span className="shrink-0 font-mono text-[10.5px] text-muted">{describeThreadLine(t)}</span>
           {t.resolved && <span className="chip bg-ok/15 py-0 text-[10px] text-ok">resolved</span>}
           <span className="ml-auto shrink-0 text-[10.5px] text-muted">{ago((last ?? root!).createdAt)}</span>
         </div>
-        <div className="line-clamp-2 text-muted">{summarizeComment(root!.body, 200)}</div>
+        <div className="line-clamp-2 text-muted">
+          <MatchText text={excerptAround(shown.body, query.trim(), 200)} query={query} />
+        </div>
         {last && (
           <div className="mt-0.5 truncate text-[11px] text-muted">
             {replies.length} repl{replies.length === 1 ? 'y' : 'ies'} · last by <span className="text-fg">{last.author}</span>
@@ -88,7 +143,7 @@ function ThreadItem({ thread: t, onJump }: { thread: CommentThread; onJump: (pat
   )
 }
 
-function Drafts({ drafts, onJump }: { drafts: readonly DraftComment[]; onJump: (path: string, line: number | null) => void }) {
+function Drafts({ drafts, query, onJump }: { drafts: readonly DraftComment[]; query: string; onJump: (path: string, line: number | null) => void }) {
   return (
     <div className="mb-2 rounded-md border border-accent/30 bg-accent/5 pb-1">
       <div className="px-1.5 pt-1.5 pb-0.5 text-[10.5px] font-semibold tracking-wide text-accent uppercase">Your pending comments {drafts.length}</div>
@@ -98,7 +153,9 @@ function Drafts({ drafts, onJump }: { drafts: readonly DraftComment[]; onJump: (
             {d.path.slice(d.path.lastIndexOf('/') + 1)}{d.line == null ? ' · file' : `:${d.line}`}
             {d.inReplyTo ? ' · reply' : ''}
           </span>
-          <div className="line-clamp-2">{summarizeComment(d.body, 200)}</div>
+          <div className="line-clamp-2">
+            <MatchText text={excerptAround(d.body, query.trim(), 200)} query={query} />
+          </div>
         </button>
       ))}
     </div>
