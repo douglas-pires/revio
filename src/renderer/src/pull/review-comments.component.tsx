@@ -22,7 +22,30 @@ export function CommentView({ c }: { c: ReviewComment }) {
   )
 }
 
-export function Thread(props: {
+/** What a reviewer can do with comments on a file: draft, edit and delete pending comments, or reply right away. */
+export interface CommentActions {
+  onAddDraft: (d: Omit<DraftComment, 'id'>) => void
+  onUpdateDraft: (id: string, body: string) => void
+  onDeleteDraft: (id: string) => void
+  onReplyNow: (commentId: number, body: string) => Promise<void>
+}
+
+/** A GitHub thread on a file with your drafted replies to it; replies go into your review or out right away. */
+export function ReviewThread({ path, thread, allDrafts, actions }: { path: string; thread: ReviewComment[]; allDrafts: readonly DraftComment[]; actions: CommentActions }) {
+  const root = thread[0]!
+  return (
+    <Thread
+      thread={thread}
+      drafts={allDrafts.filter((d) => d.inReplyTo === root.id)}
+      onReplyNow={(body) => actions.onReplyNow(root.id, body)}
+      onReplyLater={(body) => actions.onAddDraft({ path, side: root.side, line: root.outdated ? null : root.line, body, inReplyTo: root.id })}
+      onUpdateDraft={actions.onUpdateDraft}
+      onDeleteDraft={actions.onDeleteDraft}
+    />
+  )
+}
+
+function Thread(props: {
   thread: ReviewComment[]
   drafts: DraftComment[]
   onReplyNow: (body: string) => Promise<void>

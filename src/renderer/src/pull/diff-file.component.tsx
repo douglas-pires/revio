@@ -12,6 +12,7 @@ import { DiffFileHeader } from './diff-file-header.component'
 import { FileComments } from './file-comments.component'
 import { FocusReasons, OutdatedComments } from './file-notes.component'
 import { LineAnnotations, type ComposerSpec } from './line-annotations.component'
+import type { CommentActions } from './review-comments.component'
 import { UnifiedDiff } from './unified-diff.component'
 import { SplitDiff } from './split-diff.component'
 import { AskClaudeButton } from './ask-claude-button.component'
@@ -76,6 +77,9 @@ export const DiffFile = memo(function DiffFile(props: DiffFileProps) {
   const tokens = useRowTokens(file.path, file.patch, rows, near && !collapsed)
   const blame = useBlame({ repo: props.repo, sha: props.headSha, path: file.path }, props.blame && near && !collapsed && file.status !== 'removed')
 
+  const { onAddDraft, onUpdateDraft, onDeleteDraft, onReplyNow } = props
+  const actions = useMemo<CommentActions>(() => ({ onAddDraft, onUpdateDraft, onDeleteDraft, onReplyNow }), [onAddDraft, onUpdateDraft, onDeleteDraft, onReplyNow])
+
   const focusRanges = useMemo(() => props.focus.map((f) => parseRange(f.lines)).filter((r) => r != null), [props.focus])
   const index = useMemo(() => indexFileComments(file.path, props.comments, props.drafts), [file.path, props.comments, props.drafts])
 
@@ -109,10 +113,7 @@ export const DiffFile = memo(function DiffFile(props: DiffFileProps) {
         drafts={drafts}
         allDrafts={props.drafts}
         composer={composer}
-        onAddDraft={props.onAddDraft}
-        onUpdateDraft={props.onUpdateDraft}
-        onDeleteDraft={props.onDeleteDraft}
-        onReplyNow={props.onReplyNow}
+        actions={actions}
       />
     )
   }
@@ -162,10 +163,7 @@ export const DiffFile = memo(function DiffFile(props: DiffFileProps) {
             drafts={props.drafts}
             composing={composingFileComment}
             onCloseComposer={() => setComposingFileComment(false)}
-            onAddDraft={props.onAddDraft}
-            onUpdateDraft={props.onUpdateDraft}
-            onDeleteDraft={props.onDeleteDraft}
-            onReplyNow={props.onReplyNow}
+            actions={actions}
           />
           <OutdatedComments threads={index.outdatedThreads} />
           {!file.patch ? (
