@@ -4,6 +4,9 @@
   "version": "0.1.0",
   "description": "A focused desktop app for code reviews, with Claude briefings and scoped review guidelines.",
   "private": true,
+  "license": "GPL-3.0-or-later",
+  "author": "Douglas Pires",
+  "homepage": "https://github.com/douglas-pires/revio",
   "type": "module",
   "main": "./out/main/index.js",
   "scripts": {
@@ -47,7 +50,7 @@
     "vitest": "^5.1.0"
   },
   "build": {
-    "appId": "com.stay22.revio",
+    "appId": "io.github.douglas-pires.revio",
     "productName": "Revio",
     "files": [
       "out/**",

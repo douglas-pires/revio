@@ -2,22 +2,22 @@ import { describe, expect, it } from 'vitest'
 import { buildMention, findMentionedHandle, markMentionRead, sortMentions, type RawMentionPr, type RawText } from './mention-match.util'
 
 describe('findMentionedHandle', () => {
-  const handles = ['douglas-pires', 'Stay22/integrations-squad']
+  const handles = ['octo-cat', 'acme/platform-team']
 
   it.each([
-    ['cc @douglas-pires', 'douglas-pires'],
-    ['@Douglas-Pires can you look?', 'douglas-pires'],
-    ['ping @stay22/integrations-squad', 'Stay22/integrations-squad'],
-    ['(@douglas-pires)', 'douglas-pires'],
+    ['cc @octo-cat', 'octo-cat'],
+    ['@Octo-Cat can you look?', 'octo-cat'],
+    ['ping @acme/platform-team', 'acme/platform-team'],
+    ['(@octo-cat)', 'octo-cat'],
   ])('finds %j', (body, handle) => expect(findMentionedHandle(body, handles)).toBe(handle))
 
   it.each([
-    ['@douglas-pires-bot says hi'],
-    ['email douglas@douglas-pires.dev'],
-    ['@stay22/integrations-squad-leads'],
-    ['`@douglas-pires` in code'],
-    ['```\n@douglas-pires\n```'],
-    ['> @douglas-pires asked this earlier\nthanks!'],
+    ['@octo-cat-bot says hi'],
+    ['email someone@example.com'],
+    ['@acme/platform-team-leads'],
+    ['`@octo-cat` in code'],
+    ['```\n@octo-cat\n```'],
+    ['> @octo-cat asked this earlier\nthanks!'],
   ])('ignores %j', (body) => expect(findMentionedHandle(body, handles)).toBeNull())
 })
 

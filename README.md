@@ -2,64 +2,23 @@
 
 # Revio
 
-A desktop app for doing code reviews faster: a review inbox with alerts, your own review guides per repo/folder,
+A macOS desktop app for doing code reviews faster: a review inbox with alerts, your own review guides per repo/folder,
 a GitHub-style diff with draft comments, and a Claude briefing that tells you what a PR does, where to look and what to skip.
 
-Electron 45 · TypeScript 7 · React 19 · Tailwind 4 · electron-vite.
+## Install
 
-## Run
+Download the latest `Revio-<version>-arm64.dmg` from
+[Releases](https://github.com/douglas-pires/revio/releases) and drag Revio into Applications. To build it yourself:
 
 ```bash
 npm install
-npm run dev        # dev app; reloads the window and restarts on main-process changes (--watch)
-npm run typecheck  # tsc 7 (native) for main, renderer and tests
-npm test           # Vitest: diff parsing, alerts, stacks, guidelines, caching, Claude context
-npm run dist       # build a .dmg into dist/
+npm run dev     # run from source
+npm run dist    # build a .dmg into dist/
 ```
 
-## Releases
+## Configuration
 
-Every push to `main` runs `.github/workflows/release.yml` on a macOS runner: typecheck, tests, then an Apple-silicon
-build published as a GitHub release (`Revio-<version>-arm64.dmg`, plus a zip). The version is `package.json`'s
-major.minor with the run number as the patch (0.1.42), so each build is newer than the last; bump major or minor in
-`package.json` for bigger releases. `npm run dist` builds the same thing locally into `dist/` without publishing.
-
-### Signing
-
-Release builds are signed with a Developer ID and notarized by Apple, so a downloaded copy opens with a double click.
-The workflow does this when these repository secrets are set (**Settings → Secrets and variables → Actions**):
-
-| Secret | What it is |
-| --- | --- |
-| `MAC_CERT_P12_BASE64` | Your **Developer ID Application** certificate and its private key, exported from Keychain Access as a `.p12`, then base64-encoded: `base64 -i cert.p12 \| pbcopy` |
-| `MAC_CERT_PASSWORD` | The password you set when exporting the `.p12` |
-| `APPLE_API_KEY_P8` | The contents of an App Store Connect API key file (`AuthKey_XXXXXXXXXX.p8`), used to notarize |
-| `APPLE_API_KEY_ID` | That key's ID (the `XXXXXXXXXX` in the file name) |
-| `APPLE_API_ISSUER` | The Issuer ID shown above the key list in App Store Connect → Users and Access → Integrations |
-
-Create the certificate at developer.apple.com → Certificates (type **Developer ID Application**) or in Xcode → Settings
-→ Accounts → Manage Certificates. Create the API key in App Store Connect → Users and Access → Integrations → App
-Store Connect API, with the **Developer** role; the `.p8` can be downloaded only once.
-
-The workflow checks the result with `codesign`, `stapler` and `spctl`, and fails the run if Apple did not accept it.
-Without the secrets it falls back to an ad-hoc build, which macOS blocks on first launch ("Apple could not verify…");
-allow it with **System Settings → Privacy & Security → Open Anyway** (shown for about an hour after a double-click
-attempt) or `xattr -dr com.apple.quarantine /Applications/Revio.app`.
-
-Locally, `npm run dist` signs with a Developer ID in your keychain if there is one (and notarizes if the `APPLE_API_*`
-variables are set, with `APPLE_API_KEY` as the path to the `.p8`); `npm run dist:adhoc` builds without one.
-
-### Updates
-
-Installed builds check the latest GitHub release a little after launch and every 6 hours; **Revio → Check for
-Updates…** and **Settings → Updates** check on demand. When a newer version is out, a bar at the top offers
-**Download** (the dmg for this Mac) and **What's new**. Install it by dragging the new Revio into Applications. The
-repository is private, so the check uses your GitHub token, and the download opens in your browser where you are
-signed in to GitHub. Running from source only checks when you ask, since any release looks newer than the source
-version.
-
-On macOS, `npm install` and `npm run dev` rename the development `Electron.app` in `node_modules` to `Revio.app`
-(`scripts/brand-dev-electron.mjs`), so ⌘Tab, the menu bar and the Dock show Revio and its icon instead of Electron.
+Most of this lives in **Settings**.
 
 **GitHub:** Revio uses, in order: a token pasted in **Settings → GitHub** (checked with GitHub, then stored encrypted
 via the macOS keychain), `GITHUB_TOKEN` (or `GH_TOKEN`) in the project's `.env` when running from source, then
@@ -67,57 +26,22 @@ via the macOS keychain), `GITHUB_TOKEN` (or `GH_TOKEN`) in the project's `.env` 
 account and its scopes. Team names on team review requests need `read:org`; Settings warns when the token lacks it.
 
 **Claude:** "Auto" uses an Anthropic API key if one is set (Settings or `ANTHROPIC_API_KEY`), otherwise your local
-Claude Code login via `claude -p` with structured JSON output. Default model: `claude-opus-5-5`.
+Claude Code login via `claude -p` with structured JSON output. You can pick the backend (API or CLI) and the model;
+the default model is `claude-opus-5-5`.
 
-## Tests
+**Inbox and alerts:** how often to poll GitHub, whether team review requests count (not only requests to you),
+whether to skip draft PRs, after how many hours a requested review turns *stale* and how often to repeat that alert,
+and which desktop notifications to show (new or re-requested reviews, stale reviews, mentions).
 
-Specs sit next to the code they cover (`inbox-query.util.ts` → `inbox-query.util.spec.ts`); shared fixtures and the
-Electron mock live in `test/`. They cover the logic that is easy to get subtly wrong: diff parsing and split pairing,
-comment anchors, review/stale/mention alert rules, team vs direct requests, stack detection (against a fake GitHub
-GraphQL), guideline scoping, search qualifiers, thread and mention triage, token lookup order, caches, state pruning,
-and how the Claude prompt fits diffs into its budget. Electron and GitHub are mocked; nothing hits the network.
-React components are not tested yet.
+**Updates:** installed builds check the latest GitHub release a little after launch and every 6 hours; **Revio →
+Check for Updates…** and **Settings → Updates** check on demand. When a newer version is out, a bar at the top offers
+**Download** (the dmg for this Mac) and **What's new**; install it by dragging the new Revio into Applications.
 
-## Performance notes
+All data stays on your Mac, in `~/Library/Application Support/Revio/`.
 
-- The inbox is the only screen in the startup bundle (~235 KB minified); the PR page, guides and settings load on first use.
-- Syntax highlighting runs in a Web Worker (`src/renderer/src/highlight/highlight.worker.ts`); grammars load per language.
-- A file's diff body renders only near the visible area (`use-near-viewport.hook.ts`), with a same-height placeholder elsewhere.
-  Bodies with a selection or a focused comment box never unmount.
-- Hovering an inbox row for 150 ms prefetches the PR; a copy up to 2 minutes old opens instantly and refreshes in the background.
-- Stack detection is cached for 15 minutes while the inbox's PRs and branches are unchanged.
-- Per-PR local state (drafts, viewed, chats, briefings) untouched for 45 days is pruned on startup.
+## Features
 
-## How it fits together
-
-Code is grouped by domain. File names are kebab-case `<name>.<role>.ts`, NestJS style:
-
-| Role | Holds |
-| --- | --- |
-| `.service` | Talks to GitHub, Claude, disk or the OS for one domain |
-| `.util` | Pure logic, no I/O; the most tested part |
-| `.client` / `.cache` / `.poller` / `.watcher` | The GitHub client; time-limited caches; scheduled refreshes |
-| `.controller` / `.window` | The IPC API handlers; the app window (main process) |
-| `.types` / `.contract` | Shared types per domain; the renderer ↔ main API |
-| `.view` / `.component` / `.hook` / `.worker` | Screens; React components; React hooks; Web Workers (renderer) |
-| `.spec` | Tests, beside the file they cover |
-
-| Where | What |
-| --- | --- |
-| `src/main/index.ts` | Composition root: creates the services once and wires them together. |
-| `src/main/app/` | `api.controller.ts` answers renderer calls by domain; `app.window.ts` owns the window. |
-| `src/main/inbox/` | Inbox search and sorting, the poller (dock badge = queue size), direct vs team requests. A PR leaves the queue once you have reviewed it since you were asked, even if a team request remains or search lags. |
-| `src/main/alerts/` | When to alert (new/re-requested, stale, mentions; first run records the backlog silently), and macOS notifications. |
-| `src/main/pulls/` | PR details, thread status, reviews, replies; the PR cache; pruning of PRs untouched for 45 days. |
-| `src/main/stacks/` | Walks branch links on GitHub (batched GraphQL) / turns the PRs found into ordered stacks. |
-| `src/main/threads/`, `src/main/mentions/` | Unresolved review threads; PRs that mention you or your teams. |
-| `src/main/github/` | The authenticated client and which token it uses. |
-| `src/main/guidelines/`, `src/main/claude/` | Review guides (all repos → repo → folder); briefings and Ask Claude. |
-| `src/main/store/` | JSON store in `~/Library/Application Support/Revio/revio.json`; tokens encrypted via the macOS keychain. |
-| `src/renderer/src/` | One folder per screen or feature (`inbox`, `threads`, `mentions`, `pull`, `settings`, `guidelines`, `highlight`) plus `common` for shared UI and helpers. |
-| `src/shared/` | Types per domain and the IPC contract, used by both processes. |
-
-## Inbox search
+### Inbox search
 
 The search box (press `/`) takes free text plus GitHub's qualifiers:
 
@@ -134,7 +58,7 @@ Prefix any qualifier with `-` to exclude it. The **Requested from: All · Me · 
 same way. Without the `read:org` scope GitHub hides team names, so team requests are grouped as `@team`;
 `gh auth refresh -s read:org` shows the real names. The search is kept while you open a PR and come back.
 
-## Threads
+### Threads
 
 The inbox's **Threads** tab lists unresolved review threads on open PRs you are involved in (yours, or ones you
 commented on), in two groups: **Waiting on your reply** (someone else spoke last) and **Waiting on others** (your
@@ -145,7 +69,7 @@ file path, comment text, `repo:`, `author:`, `-is:bot`). It covers the 30 most r
 in, and the last 10 comments of each thread; general PR conversation comments are not included, since only review
 threads can be resolved. Threads load when the inbox opens (reused for 2 minutes) and on **Refresh**.
 
-## Stacked PRs
+### Stacked PRs
 
 The inbox has a **Queue / Stacks** switch. Revio detects stacks from branches (a PR whose base branch is another open PR's
 head branch sits on top of it), walking up and down from every PR in your inbox, so stack members that were not
@@ -155,13 +79,18 @@ requested from you show up too (marked *not requested*). Stacks are listed botto
 Inside a stacked PR, a stack bar under the header shows every PR in the stack (with status dots), **‹ Prev / Next ›**,
 and a warning when the PR it builds on is not approved yet.
 
-## Markdown
+### Markdown
 
 PR descriptions, comments, guides and Claude answers render like GitHub: inline HTML (`<details>`, `<img width>`,
 `<p align>`…) sanitized with GitHub's allow-list, and ```` ```mermaid ```` blocks drawn as diagrams (loaded on demand,
-follows light/dark; click a diagram to zoom, hover for **Source**). Images that need a GitHub login become links.
+follows light/dark; click a diagram to zoom, hover for **Source**). Links open in your browser. Images that need a
+GitHub login become links.
 
-## Mentions
+Fenced code is syntax highlighted by its language (```` ```ts ````, ```` ```python ````…), selectable, and has a
+**Copy** button on hover. GitHub ```` ```suggestion ```` blocks are labeled *Suggested change* and highlighted as the
+language of the file they comment on.
+
+### Mentions
 
 The **Mentions** item in the sidebar lists PRs where someone mentioned you (`@you`) or one of your teams
 (`@org/team`, needs `read:org`) in the last 14 days: in the description, a comment, a review or a review comment.
@@ -178,40 +107,39 @@ Each mention shows who, where (file and line for review comments) and the text a
   mentioned"); the first fetch after install records existing ones silently. Mentions refresh with the inbox.
 - Fine-grained tokens cannot read notifications: mentions still show, but none are marked new.
 
-## Comments panel
+### Comments panel
 
 On **Files changed**, the right-hand panel lists every review thread grouped by file (in file-list order), with who
 started it, a preview, replies and the last replier. Open threads show by default; **Show N resolved** reveals the
 rest. Your pending (draft) comments are listed at the top. Clicking an item jumps to its line. The 💬 button in the tab
 bar shows the open count and hides or shows the panel (remembered). The Ask Claude panel takes its place while open.
 
-## Diff tips
+### Diff tips
 
 - Click a line number to comment; **click and drag** down the line numbers (or **shift-click**) to comment on a range.
 - **± Suggest change** inserts a GitHub `suggestion` block with the selected lines.
 - Drafts persist locally until you **Finish review** (Comment / Approve / Request changes), or use **✓ Approve** in the PR header.
-  A chip shows your last review on the PR (e.g. *You approved · new commits since*).
+  Submitting takes you back to the inbox. A chip shows your last review on the PR (e.g. *You approved · new commits since*).
 - "Viewed" resets automatically when a file changes in a new push.
 - **Keyboard:** `j` / `k` next / previous file, `v` toggles viewed and jumps to the next unviewed file (ignored while typing).
 - **Unified / Split** toggle above the files; code is syntax highlighted (Shiki, per hunk, no WebAssembly).
 - Click a branch name in the PR header to copy it (e.g. to `git checkout` it locally).
+- Hover a path that is cut off to see it in full.
 
-## Back and forward
+### Back and forward
 
 Revio keeps a browser-style history of the screens you visit. Go back and forward with the arrows at the top of the
 sidebar, **Go → Back / Forward** (`⌘[` / `⌘]`), your mouse's side buttons, or a three-finger swipe (when "Swipe
 between pages" is on in System Settings). The ← in a PR's header goes back too. Returning to a PR does not repeat
 the jump it was opened with.
 
-## Comment on a whole file
+### Comment on a whole file
 
 **+ File comment** in a file's header comments on the file without picking a line (it expands the file if needed).
 These show under **On this file** at the top of the diff, alongside GitHub's existing file comments, and in the
-comments panel as "file". They are added to your review like line comments: since GitHub's review call cannot
-carry file comments, Revio creates the review pending, adds each file comment to it, then submits it, and deletes
-the pending review if any step fails.
+comments panel as "file". They are added to your review like line comments.
 
-## Blame and file history (GitLens-style)
+### Blame and file history (GitLens-style)
 
 - **Blame** above the files turns on line blame: hover a line to see who last changed it, when, and the commit
   message, after the code. Click it to open the commit on GitHub. Blame is for the PR head and loads per file as you
@@ -222,31 +150,35 @@ the pending review if any step fails.
 - **Commits** tab: the PR's commits, oldest first like GitHub, with author, age and a copyable sha. Expand one for its
   full message and the files it changed, each opening to its diff.
 
-Blame, history, commit files and the commit list are cached per commit sha, since they never change for one.
-
-## Searching comments
+### Searching comments
 
 The comments panel on the right has a search box (`/` to focus, Escape to clear). It filters threads and your pending
 comments by text, author or file path, resolved and outdated threads included, marks the match, and clicking a result
 lands on the matching comment.
 
-## Replying from a mention
+### Replying from a mention
 
 Opening a mention of a review comment lands on that comment with its thread's reply box open: **Reply now** posts
 right away, **Add to review** holds it for your review. Outdated threads can be replied to as well. A mention in the
 PR conversation (or description) shows at the top of the overview with a quote reply ready, posted as a conversation
 comment.
 
-## Reactions
+### Reactions
 
 Review comments show their emoji reactions. Click one to add or take back yours, or **☺+** to pick any of GitHub's
 eight (👍 👎 😄 🎉 😕 ❤️ 🚀 👀). Your reaction shows right away and is sent to GitHub at once (not held for the review);
 if GitHub refuses, it is rolled back with the reason.
 
-## Ask Claude about a selection
+### Ask Claude about a selection
 
 Select code in the diff with the mouse (or use the **✦ Ask Claude** button in the comment box after picking lines in
 the gutter). Claude gets the selected lines, the whole file at the PR head (and at the base for removed lines),
 the PR description, the full diff, your guides and the briefing gist. Answers stream into a side panel; follow-ups
 keep the conversation, and **Use as draft comment** turns an answer into a pending comment on those lines.
-Conversations are saved per PR (header button **✦ N Claude chats**).
+The code the chat is about is highlighted and can be copied. Conversations are saved per PR: the header button
+**✦ N Claude chats** opens the latest, and **Chats N** in the panel lists them all with their first question, so you
+can switch between them or delete one.
+
+## License
+
+[GPL-3.0-or-later](LICENSE).

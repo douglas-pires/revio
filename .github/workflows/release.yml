@@ -1,7 +1,14 @@
 # Builds an installable Revio for macOS on every push to main and publishes it as a GitHub release.
 # The version is the package.json major.minor plus the run number (e.g. 0.1.42), so every build is newer than the
-# last; the app's "Check for updates" compares against the latest release. Builds are signed with a Developer ID and
-# notarized when the signing secrets are set (see README → Signing).
+# last; the app's "Check for updates" compares against the latest release.
+#
+# Signing and notarization use these repository secrets; without all of them the build is ad-hoc signed, which macOS
+# blocks on first launch:
+#   MAC_CERT_P12_BASE64  a "Developer ID Application" certificate with its private key, as a base64-encoded .p12
+#   MAC_CERT_PASSWORD    the .p12's export password
+#   APPLE_API_KEY_P8     an App Store Connect API key (.p8 contents, Developer role), used to notarize
+#   APPLE_API_KEY_ID     that key's ID
+#   APPLE_API_ISSUER     the Issuer ID shown above the key list in App Store Connect
 name: Release
 
 on:
@@ -51,8 +58,7 @@ jobs:
 
       - run: npm run build
 
-      # Signs with the Developer ID certificate and notarizes with an App Store Connect API key when those secrets are
-      # set (see README → Signing). Without them it falls back to an ad-hoc build that macOS blocks on first launch.
+      # Signs and notarizes when the secrets listed at the top are set; otherwise falls back to an ad-hoc build.
       - name: Package
         env:
           CSC_LINK: ${{ secrets.MAC_CERT_P12_BASE64 }}
