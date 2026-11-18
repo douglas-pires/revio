@@ -1,8 +1,12 @@
-import { useEffect, useRef, useState } from 'react'
+import { useEffect, useMemo, useRef, useState } from 'react'
 import type { AskThread } from '@shared/claude.types'
 import type { PullRef } from '@shared/pull.types'
-import { ago, cx, errorMessage } from '../common/format.util'
+import { errorMessage } from '../common/format.util'
 import { Markdown } from '../common/markdown.component'
+import { CopyButton } from '../common/copy-button.component'
+import { snippetRows } from './diff.util'
+import { StaticDiff } from './static-diff.component'
+import { AskHistory } from './ask-history.component'
 
 const QUICK = [
   'What does this change do, and why?',
@@ -16,6 +20,7 @@ export function AskPanel(props: {
   thread: AskThread
   history: AskThread[]
   onSelect: (id: string) => void
+  onDelete: (id: string) => void
   onChange: (thread: AskThread) => void
   onClose: () => void
   onJump: (path: string, line: number) => void
@@ -25,12 +30,16 @@ export function AskPanel(props: {
   const [question, setQuestion] = useState('')
   const [pending, setPending] = useState<string | null>(null)
   const [error, setError] = useState<string | null>(null)
+  /** Showing the list of chats instead of the current one. */
+  const [listing, setListing] = useState(false)
+  const rows = useMemo(() => snippetRows(thread.snippet, thread.side, thread.startLine), [thread.snippet, thread.side, thread.startLine])
   const scroller = useRef<HTMLDivElement>(null)
   const input = useRef<HTMLTextAreaElement>(null)
 
   useEffect(() => {
     input.current?.focus()
     setError(null)
+    setListing(false)
   }, [thread.id])
 
   useEffect(
@@ -75,33 +84,43 @@ export function AskPanel(props: {
         <span className="font-semibold">Ask Claude</span>
         <div className="flex-1" />
         {props.history.length > 1 && (
-          <select className="input w-40 py-0.5 text-[12px]" value={thread.id} onChange={(e) => props.onSelect(e.target.value)}>
-            {props.history.map((t) => (
-              <option key={t.id} value={t.id}>
-                {t.path.split('/').pop()}:{t.startLine} · {t.messages.length ? ago(t.createdAt) : 'new'}
-              </option>
-            ))}
-          </select>
+          <button className={listing ? 'btn btn-primary py-0.5' : 'btn py-0.5'} onClick={() => setListing(!listing)} aria-pressed={listing}>
+            Chats {props.history.length}
+          </button>
         )}
         <button className="btn btn-ghost px-1.5" onClick={props.onClose} title="Close">
           ✕
         </button>
       </header>
 
-      <div ref={scroller} className="min-h-0 flex-1 space-y-3 overflow-x-hidden overflow-y-auto px-3 py-3">
+      {listing ? (
+        <div className="min-h-0 flex-1 overflow-y-auto px-3 py-3">
+          <AskHistory
+            threads={props.history}
+            currentId={thread.id}
+            onOpen={(id) => (id === thread.id ? setListing(false) : props.onSelect(id))}
+            onDelete={props.onDelete}
+          />
+        </div>
+      ) : (
+        <div ref={scroller} className="min-h-0 flex-1 space-y-3 overflow-x-hidden overflow-y-auto px-3 py-3">
         <button
-          className="block w-full text-left font-mono text-[11.5px] text-accent hover:underline"
+          className="block w-full truncate text-left font-mono text-[11.5px] text-accent hover:underline"
+          title={`${thread.path}:${lines}`}
           onClick={() => props.onJump(thread.path, thread.endLine)}
         >
           {thread.path}:{lines} {thread.side === 'LEFT' && <span className="text-muted">(old side)</span>}
         </button>
-        <pre className="selectable max-h-56 overflow-auto rounded-md border border-line bg-bg p-2 font-mono text-[11.5px] leading-[18px]">
-          {thread.snippet.split('\n').map((l, i) => (
-            <div key={i} className={cx(l.startsWith('+') && 'bg-add-bg', l.startsWith('-') && 'bg-del-bg')}>
-              {l || ' '}
-            </div>
-          ))}
-        </pre>
+        <div className="group/snippet selectable relative max-h-56 overflow-auto rounded-md border border-line bg-bg">
+          <StaticDiff path={thread.path} rows={rows} sourceLength={thread.snippet.length} />
+          <CopyButton
+            text={rows.map((r) => r.text).join('\n')}
+            title="Copy code"
+            className="btn btn-ghost absolute top-1 right-1 bg-bg py-0 text-[11px] opacity-0 transition group-hover/snippet:opacity-100 focus:opacity-100"
+          >
+            Copy
+          </CopyButton>
+        </div>
 
         {thread.messages.map((m, i) =>
           m.role === 'user' ? (
@@ -142,8 +161,10 @@ export function AskPanel(props: {
             ))}
           </div>
         )}
-      </div>
+        </div>
+      )}
 
+      {!listing && (
       <div className="border-t border-line p-3">
         <textarea
           ref={input}
@@ -161,6 +182,7 @@ export function AskPanel(props: {
           }}
         />
       </div>
+      )}
     </aside>
   )
 }

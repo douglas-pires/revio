@@ -70,6 +70,7 @@ export default function App() {
             pull={route.pull}
             initialTarget={route.target}
             onBack={() => (canGoBack ? back() : setRoute({ view: 'inbox' }))}
+            onReviewed={() => setRoute({ view: 'inbox' })}
             onEditGuidelines={(repo, path) => setRoute({ view: 'guidelines', repo, path })}
             onOpenPull={openPull}
           />

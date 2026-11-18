@@ -52,7 +52,17 @@ export function usePullLocalState(pull: PullRef) {
     [pull],
   )
 
+  const deleteThread = useCallback(
+    (id: string) =>
+      setLocal((l) => {
+        const asks = (l.asks ?? []).filter((x) => x.id !== id)
+        void window.revio.saveAsks(pull, asks)
+        return { ...l, asks }
+      }),
+    [pull],
+  )
+
   const setBriefingRecord = useCallback((briefing: BriefingRecord) => setLocal((l) => ({ ...l, briefing })), [])
 
-  return { local, replaceLocal: setLocal, addDraft, updateDraft, deleteDraft, forgetDrafts, markViewed, saveThread, setBriefingRecord }
+  return { local, replaceLocal: setLocal, addDraft, updateDraft, deleteDraft, forgetDrafts, markViewed, saveThread, deleteThread, setBriefingRecord }
 }

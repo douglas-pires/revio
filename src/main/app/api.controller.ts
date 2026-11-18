@@ -119,6 +119,8 @@ function pullHandlers({ store, poller, pulls }: ApiDeps): Pick<ApiHandlers, Pull
       const key = pullKey(input)
       const result = await submitReview(input, store.pull(key).drafts)
       store.updatePull(key, (s) => void (s.drafts = []))
+      // The review changed the PR; the next open should fetch it fresh.
+      pulls.forget(input)
       void poller.poll()
       return result
     },

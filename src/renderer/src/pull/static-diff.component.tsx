@@ -23,7 +23,7 @@ export function StaticDiff({ path, rows, sourceLength, markLine }: { path: strin
           const marked = markLine != null && row.kind !== 'del' && row.newNo === markLine
           return (
             <tr key={i} className={cx(rowBg(row.kind), marked && 'shadow-[inset_3px_0_0_var(--color-focus)] !bg-focus/15')}>
-              <td className="w-[1%] px-2 text-right whitespace-nowrap text-muted/70 select-none">{row.kind === 'del' ? row.oldNo : row.newNo}</td>
+              <td className="w-[1%] px-2 text-right whitespace-nowrap text-muted/70 select-none">{row.kind === 'del' ? row.oldNo : (row.newNo ?? row.oldNo)}</td>
               <td className="w-4 text-muted select-none">{row.kind === 'add' ? '+' : row.kind === 'del' ? '−' : ''}</td>
               <td className="pr-3 break-all whitespace-pre-wrap">
                 <TokenText tokens={tokens?.get(i)} text={row.text} />

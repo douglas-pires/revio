@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest'
-import { anchorFor, anchorOf, diffSnippet, keysOf, lineRangeOfRows, newSideText, parsePatch, parseRange, sliceAroundLine, toSplit, type DiffRow } from './diff.util'
+import { anchorFor, anchorOf, diffSnippet, keysOf, lineRangeOfRows, newSideText, snippetRows, parsePatch, parseRange, sliceAroundLine, toSplit, type DiffRow } from './diff.util'
 
 const PATCH = ['@@ -10,4 +10,5 @@ function f() {', ' keep', '-old', '+new', '+extra', ' tail', '\\ No newline at end of file'].join('\n')
 
@@ -129,5 +129,24 @@ describe('lineRangeOfRows', () => {
 
   it('is null for a selection over the hunk header only', () => {
     expect(lineRangeOfRows(rows, 0, 0)).toBeNull()
+  })
+})
+
+describe('snippetRows', () => {
+  const rows = parsePatch(PATCH)
+
+  it('reads back a new-side snippet, numbering new-side lines', () => {
+    expect(snippetRows(diffSnippet(rows, 'RIGHT', 10, 11), 'RIGHT', 10).map((r) => [r.kind, r.text, r.newNo])).toEqual([
+      ['ctx', 'keep', 10],
+      ['del', 'old', null],
+      ['add', 'new', 11],
+    ])
+  })
+
+  it('numbers old-side lines for an old-side snippet', () => {
+    expect(snippetRows(diffSnippet(rows, 'LEFT', 11, 12), 'LEFT', 11).map((r) => [r.kind, r.oldNo])).toEqual([
+      ['del', 11],
+      ['ctx', 12],
+    ])
   })
 })

@@ -116,6 +116,20 @@ export function diffSnippet(rows: readonly DiffRow[], side: DiffSide, start: num
     .join('\n')
 }
 
+/**
+ * Rows back from a `diffSnippet` (each line marked ' ', '+' or '-') that starts at `startLine` on `side`, so the
+ * snippet can be shown as a highlighted diff. Only that side's lines are numbered.
+ */
+export function snippetRows(snippet: string, side: DiffSide, startLine: number): LineRow[] {
+  let next = startLine
+  return snippet.split('\n').map((line) => {
+    const kind = line.startsWith('+') ? 'add' : line.startsWith('-') ? 'del' : 'ctx'
+    const onSide = side === 'RIGHT' ? kind !== 'del' : kind !== 'add'
+    const no = onSide ? next++ : null
+    return { kind, text: line.slice(1), oldNo: side === 'LEFT' ? no : null, newNo: side === 'RIGHT' ? no : null }
+  })
+}
+
 /** The new-side text of lines start..end, used to prefill a suggestion. */
 export function newSideText(rows: readonly DiffRow[], start: number, end: number): string {
   return rows

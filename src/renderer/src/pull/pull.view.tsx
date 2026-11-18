@@ -37,6 +37,8 @@ export function PullView(props: {
   /** Where to open: a file, line or comment (e.g. from a review thread or a mention), or a conversation comment. */
   initialTarget?: PullTarget
   onBack: () => void
+  /** After a review is submitted: the reviewer is done with this PR. */
+  onReviewed: () => void
   onEditGuidelines: (repo: string, path?: string) => void
   onOpenPull: OpenPull
 }) {
@@ -56,11 +58,11 @@ export function PullView(props: {
   const [blame, setBlame] = useStoredChoice('revio.blame', BLAME_STATES, 'off')
   /** The file whose history is open in the side panel. */
   const [historyPath, setHistoryPath] = useState<string | null>(null)
-  const { local, replaceLocal, addDraft, updateDraft, deleteDraft, forgetDrafts, markViewed, saveThread, setBriefingRecord } = usePullLocalState(pull)
+  const { local, replaceLocal, addDraft, updateDraft, deleteDraft, forgetDrafts, markViewed, saveThread, deleteThread, setBriefingRecord } = usePullLocalState(pull)
 
   const showFiles = useCallback(() => setTab('files'), [])
   // The callback runs after an await, by which time `nav` below is defined.
-  const { pr, guides, error, stack, reload, replyNow } = usePullDetail(pull, (p, l) => {
+  const { pr, guides, error, stack, replyNow } = usePullDetail(pull, (p, l) => {
     replaceLocal(l)
     nav.replaceCollapsed(initialCollapsed(p, l))
   })
@@ -144,7 +146,7 @@ export function PullView(props: {
           setReviewBody('')
           setReviewOpen(false)
           forgetDrafts()
-          await reload()
+          props.onReviewed()
           return res.url
         }}
       />
@@ -240,6 +242,10 @@ export function PullView(props: {
             thread={askThread}
             history={[...(askThread.messages.length ? [] : [askThread]), ...asks]}
             onSelect={(id) => setAskThread(asks.find((t) => t.id === id) ?? askThread)}
+            onDelete={(id) => {
+              deleteThread(id)
+              if (id === askThread.id) setAskThread(asks.find((t) => t.id !== id) ?? null)
+            }}
             onChange={updateThread}
             onClose={() => setAskThread(null)}
             onJump={(path, line) => goTo(path, askThread.side === 'RIGHT' ? line : null)}
