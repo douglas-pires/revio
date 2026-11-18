@@ -2,6 +2,7 @@ import type { DiffSide } from '@shared/pull.types'
 import type { DiffRow } from './diff.util'
 import { cx } from '../common/format.util'
 import type { Tok } from '../highlight/highlight.service'
+import { TokenText } from '../highlight/token-text.component'
 
 export const rowBg = (kind: DiffRow['kind']) => (kind === 'add' ? 'bg-add-bg' : kind === 'del' ? 'bg-del-bg' : '')
 
@@ -40,20 +41,6 @@ export function Gutter(props: {
       </span>
       {props.children}
     </td>
-  )
-}
-
-/** A line of code: highlighted tokens when available, else the plain text. */
-export function TokenText({ tokens, text }: { tokens?: readonly Tok[]; text: string }) {
-  if (!tokens?.length) return <>{text || ' '}</>
-  return (
-    <>
-      {tokens.map((t, i) => (
-        <span key={i} className="tok" style={t.style}>
-          {t.text}
-        </span>
-      ))}
-    </>
   )
 }
 

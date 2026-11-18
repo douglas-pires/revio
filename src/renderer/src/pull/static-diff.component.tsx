@@ -2,7 +2,8 @@ import { useEffect, useState } from 'react'
 import { cx } from '../common/format.util'
 import { useHighlighter, type Tok } from '../highlight/highlight.service'
 import type { DiffRow } from './diff.util'
-import { rowBg, TokenText } from './diff-cells.component'
+import { rowBg } from './diff-cells.component'
+import { TokenText } from '../highlight/token-text.component'
 
 /** Read-only, highlighted diff rows (hunk headers included); `markLine` (new side) gets the focus marker. */
 export function StaticDiff({ path, rows, sourceLength, markLine }: { path: string; rows: readonly DiffRow[]; sourceLength: number; markLine?: number }) {
