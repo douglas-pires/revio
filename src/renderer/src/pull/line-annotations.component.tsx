@@ -27,7 +27,7 @@ export function LineAnnotations(props: {
       {props.drafts.map((d) => (
         <DraftView key={d.id} d={d} onUpdate={props.actions.onUpdateDraft} onDelete={props.actions.onDeleteDraft} />
       ))}
-      {props.composer && <Composer {...props.composer} />}
+      {props.composer && <Composer {...props.composer} codePath={props.path} />}
     </div>
   )
 }

@@ -26,6 +26,7 @@ export function FileComments(props: {
       {props.composing && (
         <Composer
           label="Comment on file"
+          codePath={props.path}
           onCancel={props.onCloseComposer}
           onSubmit={(body) => {
             actions.onAddDraft({ path: props.path, side: 'RIGHT', line: null, body })

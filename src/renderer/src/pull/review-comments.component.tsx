@@ -16,7 +16,7 @@ export function CommentView({ c }: { c: ReviewComment }) {
             {ago(c.createdAt)} ago
           </a>
         </div>
-        <Markdown className="text-[12.5px]">{c.body}</Markdown>
+        <Markdown className="text-[12.5px]" codePath={c.path}>{c.body}</Markdown>
         <ReactionBar subjectId={c.nodeId} reactions={c.reactions} />
       </div>
     </div>
@@ -68,6 +68,7 @@ function Thread(props: {
       {replying ? (
         <Composer
           label="Reply"
+          codePath={props.thread[0]?.path}
           onCancel={() => setReplying(false)}
           onSubmit={(body) => {
             props.onReplyLater(body)
@@ -93,6 +94,7 @@ export function DraftView({ d, onUpdate, onDelete }: { d: DraftComment; onUpdate
     return (
       <Composer
         label="Edit draft"
+        codePath={d.path}
         initial={d.body}
         onCancel={() => setEditing(false)}
         onSubmit={(body) => {
@@ -114,7 +116,7 @@ export function DraftView({ d, onUpdate, onDelete }: { d: DraftComment; onUpdate
           Delete
         </button>
       </div>
-      <Markdown className="text-[12.5px]">{d.body}</Markdown>
+      <Markdown className="text-[12.5px]" codePath={d.path}>{d.body}</Markdown>
     </div>
   )
 }
@@ -123,6 +125,8 @@ export function Composer(props: {
   label: string
   initial?: string
   suggestion?: string
+  /** The file being commented on, so the preview highlights ```suggestion blocks. */
+  codePath?: string
   onCancel: () => void
   /** Adds the comment to your pending review. Without it, the box only replies right away. */
   onSubmit?: (body: string) => void
@@ -170,7 +174,7 @@ export function Composer(props: {
       </div>
       {preview ? (
         <div className="min-h-20 rounded-md border border-line p-2">
-          <Markdown className="text-[12.5px]">{body || '_Nothing to preview_'}</Markdown>
+          <Markdown className="text-[12.5px]" codePath={props.codePath}>{body || '_Nothing to preview_'}</Markdown>
         </div>
       ) : (
         <textarea

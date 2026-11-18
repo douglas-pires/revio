@@ -4,6 +4,7 @@ import rehypeRaw from 'rehype-raw'
 import rehypeSanitize, { defaultSchema } from 'rehype-sanitize'
 import remarkGfm from 'remark-gfm'
 import { MermaidBlock } from './mermaid-block.component'
+import { CodeBlock } from './code-block.component'
 
 /**
  * GitHub-flavored markdown with the inline HTML people put in PR descriptions
@@ -38,16 +39,28 @@ function Img({ src, alt, width, height }: { src?: string; alt?: string; width?: 
   return <img src={src} alt={alt} width={width} height={height} onError={() => setBroken(true)} className="inline-block max-w-full rounded" />
 }
 
-/** ```mermaid fences arrive as <pre><code class="language-mermaid">; draw those instead of showing code. */
-function Pre({ children }: { children?: ReactNode }) {
-  if (isValidElement<{ className?: string; children?: ReactNode }>(children) && /\blanguage-mermaid\b/.test(children.props.className ?? '')) {
-    const code = String(children.props.children ?? '').replace(/\n$/, '')
-    return <MermaidBlock code={code} />
-  }
-  return <pre>{children}</pre>
+/** The file extension, used as the language of a ```suggestion block on that file. */
+const extensionOf = (path?: string) => (path?.includes('.') ? path.slice(path.lastIndexOf('.') + 1) : undefined)
+
+/**
+ * Fences arrive as <pre><code class="language-x">. Mermaid is drawn; other code is highlighted with a copy button.
+ * A ```suggestion (a GitHub suggested change) is highlighted as the language of the file it comments on.
+ */
+function Pre({ children, codePath }: { children?: ReactNode; codePath?: string }) {
+  if (!isValidElement<{ className?: string; children?: ReactNode }>(children)) return <pre>{children}</pre>
+  const language = /\blanguage-([\w+#.-]+)/.exec(children.props.className ?? '')?.[1]
+  const code = String(children.props.children ?? '').replace(/\n$/, '')
+  if (language === 'mermaid') return <MermaidBlock code={code} />
+  if (language === 'suggestion') return <CodeBlock code={code} language={extensionOf(codePath)} label="Suggested change" />
+  return <CodeBlock code={code} language={language} />
 }
 
-export const Markdown = memo(function Markdown({ children, className = '' }: { children: string; className?: string }) {
+export const Markdown = memo(function Markdown({ children, className = '', codePath }: {
+  children: string
+  className?: string
+  /** The file this text comments on, for highlighting ```suggestion blocks. */
+  codePath?: string
+}) {
   return (
     <div className={`prose-revio ${className}`}>
       <ReactMarkdown
@@ -65,7 +78,7 @@ export const Markdown = memo(function Markdown({ children, className = '' }: { c
               {children}
             </a>
           ),
-          pre: ({ children }) => <Pre>{children}</Pre>,
+          pre: ({ children }) => <Pre codePath={codePath}>{children}</Pre>,
           img: ({ src, alt, width, height }) => <Img src={typeof src === 'string' ? src : undefined} alt={alt} width={width} height={height} />,
         }}
       >

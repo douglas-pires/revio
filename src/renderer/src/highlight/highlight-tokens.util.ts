@@ -39,6 +39,16 @@ export function languageFor(path: string): string | null {
   return lang in loaders ? lang : null
 }
 
+/** The Shiki language for a fence's info string (```ts, ```typescript, ```py…), or null when unknown. */
+export function languageNamed(name: string): string | null {
+  const key = name.trim().toLowerCase()
+  if (!key) return null
+  if (key in loaders) return key
+  return languageFor(`file.${key}`)
+}
+
+const THEMES = { dark: 'github-dark-default', light: 'github-light-default' } as const
+
 /** Owns one Shiki instance and the languages loaded into it. */
 export class TokenHighlighter {
   #core: Promise<HighlighterCore> | null = null
@@ -64,6 +74,19 @@ export class TokenHighlighter {
     return ready
   }
 
+  /** Tokens per line of a code block, or null when the language is unknown or the code is too large. */
+  async tokenizeCode(language: string, code: string): Promise<Tok[][] | null> {
+    const lang = languageNamed(language)
+    if (!lang || code.length > MAX_PATCH) return null
+    const core = await this.#highlighter()
+    if (!(await this.#ensureLanguage(core, lang))) return null
+    try {
+      return tokenLines(core, code, lang)
+    } catch {
+      return null
+    }
+  }
+
   /**
    * Tokens per row index, or null when the language is unknown or the diff is too large.
    * Each hunk's new side (context + added) and old side (context + removed) is tokenized as one
@@ -79,13 +102,9 @@ export class TokenHighlighter {
     const tokenize = (indices: number[], keep: (row: TokenRow) => boolean) => {
       if (!indices.some((i) => keep(rows[i]!))) return
       try {
-        const lines = core.codeToTokens(indices.map((i) => rows[i]!.text).join('\n'), {
-          lang,
-          themes: { dark: 'github-dark-default', light: 'github-light-default' },
-          defaultColor: false,
-        }).tokens
+        const lines = tokenLines(core, indices.map((i) => rows[i]!.text).join('\n'), lang)
         indices.forEach((rowIdx, n) => {
-          if (keep(rows[rowIdx]!)) out.set(rowIdx, (lines[n] ?? []).map((t) => ({ text: t.content, style: t.htmlStyle })))
+          if (keep(rows[rowIdx]!)) out.set(rowIdx, lines[n] ?? [])
         })
       } catch {
         /* leave these rows plain */
@@ -108,4 +127,10 @@ export class TokenHighlighter {
     flush()
     return out
   }
+}
+
+function tokenLines(core: HighlighterCore, code: string, lang: string): Tok[][] {
+  return core
+    .codeToTokens(code, { lang, themes: THEMES, defaultColor: false })
+    .tokens.map((line) => line.map((t) => ({ text: t.content, style: t.htmlStyle })))
 }
