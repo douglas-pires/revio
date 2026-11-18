@@ -1,5 +1,6 @@
 import { useEffect, useState } from 'react'
 import type { Settings as S, SettingsPatch } from '@shared/settings.types'
+import { EditorSettings } from './editor-settings.component'
 import { GithubTokenSettings } from './github-token-settings.component'
 import { errorMessage } from '../common/format.util'
 import { UpdateSettings } from '../updates/update-settings.component'
@@ -42,6 +43,10 @@ export function Settings() {
             <GithubTokenSettings onSaved={() => void window.revio.getSettings().then(setS)} />
             <Toggle label="Include team review requests" checked={s.includeTeamRequests} onChange={(v) => update({ includeTeamRequests: v })} />
             <Toggle label="Hide draft PRs" checked={s.ignoreDrafts} onChange={(v) => update({ ignoreDrafts: v })} />
+          </Group>
+
+          <Group title="Editor">
+            <EditorSettings settings={s} update={update} />
           </Group>
 
           <Group title="Alerts">

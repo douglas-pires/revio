@@ -4,6 +4,7 @@ import type { Guideline, ResolvedGuideline } from './guideline.types'
 import type { BlameRange, CommitFile, CommitRef, FileAtCommit, FileHistoryEntry, PullCommit } from './history.types'
 import type { Inbox, Stack } from './inbox.types'
 import type { MentionsInbox } from './mention.types'
+import type { EditorInfo, EditorTarget } from './editor.types'
 import type { DraftComment, PullDetail, PullLocalState, PullRef, SubmitReviewInput } from './pull.types'
 import type { ReactionContent, ReactionSummary } from './reaction.types'
 import type { UpdateStatus } from './update.types'
@@ -56,6 +57,13 @@ export interface RevioApi {
   getCommitFiles(at: CommitRef): Promise<CommitFile[]>
   /** The PR's commits, oldest first, as of `headSha`. */
   getPullCommits(ref: PullRef, headSha: string): Promise<PullCommit[]>
+  /** A file's text at a commit, or null when it is missing, binary or too large. */
+  getFileContent(at: FileAtCommit): Promise<string | null>
+
+  /** The editors installed on this Mac that Revio can open files in. */
+  listEditors(): Promise<EditorInfo[]>
+  /** Opens a file of the PR's repository from your local clone, in your editor. Fails with a reason to show. */
+  openInEditor(target: EditorTarget): Promise<void>
 
   listGuidelines(): Promise<Guideline[]>
   saveGuideline(g: Omit<Guideline, 'id' | 'updatedAt'> & { id?: string }): Promise<Guideline>

@@ -15,6 +15,10 @@ export interface Settings {
   ignoreDrafts: boolean
   claudeBackend: ClaudeBackend
   claudeModel: string
+  /** Editor id to open files in ("" = the first one installed). */
+  editor: string
+  /** Extra folders to look for local clones in, besides your home folder. */
+  codeFolders: string[]
   /** Secrets are never sent back to the renderer, only whether they are set. */
   hasGithubToken: boolean
   hasAnthropicKey: boolean

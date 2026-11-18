@@ -6,6 +6,7 @@ import { registerApi } from './app/api.controller'
 import { AppWindow } from './app/app.window'
 import { installAppMenu } from './app/app.menu'
 import { loginShell } from './common/shell.util'
+import { EditorService } from './editor/editor.service'
 import { configureTokenResolver, gh } from './github/github.client'
 import { GithubTokens } from './github/github-tokens.service'
 import { HistoryCache } from './history/history.cache'
@@ -73,7 +74,8 @@ const poller = new InboxPoller({
   onOpenPull: (ref) => window.focusAndOpen(ref),
 })
 
-registerApi({ store, tokens, poller, pulls, history, updates, threads, mentions, window })
+const editor = new EditorService(() => store.settings())
+registerApi({ store, tokens, poller, pulls, history, updates, threads, mentions, editor, window })
 
 app.setName('Revio')
 

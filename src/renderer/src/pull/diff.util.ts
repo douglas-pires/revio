@@ -1,10 +1,22 @@
 import type { DiffSide } from '@shared/pull.types'
 
-export type DiffRow =
-  | { kind: 'hunk'; text: string; oldStart: number; newStart: number }
-  | { kind: 'ctx' | 'add' | 'del'; text: string; oldNo: number | null; newNo: number | null }
+/** Hidden lines a separator row stands for, so it can offer to show them. */
+export interface GapMarker {
+  index: number
+  /** Null when the file's length is not known yet (after the last hunk). */
+  hidden: number | null
+  /** Before the first hunk: only "up" makes sense. */
+  first: boolean
+  /** After the last hunk: only "down" makes sense. */
+  last: boolean
+}
 
-export type LineRow = Exclude<DiffRow, { kind: 'hunk' }>
+export type HunkHeader = { kind: 'hunk'; text: string; oldStart: number; newStart: number; gap?: GapMarker }
+
+/** A line of the diff. `expanded` lines were filled in from the file; GitHub takes no comments on them. */
+export type LineRow = { kind: 'ctx' | 'add' | 'del'; text: string; oldNo: number | null; newNo: number | null; expanded?: true }
+
+export type DiffRow = HunkHeader | LineRow
 
 const HUNK = /^@@ -(\d+)(?:,\d+)? \+(\d+)(?:,\d+)? @@(.*)$/
 
@@ -59,7 +71,7 @@ export function keysOf(row: DiffRow, only?: DiffSide): string[] {
 
 /** Where a new comment on this row (or on one half of it in split view) attaches. */
 export function anchorFor(row: DiffRow, half?: DiffSide): { side: DiffSide; line: number } | null {
-  if (row.kind === 'hunk') return null
+  if (row.kind === 'hunk' || row.expanded) return null
   if (half === 'LEFT') return row.oldNo != null ? { side: 'LEFT', line: row.oldNo } : null
   if (half === 'RIGHT') return row.newNo != null ? { side: 'RIGHT', line: row.newNo } : null
   return anchorOf(row)

@@ -12,11 +12,14 @@ export function Gutter(props: {
   onDown: (shift: boolean) => void
   onEnter?: () => void
   divider?: boolean
+  /** False for lines shown from the file around the diff, which GitHub takes no comments on. */
+  commentable?: boolean
   children: React.ReactNode
 }) {
+  const commentable = props.commentable ?? true
   return (
     <td
-      title="Click to comment · drag or shift-click to select lines"
+      title={commentable ? 'Click to comment · drag or shift-click to select lines' : 'Not part of the diff, so it cannot take comments'}
       onMouseDown={(e) => {
         if (e.button !== 0) return
         e.preventDefault() // no text selection while dragging over lines
@@ -24,7 +27,8 @@ export function Gutter(props: {
       }}
       onMouseEnter={props.onEnter}
       className={cx(
-        'group relative w-[1%] cursor-pointer border-r border-line px-2 text-right align-top whitespace-nowrap text-muted/70 select-none hover:text-fg',
+        'group relative w-[1%] border-r border-line px-2 text-right align-top whitespace-nowrap text-muted/70 select-none hover:text-fg',
+        commentable && 'cursor-pointer',
         props.divider && 'border-l',
         props.focus && 'shadow-[inset_3px_0_0_var(--color-focus)]',
         props.kind === 'add' && 'bg-add-strong/40',
@@ -32,13 +36,13 @@ export function Gutter(props: {
       )}
     >
       {/* Drawn over the next column, but a child of this cell: a press on it reaches the cell's handler. */}
-      <span
+      {commentable && <span
         role="button"
         aria-label="Comment on this line"
         className="absolute top-0.5 -right-2.5 z-[1] hidden size-4 cursor-pointer items-center justify-center rounded bg-accent text-[13px] leading-none text-accent-fg group-hover:flex"
       >
         +
-      </span>
+      </span>}
       {props.children}
     </td>
   )
@@ -62,7 +66,7 @@ export function Half(props: { row: DiffRow; idx: number; half: DiffSide; lineNo:
   const bg = props.selected ? 'bg-accent/20' : props.row.kind === 'ctx' ? '' : rowBg(props.row.kind)
   return (
     <>
-      <Gutter kind={props.row.kind} focus={props.focus} onDown={props.onDown} onEnter={props.onEnter} divider={props.divider}>
+      <Gutter kind={props.row.kind} focus={props.focus} onDown={props.onDown} onEnter={props.onEnter} divider={props.divider} commentable={!(props.row.kind !== 'hunk' && props.row.expanded)}>
         {props.lineNo ?? ''}
       </Gutter>
       <td onMouseEnter={props.onEnter} className={cx('align-top', bg)}>

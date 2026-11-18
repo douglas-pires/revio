@@ -6,12 +6,14 @@ import { generateBriefing } from '../claude/briefing.service'
 import { gh, resetClient } from '../github/github.client'
 import type { GithubTokens } from '../github/github-tokens.service'
 import { deleteGuideline, resolveGuidelines, saveGuideline } from '../guidelines/guidelines.service'
+import type { EditorService } from '../editor/editor.service'
+import { installedEditors } from '../editor/editor.service'
 import type { HistoryCache } from '../history/history.cache'
 import type { UpdatePoller } from '../updates/update.poller'
 import type { InboxPoller } from '../inbox/inbox.poller'
 import type { MentionWatcher } from '../mentions/mentions.watcher'
 import type { PullCache } from '../pulls/pull.cache'
-import { commentOnPull, replyToComment, submitReview } from '../pulls/pull.service'
+import { commentOnPull, fetchFileAt, replyToComment, submitReview } from '../pulls/pull.service'
 import { setReaction } from '../reactions/reactions.service'
 import { fetchStack } from '../stacks/stacks.service'
 import type { store as appStore } from '../store/store.service'
@@ -30,6 +32,7 @@ export interface ApiDeps {
   updates: UpdatePoller
   threads: ThreadCache
   mentions: MentionWatcher
+  editor: EditorService
   window: AppWindow
 }
 
@@ -44,6 +47,8 @@ export function registerApi(deps: ApiDeps) {
     checkForUpdates: () => deps.updates.check(),
     ...guidelineHandlers(deps),
     ...claudeHandlers(deps),
+    listEditors: () => installedEditors(),
+    openInEditor: (target) => deps.editor.open(target),
     openExternal: async (url) => {
       if (/^https?:/.test(url)) await shell.openExternal(url)
     },
@@ -135,13 +140,16 @@ function pullHandlers({ store, poller, pulls }: ApiDeps): Pick<ApiHandlers, Pull
   }
 }
 
-function historyHandlers({ history }: ApiDeps): Pick<ApiHandlers, 'getBlame' | 'getFileHistory' | 'getCommitFilePatch' | 'getCommitFiles' | 'getPullCommits'> {
+type HistoryMethods = 'getBlame' | 'getFileHistory' | 'getCommitFilePatch' | 'getCommitFiles' | 'getPullCommits' | 'getFileContent'
+
+function historyHandlers({ history }: ApiDeps): Pick<ApiHandlers, HistoryMethods> {
   return {
     getBlame: (at) => history.blame(at),
     getFileHistory: (ref, at) => history.fileHistory(ref, at),
     getCommitFilePatch: (at) => history.commitFilePatch(at),
     getCommitFiles: (at) => history.commitFiles(at),
     getPullCommits: (ref, headSha) => history.pullCommits(ref, headSha),
+    getFileContent: (at) => fetchFileAt(at.repo, at.sha, at.path),
   }
 }
 

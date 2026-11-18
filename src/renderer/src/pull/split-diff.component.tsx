@@ -1,10 +1,10 @@
 import { useMemo } from 'react'
-import { anchorFor, keysOf, toSplit, type LineRow } from './diff.util'
+import { anchorFor, keysOf, toSplit, type HunkHeader, type LineRow } from './diff.util'
 import { EmptyHalf, Half, RowGroup } from './diff-cells.component'
 import { HunkRow } from './hunk-row.component'
 import type { DiffTableProps } from './diff-table.types'
 
-export function SplitDiff({ rows, tokens, selection, inFocus, notesFor, onMouseUp, noteFor }: DiffTableProps) {
+export function SplitDiff({ rows, tokens, selection, inFocus, notesFor, onMouseUp, noteFor, onExpand }: DiffTableProps) {
   const split = useMemo(() => toSplit(rows), [rows])
   return (
     <table onMouseUp={onMouseUp} className="w-full table-fixed border-collapse font-mono text-[12px] leading-[20px]">
@@ -18,7 +18,7 @@ export function SplitDiff({ rows, tokens, selection, inFocus, notesFor, onMouseU
       </colgroup>
       <tbody>
         {split.map((sr, i) => {
-          if (sr.kind === 'hunk') return <HunkRow key={i} text={rows[sr.idx]!.text} span={6} />
+          if (sr.kind === 'hunk') return <HunkRow key={i} row={rows[sr.idx] as HunkHeader} span={6} onExpand={onExpand} />
           const L = sr.left != null ? (rows[sr.left] as LineRow) : null
           const R = sr.right != null ? (rows[sr.right] as LineRow) : null
           const la = L ? anchorFor(L, 'LEFT') : null
@@ -27,7 +27,7 @@ export function SplitDiff({ rows, tokens, selection, inFocus, notesFor, onMouseU
           const rightNotes = R ? notesFor(keysOf(R, 'RIGHT'), ra) : null
           return (
             <RowGroup key={i}>
-              <tr data-new-line={R?.newNo ?? undefined}>
+              <tr data-new-line={R?.newNo ?? undefined} data-old-line={L?.oldNo ?? undefined}>
                 {L ? (
                   <Half row={L} idx={sr.left!} half="LEFT" lineNo={L.oldNo} tokens={tokens?.get(sr.left!)} selected={selection.contains(la)} focus={false} onDown={(shift) => selection.press(la, shift)} onEnter={() => selection.over(la)} />
                 ) : (

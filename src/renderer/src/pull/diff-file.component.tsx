@@ -19,6 +19,7 @@ import { AskClaudeButton } from './ask-claude-button.component'
 import { useLineSelection, type Anchor, type LineSelection } from './use-line-selection.hook'
 import { useTextSelectionAsk } from './use-text-selection-ask.hook'
 import { useRowTokens } from './use-row-tokens.hook'
+import { useExpandedContext } from './use-expanded-context.hook'
 import { estimateBodyHeight, useBodyHeight } from './use-body-height.hook'
 import type { DiffTableProps } from './diff-table.types'
 
@@ -63,7 +64,11 @@ const rangeLabel = (s: LineSelection) => `${s.side === 'LEFT' ? 'Old line' : 'Li
 export const DiffFile = memo(function DiffFile(props: DiffFileProps) {
   const { file, collapsed, view } = props
   const setCollapsed = (value: boolean) => props.onToggleCollapsed(file.path, value)
-  const rows = useMemo(() => (file.patch ? parsePatch(file.patch) : []), [file.patch])
+  const patchRows = useMemo(() => (file.patch ? parsePatch(file.patch) : []), [file.patch])
+  // Added and removed files are whole in the diff; there is nothing around them to show.
+  const canExpand = file.status !== 'added' && file.status !== 'removed'
+  const context = useExpandedContext({ repo: props.repo, sha: props.headSha, path: file.path }, patchRows, canExpand)
+  const rows = context.rows
   const selection = useLineSelection()
   const textAsk = useTextSelectionAsk(rows)
   const [composingFileComment, setComposingFileComment] = useState(false)
@@ -126,7 +131,14 @@ export const DiffFile = memo(function DiffFile(props: DiffFileProps) {
       }
     : undefined
 
-  const table: DiffTableProps = { rows, tokens, selection, inFocus, notesFor, onMouseUp: textAsk.onMouseUp, noteFor }
+  const table: DiffTableProps = { rows, tokens, selection, inFocus, notesFor, onMouseUp: textAsk.onMouseUp, noteFor, onExpand: canExpand ? context.expand : undefined }
+
+  // The selected line on the new side, else the first changed line.
+  const editorLine = () => {
+    if (selection.sel?.side === 'RIGHT') return selection.sel.start
+    const changed = patchRows.find((r) => r.kind === 'add') ?? patchRows.find((r) => r.kind !== 'hunk' && r.newNo != null)
+    return changed?.kind === 'hunk' ? undefined : (changed?.newNo ?? undefined)
+  }
 
   return (
     <div
@@ -134,7 +146,8 @@ export const DiffFile = memo(function DiffFile(props: DiffFileProps) {
       onFocus={() => setFocusWithin(true)}
       onBlur={(e) => !e.currentTarget.contains(e.relatedTarget as Node | null) && setFocusWithin(false)}
       id={`file-${file.path}`}
-      className={cx('scroll-mt-2 overflow-hidden rounded-lg border bg-panel', props.current ? 'border-accent ring-1 ring-accent/40' : 'border-line')}
+      // overflow-clip, not overflow-hidden: it rounds the corners without becoming a scroll box, so the header stays sticky.
+      className={cx('scroll-mt-2 overflow-clip rounded-lg border bg-panel', props.current ? 'border-accent ring-1 ring-accent/40' : 'border-line')}
     >
       <DiffFileHeader
         file={file}
@@ -146,6 +159,7 @@ export const DiffFile = memo(function DiffFile(props: DiffFileProps) {
         onToggleCollapsed={() => setCollapsed(!collapsed)}
         onToggleViewed={(viewed) => props.onToggleViewed(file.path, file.sha, viewed)}
         onShowHistory={() => props.onShowHistory(file.path)}
+        onOpenInEditor={() => window.revio.openInEditor({ repo: props.repo, path: file.path, line: editorLine() })}
         blameError={props.blame ? blame.error : null}
         onCommentOnFile={() => {
           setCollapsed(false)
@@ -166,6 +180,7 @@ export const DiffFile = memo(function DiffFile(props: DiffFileProps) {
             actions={actions}
           />
           <OutdatedComments path={file.path} threads={index.outdatedThreads} allDrafts={props.drafts} actions={actions} />
+          {context.error && <div className="border-b border-line px-4 py-1.5 text-[12px] text-danger">Could not show more of the file: {context.error}</div>}
           {!file.patch ? (
             <div className="px-4 py-6 text-center text-muted">Binary file or diff too large to display.</div>
           ) : view === 'unified' ? (

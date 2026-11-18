@@ -32,6 +32,8 @@ const DEFAULT_SETTINGS: StoredSettings = {
   ignoreDrafts: true,
   claudeBackend: 'auto',
   claudeModel: 'claude-opus-5-5',
+  editor: '',
+  codeFolders: [],
 }
 
 const DEFAULT_GUIDELINES: Guideline[] = [

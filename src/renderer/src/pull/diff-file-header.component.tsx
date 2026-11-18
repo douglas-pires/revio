@@ -1,6 +1,8 @@
 import type { FocusItem } from '@shared/claude.types'
 import type { PullFile } from '@shared/pull.types'
+import { CopyButton } from '../common/copy-button.component'
 import { cx } from '../common/format.util'
+import { OpenInEditorButton } from './open-in-editor-button.component'
 
 const STATUS: Record<string, string> = { added: 'A', removed: 'D', modified: 'M', renamed: 'R', copied: 'C', changed: 'M' }
 
@@ -16,6 +18,7 @@ export function DiffFileHeader(props: {
   onToggleViewed: (viewed: boolean) => void
   onCommentOnFile: () => void
   onShowHistory: () => void
+  onOpenInEditor: () => Promise<void>
   /** Why blame could not load for this file, if it failed. */
   blameError?: string | null
 }) {
@@ -31,6 +34,9 @@ export function DiffFileHeader(props: {
         {props.file.previousPath && <span className="text-muted">{props.file.previousPath} → </span>}
         {props.file.path}
       </span>
+      <CopyButton text={props.file.path} title="Copy path" className="btn btn-ghost -ml-1 shrink-0 px-1 py-0 text-[12px]">
+        {''}
+      </CopyButton>
       <span className="shrink-0 font-mono text-[11.5px] whitespace-nowrap">
         <span className="text-ok">+{props.file.additions}</span> <span className="text-danger">−{props.file.deletions}</span>
       </span>
@@ -51,6 +57,7 @@ export function DiffFileHeader(props: {
         </span>
       )}
       <div className="flex-1" />
+      <OpenInEditorButton onOpen={props.onOpenInEditor} />
       <button className="btn btn-ghost shrink-0 py-0 text-[12px] whitespace-nowrap text-muted hover:text-fg" onClick={props.onShowHistory} title="Commits that changed this file">
         History
       </button>
