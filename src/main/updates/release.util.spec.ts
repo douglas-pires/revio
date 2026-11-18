@@ -7,6 +7,13 @@ describe('releaseSourceOf', () => {
     expect(releaseSourceOf({ build: { publish: { provider: 'github', owner: 'o', repo: 'r' } } })).toEqual({ owner: 'o', repo: 'r' })
   })
 
+  it('falls back to the GitHub repository, which is all a packaged app keeps', () => {
+    expect(releaseSourceOf({ repository: { type: 'git', url: 'https://github.com/douglas-pires/revio.git' } })).toEqual({ owner: 'douglas-pires', repo: 'revio' })
+    expect(releaseSourceOf({ repository: 'git+ssh://git@github.com/o/r.git' })).toEqual({ owner: 'o', repo: 'r' })
+    expect(releaseSourceOf({ repository: 'o/r' })).toEqual({ owner: 'o', repo: 'r' })
+    expect(releaseSourceOf({ repository: 'https://gitlab.com/o/r.git' })).toBeNull()
+  })
+
   it('is null without one', () => {
     expect(releaseSourceOf({})).toBeNull()
     expect(releaseSourceOf({ build: { publish: [{ provider: 'github' }] } })).toBeNull()

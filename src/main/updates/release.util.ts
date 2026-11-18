@@ -1,14 +1,29 @@
-/** Where releases are published, from package.json's electron-builder `build.publish` (GitHub only). */
+/** Where releases are published (GitHub only). */
 export interface ReleaseSource {
   owner: string
   repo: string
 }
 
+/**
+ * The release source in package.json: electron-builder's GitHub `build.publish` target, else the GitHub `repository`.
+ * The fallback matters: electron-builder drops `build` from the package.json it packs into the app, so an installed
+ * Revio only has `repository` to go by.
+ */
 export function releaseSourceOf(packageJson: unknown): ReleaseSource | null {
-  const publish = (packageJson as { build?: { publish?: unknown } })?.build?.publish
+  const pkg = packageJson as { build?: { publish?: unknown }; repository?: unknown } | null
+  const publish = pkg?.build?.publish
   const entries = Array.isArray(publish) ? publish : publish ? [publish] : []
   const github = entries.find((p): p is { provider: string; owner: string; repo: string } => !!p && typeof p === 'object' && (p as { provider?: string }).provider === 'github')
-  return github?.owner && github.repo ? { owner: github.owner, repo: github.repo } : null
+  if (github?.owner && github.repo) return { owner: github.owner, repo: github.repo }
+  return githubRepoOf(pkg?.repository)
+}
+
+/** owner/repo from a package.json `repository` (a URL string or { url }), when it is on GitHub. */
+function githubRepoOf(repository: unknown): ReleaseSource | null {
+  const url = typeof repository === 'string' ? repository : (repository as { url?: unknown } | null)?.url
+  if (typeof url !== 'string') return null
+  const m = /^(?:github:)?([\w.-]+)\/([\w.-]+?)(?:\.git)?$/.exec(url) ?? /github\.com[:/]([\w.-]+)\/([\w.-]+?)(?:\.git)?\/?$/.exec(url)
+  return m ? { owner: m[1]!, repo: m[2]! } : null
 }
 
 const parts = (v: string) =>
