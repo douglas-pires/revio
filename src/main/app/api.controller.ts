@@ -48,8 +48,11 @@ export function registerApi(deps: ApiDeps) {
       if (/^https?:/.test(url)) await shell.openExternal(url)
     },
   }
-  ipcMain.handle(IPC.invoke, async (_e, method: ApiMethod, args: unknown[]) => {
-    const fn = handlers[method] as (...a: unknown[]) => unknown
+  ipcMain.handle(IPC.invoke, async (e, method: ApiMethod, args: unknown[]) => {
+    // Calls act with the user's GitHub token, so only the app's own page may make them.
+    if (!deps.window.isAppPage(e.senderFrame?.url)) throw new Error('Revio only answers calls from its own window.')
+    // Own keys only, so a name like "constructor" cannot reach Object.prototype.
+    const fn = Object.hasOwn(handlers, method) ? (handlers[method] as (...a: unknown[]) => unknown) : undefined
     if (!fn) throw new Error(`Unknown method ${method}`)
     return fn(...args)
   })

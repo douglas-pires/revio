@@ -11,7 +11,8 @@ async function mermaidFor(theme: 'dark' | 'default') {
   loader ??= import('mermaid').then((m) => m.default)
   const mermaid = await loader
   if (configuredTheme !== theme) {
-    // strict: no click handlers or HTML labels from the diagram source; output SVG is sanitized.
+    // strict: no click handlers or HTML labels from the diagram source; output SVG is sanitized. Links in the
+    // diagram still render; the block's click handler opens them in the browser.
     mermaid.initialize({ startOnLoad: false, securityLevel: 'strict', theme, fontFamily: 'inherit' })
     configuredTheme = theme
   }
@@ -82,7 +83,17 @@ export function MermaidBlock({ code }: { code: string }) {
         <div
           ref={box}
           title={zoomed ? 'Click to fit' : 'Click to zoom'}
-          onClick={() => setZoomed(!zoomed)}
+          onClick={(e) => {
+            // Diagrams can carry links (`click A "https://…"`). Never let one load in the app window.
+            const link = (e.target as Element).closest('a')
+            if (link) {
+              e.preventDefault()
+              const href = link.getAttribute('href') ?? link.getAttribute('xlink:href')
+              if (href && /^https?:/.test(href)) void window.revio.openExternal(href)
+              return
+            }
+            setZoomed(!zoomed)
+          }}
           className={cx('flex overflow-x-auto [&_svg]:h-auto [&_svg]:shrink-0', zoomed ? 'cursor-zoom-out justify-start' : 'cursor-zoom-in justify-center')}
           dangerouslySetInnerHTML={{ __html: svg }}
         />

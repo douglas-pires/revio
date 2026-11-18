@@ -3,6 +3,7 @@ import { join } from 'node:path'
 import { IPC } from '@shared/api.contract'
 import type { MainEvent } from '@shared/event.types'
 import type { PullRef } from '@shared/pull.types'
+import { isAppPage, type AppPage } from './app-page.util'
 
 /** Delay before routing in a window that is still loading, so the renderer has mounted. */
 const MOUNT_DELAY_MS = 1200
@@ -10,6 +11,15 @@ const MOUNT_DELAY_MS = 1200
 /** The single app window: created on demand, receives main → renderer events. */
 export class AppWindow {
   #win: BrowserWindow | null = null
+  readonly #page: AppPage = {
+    devUrl: process.env.ELECTRON_RENDERER_URL,
+    indexFile: join(import.meta.dirname, '../renderer/index.html'),
+  }
+
+  /** Whether `url` is the app's own page, the only one allowed to call the IPC API. */
+  isAppPage(url: string | undefined) {
+    return isAppPage(url, this.#page)
+  }
 
   create() {
     const win = new BrowserWindow({
@@ -32,11 +42,18 @@ export class AppWindow {
       if (direction === 'left') this.send({ type: 'navigate', direction: 'forward' })
     })
     win.webContents.setWindowOpenHandler(({ url }) => {
-      if (/^https?:/.test(url)) void shell.openExternal(url)
+      openInBrowser(url)
       return { action: 'deny' }
     })
-    if (process.env.ELECTRON_RENDERER_URL) void win.loadURL(process.env.ELECTRON_RENDERER_URL)
-    else void win.loadFile(join(import.meta.dirname, '../renderer/index.html'))
+    // The window only ever shows the app. A link that would load another page here (one inside a Mermaid diagram,
+    // say) opens in the browser instead, so no other page gets the preload's API.
+    win.webContents.on('will-frame-navigate', (e) => {
+      if (this.isAppPage(e.url)) return
+      e.preventDefault()
+      if (e.isMainFrame) openInBrowser(e.url)
+    })
+    if (this.#page.devUrl) void win.loadURL(this.#page.devUrl)
+    else void win.loadFile(this.#page.indexFile)
     this.#win = win
   }
 
@@ -58,4 +75,8 @@ export class AppWindow {
     const event: MainEvent = { type: 'open-pull', ref: { repo: ref.repo, number: ref.number } }
     setTimeout(() => this.send(event), win.webContents.isLoading() ? MOUNT_DELAY_MS : 0)
   }
+}
+
+function openInBrowser(url: string) {
+  if (/^https?:/.test(url)) void shell.openExternal(url)
 }
