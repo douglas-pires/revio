@@ -33,6 +33,10 @@ the default model is `claude-opus-5-5`.
 whether to skip draft PRs, after how many hours a requested review turns *stale* and how often to repeat that alert,
 and which desktop notifications to show (new or re-requested reviews, stale reviews, mentions).
 
+**Editor:** which editor **Open in editor** uses (Cursor, VS Code, Windsurf, Zed, JetBrains IDEs, Sublime Text,
+Nova or Xcode; Automatic picks the first one installed), and extra folders to look for local clones in. Revio finds a
+clone by its GitHub remote, in those folders and your home folder and one level below them.
+
 **Updates:** installed builds check the latest GitHub release a little after launch and every 6 hours; **Revio →
 Check for Updates…** and **Settings → Updates** check on demand. When a newer version is out, a bar at the top offers
 **Download** (the dmg for this Mac) and **What's new**; install it by dragging the new Revio into Applications.
@@ -121,10 +125,17 @@ bar shows the open count and hides or shows the panel (remembered). The Ask Clau
 - Drafts persist locally until you **Finish review** (Comment / Approve / Request changes), or use **✓ Approve** in the PR header.
   Submitting takes you back to the inbox. A chip shows your last review on the PR (e.g. *You approved · new commits since*).
 - "Viewed" resets automatically when a file changes in a new push.
+- **⌘F** finds text in the changed files, including files you have not scrolled to yet: **↵** / **⌘G** next match,
+  **⇧↵** / **⇧⌘G** previous, **Aa** to match case, **Esc** to close.
 - **Keyboard:** `j` / `k` next / previous file, `v` toggles viewed and jumps to the next unviewed file (ignored while typing).
 - **Unified / Split** toggle above the files; code is syntax highlighted (Shiki, per hunk, no WebAssembly).
 - Click a branch name in the PR header to copy it (e.g. to `git checkout` it locally).
-- Hover a path that is cut off to see it in full.
+- Hover a path that is cut off to see it in full; **⧉** next to a file's path copies it.
+- The file header (path, size, History, file comment, Viewed) stays at the top while you scroll through a long file.
+- **↑ / ↓** on a hunk header show 20 more lines of the file above or below it; **↕** shows the rest of a short gap.
+  These lines come from the PR head and take no comments, as on GitHub.
+- **Open in editor** opens the file in your editor from your local clone, at the selected line or the first change.
+  It opens whatever branch you have checked out there.
 
 ### Back and forward
 

@@ -195,3 +195,12 @@ input,
 tr:hover .blame-note {
   display: inline-block;
 }
+
+/* Find in changed files (⌘F), painted with the CSS Custom Highlight API. */
+::highlight(revio-find) {
+  background-color: rgb(250 204 21 / 0.35);
+}
+::highlight(revio-find-current) {
+  background-color: rgb(249 115 22 / 0.85);
+  color: #fff;
+}

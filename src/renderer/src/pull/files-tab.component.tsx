@@ -20,7 +20,7 @@ export function FilesTab(
   },
 ) {
   return (
-    <div className="space-y-3 p-4">
+    <div data-find-scope className="space-y-3 p-4">
       {props.files.map((f) => (
         <DiffFile
           key={f.path}

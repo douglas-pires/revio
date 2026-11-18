@@ -12,14 +12,19 @@ export function useFileNavigation(opts: { pr: PullDetail | null; onFilesTab: boo
   const [current, setCurrent] = useState<string | null>(null)
   const [scrollTarget, setScrollTarget] = useState<ScrollTarget | null>(null)
 
-  const goTo = useCallback(
-    (path: string, line: number | null = null, expand = true, commentId?: number) => {
+  /** Shows the files tab and scrolls to the target, opening its file unless `expand` is false. */
+  const jump = useCallback(
+    (target: ScrollTarget, expand = true) => {
       showFiles()
-      setCurrent(path)
-      if (expand) setCollapsed((c) => ({ ...c, [path]: false }))
-      setScrollTarget({ path, line, commentId })
+      setCurrent(target.path)
+      if (expand) setCollapsed((c) => ({ ...c, [target.path]: false }))
+      setScrollTarget(target)
     },
     [showFiles],
+  )
+  const goTo = useCallback(
+    (path: string, line: number | null = null, expand = true, commentId?: number) => jump({ path, line, commentId }, expand),
+    [jump],
   )
 
   const pendingTarget = useRef(opts.initialTarget)
@@ -36,5 +41,5 @@ export function useFileNavigation(opts: { pr: PullDetail | null; onFilesTab: boo
   const setFileCollapsed = useCallback((path: string, value: boolean) => setCollapsed((c) => ({ ...c, [path]: value })), [])
   const collapseFiles = useCallback((paths: readonly string[]) => setCollapsed((c) => ({ ...c, ...Object.fromEntries(paths.map((p) => [p, true])) })), [])
 
-  return { collapsed, replaceCollapsed: setCollapsed, setFileCollapsed, collapseFiles, current, goTo }
+  return { collapsed, replaceCollapsed: setCollapsed, setFileCollapsed, collapseFiles, current, goTo, jump }
 }

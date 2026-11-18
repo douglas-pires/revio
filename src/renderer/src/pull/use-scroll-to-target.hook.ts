@@ -1,8 +1,11 @@
 import { useEffect } from 'react'
+import type { DiffSide } from '@shared/pull.types'
 
 export interface ScrollTarget {
   path: string
   line: number | null
+  /** Which side `line` counts on; RIGHT (the new file) unless it is a removed line. */
+  side?: DiffSide
   /** A review comment in that file to land on, e.g. the one that mentioned you. */
   commentId?: number
   /** Open the reply box of that comment's thread. */
@@ -48,7 +51,8 @@ function findExact(fileEl: HTMLElement | null, target: ScrollTarget): Element | 
     if (folded) folded.open = true
     return comment
   }
-  return target.line ? (fileEl?.querySelector(`tr[data-new-line="${target.line}"]`) ?? null) : null
+  if (!target.line) return null
+  return fileEl?.querySelector(`tr[${target.side === 'LEFT' ? 'data-old-line' : 'data-new-line'}="${target.line}"]`) ?? null
 }
 
 function flash(el: Element) {

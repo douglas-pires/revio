@@ -22,6 +22,9 @@ import { PullHeader } from './pull-header.component'
 import { PullTabBar, type PullTab } from './pull-tab-bar.component'
 import { OverviewTab } from './overview-tab.component'
 import { FilesTab } from './files-tab.component'
+import { TabPane } from './tab-pane.component'
+import { FindBar } from './find-bar.component'
+import { useDiffFind } from './use-diff-find.hook'
 import { MentionedComment } from './mentioned-comment.component'
 import { FileHistoryPanel } from './file-history-panel.component'
 import { CommitsTab } from './commits-tab.component'
@@ -93,6 +96,7 @@ export function PullView(props: {
 
   /** Folder-grouped order, shared by the sidebar, the diff list and j/k. */
   const orderedFiles = useMemo(() => (pr ? groupByDir(pr.files).flatMap(([, fs]) => fs) : []), [pr])
+  const find = useDiffFind({ files: orderedFiles, jump: nav.jump, onFilesTab: tab === 'files', showFiles })
   const commentThreads = useMemo(() => groupCommentThreads(pr?.comments ?? [], pr?.threads ?? [], orderedFiles.map((f) => f.path)), [pr, orderedFiles])
   const rightLines = useMemo(() => newSideLinesByPath(pr), [pr])
   const patchOf = useCallback((path: string) => pr?.files.find((f) => f.path === path)?.patch, [pr])
@@ -173,59 +177,61 @@ export function PullView(props: {
             onView={changeView}
           />
 
-          <div data-scroll-root className="min-h-0 flex-1 overflow-x-hidden overflow-y-auto">
-            {tab === 'overview' && (
-              <OverviewTab
-                pr={pr}
-                guides={guides}
-                onEditGuidelines={props.onEditGuidelines}
-                mentioned={quote && <MentionedComment quote={quote} onReply={(body) => window.revio.commentOnPull(pull, body)} onDismiss={() => setQuote(null)} />}
-                briefing={
-                  <BriefingPanel
-                    record={local.briefing}
-                    headSha={pr.headSha}
-                    {...briefing.status}
-                    onGenerate={briefing.generate}
-                    onJump={(path, line) => goTo(path, line)}
-                    validLine={(path, line) => !!rightLines.get(path)?.has(line)}
-                    patchOf={patchOf}
-                    onDraft={(path, line, body) => {
-                      addDraft({ path, line, side: 'RIGHT', body })
-                      goTo(path, line)
-                    }}
-                    onAddToSummary={(q) => setReviewBody((b) => `${b}${b ? '\n' : ''}- ${q}`)}
-                  />
-                }
-              />
-            )}
+          {tab === 'files' && find.open && <FindBar find={find} />}
 
-            {tab === 'commits' && <CommitsTab pull={pull} headSha={pr.headSha} />}
+          <TabPane active={tab === 'overview'}>
+            <OverviewTab
+              pr={pr}
+              guides={guides}
+              onEditGuidelines={props.onEditGuidelines}
+              mentioned={quote && <MentionedComment quote={quote} onReply={(body) => window.revio.commentOnPull(pull, body)} onDismiss={() => setQuote(null)} />}
+              briefing={
+                <BriefingPanel
+                  record={local.briefing}
+                  headSha={pr.headSha}
+                  {...briefing.status}
+                  onGenerate={briefing.generate}
+                  onJump={(path, line) => goTo(path, line)}
+                  validLine={(path, line) => !!rightLines.get(path)?.has(line)}
+                  patchOf={patchOf}
+                  onDraft={(path, line, body) => {
+                    addDraft({ path, line, side: 'RIGHT', body })
+                    goTo(path, line)
+                  }}
+                  onAddToSummary={(q) => setReviewBody((b) => `${b}${b ? '\n' : ''}- ${q}`)}
+                />
+              }
+            />
+          </TabPane>
 
-            {tab === 'files' && (
-              <FilesTab
-                files={orderedFiles}
-                view={view}
-                repo={repo}
-                headSha={pr.headSha}
-                blame={blame === 'on'}
-                onShowHistory={setHistoryPath}
-                commentsByPath={commentsByPath}
-                draftsByPath={draftsByPath}
-                focusByPath={focusByPath}
-                ignoreByPath={ignoreByPath}
-                viewed={local.viewed}
-                collapsed={nav.collapsed}
-                current={nav.current}
-                onToggleCollapsed={nav.setFileCollapsed}
-                onToggleViewed={toggleViewed}
-                onAddDraft={addDraft}
-                onUpdateDraft={updateDraft}
-                onDeleteDraft={deleteDraft}
-                onReplyNow={replyNow}
-                onAsk={startAsk}
-              />
-            )}
-          </div>
+          <TabPane active={tab === 'commits'}>
+            <CommitsTab pull={pull} headSha={pr.headSha} />
+          </TabPane>
+
+          <TabPane active={tab === 'files'}>
+            <FilesTab
+              files={orderedFiles}
+              view={view}
+              repo={repo}
+              headSha={pr.headSha}
+              blame={blame === 'on'}
+              onShowHistory={setHistoryPath}
+              commentsByPath={commentsByPath}
+              draftsByPath={draftsByPath}
+              focusByPath={focusByPath}
+              ignoreByPath={ignoreByPath}
+              viewed={local.viewed}
+              collapsed={nav.collapsed}
+              current={nav.current}
+              onToggleCollapsed={nav.setFileCollapsed}
+              onToggleViewed={toggleViewed}
+              onAddDraft={addDraft}
+              onUpdateDraft={updateDraft}
+              onDeleteDraft={deleteDraft}
+              onReplyNow={replyNow}
+              onAsk={startAsk}
+            />
+          </TabPane>
         </section>
 
         {tab === 'files' && historyPath && !askThread && (
