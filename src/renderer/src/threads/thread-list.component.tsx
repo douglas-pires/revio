@@ -115,7 +115,7 @@ function ThreadSummary({ thread: t, dimmed, onOpen }: { thread: OpenThread; dimm
       <img src={last.authorAvatar} alt="" className="mt-0.5 size-6 shrink-0 rounded-full bg-panel-2" />
       <div className="min-w-0 flex-1">
         <div className="flex items-center gap-2 text-[12px]">
-          <code className="truncate">
+          <code className="truncate" title={`${t.path}${t.line ? `:${t.line}` : ''}`}>
             {t.path}
             {t.line ? `:${t.line}` : ''}
           </code>

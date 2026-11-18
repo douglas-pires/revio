@@ -98,7 +98,7 @@ function CommitFiles({ repo, sha }: { repo: string; sha: string }) {
             <svg viewBox="0 0 16 16" className={cx('size-3 shrink-0 text-muted transition', !shown.has(f.path) && '-rotate-90')} fill="currentColor">
               <path d="M4 6l4 4 4-4z" />
             </svg>
-            <span className="min-w-0 flex-1 truncate font-mono text-[12px]">
+            <span className="min-w-0 flex-1 truncate font-mono text-[12px]" title={f.previousPath ? `${f.previousPath} → ${f.path}` : f.path}>
               {f.previousPath && <span className="text-muted">{f.previousPath} → </span>}
               {f.path}
             </span>

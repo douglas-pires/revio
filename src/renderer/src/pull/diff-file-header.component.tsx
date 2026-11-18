@@ -27,7 +27,7 @@ export function DiffFileHeader(props: {
         </svg>
       </button>
       <span className="chip shrink-0 bg-panel font-mono text-muted">{STATUS[props.file.status] ?? '?'}</span>
-      <span className="selectable min-w-0 truncate font-mono text-[12px]">
+      <span className="selectable min-w-0 truncate font-mono text-[12px]" title={props.file.previousPath ? `${props.file.previousPath} → ${props.file.path}` : props.file.path}>
         {props.file.previousPath && <span className="text-muted">{props.file.previousPath} → </span>}
         {props.file.path}
       </span>

@@ -122,7 +122,7 @@ function SnippetRow({ snippet: s, viewer, onOpen }: { snippet: MentionSnippet; v
             {s.viaTeam && <span className="chip bg-panel-2 text-muted">@{s.viaTeam}</span>}
             <span className="text-muted">{WHERE[s.kind]}</span>
             {s.path && (
-              <code className="truncate text-[11.5px]">
+              <code className="truncate text-[11.5px]" title={`${s.path}${s.line ? `:${s.line}` : ''}`}>
                 {s.path}
                 {s.line ? `:${s.line}` : ''}
               </code>

@@ -299,7 +299,7 @@ function Stacks({ stacks, filtering, focus, onOpen }: { stacks: readonly Stack[]
                       {pr.reviewDecision === 'APPROVED' && <span className="chip bg-ok/15 text-ok">approved</span>}
                       {pr.reviewDecision === 'CHANGES_REQUESTED' && <span className="chip bg-danger/15 text-danger">changes requested</span>}
                     </div>
-                    <div className="mt-0.5 truncate font-mono text-[11.5px] text-muted">
+                    <div className="mt-0.5 truncate font-mono text-[11.5px] text-muted" title={`${pr.headRef} → ${pr.baseRef}`}>
                       #{pr.number} · {pr.author} · {pr.headRef} → {pr.baseRef}
                     </div>
                   </div>
