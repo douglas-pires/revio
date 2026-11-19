@@ -5,6 +5,27 @@
 A macOS desktop app for doing code reviews faster: a review inbox with alerts, your own review guides per repo/folder,
 a GitHub-style diff with draft comments, and a Claude briefing that tells you what a PR does, where to look and what to skip.
 
+<picture>
+  <source media="(prefers-color-scheme: dark)" srcset="docs/screenshots/inbox-dark.png">
+  <img src="docs/screenshots/inbox-light.png" alt="The review inbox: stale requests first, then PRs waiting on you, with stacked PRs tagged by position">
+</picture>
+
+**Claude briefing:** what the PR does, which lines to review first, possible issues with a one-click draft comment,
+and what to skip.
+
+<picture>
+  <source media="(prefers-color-scheme: dark)" srcset="docs/screenshots/briefing-dark.png">
+  <img src="docs/screenshots/briefing-light.png" alt="A PR overview with the Claude briefing: gist, files to review first and possible issues">
+</picture>
+
+**Diff and comments:** a GitHub-style diff with focus markers, threads and reactions, your pending comments, and
+viewed-file tracking.
+
+<picture>
+  <source media="(prefers-color-scheme: dark)" srcset="docs/screenshots/diff-dark.png">
+  <img src="docs/screenshots/diff-light.png" alt="The files tab: a highlighted diff with a review thread, the file tree and the comments panel">
+</picture>
+
 ## Install
 
 Download the latest `Revio-<version>-arm64.dmg` from
