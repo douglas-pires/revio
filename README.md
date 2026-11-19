@@ -11,9 +11,9 @@ Download the latest `Revio-<version>-arm64.dmg` from
 [Releases](https://github.com/douglas-pires/revio/releases) and drag Revio into Applications. To build it yourself:
 
 ```bash
-npm install
-npm run dev     # run from source
-npm run dist    # build a .dmg into dist/
+pnpm install
+pnpm dev        # run from source
+pnpm dist       # build a .dmg into dist/
 ```
 
 ## Configuration

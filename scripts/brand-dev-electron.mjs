@@ -1,8 +1,8 @@
 // Renames the development Electron.app to Revio.app, so ⌘Tab, the menu bar and the Dock say "Revio" (with its icon)
-// while running `npm run dev`. macOS takes an app's name from its bundle folder as well as its Info.plist, so both
+// while running `pnpm dev`. macOS takes an app's name from its bundle folder as well as its Info.plist, so both
 // change, and Electron's path.txt (which `electron` and electron-vite use to find the binary) points at the new folder.
-// Packaged builds are named by electron-builder and do not need this. Runs after `npm install` and before
-// `npm run dev`; it does nothing when already done.
+// Packaged builds are named by electron-builder and do not need this. Runs after `pnpm install` and before
+// `pnpm dev`; it does nothing when already done.
 import { execFileSync } from 'node:child_process'
 import { copyFileSync, existsSync, readFileSync, renameSync, rmSync, writeFileSync } from 'node:fs'
 import { createRequire } from 'node:module'
@@ -21,7 +21,7 @@ const LSREGISTER = '/System/Library/Frameworks/CoreServices.framework/Frameworks
 if (process.platform !== 'darwin' || process.env.CI || !existsSync(electronDir)) process.exit(0)
 
 // Electron 45+ downloads its binary the first time it is required, not on install; fetch it now so there is a bundle
-// to rename before the first `npm run dev`.
+// to rename before the first `pnpm dev`.
 try {
   createRequire(import.meta.url)(electronDir)
 } catch (err) {

@@ -31,23 +31,25 @@ jobs:
         with:
           fetch-depth: 0
 
+      - uses: pnpm/action-setup@v4
+
       - uses: actions/setup-node@v5
         with:
           node-version: 24
-          cache: npm
+          cache: pnpm
 
-      - run: npm ci
+      - run: pnpm install --frozen-lockfile
 
-      - run: npm run typecheck
+      - run: pnpm typecheck
 
-      - run: npm test
+      - run: pnpm test
 
       - name: Set the version
         id: version
         run: |
           base=$(node -p "require('./package.json').version.split('.').slice(0, 2).join('.')")
           version="$base.${{ github.run_number }}"
-          npm version "$version" --no-git-tag-version
+          pnpm pkg set version="$version"
           echo "version=$version" >> "$GITHUB_OUTPUT"
 
       - name: Release notes
@@ -56,7 +58,7 @@ jobs:
           range=${previous:+$previous..}HEAD
           git log --no-merges --format='- %s' "$range" | head -50 > release-notes.md
 
-      - run: npm run build
+      - run: pnpm build
 
       # Signs and notarizes when the secrets listed at the top are set; otherwise falls back to an ad-hoc build.
       - name: Package
@@ -78,7 +80,7 @@ jobs:
           if [ ${#missing[@]} -eq 0 ]; then
             export APPLE_API_KEY="$RUNNER_TEMP/AuthKey.p8"
             printf '%s' "$APPLE_API_KEY_P8" > "$APPLE_API_KEY"
-            npx electron-builder --mac --arm64 --publish never
+            pnpm exec electron-builder --mac --arm64 --publish never
             app=dist/mac-arm64/Revio.app
             codesign --verify --deep --strict "$app"
             xcrun stapler validate "$app"
@@ -86,7 +88,7 @@ jobs:
           else
             echo "::warning::Signing secrets are not set; building an ad-hoc signed app that macOS will block on first launch."
             unset CSC_LINK CSC_KEY_PASSWORD
-            CSC_IDENTITY_AUTO_DISCOVERY=false npx electron-builder --mac --arm64 --publish never -c.mac.identity=-
+            CSC_IDENTITY_AUTO_DISCOVERY=false pnpm exec electron-builder --mac --arm64 --publish never -c.mac.identity=-
           fi
 
       # One release with every file, created in a single call. electron-builder's own publishing uploads the dmg and

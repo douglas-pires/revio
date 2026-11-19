@@ -77,5 +77,6 @@
   "repository": {
     "type": "git",
     "url": "https://github.com/douglas-pires/revio.git"
-  }
+  },
+  "packageManager": "pnpm@12.8.1"
 }
