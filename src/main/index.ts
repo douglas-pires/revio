@@ -5,7 +5,7 @@ import { showNotification } from './alerts/notification.service'
 import { registerApi } from './app/api.controller'
 import { AppWindow } from './app/app.window'
 import { installAppMenu } from './app/app.menu'
-import { loginShell } from './common/shell.util'
+import { runWithInput } from './common/shell.util'
 import { EditorService } from './editor/editor.service'
 import { configureTokenResolver, gh } from './github/github.client'
 import { GithubTokens } from './github/github-tokens.service'
@@ -33,7 +33,8 @@ const tokens = new GithubTokens({
   save: (token) => store.updateSettings({ githubToken: token }),
   dotEnvPath: app.isPackaged ? null : join(app.getAppPath(), '.env'),
   env: process.env,
-  readCliToken: () => loginShell('gh auth token'),
+  // `gh` straight from the login-shell PATH (looked up once), not a login shell per call.
+  readCliToken: async () => (await runWithInput('gh', ['auth', 'token'], '', { timeoutMs: 15_000 })).trim(),
 })
 configureTokenResolver(() => tokens.resolve())
 const pulls = new PullCache(fetchPull)

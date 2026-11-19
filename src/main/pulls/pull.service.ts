@@ -6,6 +6,7 @@ import { planReview, type ReviewPlan } from './review-plan.util'
 import type { ReactionSummary } from '@shared/reaction.types'
 import { toReactionSummaries, type RawReactionGroup } from '@shared/reaction.util'
 import { REACTION_GROUPS } from '../reactions/reactions.service'
+import { MemoCache } from '../common/memo.cache'
 
 interface ThreadMeta {
   threads: PullThreadStatus[]
@@ -184,12 +185,15 @@ export async function commentOnPull({ repo: repoFull, number }: PullRef, body: s
   return { url: data.html_url }
 }
 
-const fileCache = new Map<string, string | null>()
+/** Whole files are large, so only the most recent ones are kept; concurrent requests for one share a fetch. */
+const fileCache = new MemoCache<string | null>(50)
 
 /** Raw file content at a commit, or null when missing/binary/too large. Cached per sha. */
-export async function fetchFileAt(repoFull: string, ref: string, path: string): Promise<string | null> {
-  const key = `${repoFull}@${ref}:${path}`
-  if (fileCache.has(key)) return fileCache.get(key)!
+export function fetchFileAt(repoFull: string, ref: string, path: string): Promise<string | null> {
+  return fileCache.get(`${repoFull}@${ref}:${path}`, () => loadFileAt(repoFull, ref, path))
+}
+
+async function loadFileAt(repoFull: string, ref: string, path: string): Promise<string | null> {
   const octokit = await gh()
   const { owner, repo } = splitRepo(repoFull)
   let text: string | null = null
@@ -202,6 +206,5 @@ export async function fetchFileAt(repoFull: string, ref: string, path: string): 
   } catch {
     text = null
   }
-  fileCache.set(key, text)
   return text
 }

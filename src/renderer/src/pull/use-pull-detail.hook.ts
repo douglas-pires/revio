@@ -3,6 +3,7 @@ import type { ResolvedGuideline } from '@shared/guideline.types'
 import type { Stack } from '@shared/inbox.types'
 import type { PullDetail, PullLocalState, PullRef } from '@shared/pull.types'
 import { errorMessage } from '../common/format.util'
+import { hasSameContent } from './pull-content.util'
 
 /** A prefetched copy this recent is shown immediately. */
 const PREFETCH_MAX_AGE_MS = 2 * 60_000
@@ -20,6 +21,8 @@ export function usePullDetail(pull: PullRef, onLoaded: (pr: PullDetail, local: P
   const [stack, setStack] = useState<Stack | null>(null)
   const loaded = useRef(onLoaded)
   loaded.current = onLoaded
+  /** A refetch that changed nothing keeps the current object, so memoized views stay put. */
+  const showPr = useCallback((next: PullDetail) => setPr((prev) => (hasSameContent(prev, next) ? prev : next)), [])
 
   const load = useCallback(
     async (maxAgeMs = 0) => {
@@ -32,13 +35,13 @@ export function usePullDetail(pull: PullRef, onLoaded: (pr: PullDetail, local: P
         if (Date.now() - new Date(p.fetchedAt).getTime() > FRESH_ENOUGH_MS)
           window.revio
             .getPull(pull)
-            .then(setPr)
+            .then(showPr)
             .catch(() => {})
       } catch (e) {
         setError(errorMessage(e))
       }
     },
-    [pull],
+    [pull, showPr],
   )
 
   useEffect(() => {
@@ -56,9 +59,9 @@ export function usePullDetail(pull: PullRef, onLoaded: (pr: PullDetail, local: P
   const replyNow = useCallback(
     async (commentId: number, body: string) => {
       await window.revio.replyToComment(pull, commentId, body)
-      setPr(await window.revio.getPull(pull))
+      showPr(await window.revio.getPull(pull))
     },
-    [pull],
+    [pull, showPr],
   )
 
   return { pr, guides, error, stack, reload: () => load(), replyNow }

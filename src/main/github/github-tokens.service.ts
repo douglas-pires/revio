@@ -16,13 +16,22 @@ export interface TokenSources {
   dotEnvPath: string | null
   env: Readonly<Record<string, string | undefined>>
   readCliToken: () => Promise<string>
+  /** For tests; defaults to Date.now. */
+  now?: () => number
 }
+
+/**
+ * How long a token from the GitHub CLI is reused. Every GitHub call resolves the token, and asking `gh` costs a
+ * process launch, so the answer is kept briefly; a new `gh auth login` still applies within a minute.
+ */
+export const CLI_TOKEN_TTL_MS = 60_000
 
 type Candidate = [GithubTokenSource, () => string | undefined | Promise<string | undefined>]
 
 /** The GitHub token in use, what it can do, and saving a pasted one. */
 export class GithubTokens {
   readonly #sources: TokenSources
+  #cliToken: { token: string; at: number } | null = null
 
   constructor(sources: TokenSources) {
     this.#sources = sources
@@ -63,8 +72,17 @@ export class GithubTokens {
       ['dotenv', () => readDotEnvToken(s.dotEnvPath)],
       ['GH_TOKEN', () => s.env.GH_TOKEN],
       ['GITHUB_TOKEN', () => s.env.GITHUB_TOKEN],
-      ['gh-cli', () => s.readCliToken().catch(() => undefined)],
+      ['gh-cli', () => this.#readCliToken()],
     ]
+  }
+
+  /** The CLI's token, reused for CLI_TOKEN_TTL_MS. Failures are not kept, so a later login is picked up at once. */
+  async #readCliToken(): Promise<string | undefined> {
+    const now = this.#sources.now ?? Date.now
+    if (this.#cliToken && now() - this.#cliToken.at < CLI_TOKEN_TTL_MS) return this.#cliToken.token
+    const token = await this.#sources.readCliToken().catch(() => '')
+    this.#cliToken = token ? { token, at: now() } : null
+    return token || undefined
   }
 }
 
