@@ -1,5 +1,5 @@
+import type { ReactionContent, ReactionSummary } from '@shared/reaction.types.ts'
 import { createContext, useContext } from 'react'
-import type { ReactionContent, ReactionSummary } from '@shared/reaction.types'
 
 /** Sets your reaction on a comment (by GraphQL id) and returns its reactions after. */
 export type SetReaction = (subjectId: string, content: ReactionContent, on: boolean) => Promise<ReactionSummary[]>

@@ -1,9 +1,22 @@
-import type { FocusItem } from '@shared/claude.types'
-import type { DraftComment, PullFile, ReviewComment } from '@shared/pull.types'
-import { EMPTY } from '../common/group.util'
-import { DiffFile, type DiffFileProps, type DiffView } from './diff-file.component'
+import type { FocusItem } from '@shared/claude.types.ts'
+import type { DraftComment, PullFile, ReviewComment } from '@shared/pull.types.ts'
+import { EMPTY } from '../common/group.util.ts'
+import { DiffFile, type DiffFileProps, type DiffView } from './diff-file.component.tsx'
 
-type FileCallbacks = Pick<DiffFileProps, 'repo' | 'headSha' | 'blame' | 'onShowHistory' | 'onToggleCollapsed' | 'onToggleViewed' | 'onAddDraft' | 'onUpdateDraft' | 'onDeleteDraft' | 'onReplyNow' | 'onAsk'>
+type FileCallbacks = Pick<
+  DiffFileProps,
+  | 'repo'
+  | 'headSha'
+  | 'blame'
+  | 'onShowHistory'
+  | 'onToggleCollapsed'
+  | 'onToggleViewed'
+  | 'onAddDraft'
+  | 'onUpdateDraft'
+  | 'onDeleteDraft'
+  | 'onReplyNow'
+  | 'onAsk'
+>
 
 /** Every changed file's diff, in the sidebar's order. */
 export function FilesTab(
@@ -20,7 +33,7 @@ export function FilesTab(
   },
 ) {
   return (
-    <div data-find-scope className="space-y-3 p-4">
+    <div data-find-scope={true} className="space-y-3 p-4">
       {props.files.map((f) => (
         <DiffFile
           key={f.path}
@@ -35,7 +48,7 @@ export function FilesTab(
           focus={props.focusByPath.get(f.path) ?? EMPTY}
           ignoreReason={props.ignoreByPath.get(f.path)}
           viewed={props.viewed[f.path] === f.sha}
-          collapsed={!!props.collapsed[f.path]}
+          collapsed={Boolean(props.collapsed[f.path])}
           current={props.current === f.path}
           onToggleCollapsed={props.onToggleCollapsed}
           onToggleViewed={props.onToggleViewed}

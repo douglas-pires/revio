@@ -1,13 +1,18 @@
 import { useEffect, useId, useRef, useState } from 'react'
-import { cx } from './format.util'
+import { cx, errorMessage } from './format.util.ts'
+import { onActivateKey } from './keyboard.util.ts'
 
-type MermaidApi = (typeof import('mermaid'))['default']
+type MermaidApi = typeof import('mermaid')['default']
+type MermaidTheme = 'dark' | 'default'
+
+const WEB_URL = /^https?:/u
+const NOT_ID_CHARACTERS = /[^a-zA-Z0-9]/gu
 
 let loader: Promise<MermaidApi> | null = null
 let configuredTheme: string | null = null
 
 /** Mermaid is large, so it is loaded the first time a diagram is on screen. */
-async function mermaidFor(theme: 'dark' | 'default') {
+async function mermaidFor(theme: MermaidTheme) {
   loader ??= import('mermaid').then((m) => m.default)
   const mermaid = await loader
   if (configuredTheme !== theme) {
@@ -19,87 +24,144 @@ async function mermaidFor(theme: 'dark' | 'default') {
   return mermaid
 }
 
-const prefersDark = () => !window.matchMedia('(prefers-color-scheme: light)').matches
+const prefersDark = () => !globalThis.matchMedia('(prefers-color-scheme: light)').matches
 
-export function MermaidBlock({ code }: { code: string }) {
-  const id = `mmd-${useId().replace(/[^a-zA-Z0-9]/g, '')}`
-  const [svg, setSvg] = useState<string | null>(null)
-  const [error, setError] = useState<string | null>(null)
+/** Whether the app is in dark mode, following the system as it changes. */
+function usePrefersDark() {
   const [dark, setDark] = useState(prefersDark)
-  const [showSource, setShowSource] = useState(false)
-  const [zoomed, setZoomed] = useState(false)
-  const box = useRef<HTMLDivElement>(null)
-
-  // Mermaid sizes the SVG as width:100% with max-width = natural width. Zoomed shows it at natural size.
   useEffect(() => {
-    const el = box.current?.querySelector('svg')
-    if (!el) return
-    // The viewBox holds the diagram's drawn size; not every diagram type sets an inline max-width.
-    const vb = el.viewBox?.baseVal?.width
-    const natural = vb ? `${Math.round(vb)}px` : el.style.maxWidth || '100%'
-    el.style.width = zoomed ? natural : '100%'
-    el.style.maxWidth = zoomed ? 'none' : natural
-  }, [zoomed, svg, showSource])
-
-  useEffect(() => {
-    const mq = window.matchMedia('(prefers-color-scheme: light)')
+    const mq = globalThis.matchMedia('(prefers-color-scheme: light)')
     const onChange = () => setDark(prefersDark())
     mq.addEventListener('change', onChange)
     return () => mq.removeEventListener('change', onChange)
   }, [])
+  return dark
+}
 
+/** The diagram drawn as SVG in the current theme, or why it could not be drawn. */
+function useMermaidSvg(code: string) {
+  const id = `mmd-${useId().replace(NOT_ID_CHARACTERS, '')}`
+  const dark = usePrefersDark()
+  const [svg, setSvg] = useState<string | null>(null)
+  const [error, setError] = useState<string | null>(null)
   useEffect(() => {
     let live = true
+    let theme: MermaidTheme = 'default'
+    if (dark) {
+      theme = 'dark'
+    }
     setError(null)
-    mermaidFor(dark ? 'dark' : 'default')
-      .then((m) => m.render(`${id}-${dark ? 'd' : 'l'}`, code))
-      .then(({ svg }) => live && setSvg(svg))
-      .catch((e: unknown) => live && setError(e instanceof Error ? e.message : String(e)))
+    mermaidFor(theme)
+      .then((m) => m.render(`${id}-${theme}`, code))
+      .then((drawn) => live && setSvg(drawn.svg))
+      .catch((e: unknown) => live && setError(errorMessage(e)))
     return () => {
       live = false
     }
   }, [code, dark, id])
+  return { svg, error }
+}
 
-  if (error)
+/**
+ * Mermaid sizes the SVG as width:100% with max-width = its natural width; zoomed shows it at natural size.
+ * The viewBox holds the drawn size, since not every diagram type sets an inline max-width.
+ */
+function sizeDiagram(el: SVGSVGElement, zoomed: boolean) {
+  const drawnWidth = el.viewBox?.baseVal?.width
+  let natural = el.style.maxWidth || '100%'
+  if (drawnWidth) {
+    natural = `${Math.round(drawnWidth)}px`
+  }
+  if (zoomed) {
+    el.style.width = natural
+    el.style.maxWidth = 'none'
+  } else {
+    el.style.width = '100%'
+    el.style.maxWidth = natural
+  }
+}
+
+/** Diagrams can carry links (`click A "https://…"`). Opens one in the browser, never in the app window. */
+function openDiagramLink(target: EventTarget) {
+  const link = (target as Element).closest('a')
+  if (!link) {
+    return false
+  }
+  const href = link.getAttribute('href') ?? link.getAttribute('xlink:href')
+  if (href && WEB_URL.test(href)) {
+    globalThis.revio.openExternal(href)
+  }
+  return true
+}
+
+/** The drawn diagram; a click zooms between fitting the column and natural size. */
+function Diagram({ svg }: { svg: string }) {
+  const [zoomed, setZoomed] = useState(false)
+  const box = useRef<HTMLDivElement>(null)
+  useEffect(() => {
+    const el = box.current?.querySelector('svg')
+    if (el) {
+      sizeDiagram(el, zoomed)
+    }
+  }, [zoomed])
+  const toggleZoom = () => setZoomed(!zoomed)
+  let title = 'Click to zoom'
+  if (zoomed) {
+    title = 'Click to fit'
+  }
+  return (
+    // biome-ignore lint/a11y/useSemanticElements: the diagram can hold links, and a <button> cannot hold them.
+    <div
+      ref={box}
+      role="button"
+      tabIndex={0}
+      title={title}
+      onClick={(e) => {
+        if (openDiagramLink(e.target)) {
+          e.preventDefault()
+          return
+        }
+        toggleZoom()
+      }}
+      onKeyDown={onActivateKey(toggleZoom)}
+      className={cx(
+        'flex overflow-x-auto [&_svg]:h-auto [&_svg]:shrink-0',
+        zoomed && 'cursor-zoom-out justify-start',
+        !zoomed && 'cursor-zoom-in justify-center',
+      )}
+      // biome-ignore lint/security/noDangerouslySetInnerHtml: Mermaid in strict mode returns sanitized SVG.
+      dangerouslySetInnerHTML={{ __html: svg }}
+    />
+  )
+}
+
+export function MermaidBlock({ code }: { code: string }) {
+  const { svg, error } = useMermaidSvg(code)
+  const [showSource, setShowSource] = useState(false)
+
+  if (error) {
     return (
       <div className="not-prose my-3">
         <pre className="overflow-auto rounded-md bg-panel-2 p-3 font-mono text-[12px]">{code}</pre>
         <p className="mt-1 text-[11.5px] text-warn">Could not draw this Mermaid diagram: {error.split('\n')[0]}</p>
       </div>
     )
+  }
 
   return (
     <div className="not-prose group/mmd relative my-3 rounded-md border border-line bg-panel-2 p-3">
       <button
+        type="button"
         className="btn btn-ghost absolute top-1.5 right-1.5 py-0 text-[11px] opacity-0 transition group-hover/mmd:opacity-100"
         onClick={() => setShowSource(!showSource)}
       >
-        {showSource ? 'Diagram' : 'Source'}
+        {Boolean(showSource) && 'Diagram'}
+        {!showSource && 'Source'}
       </button>
-      {showSource ? (
-        <pre className="selectable overflow-auto font-mono text-[12px]">{code}</pre>
-      ) : svg ? (
-        // Mermaid output in strict mode is sanitized SVG.
-        <div
-          ref={box}
-          title={zoomed ? 'Click to fit' : 'Click to zoom'}
-          onClick={(e) => {
-            // Diagrams can carry links (`click A "https://…"`). Never let one load in the app window.
-            const link = (e.target as Element).closest('a')
-            if (link) {
-              e.preventDefault()
-              const href = link.getAttribute('href') ?? link.getAttribute('xlink:href')
-              if (href && /^https?:/.test(href)) void window.revio.openExternal(href)
-              return
-            }
-            setZoomed(!zoomed)
-          }}
-          className={cx('flex overflow-x-auto [&_svg]:h-auto [&_svg]:shrink-0', zoomed ? 'cursor-zoom-out justify-start' : 'cursor-zoom-in justify-center')}
-          dangerouslySetInnerHTML={{ __html: svg }}
-        />
-      ) : (
-        <div className="py-6 text-center text-[12px] text-muted">Drawing diagram…</div>
-      )}
+      {Boolean(showSource) && <pre className="selectable overflow-auto font-mono text-[12px]">{code}</pre>}
+      {/* A new drawing (after a theme change) is a new element to size, so it remounts. */}
+      {!showSource && svg !== null && <Diagram key={svg} svg={svg} />}
+      {!showSource && svg === null && <div className="py-6 text-center text-[12px] text-muted">Drawing diagram…</div>}
     </div>
   )
 }

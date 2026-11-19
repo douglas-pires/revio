@@ -1,19 +1,29 @@
-import type { OpenThread, ThreadComment } from '@shared/thread.types'
+import type { OpenThread, ThreadComment } from '@shared/thread.types.ts'
 
 /** The thread list after your reply: the reply is the latest comment, so the thread now waits on others. */
 export function applyReply(threads: readonly OpenThread[], threadId: string, reply: ThreadComment): OpenThread[] {
-  return threads.map((t) =>
-    t.id === threadId
-      ? { ...t, comments: [...t.comments, reply], totalComments: t.totalComments + 1, waitingOn: 'others', lastActivityAt: reply.createdAt }
-      : t,
-  )
+  return threads.map((t) => {
+    if (t.id !== threadId) {
+      return t
+    }
+    return {
+      ...t,
+      comments: [...t.comments, reply],
+      totalComments: t.totalComments + 1,
+      waitingOn: 'others',
+      lastActivityAt: reply.createdAt,
+    }
+  })
 }
 
 /** A copy of the set with `id` added or removed. */
 export function setMembership(set: ReadonlySet<string>, id: string, member: boolean): ReadonlySet<string> {
   const next = new Set(set)
-  if (member) next.add(id)
-  else next.delete(id)
+  if (member) {
+    next.add(id)
+  } else {
+    next.delete(id)
+  }
   return next
 }
 

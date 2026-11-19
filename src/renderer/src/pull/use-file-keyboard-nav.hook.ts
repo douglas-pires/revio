@@ -1,6 +1,6 @@
+import type { PullFile } from '@shared/pull.types.ts'
 import { useEffect, useRef } from 'react'
-import type { PullFile } from '@shared/pull.types'
-import { isTyping } from '../common/keyboard.util'
+import { isTyping } from '../common/keyboard.util.ts'
 
 interface NavState {
   enabled: boolean
@@ -11,10 +11,39 @@ interface NavState {
   markViewed: (path: string, sha: string, viewed: boolean) => void
 }
 
+/** j goes down the list, k up. */
+const STEPS = { j: 1, k: -1 } as const
+
+/** Where the current file sits in the list, -1 when none is current. */
+function indexOfCurrent(s: NavState) {
+  if (!s.current) {
+    return -1
+  }
+  return s.files.findIndex((f) => f.path === s.current)
+}
+
+/** v: marks the current file viewed and moves on to the next unviewed one; unmarking keeps it open. */
+function toggleViewedAndMove(s: NavState, index: number) {
+  const file = s.files[Math.max(0, index)]
+  if (!file) {
+    return
+  }
+  const nowViewed = s.viewed[file.path] !== file.sha
+  s.markViewed(file.path, file.sha, nowViewed)
+  if (!nowViewed) {
+    s.goTo(file.path, true)
+    return
+  }
+  const after = nextUnviewed(s.files, index, s.viewed)
+  s.goTo((after ?? file).path, Boolean(after))
+}
+
 /** Next file index for j/k, clamped to the list; starts at the first file when nothing is current. */
 function stepIndex(index: number, key: 'j' | 'k', length: number) {
-  if (index < 0) return 0
-  return Math.min(length - 1, Math.max(0, index + (key === 'j' ? 1 : -1)))
+  if (index < 0) {
+    return 0
+  }
+  return Math.min(length - 1, Math.max(0, index + STEPS[key]))
 }
 
 /** The first unviewed file after `index`, wrapping around. */
@@ -34,24 +63,24 @@ export function useFileKeyboardNav(state: NavState) {
   useEffect(() => {
     const onKey = (e: KeyboardEvent) => {
       const s = latest.current
-      if (!s.enabled || e.metaKey || e.ctrlKey || e.altKey || e.repeat || isTyping(e.target)) return
-      if (e.key !== 'j' && e.key !== 'k' && e.key !== 'v') return
-      e.preventDefault()
-      const index = s.current ? s.files.findIndex((f) => f.path === s.current) : -1
-      if (e.key !== 'v') {
-        const target = s.files[stepIndex(index, e.key, s.files.length)]
-        if (target) s.goTo(target.path, false)
+      if (!s.enabled || e.metaKey || e.ctrlKey || e.altKey || e.repeat || isTyping(e.target)) {
         return
       }
-      const file = s.files[Math.max(0, index)]
-      if (!file) return
-      const nowViewed = s.viewed[file.path] !== file.sha
-      s.markViewed(file.path, file.sha, nowViewed)
-      if (!nowViewed) return s.goTo(file.path, true)
-      const after = nextUnviewed(s.files, index, s.viewed)
-      s.goTo((after ?? file).path, !!after)
+      if (e.key !== 'j' && e.key !== 'k' && e.key !== 'v') {
+        return
+      }
+      e.preventDefault()
+      const index = indexOfCurrent(s)
+      if (e.key === 'v') {
+        toggleViewedAndMove(s, index)
+        return
+      }
+      const target = s.files[stepIndex(index, e.key, s.files.length)]
+      if (target) {
+        s.goTo(target.path, false)
+      }
     }
-    window.addEventListener('keydown', onKey)
-    return () => window.removeEventListener('keydown', onKey)
+    globalThis.addEventListener('keydown', onKey)
+    return () => globalThis.removeEventListener('keydown', onKey)
   }, [])
 }

@@ -1,9 +1,11 @@
 import { isAbsolute, join, relative, resolve } from 'node:path'
 
+const GITHUB_REMOTE = /github\.com[:/]+(?<owner>[^/]+)\/(?<name>[^/]+?)(?:\.git)?\/?$/iu
+
 /** Whether a git remote URL points at `owner/name` on GitHub (https or ssh, with or without .git). */
 export function remotePointsAt(url: string, repo: string): boolean {
-  const m = /github\.com[:/]+([^/]+)\/([^/]+?)(?:\.git)?\/?$/i.exec(url.trim())
-  return !!m && `${m[1]}/${m[2]}`.toLowerCase() === repo.toLowerCase()
+  const groups = GITHUB_REMOTE.exec(url.trim())?.groups
+  return groups !== undefined && `${groups.owner}/${groups.name}`.toLowerCase() === repo.toLowerCase()
 }
 
 /** Folders that may hold a clone of `owner/name` under `root`: root/name, root/owner/name and one level deeper. */
@@ -15,10 +17,15 @@ export function cloneCandidates(root: string, repo: string, subfolders: readonly
 
 /** The absolute path of `path` inside `clone`, or null if it would point outside it. */
 export function pathInside(clone: string, path: string): string | null {
-  if (!path || isAbsolute(path)) return null
+  if (!path || isAbsolute(path)) {
+    return null
+  }
   const full = resolve(clone, path)
   const rel = relative(clone, full)
-  return rel && !rel.startsWith('..') && !isAbsolute(rel) ? full : null
+  if (!rel || rel.startsWith('..') || isAbsolute(rel)) {
+    return null
+  }
+  return full
 }
 
-export const REPO_NAME = /^[\w.-]+\/[\w.-]+$/
+export const REPO_NAME = /^[\w.-]+\/[\w.-]+$/u

@@ -1,22 +1,25 @@
 import { describe, expect, it } from 'vitest'
-import { parsePatch, type DiffRow } from './diff.util'
-import { EXPAND_STEP, expandGap, expandRows, gapsOf, hiddenIn, type GapShown } from './diff-expand.util'
+import { expectPresent } from '../../../../test/fixtures.ts'
+import { type DiffRow, parsePatch } from './diff.util.ts'
+import { EXPAND_STEP, expandGap, expandRows, type GapShown, gapsOf, hiddenIn } from './diff-expand.util.ts'
 
 // A 40-line file; line n reads "n". The PR changes line 10 and adds a line after old line 30.
 const file = Array.from({ length: 40 }, (_, i) => `${i + 1}`)
-const patch = [
-  '@@ -8,5 +8,5 @@ fn',
-  ' 8',
-  ' 9',
-  '-10 old',
-  '+10',
-  ' 11',
-  ' 12',
-  '@@ -30,0 +31,1 @@',
-  '+31 new',
-].join('\n')
+const patch = ['@@ -8,5 +8,5 @@ fn', ' 8', ' 9', '-10 old', '+10', ' 11', ' 12', '@@ -30,0 +31,1 @@', '+31 new'].join(
+  '\n',
+)
 const rows = parsePatch(patch)
-const newNos = (out: DiffRow[]) => out.map((r) => (r.kind === 'hunk' ? `@${r.gap ? r.gap.hidden : '-'}` : r.newNo))
+/** Each row as its new-side line, or `@hidden` for a separator (`@-` for a header without a gap). */
+function describeRow(r: DiffRow) {
+  if (r.kind !== 'hunk') {
+    return r.newNo
+  }
+  if (!r.gap) {
+    return '@-'
+  }
+  return `@${r.gap.hidden}`
+}
+const newNos = (out: DiffRow[]) => out.map(describeRow)
 
 describe('gapsOf', () => {
   it('finds the lines before, between and after hunks, with the old-side offset', () => {
@@ -76,7 +79,7 @@ describe('expandRows', () => {
     ])
     const out = expandRows(rows, file41, shown)
     expect(out[0]).toMatchObject({ kind: 'ctx', newNo: 1 })
-    expect(hiddenIn(gapsOf(rows, 41)[2]!, shown.get(2))).toBe(1)
+    expect(hiddenIn(expectPresent(gapsOf(rows, 41)[2]), shown.get(2))).toBe(1)
     expect(out.at(-1)).toMatchObject({ kind: 'hunk', gap: { index: 2, hidden: 1 } })
 
     const fromTop = expandRows(parsePatch('@@ -1,2 +1,2 @@\n-a\n+b\n 2'), ['b', '2'], new Map())

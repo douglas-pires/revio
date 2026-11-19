@@ -1,23 +1,67 @@
 import { randomUUID } from 'node:crypto'
-import type { Guideline, ResolvedGuideline } from '@shared/guideline.types'
-import { store } from '../store/store.service'
+import type { Guideline, ResolvedGuideline } from '@shared/guideline.types.ts'
+import { store } from '../store/store.service.ts'
 
+const EDGE_SLASHES = /^\/+|\/+$/gu
+
+/** General first: all repositories, then a whole repository, then its folders. */
+function rank(g: Guideline) {
+  if (g.repo === '*') {
+    return 0
+  }
+  if (g.path) {
+    return 2
+  }
+  return 1
+}
+
+/** How many changed files a guideline covers: all of them, or those under its folder. */
+function countMatches(g: Guideline, paths: string[]) {
+  if (!g.path) {
+    return paths.length
+  }
+  return paths.filter((p) => p.startsWith(g.path)).length
+}
+
+/** A guideline for every repository covers whole repositories, never a folder. */
+function folderFor(repo: string, path: string) {
+  if (repo === '*') {
+    return ''
+  }
+  return normalizePath(path)
+}
+
+const replaceIfSame = (current: Guideline, saved: Guideline) => {
+  if (current.id === saved.id) {
+    return saved
+  }
+  return current
+}
+
+/** A folder as stored on a guideline: no leading slash, one trailing slash, or '' for the whole repository. */
 export const normalizePath = (p: string) => {
-  const trimmed = p.trim().replace(/^\/+/, '').replace(/\/+$/, '')
-  return trimmed ? `${trimmed}/` : ''
+  const trimmed = p.trim().replace(EDGE_SLASHES, '')
+  if (!trimmed) {
+    return ''
+  }
+  return `${trimmed}/`
 }
 
 export function saveGuideline(input: Omit<Guideline, 'id' | 'updatedAt'> & { id?: string }): Guideline {
   const list = store.guidelines()
+  const repo = input.repo.trim() || '*'
   const g: Guideline = {
     ...input,
-    repo: input.repo.trim() || '*',
-    path: input.repo.trim() === '*' ? '' : normalizePath(input.path),
+    repo,
+    path: folderFor(repo, input.path),
     id: input.id ?? randomUUID(),
     updatedAt: new Date().toISOString(),
   }
-  const idx = list.findIndex((x) => x.id === g.id)
-  store.setGuidelines(idx >= 0 ? list.map((x) => (x.id === g.id ? g : x)) : [...list, g])
+  if (list.some((x) => x.id === g.id)) {
+    store.setGuidelines(list.map((x) => replaceIfSame(x, g)))
+  } else {
+    store.setGuidelines([...list, g])
+  }
   return g
 }
 
@@ -38,11 +82,18 @@ export function matchGuidelines(guidelines: readonly Guideline[], repo: string, 
   const r = repo.toLowerCase()
   return guidelines
     .filter((g) => g.enabled && (g.repo === '*' || g.repo.toLowerCase() === r))
-    .map((g) => ({ ...g, matchedFiles: g.path ? paths.filter((p) => p.startsWith(g.path)).length : paths.length }))
+    .map((g) => ({ ...g, matchedFiles: countMatches(g, paths) }))
     .filter((g) => g.matchedFiles > 0 || paths.length === 0)
     .sort((a, b) => rank(a) - rank(b) || a.path.length - b.path.length)
 }
 
-const rank = (g: Guideline) => (g.repo === '*' ? 0 : g.path ? 2 : 1)
-
-export const scopeLabel = (g: Guideline) => (g.repo === '*' ? 'All repositories' : g.path ? `${g.repo} › ${g.path}` : g.repo)
+/** Where a guideline applies, in words: all repositories, a repository, or a folder in one. */
+export function scopeLabel(g: Guideline) {
+  if (g.repo === '*') {
+    return 'All repositories'
+  }
+  if (g.path) {
+    return `${g.repo} › ${g.path}`
+  }
+  return g.repo
+}

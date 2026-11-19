@@ -1,6 +1,6 @@
 import { useEffect, useState } from 'react'
-import type { DiffRow } from './diff.util'
-import { useHighlighter, type Tok } from '../highlight/highlight.service'
+import { type Tok, useHighlighter } from '../highlight/highlight.service.ts'
+import type { DiffRow } from './diff.util.ts'
 
 /**
  * Highlighted tokens per row index, computed once the file is open and near the viewport, and again when the rows
@@ -11,15 +11,22 @@ export function useRowTokens(path: string, patch: string | undefined, rows: Diff
   const highlighter = useHighlighter()
   const current = result?.rows === rows
   useEffect(() => {
-    if (!active || !patch || current) return
+    if (!(active && patch) || current) {
+      return
+    }
     let live = true
     highlighter
       .highlightRows(path, rows, patch.length)
       .then((tokens) => live && setResult({ rows, tokens }))
-      .catch(() => {})
+      .catch(() => {
+        // Unhighlighted rows are still readable; nothing to report.
+      })
     return () => {
       live = false
     }
   }, [active, path, patch, rows, current, highlighter])
-  return current ? result.tokens : null
+  if (!current) {
+    return null
+  }
+  return result.tokens
 }

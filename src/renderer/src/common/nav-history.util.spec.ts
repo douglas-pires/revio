@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest'
-import { canGoBack, canGoForward, currentEntry, startHistory, step, visit } from './nav-history.util'
+import { canGoBack, canGoForward, currentEntry, startHistory, step, visit } from './nav-history.util.ts'
 
 const same = (a: string, b: string) => a === b
 
@@ -31,7 +31,9 @@ describe('nav history', () => {
 
   it('keeps the last 50 screens', () => {
     let h = startHistory('0')
-    for (let i = 1; i <= 60; i++) h = visit(h, String(i), same)
+    for (let i = 1; i <= 60; i += 1) {
+      h = visit(h, String(i), same)
+    }
     expect(h.entries).toHaveLength(50)
     expect(h.entries[0]).toBe('11')
     expect(currentEntry(h)).toBe('60')

@@ -1,9 +1,16 @@
 import { describe, expect, it } from 'vitest'
-import { matchGuidelines, normalizePath } from './guidelines.service'
-import { makeGuideline } from '../../../test/fixtures'
+import { makeGuideline } from '../../../test/fixtures.ts'
+import { matchGuidelines, normalizePath } from './guidelines.service.ts'
 
 describe('matchGuidelines', () => {
-  const all = [makeGuideline('web-app', 'acme/web', 'apps/web/'), makeGuideline('web', 'Acme/Web'), makeGuideline('global', '*'), makeGuideline('api-app', 'acme/web', 'apps/api/'), makeGuideline('web-deep', 'acme/web', 'apps/web/src/'), makeGuideline('off', '*', '', false)]
+  const all = [
+    makeGuideline('web-app', 'acme/web', 'apps/web/'),
+    makeGuideline('web', 'Acme/Web'),
+    makeGuideline('global', '*'),
+    makeGuideline('api-app', 'acme/web', 'apps/api/'),
+    makeGuideline('web-deep', 'acme/web', 'apps/web/src/'),
+    makeGuideline('off', '*', '', false),
+  ]
 
   it('orders general to specific and skips folders the PR does not touch', () => {
     const out = matchGuidelines(all, 'acme/web', ['apps/web/src/a.ts', 'apps/web/b.ts', 'README.md'])

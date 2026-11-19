@@ -1,10 +1,31 @@
+import { errorMessage } from '@shared/error.util.ts'
+import type { Inbox, PullSummary } from '@shared/inbox.types.ts'
+import type { PullRef } from '@shared/pull.types.ts'
+import { MS_PER_MINUTE } from '@shared/time.util.ts'
 import { app } from 'electron'
-import type { Inbox, PullSummary } from '@shared/inbox.types'
-import type { PullRef } from '@shared/pull.types'
-import { raiseAlerts } from '../alerts/alerts.util'
-import { InFlight } from '../common/in-flight.util'
-import { showNotification } from '../alerts/notification.service'
-import { store } from '../store/store.service'
+import { raiseAlerts } from '../alerts/alerts.util.ts'
+import { showNotification } from '../alerts/notification.service.ts'
+import { InFlight } from '../common/in-flight.util.ts'
+import { store } from '../store/store.service.ts'
+
+const intervalMs = () => Math.max(1, store.settings().pollIntervalMinutes) * MS_PER_MINUTE
+
+/** After a failed poll: the last good inbox with the error, or an empty one carrying it. */
+function keepLatest(latest: Inbox | null, error: string): Inbox {
+  if (latest) {
+    return { ...latest, error }
+  }
+  return emptyInbox(error)
+}
+
+const emptyInbox = (error: string): Inbox => ({
+  viewer: '',
+  requested: [],
+  reviewed: [],
+  stacks: [],
+  fetchedAt: new Date().toISOString(),
+  error,
+})
 
 export interface PollerDeps {
   loadInbox: () => Promise<Inbox>
@@ -42,9 +63,13 @@ export class InboxPoller {
   }
 
   #schedule(delay: number) {
-    if (this.#timer) clearTimeout(this.#timer)
+    if (this.#timer) {
+      clearTimeout(this.#timer)
+    }
     this.#timer = setTimeout(async () => {
-      await this.poll().catch(() => {})
+      await this.poll().catch(() => {
+        // #fetch already turned the failure into an inbox with an error; nothing else to do.
+      })
       this.#schedule(intervalMs())
     }, delay)
   }
@@ -53,16 +78,22 @@ export class InboxPoller {
     let inbox: Inbox
     try {
       inbox = await this.#deps.loadInbox()
-      raiseAlerts(inbox, { settings: store.settings(), state: store.alerts(), notify: (title, body, pr) => this.#notify(title, body, pr) })
+      raiseAlerts(inbox, {
+        settings: store.settings(),
+        state: store.alerts(),
+        notify: (title, body, pr) => this.#notify(title, body, pr),
+      })
       store.saveAlerts()
     } catch (err) {
-      const message = err instanceof Error ? err.message : String(err)
+      const message = errorMessage(err)
       console.error('[revio] poll failed:', message)
-      inbox = this.#latest ? { ...this.#latest, error: message } : emptyInbox(message)
+      inbox = keepLatest(this.#latest, message)
     }
     this.#latest = inbox
     this.#deps.onInbox(inbox)
-    if (process.platform === 'darwin') app.setBadgeCount(inbox.requested.length)
+    if (process.platform === 'darwin') {
+      app.setBadgeCount(inbox.requested.length)
+    }
     return inbox
   }
 
@@ -70,7 +101,3 @@ export class InboxPoller {
     showNotification(title, body, () => this.#deps.onOpenPull(pr))
   }
 }
-
-const intervalMs = () => Math.max(1, store.settings().pollIntervalMinutes) * 60_000
-
-const emptyInbox = (error: string): Inbox => ({ viewer: '', requested: [], reviewed: [], stacks: [], fetchedAt: new Date().toISOString(), error })

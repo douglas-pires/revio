@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest'
-import { cloneCandidates, pathInside, remotePointsAt } from './local-clone.util'
+import { cloneCandidates, pathInside, remotePointsAt } from './local-clone.util.ts'
 
 describe('remotePointsAt', () => {
   it('matches https and ssh remotes, ignoring case and .git', () => {
@@ -17,7 +17,12 @@ describe('remotePointsAt', () => {
 
 describe('cloneCandidates', () => {
   it('looks for name and owner/name in the folder and its subfolders', () => {
-    expect(cloneCandidates('/u', 'acme/widgets', ['code'])).toEqual(['/u/widgets', '/u/acme/widgets', '/u/code/widgets', '/u/code/acme/widgets'])
+    expect(cloneCandidates('/u', 'acme/widgets', ['code'])).toEqual([
+      '/u/widgets',
+      '/u/acme/widgets',
+      '/u/code/widgets',
+      '/u/code/acme/widgets',
+    ])
   })
 })
 

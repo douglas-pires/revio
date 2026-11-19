@@ -1,6 +1,6 @@
 import type { Octokit } from '@octokit/rest'
-import type { ThreadComment, ThreadsInbox } from '@shared/thread.types'
-import { toThreadComment, triageThreads, type RawThreadComment, type RawThreadPr } from './thread-triage.util'
+import type { ThreadComment, ThreadsInbox } from '@shared/thread.types.ts'
+import { type RawThreadComment, type RawThreadPr, toThreadComment, triageThreads } from './thread-triage.util.ts'
 
 /** Open PRs you are involved in (author, commenter, mentioned, assigned), most recently updated first. */
 const SEARCH = 'is:open is:pr archived:false involves:@me sort:updated-desc'
@@ -30,15 +30,18 @@ const THREADS_QUERY = /* GraphQL */ `
   }
 `
 
-type Result = { viewer: { login: string }; search: { nodes: (RawThreadPr | Record<string, never> | null)[] } }
-
-export async function fetchThreads(octokit: Octokit): Promise<ThreadsInbox> {
-  const data = await octokit.graphql<Result>(THREADS_QUERY, { q: SEARCH })
-  const prs = data.search.nodes.filter((n): n is RawThreadPr => !!n && 'reviewThreads' in n)
-  return { threads: triageThreads(prs, data.viewer.login), fetchedAt: new Date().toISOString() }
+interface Result {
+  viewer: { login: string }
+  search: { nodes: (RawThreadPr | Record<string, never> | null)[] }
 }
 
 const COMMENT_FIELDS = 'author { __typename login avatarUrl(size: 64) } body createdAt url'
+
+export async function fetchThreads(octokit: Octokit): Promise<ThreadsInbox> {
+  const data = await octokit.graphql<Result>(THREADS_QUERY, { q: SEARCH })
+  const prs = data.search.nodes.filter((n): n is RawThreadPr => n !== null && 'reviewThreads' in n)
+  return { threads: triageThreads(prs, data.viewer.login), fetchedAt: new Date().toISOString() }
+}
 
 /** Posts a reply in a review thread right away (not as part of a pending review). */
 export async function replyToThread(octokit: Octokit, threadId: string, body: string): Promise<ThreadComment> {
@@ -52,6 +55,11 @@ export async function replyToThread(octokit: Octokit, threadId: string, body: st
 }
 
 export async function setThreadResolved(octokit: Octokit, threadId: string, resolved: boolean): Promise<void> {
-  const mutation = resolved ? 'resolveReviewThread' : 'unresolveReviewThread'
-  await octokit.graphql(`mutation ($id: ID!) { ${mutation}(input: { threadId: $id }) { thread { isResolved } } }`, { id: threadId })
+  let mutation = 'unresolveReviewThread'
+  if (resolved) {
+    mutation = 'resolveReviewThread'
+  }
+  await octokit.graphql(`mutation ($id: ID!) { ${mutation}(input: { threadId: $id }) { thread { isResolved } } }`, {
+    id: threadId,
+  })
 }

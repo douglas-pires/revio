@@ -1,27 +1,131 @@
+import type { FocusItem } from '@shared/claude.types.ts'
+
+import type { BlameRange } from '@shared/history.types.ts'
+
+import { blameAt } from '@shared/history.util.ts'
+
+import { isPresent } from '@shared/presence.util.ts'
+
+import type { DiffSide, DraftComment, PullFile, ReviewComment } from '@shared/pull.types.ts'
+
 import { memo, useMemo, useRef, useState } from 'react'
-import type { FocusItem } from '@shared/claude.types'
-import type { DiffSide, DraftComment, PullFile, ReviewComment } from '@shared/pull.types'
-import { diffSnippet, newSideText, parsePatch, parseRange, type DiffRow, type LineRow } from './diff.util'
-import { blameAt } from '@shared/history.util'
-import { useBlame } from './use-blame.hook'
-import { BlameNote } from './blame-note.component'
-import { cx } from '../common/format.util'
-import { useNearViewport } from './use-near-viewport.hook'
-import { indexFileComments } from './comment-threads.util'
-import { DiffFileHeader } from './diff-file-header.component'
-import { FileComments } from './file-comments.component'
-import { FocusReasons, OutdatedComments } from './file-notes.component'
-import { LineAnnotations, type ComposerSpec } from './line-annotations.component'
-import type { CommentActions } from './review-comments.component'
-import { UnifiedDiff } from './unified-diff.component'
-import { SplitDiff } from './split-diff.component'
-import { AskClaudeButton } from './ask-claude-button.component'
-import { useLineSelection, type Anchor, type LineSelection } from './use-line-selection.hook'
-import { useTextSelectionAsk } from './use-text-selection-ask.hook'
-import { useRowTokens } from './use-row-tokens.hook'
-import { useExpandedContext } from './use-expanded-context.hook'
-import { estimateBodyHeight, useBodyHeight } from './use-body-height.hook'
-import type { DiffTableProps } from './diff-table.types'
+
+import { cx } from '../common/format.util.ts'
+
+import { AskClaudeButton } from './ask-claude-button.component.tsx'
+
+import { BlameNote } from './blame-note.component.tsx'
+
+import { type FileCommentIndex, indexFileComments } from './comment-threads.util.ts'
+
+import { diffSnippet, type LineRow, newSideText, parsePatch, parseRange } from './diff.util.ts'
+
+import { editorLineOf, isInFocus } from './diff-file.util.ts'
+
+import { DiffFileHeader } from './diff-file-header.component.tsx'
+
+import type { DiffTableProps } from './diff-table.types.ts'
+
+import { FileComments } from './file-comments.component.tsx'
+
+import { FocusReasons, OutdatedComments } from './file-notes.component.tsx'
+
+import type { CommentActions } from './review-comments.component.tsx'
+
+import { SplitDiff } from './split-diff.component.tsx'
+
+import { UnifiedDiff } from './unified-diff.component.tsx'
+
+import { useBlame } from './use-blame.hook.ts'
+
+import { estimateBodyHeight, useBodyHeight } from './use-body-height.hook.ts'
+
+import { useExpandedContext } from './use-expanded-context.hook.ts'
+
+import { useLineNotes } from './use-line-notes.hook.tsx'
+
+import { useLineSelection } from './use-line-selection.hook.ts'
+
+import { useNearViewport } from './use-near-viewport.hook.ts'
+
+import { useRowTokens } from './use-row-tokens.hook.ts'
+
+import { useTextSelectionAsk } from './use-text-selection-ask.hook.ts'
+
+/** Blame notes on new-side lines, when blame is on and loaded. */
+function blameNoteFor(ranges: readonly BlameRange[] | null) {
+  if (!ranges) {
+    return
+  }
+  return (row: LineRow) => {
+    if (row.kind === 'del' || row.newNo === null) {
+      return null
+    }
+    const range = blameAt(ranges, row.newNo)
+    return range && <BlameNote range={range} />
+  }
+}
+
+/** The diff table for the chosen view, or a note when GitHub sent no diff. */
+function DiffTable({ hasPatch, view, table }: { hasPatch: boolean; view: DiffView; table: DiffTableProps }) {
+  if (!hasPatch) {
+    return <div className="px-4 py-6 text-center text-muted">Binary file or diff too large to display.</div>
+  }
+  if (view === 'unified') {
+    return <UnifiedDiff {...table} />
+  }
+  return <SplitDiff {...table} />
+}
+
+/** A file's expanded body: focus reasons, file-level and outdated comments, then the diff. */
+function DiffFileBody(props: {
+  file: PullFile
+  view: DiffView
+  focus: readonly FocusItem[]
+  index: FileCommentIndex
+  drafts: readonly DraftComment[]
+  actions: CommentActions
+  composingFileComment: boolean
+  onCloseComposer: () => void
+  contextError: string | null
+  table: DiffTableProps
+}) {
+  const { file } = props
+  return (
+    <>
+      <FocusReasons focus={props.focus} />
+      <FileComments
+        path={file.path}
+        threads={props.index.fileThreads}
+        drafts={props.drafts}
+        composing={props.composingFileComment}
+        onCloseComposer={props.onCloseComposer}
+        actions={props.actions}
+      />
+      <OutdatedComments
+        path={file.path}
+        threads={props.index.outdatedThreads}
+        allDrafts={props.drafts}
+        actions={props.actions}
+      />
+      {props.contextError !== null && (
+        <div className="border-b border-line px-4 py-1.5 text-[12px] text-danger">
+          Could not show more of the file: {props.contextError}
+        </div>
+      )}
+      <DiffTable hasPatch={Boolean(file.patch)} view={props.view} table={props.table} />
+    </>
+  )
+}
+
+/** The comment actions as one stable object, so memoized children keep it across renders. */
+function useCommentActions(props: CommentActions): CommentActions {
+  const { onAddDraft, onUpdateDraft, onDeleteDraft, onReplyNow } = props
+  return useMemo(
+    () => ({ onAddDraft, onUpdateDraft, onDeleteDraft, onReplyNow }),
+    [onAddDraft, onUpdateDraft, onDeleteDraft, onReplyNow],
+  )
+}
 
 export type DiffView = 'unified' | 'split'
 
@@ -45,7 +149,7 @@ export interface DiffFileProps {
   comments: readonly ReviewComment[]
   drafts: readonly DraftComment[]
   focus: readonly FocusItem[]
-  ignoreReason?: string
+  ignoreReason?: string | undefined
   viewed: boolean
   /** The file j/k navigation is on. */
   current?: boolean
@@ -59,16 +163,15 @@ export interface DiffFileProps {
   onAsk: (selection: AskSelection) => void
 }
 
-const rangeLabel = (s: LineSelection) => `${s.side === 'LEFT' ? 'Old line' : 'Line'}${s.start === s.end ? ` ${s.end}` : `s ${s.start}–${s.end}`}`
-
-export const DiffFile = memo(function DiffFile(props: DiffFileProps) {
+// biome-ignore lint/complexity/noExcessiveLinesPerFunction: one file's diff wires together its hooks (viewport, rows, comments, selection, blame); each piece lives in its own module.
+export const DiffFile = memo(function DiffFileView(props: DiffFileProps) {
   const { file, collapsed, view } = props
   const setCollapsed = (value: boolean) => props.onToggleCollapsed(file.path, value)
-  const patchRows = useMemo(() => (file.patch ? parsePatch(file.patch) : []), [file.patch])
+  const patchRows = useMemo(() => parsePatch(file.patch ?? ''), [file.patch])
   // Added and removed files are whole in the diff; there is nothing around them to show.
   const canExpand = file.status !== 'added' && file.status !== 'removed'
   const context = useExpandedContext({ repo: props.repo, sha: props.headSha, path: file.path }, patchRows, canExpand)
-  const rows = context.rows
+  const { rows } = context
   const selection = useLineSelection()
   const textAsk = useTextSelectionAsk(rows)
   const [composingFileComment, setComposingFileComment] = useState(false)
@@ -77,77 +180,63 @@ export const DiffFile = memo(function DiffFile(props: DiffFileProps) {
   const container = useRef<HTMLDivElement>(null)
   const [focusWithin, setFocusWithin] = useState(false)
   // Never unmount a body the reviewer is working in (selection or a focused comment box).
-  const near = useNearViewport(container, !!selection.sel || focusWithin)
-  const bodyHeight = useBodyHeight(near && !collapsed)
-  const tokens = useRowTokens(file.path, file.patch, rows, near && !collapsed)
-  const blame = useBlame({ repo: props.repo, sha: props.headSha, path: file.path }, props.blame && near && !collapsed && file.status !== 'removed')
-
-  const { onAddDraft, onUpdateDraft, onDeleteDraft, onReplyNow } = props
-  const actions = useMemo<CommentActions>(() => ({ onAddDraft, onUpdateDraft, onDeleteDraft, onReplyNow }), [onAddDraft, onUpdateDraft, onDeleteDraft, onReplyNow])
-
-  const focusRanges = useMemo(() => props.focus.map((f) => parseRange(f.lines)).filter((r) => r != null), [props.focus])
-  const index = useMemo(() => indexFileComments(file.path, props.comments, props.drafts), [file.path, props.comments, props.drafts])
-
-  const inFocus = (row: DiffRow) => row.kind !== 'hunk' && row.newNo != null && focusRanges.some(([a, b]) => row.newNo! >= a && row.newNo! <= b)
+  const near = useNearViewport(container, selection.sel !== null || focusWithin)
+  const open = near && !collapsed
+  const bodyHeight = useBodyHeight(open)
+  const tokens = useRowTokens(file.path, file.patch, rows, open)
+  const blame = useBlame(
+    { repo: props.repo, sha: props.headSha, path: file.path },
+    props.blame && open && file.status !== 'removed',
+  )
+  const actions = useCommentActions(props)
+  const focusRanges = useMemo(() => props.focus.map((f) => parseRange(f.lines)).filter(isPresent), [props.focus])
+  const index = useMemo(
+    () => indexFileComments(file.path, props.comments, props.drafts),
+    [file.path, props.comments, props.drafts],
+  )
   const ask = (side: DiffSide, start: number, end: number) =>
     props.onAsk({ path: file.path, side, startLine: start, endLine: end, snippet: diffSnippet(rows, side, start, end) })
-
-  const composerFor = (sel: LineSelection): ComposerSpec => ({
-    label: rangeLabel(sel),
-    suggestion: sel.side === 'RIGHT' ? newSideText(rows, sel.start, sel.end) : undefined,
-    onCancel: selection.clear,
-    onAsk: () => {
-      ask(sel.side, sel.start, sel.end)
-      selection.clear()
-    },
-    onSubmit: (body) => {
-      props.onAddDraft({ path: file.path, side: sel.side, line: sel.end, startLine: sel.start !== sel.end ? sel.start : undefined, body })
-      selection.clear()
-    },
+  const notesFor = useLineNotes({
+    path: file.path,
+    index,
+    allDrafts: props.drafts,
+    selection,
+    actions,
+    newSideText: (start, end) => newSideText(rows, start, end),
+    onAsk: (sel) => ask(sel.side, sel.start, sel.end),
   })
 
-  const notesFor = (keys: string[], anchor: Anchor | null) => {
-    const threads = keys.flatMap((k) => index.threadsByLine.get(k) ?? [])
-    const drafts = keys.flatMap((k) => index.draftsByLine.get(k) ?? [])
-    const composer = selection.sel && selection.composerAt(anchor) ? composerFor(selection.sel) : null
-    if (!threads.length && !drafts.length && !composer) return null
-    return (
-      <LineAnnotations
-        path={file.path}
-        threads={threads}
-        drafts={drafts}
-        allDrafts={props.drafts}
-        composer={composer}
-        actions={actions}
-      />
-    )
+  const table: DiffTableProps = {
+    rows,
+    tokens,
+    selection,
+    inFocus: (row) => isInFocus(row, focusRanges),
+    notesFor,
+    onMouseUp: textAsk.onMouseUp,
   }
-
-  const blameRanges = props.blame ? blame.ranges : null
-  const noteFor = blameRanges
-    ? (row: LineRow) => {
-        const range = row.kind !== 'del' && row.newNo != null ? blameAt(blameRanges, row.newNo) : undefined
-        return range && <BlameNote range={range} />
-      }
-    : undefined
-
-  const table: DiffTableProps = { rows, tokens, selection, inFocus, notesFor, onMouseUp: textAsk.onMouseUp, noteFor, onExpand: canExpand ? context.expand : undefined }
-
-  // The selected line on the new side, else the first changed line.
-  const editorLine = () => {
-    if (selection.sel?.side === 'RIGHT') return selection.sel.start
-    const changed = patchRows.find((r) => r.kind === 'add') ?? patchRows.find((r) => r.kind !== 'hunk' && r.newNo != null)
-    return changed?.kind === 'hunk' ? undefined : (changed?.newNo ?? undefined)
+  if (canExpand) {
+    table.onExpand = context.expand
+  }
+  let blameError: string | null = null
+  if (props.blame) {
+    blameError = blame.error
+    table.noteFor = blameNoteFor(blame.ranges)
   }
 
   return (
+    // biome-ignore lint/a11y/noStaticElementInteractions: focus and blur only track whether a comment box inside is in use.
+    // biome-ignore lint/a11y/noNoninteractiveElementInteractions: same; the handlers observe focus, they do not make the element a control.
     <div
       ref={container}
       onFocus={() => setFocusWithin(true)}
       onBlur={(e) => !e.currentTarget.contains(e.relatedTarget as Node | null) && setFocusWithin(false)}
       id={`file-${file.path}`}
       // overflow-clip, not overflow-hidden: it rounds the corners without becoming a scroll box, so the header stays sticky.
-      className={cx('scroll-mt-2 overflow-clip rounded-lg border bg-panel', props.current ? 'border-accent ring-1 ring-accent/40' : 'border-line')}
+      className={cx(
+        'scroll-mt-2 overflow-clip rounded-lg border bg-panel',
+        props.current && 'border-accent ring-1 ring-accent/40',
+        !props.current && 'border-line',
+      )}
     >
       <DiffFileHeader
         file={file}
@@ -159,43 +248,48 @@ export const DiffFile = memo(function DiffFile(props: DiffFileProps) {
         onToggleCollapsed={() => setCollapsed(!collapsed)}
         onToggleViewed={(viewed) => props.onToggleViewed(file.path, file.sha, viewed)}
         onShowHistory={() => props.onShowHistory(file.path)}
-        onOpenInEditor={() => window.revio.openInEditor({ repo: props.repo, path: file.path, line: editorLine() })}
-        blameError={props.blame ? blame.error : null}
+        onOpenInEditor={() =>
+          globalThis.revio.openInEditor({
+            repo: props.repo,
+            path: file.path,
+            line: editorLineOf(selection.sel, patchRows),
+          })
+        }
+        blameError={blameError}
         onCommentOnFile={() => {
           setCollapsed(false)
           setComposingFileComment(true)
         }}
       />
 
-      {!collapsed && !near && <div style={{ height: bodyHeight.last ?? estimateBodyHeight(rows.length) }} />}
-      {!collapsed && near && (
+      {!(collapsed || near) && (
+        // biome-ignore lint/style/noInlineStyles: the placeholder keeps the height of the diff it stands in for.
+        <div style={{ height: bodyHeight.last ?? estimateBodyHeight(rows.length) }} />
+      )}
+      {Boolean(open) && (
         <div ref={bodyHeight.ref}>
-          <FocusReasons focus={props.focus} />
-          <FileComments
-            path={file.path}
-            threads={index.fileThreads}
+          <DiffFileBody
+            file={file}
+            view={view}
+            focus={props.focus}
+            index={index}
             drafts={props.drafts}
-            composing={composingFileComment}
-            onCloseComposer={() => setComposingFileComment(false)}
             actions={actions}
+            composingFileComment={composingFileComment}
+            onCloseComposer={() => setComposingFileComment(false)}
+            contextError={context.error}
+            table={table}
           />
-          <OutdatedComments path={file.path} threads={index.outdatedThreads} allDrafts={props.drafts} actions={actions} />
-          {context.error && <div className="border-b border-line px-4 py-1.5 text-[12px] text-danger">Could not show more of the file: {context.error}</div>}
-          {!file.patch ? (
-            <div className="px-4 py-6 text-center text-muted">Binary file or diff too large to display.</div>
-          ) : view === 'unified' ? (
-            <UnifiedDiff {...table} />
-          ) : (
-            <SplitDiff {...table} />
-          )}
         </div>
       )}
-      {textAsk.floating && (
+      {textAsk.floating !== null && (
         <AskClaudeButton
           at={textAsk.floating}
           onAsk={() => {
-            const f = textAsk.floating!
-            ask(f.side, f.start, f.end)
+            const at = textAsk.floating
+            if (at) {
+              ask(at.side, at.start, at.end)
+            }
             textAsk.dismiss()
           }}
         />

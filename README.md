@@ -51,7 +51,7 @@ Claude Code login via `claude -p` with structured JSON output. You can pick the 
 the default model is `claude-opus-5-5`.
 
 **Inbox and alerts:** how often to poll GitHub, whether team review requests count (not only requests to you),
-whether to skip draft PRs, after how many hours a requested review turns *stale* and how often to repeat that alert,
+whether to skip draft PRs, after how many hours a requested review turns _stale_ and how often to repeat that alert,
 and which desktop notifications to show (new or re-requested reviews, stale reviews, mentions).
 
 **Editor:** which editor **Open in editor** uses (Cursor, VS Code, Windsurf, Zed, JetBrains IDEs, Sublime Text,
@@ -70,14 +70,14 @@ All data stays on your Mac, in `~/Library/Application Support/Revio/`.
 
 The search box (press `/`) takes free text plus GitHub's qualifiers:
 
-| Qualifier | Keeps |
-| --- | --- |
-| `user-review-requested:@me` | Requests addressed to you directly |
-| `team-review-requested:web` (or `org/web`, `*` for any team) | Requests that reach you through a team |
-| `review-requested:@me` | Every open request, hiding PRs you already reviewed |
-| `repo:`, `author:`, `head:`, `base:` | One repository (owner/name or name), author, or branch |
-| `is:stale`, `is:draft`, `is:stacked`, `is:approved`, `is:changes-requested` | Those states |
-| `is:bot` | Threads whose last comment is from a bot (`-is:bot` hides them) |
+| Qualifier                                                                   | Keeps                                                           |
+| --------------------------------------------------------------------------- | --------------------------------------------------------------- |
+| `user-review-requested:@me`                                                 | Requests addressed to you directly                              |
+| `team-review-requested:web` (or `org/web`, `*` for any team)                | Requests that reach you through a team                          |
+| `review-requested:@me`                                                      | Every open request, hiding PRs you already reviewed             |
+| `repo:`, `author:`, `head:`, `base:`                                        | One repository (owner/name or name), author, or branch          |
+| `is:stale`, `is:draft`, `is:stacked`, `is:approved`, `is:changes-requested` | Those states                                                    |
+| `is:bot`                                                                    | Threads whose last comment is from a bot (`-is:bot` hides them) |
 
 Prefix any qualifier with `-` to exclude it. The **Requested from: All · Me · @team** buttons rewrite the query the
 same way. Without the `read:org` scope GitHub hides team names, so team requests are grouped as `@team`;
@@ -89,7 +89,7 @@ The inbox's **Threads** tab lists unresolved review threads on open PRs you are 
 commented on), in two groups: **Waiting on your reply** (someone else spoke last) and **Waiting on others** (your
 comment has no answer yet), oldest first and grouped by PR. The tab count is how many wait on you. Clicking a
 thread opens the PR at that file and line; outdated threads open the file. **Reply** posts right away (⌘↵) and moves
-the thread to *Waiting on others*; **Resolve** resolves it on GitHub and keeps the row with **Undo** until the next refresh. The search box filters threads too (PR,
+the thread to _Waiting on others_; **Resolve** resolves it on GitHub and keeps the row with **Undo** until the next refresh. The search box filters threads too (PR,
 file path, comment text, `repo:`, `author:`, `-is:bot`). It covers the 30 most recently updated PRs you are involved
 in, and the last 10 comments of each thread; general PR conversation comments are not included, since only review
 threads can be resolved. Threads load when the inbox opens (reused for 2 minutes) and on **Refresh**.
@@ -98,7 +98,7 @@ threads can be resolved. Threads load when the inbox opens (reused for 2 minutes
 
 The inbox has a **Queue / Stacks** switch. Revio detects stacks from branches (a PR whose base branch is another open PR's
 head branch sits on top of it), walking up and down from every PR in your inbox, so stack members that were not
-requested from you show up too (marked *not requested*). Stacks are listed bottom-up, which is review order. Queue rows in a stack get a
+requested from you show up too (marked _not requested_). Stacks are listed bottom-up, which is review order. Queue rows in a stack get a
 **⧉ stack 2/4** chip that jumps to the stack.
 
 Inside a stacked PR, a stack bar under the header shows every PR in the stack (with status dots), **‹ Prev / Next ›**,
@@ -107,12 +107,12 @@ and a warning when the PR it builds on is not approved yet.
 ### Markdown
 
 PR descriptions, comments, guides and Claude answers render like GitHub: inline HTML (`<details>`, `<img width>`,
-`<p align>`…) sanitized with GitHub's allow-list, and ```` ```mermaid ```` blocks drawn as diagrams (loaded on demand,
+`<p align>`…) sanitized with GitHub's allow-list, and ` ```mermaid ` blocks drawn as diagrams (loaded on demand,
 follows light/dark; click a diagram to zoom, hover for **Source**). Links open in your browser. Images that need a
 GitHub login become links.
 
-Fenced code is syntax highlighted by its language (```` ```ts ````, ```` ```python ````…), selectable, and has a
-**Copy** button on hover. GitHub ```` ```suggestion ```` blocks are labeled *Suggested change* and highlighted as the
+Fenced code is syntax highlighted by its language (` ```ts `, ` ```python `…), selectable, and has a
+**Copy** button on hover. GitHub ` ```suggestion ` blocks are labeled _Suggested change_ and highlighted as the
 language of the file they comment on.
 
 ### Mentions
@@ -144,7 +144,7 @@ bar shows the open count and hides or shows the panel (remembered). The Ask Clau
 - Click a line number to comment; **click and drag** down the line numbers (or **shift-click**) to comment on a range.
 - **± Suggest change** inserts a GitHub `suggestion` block with the selected lines.
 - Drafts persist locally until you **Finish review** (Comment / Approve / Request changes), or use **✓ Approve** in the PR header.
-  Submitting takes you back to the inbox. A chip shows your last review on the PR (e.g. *You approved · new commits since*).
+  Submitting takes you back to the inbox. A chip shows your last review on the PR (e.g. _You approved · new commits since_).
 - "Viewed" resets automatically when a file changes in a new push.
 - **⌘F** finds text in the changed files, including files you have not scrolled to yet: **↵** / **⌘G** next match,
   **⇧↵** / **⇧⌘G** previous, **Aa** to match case, **Esc** to close.

@@ -1,25 +1,41 @@
 import { execFile, spawn } from 'node:child_process'
+import { MS_PER_SECOND } from '@shared/time.util.ts'
+import { env } from './env.config.ts'
 
 // Apps launched from Finder/Dock do not inherit the user's shell PATH, so tools
 // like `gh` and `claude` are resolved through a login shell.
-const SHELL = process.env.SHELL || '/bin/zsh'
+const SHELL = env.SHELL || '/bin/zsh'
+
+/** The most output a login-shell command may print. */
+const MAX_SHELL_OUTPUT_BYTES = 10_485_760 // 10 MiB
+
+let cachedPath: string | null = null
 
 export function loginShell(command: string, timeoutMs = 15_000): Promise<string> {
   return new Promise((resolve, reject) => {
-    execFile(SHELL, ['-ilc', command], { timeout: timeoutMs, maxBuffer: 10 * 1024 * 1024 }, (err, stdout, stderr) => {
-      if (err) reject(new Error(stderr.trim() || err.message))
-      else resolve(stdout.trim())
-    })
+    execFile(
+      SHELL,
+      ['-ilc', command],
+      { timeout: timeoutMs, maxBuffer: MAX_SHELL_OUTPUT_BYTES },
+      (err, stdout, stderr) => {
+        if (err) {
+          reject(new Error(stderr.trim() || err.message))
+        } else {
+          resolve(stdout.trim())
+        }
+      },
+    )
   })
 }
 
-let cachedPath: string | null = null
 export async function shellPath(): Promise<string> {
-  if (cachedPath) return cachedPath
+  if (cachedPath) {
+    return cachedPath
+  }
   try {
-    cachedPath = (await loginShell('printf %s "$PATH"')) || process.env.PATH || ''
+    cachedPath = (await loginShell('printf %s "$PATH"')) || env.PATH || ''
   } catch {
-    cachedPath = process.env.PATH ?? ''
+    cachedPath = env.PATH ?? ''
   }
   return cachedPath
 }
@@ -31,14 +47,18 @@ export async function runWithInput(
   input: string,
   opts: { cwd?: string; timeoutMs: number; onStderr?: (line: string) => void; onStdout?: (chunk: string) => void },
 ): Promise<string> {
-  const PATH = await shellPath()
+  const path = await shellPath()
   return new Promise((resolve, reject) => {
-    const child = spawn(bin, args, { cwd: opts.cwd, env: { ...process.env, PATH }, stdio: ['pipe', 'pipe', 'pipe'] })
+    const child = spawn(bin, args, {
+      cwd: opts.cwd,
+      env: { ...env, PATH: path },
+      stdio: ['pipe', 'pipe', 'pipe'],
+    })
     let out = ''
     let err = ''
     const timer = setTimeout(() => {
       child.kill('SIGTERM')
-      reject(new Error(`${bin} timed out after ${Math.round(opts.timeoutMs / 1000)}s`))
+      reject(new Error(`${bin} timed out after ${Math.round(opts.timeoutMs / MS_PER_SECOND)}s`))
     }, opts.timeoutMs)
     child.stdout.on('data', (d: Buffer) => {
       out += d.toString()
@@ -54,8 +74,11 @@ export async function runWithInput(
     })
     child.on('close', (code) => {
       clearTimeout(timer)
-      if (code === 0) resolve(out)
-      else reject(new Error(err.trim() || out.trim() || `${bin} exited with code ${code}`))
+      if (code === 0) {
+        resolve(out)
+      } else {
+        reject(new Error(err.trim() || out.trim() || `${bin} exited with code ${code}`))
+      }
     })
     child.stdin.end(input)
   })

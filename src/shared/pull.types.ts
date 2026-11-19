@@ -1,5 +1,5 @@
-import type { ReactionSummary } from './reaction.types'
-import type { AskThread, BriefingRecord } from './claude.types'
+import type { AskThread, BriefingRecord } from './claude.types.ts'
+import type { ReactionSummary } from './reaction.types.ts'
 
 /** Which pull request: repository ("owner/name") and number. Any object with these fields qualifies. */
 export interface PullRef {
@@ -13,18 +13,18 @@ export interface PullFile {
   path: string
   /** Blob sha; used to reset "viewed" when the file changes. */
   sha: string
-  previousPath?: string
+  previousPath?: string | undefined
   status: string
   additions: number
   deletions: number
   /** Unified diff hunks; missing for binary or very large files. */
-  patch?: string
+  patch?: string | undefined
 }
 export interface ReviewComment {
   id: number
   /** GraphQL id, for reacting to the comment. */
   nodeId: string
-  inReplyTo?: number
+  inReplyTo?: number | undefined
   path: string
   line: number | null
   startLine: number | null
@@ -56,7 +56,11 @@ export interface PullDetail {
   /** Your GitHub login. */
   viewer: string
   /** Your most recent decisive review (approve / request changes), else your latest comment review. */
-  myReview: { state: 'APPROVED' | 'CHANGES_REQUESTED' | 'COMMENTED' | 'DISMISSED'; submittedAt: string; stale: boolean } | null
+  myReview: {
+    state: 'APPROVED' | 'CHANGES_REQUESTED' | 'COMMENTED' | 'DISMISSED'
+    submittedAt: string
+    stale: boolean
+  } | null
   isDraft: boolean
   additions: number
   deletions: number
@@ -77,11 +81,11 @@ export interface DraftComment {
   path: string
   /** Line it comments on, or null for a comment on the whole file. */
   line: number | null
-  startLine?: number
+  startLine?: number | undefined
   side: DiffSide
   body: string
   /** Set when the draft is a reply to an existing thread (sent immediately on submit). */
-  inReplyTo?: number
+  inReplyTo?: number | undefined
 }
 export type ReviewEvent = 'COMMENT' | 'APPROVE' | 'REQUEST_CHANGES'
 export interface SubmitReviewInput {

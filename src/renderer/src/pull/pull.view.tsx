@@ -1,269 +1,99 @@
-import { useCallback, useMemo, useState } from 'react'
-import type { AskThread } from '@shared/claude.types'
-import type { PullRef, ReviewEvent } from '@shared/pull.types'
-import { BriefingPanel } from './briefing-panel.component'
-import { ErrorBanner } from '../common/error-banner.component'
-import { AskPanel } from './ask-panel.component'
-import type { AskSelection, DiffView } from './diff-file.component'
-import { FileTree } from './file-tree.component'
-import { groupByDir, initialCollapsed, newSideLinesByPath } from './files.util'
-import { groupBy } from '../common/group.util'
-import { useStoredChoice } from '../common/use-stored-choice.hook'
-import { isConversationTarget, type ConversationQuote, type OpenPull, type PullTarget } from '../common/navigation.types'
-import { CommentsPanel } from './comments-panel.component'
-import { groupCommentThreads } from './comment-threads.util'
-import { useFileKeyboardNav } from './use-file-keyboard-nav.hook'
-import { usePullLocalState } from './use-pull-local-state.hook'
-import { usePullDetail } from './use-pull-detail.hook'
-import { useBriefing } from './use-briefing.hook'
-import { useFileNavigation } from './use-file-navigation.hook'
-import { StackBar } from './stack-bar.component'
-import { PullHeader } from './pull-header.component'
-import { PullTabBar, type PullTab } from './pull-tab-bar.component'
-import { OverviewTab } from './overview-tab.component'
-import { FilesTab } from './files-tab.component'
-import { TabPane } from './tab-pane.component'
-import { FindBar } from './find-bar.component'
-import { useDiffFind } from './use-diff-find.hook'
-import { MentionedComment } from './mentioned-comment.component'
-import { FileHistoryPanel } from './file-history-panel.component'
-import { CommitsTab } from './commits-tab.component'
-import { ReactionsContext, type SetReaction } from './use-reactions.hook'
-import { ReplyTargetContext } from './use-reply-target.hook'
+import type { PullDetail, PullRef } from '@shared/pull.types.ts'
+import { ErrorBanner } from '../common/error-banner.component.tsx'
+import type { OpenPull, PullTarget } from '../common/navigation.types.ts'
+import { FileTree } from './file-tree.component.tsx'
+import { PullHeader } from './pull-header.component.tsx'
+import { PullSidePanels } from './pull-side-panels.component.tsx'
+import { PullTabs } from './pull-tabs.component.tsx'
+import { StackBar } from './stack-bar.component.tsx'
+import { type PullViewState, usePullView } from './use-pull-view.hook.ts'
+import { ReactionsContext } from './use-reactions.hook.ts'
+import { ReplyTargetContext } from './use-reply-target.hook.ts'
 
-const DIFF_VIEWS: readonly DiffView[] = ['unified', 'split']
-const PANEL_STATES = ['open', 'closed'] as const
-const BLAME_STATES = ['off', 'on'] as const
-
-export function PullView(props: {
+interface PullViewProps {
   pull: PullRef
   /** Where to open: a file, line or comment (e.g. from a review thread or a mention), or a conversation comment. */
-  initialTarget?: PullTarget
+  initialTarget?: PullTarget | undefined
   onBack: () => void
   /** After a review is submitted: the reviewer is done with this PR. */
   onReviewed: () => void
   onEditGuidelines: (repo: string, path?: string) => void
   onOpenPull: OpenPull
-}) {
-  const { repo, number } = props.pull
-  // A stable reference for hooks; the props object may be recreated by the parent.
-  const pull = useMemo(() => ({ repo, number }), [repo, number])
-  const [tab, setTab] = useState<PullTab>('overview')
-  const [reviewOpen, setReviewOpen] = useState<ReviewEvent | false>(false)
-  const [reviewBody, setReviewBody] = useState('')
-  const [askThread, setAskThread] = useState<AskThread | null>(null)
-  const [quote, setQuote] = useState<ConversationQuote | null>(() => (props.initialTarget && isConversationTarget(props.initialTarget) ? props.initialTarget.conversation : null))
-  const fileTarget = props.initialTarget && !isConversationTarget(props.initialTarget) ? props.initialTarget : undefined
-  const [replyToId, setReplyToId] = useState(fileTarget?.reply ? (fileTarget.commentId ?? null) : null)
-  const replyTarget = useMemo(() => ({ commentId: replyToId, consume: () => setReplyToId(null) }), [replyToId])
-  const [view, changeView] = useStoredChoice<DiffView>('revio.diffView', DIFF_VIEWS, 'unified')
-  const [commentsPanel, setCommentsPanel] = useStoredChoice('revio.commentsPanel', PANEL_STATES, 'open')
-  const [blame, setBlame] = useStoredChoice('revio.blame', BLAME_STATES, 'off')
-  /** The file whose history is open in the side panel. */
-  const [historyPath, setHistoryPath] = useState<string | null>(null)
-  const { local, replaceLocal, addDraft, updateDraft, deleteDraft, forgetDrafts, markViewed, saveThread, deleteThread, setBriefingRecord } = usePullLocalState(pull)
+}
 
-  const showFiles = useCallback(() => setTab('files'), [])
-  // The callback runs after an await, by which time `nav` below is defined.
-  const { pr, guides, error, stack, replyNow } = usePullDetail(pull, (p, l) => {
-    replaceLocal(l)
-    nav.replaceCollapsed(initialCollapsed(p, l))
-  })
-  const nav = useFileNavigation({ pr, onFilesTab: tab === 'files', showFiles, initialTarget: fileTarget })
-  const { goTo } = nav
-  const briefing = useBriefing(pull, (record) => {
-    setBriefingRecord(record)
-    nav.collapseFiles(record.briefing.ignore.map((i) => i.path))
-  })
-
-  const setReaction: SetReaction = useCallback((subjectId, content, on) => window.revio.setReaction(pull, subjectId, content, on), [pull])
-
-  const startAsk = useCallback((sel: AskSelection) => {
-    setAskThread({ id: crypto.randomUUID(), ...sel, messages: [], createdAt: new Date().toISOString() })
-  }, [])
-  const updateThread = (thread: AskThread) => {
-    setAskThread(thread)
-    saveThread(thread)
+/** The header, with the review popover that submits your review and its pending comments. */
+function PullViewHeader({ v, pr, props }: { v: PullViewState; pr: PullDetail; props: PullViewProps }) {
+  const { review } = v
+  const savedAsks = v.local.asks ?? []
+  let askCount = savedAsks.length
+  if (v.ask.thread !== null) {
+    askCount = 0
   }
-
-  const focusByPath = useMemo(() => groupBy(local.briefing?.briefing.focus ?? [], (f) => f.path), [local.briefing])
-  const ignoreByPath = useMemo(() => new Map(local.briefing?.briefing.ignore.map((i) => [i.path, i.reason])), [local.briefing])
-  const focusPaths = useMemo(() => new Set(focusByPath.keys()), [focusByPath])
-  const ignorePaths = useMemo(() => new Set(ignoreByPath.keys()), [ignoreByPath])
-  const draftsByPath = useMemo(() => groupBy(local.drafts, (d) => d.path), [local.drafts])
-  const draftCounts = useMemo(() => new Map([...draftsByPath].map(([path, ds]) => [path, ds.length])), [draftsByPath])
-  const commentsByPath = useMemo(() => groupBy(pr?.comments ?? [], (c) => c.path), [pr])
-
-  /** Folder-grouped order, shared by the sidebar, the diff list and j/k. */
-  const orderedFiles = useMemo(() => (pr ? groupByDir(pr.files).flatMap(([, fs]) => fs) : []), [pr])
-  const find = useDiffFind({ files: orderedFiles, jump: nav.jump, onFilesTab: tab === 'files', showFiles })
-  const commentThreads = useMemo(() => groupCommentThreads(pr?.comments ?? [], pr?.threads ?? [], orderedFiles.map((f) => f.path)), [pr, orderedFiles])
-  const rightLines = useMemo(() => newSideLinesByPath(pr), [pr])
-  const patchOf = useCallback((path: string) => pr?.files.find((f) => f.path === path)?.patch, [pr])
-
-  const toggleViewed = useCallback(
-    (path: string, sha: string, viewed: boolean) => {
-      markViewed(path, sha, viewed)
-      nav.setFileCollapsed(path, viewed)
-    },
-    [markViewed, nav.setFileCollapsed],
+  return (
+    <PullHeader
+      pr={pr}
+      draftCount={v.local.drafts.length}
+      askCount={askCount}
+      onOpenAsks={() => v.ask.setThread(savedAsks[0] ?? null)}
+      onBack={props.onBack}
+      reviewOpen={review.open}
+      setReviewOpen={review.setOpen}
+      reviewBody={review.body}
+      setReviewBody={review.setBody}
+      onSubmitReview={async (event) => {
+        const { repo, number } = v.pull
+        const res = await globalThis.revio.submitReview({ repo, number, headSha: pr.headSha, event, body: review.body })
+        review.setBody('')
+        review.setOpen(false)
+        v.forgetDrafts()
+        props.onReviewed()
+        return res.url
+      }}
+    />
   )
+}
 
-  useFileKeyboardNav({
-    enabled: !!pr && !reviewOpen,
-    files: orderedFiles,
-    current: nav.current,
-    viewed: local.viewed,
-    goTo: (path, expand) => goTo(path, null, expand),
-    markViewed: toggleViewed,
-  })
-
-  if (error)
+export function PullView(props: PullViewProps) {
+  const v = usePullView(props.pull, props.initialTarget)
+  const { pr } = v
+  if (v.error) {
     return (
       <div className="p-6">
-        <button className="btn mb-4" onClick={props.onBack}>
+        <button type="button" className="btn mb-4" onClick={props.onBack}>
           ← Inbox
         </button>
-        <ErrorBanner>{error}</ErrorBanner>
+        <ErrorBanner>{v.error}</ErrorBanner>
       </div>
     )
-  if (!pr) return <div className="flex h-full items-center justify-center text-muted">Loading {repo}#{number}…</div>
-
-  const asks = local.asks ?? []
-
-  return (
-    <ReactionsContext value={setReaction}>
-    <ReplyTargetContext value={replyTarget}>
-    <div className="flex h-full flex-col">
-      <PullHeader
-        pr={pr}
-        draftCount={local.drafts.length}
-        askCount={askThread ? 0 : asks.length}
-        onOpenAsks={() => setAskThread(asks[0]!)}
-        onBack={props.onBack}
-        reviewOpen={reviewOpen}
-        setReviewOpen={setReviewOpen}
-        reviewBody={reviewBody}
-        setReviewBody={setReviewBody}
-        onSubmitReview={async (event) => {
-          const res = await window.revio.submitReview({ repo, number, headSha: pr.headSha, event, body: reviewBody })
-          setReviewBody('')
-          setReviewOpen(false)
-          forgetDrafts()
-          props.onReviewed()
-          return res.url
-        }}
-      />
-
-      {stack && <StackBar stack={stack} pull={pull} onOpen={props.onOpenPull} />}
-
-      <div className="flex min-h-0 flex-1">
-        <FileTree files={pr.files} viewed={local.viewed} current={nav.current} focusPaths={focusPaths} ignorePaths={ignorePaths} draftCounts={draftCounts} onSelect={goTo} />
-
-        <section className="flex min-w-0 flex-1 flex-col">
-          <PullTabBar
-            tab={tab}
-            onTab={setTab}
-            commitCount={pr.commitCount}
-            openThreadCount={commentThreads.filter((t) => !t.resolved).length}
-            commentsPanelOpen={commentsPanel === 'open'}
-            onToggleCommentsPanel={() => {
-              setHistoryPath(null)
-              setCommentsPanel(commentsPanel === 'open' ? 'closed' : 'open')
-            }}
-            blame={blame === 'on'}
-            onToggleBlame={() => setBlame(blame === 'on' ? 'off' : 'on')}
-            view={view}
-            onView={changeView}
-          />
-
-          {tab === 'files' && find.open && <FindBar find={find} />}
-
-          <TabPane active={tab === 'overview'}>
-            <OverviewTab
-              pr={pr}
-              guides={guides}
-              onEditGuidelines={props.onEditGuidelines}
-              mentioned={quote && <MentionedComment quote={quote} onReply={(body) => window.revio.commentOnPull(pull, body)} onDismiss={() => setQuote(null)} />}
-              briefing={
-                <BriefingPanel
-                  record={local.briefing}
-                  headSha={pr.headSha}
-                  {...briefing.status}
-                  onGenerate={briefing.generate}
-                  onJump={(path, line) => goTo(path, line)}
-                  validLine={(path, line) => !!rightLines.get(path)?.has(line)}
-                  patchOf={patchOf}
-                  onDraft={(path, line, body) => {
-                    addDraft({ path, line, side: 'RIGHT', body })
-                    goTo(path, line)
-                  }}
-                  onAddToSummary={(q) => setReviewBody((b) => `${b}${b ? '\n' : ''}- ${q}`)}
-                />
-              }
-            />
-          </TabPane>
-
-          <TabPane active={tab === 'commits'}>
-            <CommitsTab pull={pull} headSha={pr.headSha} />
-          </TabPane>
-
-          <TabPane active={tab === 'files'}>
-            <FilesTab
-              files={orderedFiles}
-              view={view}
-              repo={repo}
-              headSha={pr.headSha}
-              blame={blame === 'on'}
-              onShowHistory={setHistoryPath}
-              commentsByPath={commentsByPath}
-              draftsByPath={draftsByPath}
-              focusByPath={focusByPath}
-              ignoreByPath={ignoreByPath}
-              viewed={local.viewed}
-              collapsed={nav.collapsed}
-              current={nav.current}
-              onToggleCollapsed={nav.setFileCollapsed}
-              onToggleViewed={toggleViewed}
-              onAddDraft={addDraft}
-              onUpdateDraft={updateDraft}
-              onDeleteDraft={deleteDraft}
-              onReplyNow={replyNow}
-              onAsk={startAsk}
-            />
-          </TabPane>
-        </section>
-
-        {tab === 'files' && historyPath && !askThread && (
-          <FileHistoryPanel key={historyPath} repo={repo} headSha={pr.headSha} path={historyPath} pull={pull} onClose={() => setHistoryPath(null)} />
-        )}
-
-        {tab === 'files' && commentsPanel === 'open' && !historyPath && !askThread && (
-          <CommentsPanel threads={commentThreads} drafts={local.drafts} current={nav.current} onJump={(path, line, commentId) => goTo(path, line, true, commentId)} onClose={() => setCommentsPanel('closed')} />
-        )}
-
-        {askThread && (
-          <AskPanel
-            pull={pull}
-            thread={askThread}
-            history={[...(askThread.messages.length ? [] : [askThread]), ...asks]}
-            onSelect={(id) => setAskThread(asks.find((t) => t.id === id) ?? askThread)}
-            onDelete={(id) => {
-              deleteThread(id)
-              if (id === askThread.id) setAskThread(asks.find((t) => t.id !== id) ?? null)
-            }}
-            onChange={updateThread}
-            onClose={() => setAskThread(null)}
-            onJump={(path, line) => goTo(path, askThread.side === 'RIGHT' ? line : null)}
-            onUseAsDraft={(t, body) => {
-              addDraft({ path: t.path, side: t.side, line: t.endLine, startLine: t.startLine !== t.endLine ? t.startLine : undefined, body })
-              goTo(t.path, t.side === 'RIGHT' ? t.endLine : null)
-            }}
-          />
-        )}
+  }
+  if (!pr) {
+    return (
+      <div className="flex h-full items-center justify-center text-muted">
+        Loading {props.pull.repo}#{props.pull.number}…
       </div>
-    </div>
-    </ReplyTargetContext>
+    )
+  }
+  return (
+    <ReactionsContext value={v.setReaction}>
+      <ReplyTargetContext value={v.replyTarget}>
+        <div className="flex h-full flex-col">
+          <PullViewHeader v={v} pr={pr} props={props} />
+          {v.stack !== null && <StackBar stack={v.stack} pull={v.pull} onOpen={props.onOpenPull} />}
+          <div className="flex min-h-0 flex-1">
+            <FileTree
+              files={pr.files}
+              viewed={v.local.viewed}
+              current={v.nav.current}
+              focusPaths={v.focusPaths}
+              ignorePaths={v.ignorePaths}
+              draftCounts={v.draftCounts}
+              onSelect={v.nav.goTo}
+            />
+            <PullTabs v={v} pr={pr} onEditGuidelines={props.onEditGuidelines} />
+            <PullSidePanels v={v} pr={pr} />
+          </div>
+        </div>
+      </ReplyTargetContext>
     </ReactionsContext>
   )
 }

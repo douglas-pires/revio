@@ -1,8 +1,9 @@
+import type { PullDetail } from '@shared/pull.types.ts'
 import { describe, expect, it } from 'vitest'
-import type { PullDetail } from '@shared/pull.types'
-import { hasSameContent } from './pull-content.util'
+import { hasSameContent } from './pull-content.util.ts'
 
-const pull = (over: Partial<PullDetail> = {}) => ({ fetchedAt: '2026-01-01T00:00:00Z', title: 'Fix', files: [], comments: [], ...over }) as unknown as PullDetail
+const pull = (over: Partial<PullDetail> = {}) =>
+  ({ fetchedAt: '2026-01-01T00:00:00Z', title: 'Fix', files: [], comments: [], ...over }) as unknown as PullDetail
 
 describe('hasSameContent', () => {
   it('ignores when the copies were fetched', () => {

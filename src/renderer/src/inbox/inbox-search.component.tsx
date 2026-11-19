@@ -1,5 +1,5 @@
 import { useRef, useState } from 'react'
-import { useSlashToFocus } from './use-slash-to-focus.hook'
+import { useSlashToFocus } from './use-slash-to-focus.hook.ts'
 
 const EXAMPLES: [string, string][] = [
   ['user-review-requested:@me', 'Requested from you directly'],
@@ -12,6 +12,15 @@ const EXAMPLES: [string, string][] = [
   ['-is:draft', 'A leading minus excludes'],
 ]
 
+/** The query with `qualifier` added at the end; a bare `key:` waits for its value, anything else gets a space. */
+function withQualifier(value: string, qualifier: string) {
+  const parts = [value.trim(), qualifier].filter(Boolean)
+  if (qualifier.endsWith(':')) {
+    return parts.join(' ')
+  }
+  return `${parts.join(' ')} `
+}
+
 /** The inbox search field: free text plus GitHub-style qualifiers, with a cheat sheet while it is empty. */
 export function InboxSearch({ value, onChange }: { value: string; onChange: (text: string) => void }) {
   const input = useRef<HTMLInputElement>(null)
@@ -19,7 +28,7 @@ export function InboxSearch({ value, onChange }: { value: string; onChange: (tex
   useSlashToFocus(input)
 
   const insert = (qualifier: string) => {
-    onChange(`${value.trim() ? `${value.trim()} ` : ''}${qualifier}${qualifier.endsWith(':') ? '' : ' '}`)
+    onChange(withQualifier(value, qualifier))
     requestAnimationFrame(() => input.current?.focus())
   }
 
@@ -35,17 +44,22 @@ export function InboxSearch({ value, onChange }: { value: string; onChange: (tex
         onFocus={() => setFocused(true)}
         onBlur={() => setFocused(false)}
         onKeyDown={(e) => {
-          if (e.key !== 'Escape') return
+          if (e.key !== 'Escape') {
+            return
+          }
           onChange('')
           input.current?.blur()
         }}
       />
-      <kbd className="pointer-events-none absolute top-1/2 right-2 -translate-y-1/2 rounded border border-line px-1 text-[10px] text-muted">/</kbd>
-      {focused && !value.trim() && (
+      <kbd className="pointer-events-none absolute top-1/2 right-2 -translate-y-1/2 rounded border border-line px-1 text-[10px] text-muted">
+        /
+      </kbd>
+      {Boolean(focused && !value.trim()) && (
         <ul className="absolute top-full right-0 z-20 mt-1 w-[26rem] overflow-hidden rounded-md border border-line bg-panel py-1 shadow-lg">
           {EXAMPLES.map(([qualifier, hint]) => (
             <li key={qualifier}>
               <button
+                type="button"
                 className="flex w-full items-baseline gap-3 px-3 py-1 text-left hover:bg-hover"
                 // Keep focus in the field so the click lands before the list closes.
                 onMouseDown={(e) => e.preventDefault()}

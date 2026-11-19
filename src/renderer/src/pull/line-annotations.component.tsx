@@ -1,9 +1,9 @@
-import type { DraftComment, ReviewComment } from '@shared/pull.types'
-import { Composer, DraftView, ReviewThread, type CommentActions } from './review-comments.component'
+import type { DraftComment, ReviewComment } from '@shared/pull.types.ts'
+import { type CommentActions, Composer, DraftView, ReviewThread } from './review-comments.component.tsx'
 
 export interface ComposerSpec {
   label: string
-  suggestion?: string
+  suggestion?: string | undefined
   onSubmit: (body: string) => void
   onAsk: () => void
   onCancel: () => void
@@ -22,12 +22,12 @@ export function LineAnnotations(props: {
   return (
     <div className="max-w-3xl space-y-2">
       {props.threads.map((t) => (
-        <ReviewThread key={t[0]!.id} path={props.path} thread={t} allDrafts={props.allDrafts} actions={props.actions} />
+        <ReviewThread key={t[0]?.id} path={props.path} thread={t} allDrafts={props.allDrafts} actions={props.actions} />
       ))}
       {props.drafts.map((d) => (
         <DraftView key={d.id} d={d} onUpdate={props.actions.onUpdateDraft} onDelete={props.actions.onDeleteDraft} />
       ))}
-      {props.composer && <Composer {...props.composer} codePath={props.path} />}
+      {props.composer !== null && <Composer {...props.composer} codePath={props.path} />}
     </div>
   )
 }

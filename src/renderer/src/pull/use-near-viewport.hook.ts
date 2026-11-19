@@ -1,4 +1,4 @@
-import { useEffect, useState, type RefObject } from 'react'
+import { type RefObject, useEffect, useState } from 'react'
 
 /** Distance from the visible area at which a file starts rendering, and at which it may stop. */
 const ENTER_MARGIN = '1200px 0px'
@@ -14,10 +14,18 @@ export function useNearViewport(ref: RefObject<HTMLElement | null>, keepAlive: b
 
   useEffect(() => {
     const el = ref.current
-    if (!el) return
+    if (!el) {
+      return
+    }
     const root = el.closest<HTMLElement>('[data-scroll-root]')
-    const enter = new IntersectionObserver(([e]) => e?.isIntersecting && setNear(true), { root, rootMargin: ENTER_MARGIN })
-    const leave = new IntersectionObserver(([e]) => e && !e.isIntersecting && setNear(false), { root, rootMargin: LEAVE_MARGIN })
+    const enter = new IntersectionObserver(([e]) => e?.isIntersecting && setNear(true), {
+      root,
+      rootMargin: ENTER_MARGIN,
+    })
+    const leave = new IntersectionObserver(([e]) => e && !e.isIntersecting && setNear(false), {
+      root,
+      rootMargin: LEAVE_MARGIN,
+    })
     enter.observe(el)
     leave.observe(el)
     return () => {

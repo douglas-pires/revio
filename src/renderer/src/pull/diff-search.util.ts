@@ -1,5 +1,23 @@
-import type { DiffSide } from '@shared/pull.types'
-import type { DiffRow } from './diff.util'
+import type { DiffSide } from '@shared/pull.types.ts'
+
+import type { DiffRow, LineRow } from './diff.util.ts'
+
+/** A removed line is found by its old number; added and kept lines by their new one. */
+function placeOf(row: LineRow): { side: DiffSide; line: number | null } {
+  if (row.kind === 'del') {
+    return { side: 'LEFT', line: row.oldNo }
+  }
+  return { side: 'RIGHT', line: row.newNo }
+}
+
+/** Each occurrence of `query` in one diff line. */
+function matchesInRow(path: string, row: LineRow, query: string, options: SearchOptions): DiffMatch[] {
+  const { side, line } = placeOf(row)
+  if (line === null) {
+    return []
+  }
+  return occurrences(row.text, query, options).map((_, nth) => ({ path, side, line, nth }))
+}
 
 /** One occurrence of the search text in a diff line. */
 export interface DiffMatch {
@@ -20,27 +38,34 @@ export const MAX_MATCHES = 1000
 
 /** Start offsets of `query` in `text`, without overlaps. */
 export function occurrences(text: string, query: string, { caseSensitive }: SearchOptions): number[] {
-  if (!query) return []
-  const hay = caseSensitive ? text : text.toLowerCase()
-  const needle = caseSensitive ? query : query.toLowerCase()
+  if (!query) {
+    return []
+  }
+  let hay = text.toLowerCase()
+  let needle = query.toLowerCase()
+  if (caseSensitive) {
+    hay = text
+    needle = query
+  }
   const found: number[] = []
-  for (let at = hay.indexOf(needle); at >= 0; at = hay.indexOf(needle, at + needle.length)) found.push(at)
+  for (let at = hay.indexOf(needle); at >= 0; at = hay.indexOf(needle, at + needle.length)) {
+    found.push(at)
+  }
   return found
 }
 
 /** Every occurrence of `query` in the diff lines of `files`, in file and line order, up to MAX_MATCHES. */
-export function searchDiffs(files: readonly { path: string; rows: readonly DiffRow[] }[], query: string, options: SearchOptions): DiffMatch[] {
+export function searchDiffs(
+  files: readonly { path: string; rows: readonly DiffRow[] }[],
+  query: string,
+  options: SearchOptions,
+): DiffMatch[] {
   const matches: DiffMatch[] = []
   for (const { path, rows } of files) {
-    for (const row of rows) {
-      if (row.kind === 'hunk') continue
-      const side: DiffSide = row.kind === 'del' ? 'LEFT' : 'RIGHT'
-      const line = side === 'LEFT' ? row.oldNo : row.newNo
-      if (line == null) continue
-      const hits = occurrences(row.text, query, options)
-      for (let nth = 0; nth < hits.length; nth++) {
-        if (matches.length >= MAX_MATCHES) return matches
-        matches.push({ path, side, line, nth })
+    for (const row of rows.filter((r): r is LineRow => r.kind !== 'hunk')) {
+      matches.push(...matchesInRow(path, row, query, options))
+      if (matches.length >= MAX_MATCHES) {
+        return matches.slice(0, MAX_MATCHES)
       }
     }
   }
@@ -49,7 +74,14 @@ export function searchDiffs(files: readonly { path: string; rows: readonly DiffR
 
 /** The match index after (or before) `index`, wrapping around; 0 when nothing is current yet. */
 export function stepMatch(index: number | null, count: number, direction: 1 | -1): number | null {
-  if (!count) return null
-  if (index == null) return direction === 1 ? 0 : count - 1
+  if (!count) {
+    return null
+  }
+  if (index === null && direction === 1) {
+    return 0
+  }
+  if (index === null) {
+    return count - 1
+  }
   return (index + direction + count) % count
 }

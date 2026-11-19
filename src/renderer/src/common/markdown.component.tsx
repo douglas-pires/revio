@@ -1,10 +1,10 @@
-import { isValidElement, memo, useState, type ReactNode } from 'react'
+import { isValidElement, memo, type ReactNode, useState } from 'react'
 import ReactMarkdown from 'react-markdown'
 import rehypeRaw from 'rehype-raw'
 import rehypeSanitize, { defaultSchema } from 'rehype-sanitize'
 import remarkGfm from 'remark-gfm'
-import { MermaidBlock } from './mermaid-block.component'
-import { CodeBlock } from './code-block.component'
+import { CodeBlock } from './code-block.component.tsx'
+import { MermaidBlock } from './mermaid-block.component.tsx'
 
 /**
  * GitHub-flavored markdown with the inline HTML people put in PR descriptions
@@ -22,44 +22,103 @@ const schema = {
   },
 }
 
+const WEB_URL = /^https?:/u
+const CODE_LANGUAGE = /\blanguage-(?<language>[\w+#.-]+)/u
+const TRAILING_NEWLINE = /\n$/u
+
 const open = (href?: string) => {
-  if (href && /^https?:/.test(href)) void window.revio.openExternal(href)
+  if (href && WEB_URL.test(href)) {
+    globalThis.revio.openExternal(href)
+  }
 }
 
-function Img({ src, alt, width, height }: { src?: string; alt?: string; width?: string | number; height?: string | number }) {
+/** An image source that is a URL; markdown can also hand over a Blob, which the app never shows. */
+function stringOrNothing(src: unknown) {
+  if (typeof src !== 'string') {
+    return
+  }
+  return src
+}
+
+function Img({
+  src,
+  alt,
+  width,
+  height,
+}: {
+  src?: string | undefined
+  alt?: string | undefined
+  width?: string | number | undefined
+  height?: string | number | undefined
+}) {
   const [broken, setBroken] = useState(false)
-  if (!src) return null
+  if (!src) {
+    return null
+  }
   // Images on private repos often need a GitHub session the app does not have; offer a link instead.
-  if (broken)
+  if (broken) {
     return (
-      <a href={src} onClick={(e) => { e.preventDefault(); open(src) }} className="inline-flex items-center gap-1 rounded border border-line px-1.5 py-0.5 text-[12px] no-underline">
+      <a
+        href={src}
+        onClick={(e) => {
+          e.preventDefault()
+          open(src)
+        }}
+        className="inline-flex items-center gap-1 rounded border border-line px-1.5 py-0.5 text-[12px] no-underline"
+      >
         🖼 {alt || 'image'} ↗
       </a>
     )
-  return <img src={src} alt={alt} width={width} height={height} onError={() => setBroken(true)} className="inline-block max-w-full rounded" />
+  }
+  return (
+    // biome-ignore lint/a11y/noNoninteractiveElementInteractions: onError swaps a broken image for a link; it is not a user interaction.
+    <img
+      src={src}
+      alt={alt}
+      width={width}
+      height={height}
+      onError={() => setBroken(true)}
+      className="inline-block max-w-full rounded"
+    />
+  )
 }
 
 /** The file extension, used as the language of a ```suggestion block on that file. */
-const extensionOf = (path?: string) => (path?.includes('.') ? path.slice(path.lastIndexOf('.') + 1) : undefined)
+function extensionOf(path: string | undefined) {
+  if (!path?.includes('.')) {
+    return
+  }
+  return path.slice(path.lastIndexOf('.') + 1)
+}
 
 /**
  * Fences arrive as <pre><code class="language-x">. Mermaid is drawn; other code is highlighted with a copy button.
  * A ```suggestion (a GitHub suggested change) is highlighted as the language of the file it comments on.
  */
-function Pre({ children, codePath }: { children?: ReactNode; codePath?: string }) {
-  if (!isValidElement<{ className?: string; children?: ReactNode }>(children)) return <pre>{children}</pre>
-  const language = /\blanguage-([\w+#.-]+)/.exec(children.props.className ?? '')?.[1]
-  const code = String(children.props.children ?? '').replace(/\n$/, '')
-  if (language === 'mermaid') return <MermaidBlock code={code} />
-  if (language === 'suggestion') return <CodeBlock code={code} language={extensionOf(codePath)} label="Suggested change" />
+function Pre({ children, codePath }: { children?: ReactNode; codePath?: string | undefined }) {
+  if (!isValidElement<{ className?: string; children?: ReactNode }>(children)) {
+    return <pre>{children}</pre>
+  }
+  const language = CODE_LANGUAGE.exec(children.props.className ?? '')?.groups?.language
+  const code = String(children.props.children ?? '').replace(TRAILING_NEWLINE, '')
+  if (language === 'mermaid') {
+    return <MermaidBlock code={code} />
+  }
+  if (language === 'suggestion') {
+    return <CodeBlock code={code} language={extensionOf(codePath)} label="Suggested change" />
+  }
   return <CodeBlock code={code} language={language} />
 }
 
-export const Markdown = memo(function Markdown({ children, className = '', codePath }: {
+export const Markdown = memo(function MarkdownView({
+  children,
+  className = '',
+  codePath,
+}: {
   children: string
   className?: string
   /** The file this text comments on, for highlighting ```suggestion blocks. */
-  codePath?: string
+  codePath?: string | undefined
 }) {
   return (
     <div className={`prose-revio ${className}`}>
@@ -67,7 +126,7 @@ export const Markdown = memo(function Markdown({ children, className = '', codeP
         remarkPlugins={[remarkGfm]}
         rehypePlugins={[rehypeRaw, [rehypeSanitize, schema]]}
         components={{
-          a: ({ href, children }) => (
+          a: ({ href, children: label }) => (
             <a
               href={href}
               onClick={(e) => {
@@ -75,11 +134,13 @@ export const Markdown = memo(function Markdown({ children, className = '', codeP
                 open(href)
               }}
             >
-              {children}
+              {label}
             </a>
           ),
-          pre: ({ children }) => <Pre codePath={codePath}>{children}</Pre>,
-          img: ({ src, alt, width, height }) => <Img src={typeof src === 'string' ? src : undefined} alt={alt} width={width} height={height} />,
+          pre: ({ children: code }) => <Pre codePath={codePath}>{code}</Pre>,
+          img: ({ src, alt, width, height }) => (
+            <Img src={stringOrNothing(src)} alt={alt} width={width} height={height} />
+          ),
         }}
       >
         {children}

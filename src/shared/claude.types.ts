@@ -1,4 +1,4 @@
-import type { DiffSide } from './pull.types'
+import type { DiffSide } from './pull.types.ts'
 
 export interface FocusItem {
   path: string

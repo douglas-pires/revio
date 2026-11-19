@@ -1,10 +1,30 @@
+import type { DraftComment, ReviewComment } from '@shared/pull.types.ts'
 import { describe, expect, it } from 'vitest'
-import type { DraftComment, ReviewComment } from '@shared/pull.types'
-import { groupCommentThreads, indexFileComments, matchingComment, searchDrafts, searchThreads } from '@/pull/comment-threads.util'
+import {
+  groupCommentThreads,
+  indexFileComments,
+  matchingComment,
+  searchDrafts,
+  searchThreads,
+} from '@/pull/comment-threads.util.ts'
+import { expectPresent } from '../../../../test/fixtures.ts'
 
 const makeComment = (id: number, over: Partial<ReviewComment> = {}): ReviewComment => ({
-  id, path: 'b.ts', line: 10, startLine: null, side: 'RIGHT', body: `c${id}`, author: 'bo', authorAvatar: '',
-  createdAt: `2026-11-0${id}T00:00:00Z`, url: '', outdated: false, subjectType: 'line', nodeId: `N${id}`, reactions: [], ...over,
+  id,
+  path: 'b.ts',
+  line: 10,
+  startLine: null,
+  side: 'RIGHT',
+  body: `c${id}`,
+  author: 'bo',
+  authorAvatar: '',
+  createdAt: `2026-11-0${id}T00:00:00Z`,
+  url: '',
+  outdated: false,
+  subjectType: 'line',
+  nodeId: `N${id}`,
+  reactions: [],
+  ...over,
 })
 
 describe('groupCommentThreads', () => {
@@ -13,11 +33,15 @@ describe('groupCommentThreads', () => {
     const [thread, ...rest] = groupCommentThreads(comments, [{ id: 'T1', rootCommentId: 1, resolved: true }], ['b.ts'])
     expect(rest).toEqual([])
     expect(thread).toMatchObject({ rootId: 1, threadId: 'T1', resolved: true })
-    expect(thread!.comments.map((c) => c.id)).toEqual([1, 2, 3])
+    expect(thread?.comments.map((c) => c.id)).toEqual([1, 2, 3])
   })
 
   it('orders threads like the file list, then by line, outdated last', () => {
-    const comments = [makeComment(1, { path: 'b.ts', line: 5 }), makeComment(2, { path: 'a.ts', line: null, outdated: true }), makeComment(3, { path: 'a.ts', line: 7 })]
+    const comments = [
+      makeComment(1, { path: 'b.ts', line: 5 }),
+      makeComment(2, { path: 'a.ts', line: null, outdated: true }),
+      makeComment(3, { path: 'a.ts', line: 7 }),
+    ]
     expect(groupCommentThreads(comments, [], ['a.ts', 'b.ts']).map((t) => t.rootId)).toEqual([3, 2, 1])
   })
 
@@ -33,7 +57,14 @@ describe('groupCommentThreads', () => {
 })
 
 describe('indexFileComments', () => {
-  const draft = (id: string, over: Partial<DraftComment> = {}): DraftComment => ({ id, path: 'b.ts', side: 'RIGHT', line: 10, body: id, ...over })
+  const draft = (id: string, over: Partial<DraftComment> = {}): DraftComment => ({
+    id,
+    path: 'b.ts',
+    side: 'RIGHT',
+    line: 10,
+    body: id,
+    ...over,
+  })
 
   it('files threads under their line, on the file, or as outdated', () => {
     const comments = [
@@ -44,13 +75,17 @@ describe('indexFileComments', () => {
       makeComment(5, { line: null, outdated: true, inReplyTo: 4 }),
     ]
     const index = indexFileComments('b.ts', comments, [])
-    expect(index.threadsByLine.get('RIGHT:10')!.map((t) => t.map((c) => c.id))).toEqual([[1, 2]])
-    expect(index.fileThreads.map((t) => t[0]!.id)).toEqual([3])
+    expect(index.threadsByLine.get('RIGHT:10')?.map((t) => t.map((c) => c.id))).toEqual([[1, 2]])
+    expect(index.fileThreads.map((t) => t[0]?.id)).toEqual([3])
     expect(index.outdatedThreads.map((t) => t.map((c) => c.id))).toEqual([[4, 5]])
   })
 
   it('keys new line drafts and leaves out replies and file drafts', () => {
-    const index = indexFileComments('b.ts', [], [draft('a'), draft('b', { side: 'LEFT', line: 3 }), draft('r', { inReplyTo: 1 }), draft('f', { line: null })])
+    const index = indexFileComments(
+      'b.ts',
+      [],
+      [draft('a'), draft('b', { side: 'LEFT', line: 3 }), draft('r', { inReplyTo: 1 }), draft('f', { line: null })],
+    )
     expect([...index.draftsByLine].map(([k, ds]) => [k, ds.map((d) => d.id)])).toEqual([
       ['RIGHT:10', ['a']],
       ['LEFT:3', ['b']],
@@ -60,7 +95,11 @@ describe('indexFileComments', () => {
 
 describe('searching comments', () => {
   const threads = groupCommentThreads(
-    [makeComment(1, { body: 'Please add a Retry here' }), makeComment(2, { inReplyTo: 1, author: 'cy', body: 'done' }), makeComment(3, { path: 'a.ts', body: 'naming' })],
+    [
+      makeComment(1, { body: 'Please add a Retry here' }),
+      makeComment(2, { inReplyTo: 1, author: 'cy', body: 'done' }),
+      makeComment(3, { path: 'a.ts', body: 'naming' }),
+    ],
     [],
     ['a.ts', 'b.ts'],
   )
@@ -74,7 +113,7 @@ describe('searching comments', () => {
   })
 
   it('names the comment that matched', () => {
-    expect(matchingComment(threads[1]!, 'done')?.id).toBe(2)
+    expect(matchingComment(expectPresent(threads[1]), 'done')?.id).toBe(2)
   })
 
   it('searches drafts by text and path', () => {

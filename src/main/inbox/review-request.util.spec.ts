@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest'
-import { awaitsYou, classifyRequest, type RawReviewer, type RequestEvent } from './review-request.util'
+import { awaitsYou, classifyRequest, type RawReviewer, type RequestEvent } from './review-request.util.ts'
 
 const me: RawReviewer = { __typename: 'User', login: 'me' }
 const other: RawReviewer = { __typename: 'User', login: 'bo' }
@@ -9,19 +9,31 @@ const event = (createdAt: string, requestedReviewer: RawReviewer): RequestEvent 
 
 describe('classifyRequest', () => {
   it('is direct when you are among the pending reviewers, dated by your own request', () => {
-    expect(classifyRequest([web, me], [event('t1', me), event('t2', web)], 'me')).toEqual({ viaTeam: null, requestedAt: 't1' })
+    expect(classifyRequest([web, me], [event('t1', me), event('t2', web)], 'me')).toEqual({
+      viaTeam: null,
+      requestedAt: 't1',
+    })
   })
 
   it('names the team when GitHub shows it', () => {
-    expect(classifyRequest([other, web], [event('t1', web), event('t2', other)], 'me')).toEqual({ viaTeam: 'web', requestedAt: 't1' })
+    expect(classifyRequest([other, web], [event('t1', web), event('t2', other)], 'me')).toEqual({
+      viaTeam: 'web',
+      requestedAt: 't1',
+    })
   })
 
   it('treats a hidden reviewer (token without read:org) as a team, not as you', () => {
-    expect(classifyRequest([hiddenTeam, other], [event('t1', hiddenTeam), event('t2', other)], 'me')).toEqual({ viaTeam: 'team', requestedAt: 't1' })
+    expect(classifyRequest([hiddenTeam, other], [event('t1', hiddenTeam), event('t2', other)], 'me')).toEqual({
+      viaTeam: 'team',
+      requestedAt: 't1',
+    })
   })
 
   it('ignores an old direct request that was since removed', () => {
-    expect(classifyRequest([hiddenTeam], [event('t1', me), event('t2', hiddenTeam)], 'me')).toEqual({ viaTeam: 'team', requestedAt: 't2' })
+    expect(classifyRequest([hiddenTeam], [event('t1', me), event('t2', hiddenTeam)], 'me')).toEqual({
+      viaTeam: 'team',
+      requestedAt: 't2',
+    })
   })
 
   it('has no time when the timeline was cut off', () => {

@@ -1,6 +1,6 @@
+import type { BlameRange, FileAtCommit } from '@shared/history.types.ts'
 import { useEffect, useState } from 'react'
-import type { BlameRange, FileAtCommit } from '@shared/history.types'
-import { errorMessage } from '../common/format.util'
+import { errorMessage } from '../common/format.util.ts'
 
 /** Blame for a file at the PR head, fetched once it is wanted (blame on, file open and in view). */
 export function useBlame(at: FileAtCommit, wanted: boolean) {
@@ -8,9 +8,11 @@ export function useBlame(at: FileAtCommit, wanted: boolean) {
   const [error, setError] = useState<string | null>(null)
   const { repo, sha, path } = at
   useEffect(() => {
-    if (!wanted || ranges || error) return
+    if (!wanted || ranges || error) {
+      return
+    }
     let live = true
-    window.revio
+    globalThis.revio
       .getBlame({ repo, sha, path })
       .then((r) => live && setRanges(r))
       .catch((e) => live && setError(errorMessage(e)))

@@ -1,15 +1,22 @@
-import type { BlameRange, CommitFile, CommitSummary, FileHistoryEntry } from './history.types'
+import type { BlameRange, CommitFile, CommitSummary, FileHistoryEntry } from './history.types.ts'
 
 /** The blame range covering `line`, or undefined. Ranges must be sorted by start, as GitHub returns them. */
 export function blameAt(ranges: readonly BlameRange[], line: number): BlameRange | undefined {
   let lo = 0
   let hi = ranges.length - 1
   while (lo <= hi) {
-    const mid = (lo + hi) >> 1
-    const r = ranges[mid]!
-    if (line < r.start) hi = mid - 1
-    else if (line > r.end) lo = mid + 1
-    else return r
+    const mid = Math.floor((lo + hi) / 2)
+    const r = ranges[mid]
+    if (!r) {
+      return undefined
+    }
+    if (line < r.start) {
+      hi = mid - 1
+    } else if (line > r.end) {
+      lo = mid + 1
+    } else {
+      return r
+    }
   }
   return undefined
 }

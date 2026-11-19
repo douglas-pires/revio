@@ -1,6 +1,6 @@
-import type { MentionSnippet } from '@shared/mention.types'
-import type { PullRef } from '@shared/pull.types'
-import type { ScrollTarget } from '../pull/use-scroll-to-target.hook'
+import type { MentionSnippet } from '@shared/mention.types.ts'
+import type { PullRef } from '@shared/pull.types.ts'
+import type { ScrollTarget } from '../pull/use-scroll-to-target.hook.ts'
 
 /** A comment outside the diff (PR description, conversation comment or review summary) to show on the overview. */
 export type ConversationQuote = Pick<MentionSnippet, 'kind' | 'author' | 'authorAvatar' | 'body' | 'url' | 'createdAt'>

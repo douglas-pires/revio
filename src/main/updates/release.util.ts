@@ -1,3 +1,52 @@
+/** `owner/repo` or `github:owner/repo`, as npm allows in `repository`. */
+const SHORT_REPO = /^(?:github:)?(?<owner>[\w.-]+)\/(?<repo>[\w.-]+?)(?:\.git)?$/u
+const GITHUB_URL = /github\.com[:/](?<owner>[\w.-]+)\/(?<repo>[\w.-]+?)(?:\.git)?\/?$/u
+const VERSION_PREFIX = /^v/iu
+
+/** owner/repo from a package.json `repository` (a URL string or { url }), when it is on GitHub. */
+function githubRepoOf(repository: unknown): ReleaseSource | null {
+  const url = repositoryUrlOf(repository)
+  if (url === undefined) {
+    return null
+  }
+  const groups = (SHORT_REPO.exec(url) ?? GITHUB_URL.exec(url))?.groups
+  if (!(groups?.owner && groups.repo)) {
+    return null
+  }
+  return { owner: groups.owner, repo: groups.repo }
+}
+
+/** A package.json `repository`'s URL: the field itself when it is a string, else its `url`. */
+function repositoryUrlOf(repository: unknown): string | undefined {
+  if (typeof repository === 'string') {
+    return repository
+  }
+  const { url } = (repository ?? {}) as { url?: unknown }
+  if (typeof url === 'string') {
+    return url
+  }
+  return undefined
+}
+
+/** A package.json `build.publish`, which may be one entry or a list. */
+function publishEntriesOf(publish: unknown): unknown[] {
+  if (Array.isArray(publish)) {
+    return publish
+  }
+  if (publish) {
+    return [publish]
+  }
+  return []
+}
+
+const parts = (v: string) =>
+  v
+    .trim()
+    .replace(VERSION_PREFIX, '')
+    .split('-')[0]
+    ?.split('.')
+    .map((n) => Number.parseInt(n, 10) || 0) ?? []
+
 /** Where releases are published (GitHub only). */
 export interface ReleaseSource {
   owner: string
@@ -12,35 +61,26 @@ export interface ReleaseSource {
 export function releaseSourceOf(packageJson: unknown): ReleaseSource | null {
   const pkg = packageJson as { build?: { publish?: unknown }; repository?: unknown } | null
   const publish = pkg?.build?.publish
-  const entries = Array.isArray(publish) ? publish : publish ? [publish] : []
-  const github = entries.find((p): p is { provider: string; owner: string; repo: string } => !!p && typeof p === 'object' && (p as { provider?: string }).provider === 'github')
-  if (github?.owner && github.repo) return { owner: github.owner, repo: github.repo }
+  const entries = publishEntriesOf(publish)
+  const github = entries.find(
+    (p): p is { provider: string; owner: string; repo: string } =>
+      Boolean(p) && typeof p === 'object' && (p as { provider?: string }).provider === 'github',
+  )
+  if (github?.owner && github.repo) {
+    return { owner: github.owner, repo: github.repo }
+  }
   return githubRepoOf(pkg?.repository)
 }
-
-/** owner/repo from a package.json `repository` (a URL string or { url }), when it is on GitHub. */
-function githubRepoOf(repository: unknown): ReleaseSource | null {
-  const url = typeof repository === 'string' ? repository : (repository as { url?: unknown } | null)?.url
-  if (typeof url !== 'string') return null
-  const m = /^(?:github:)?([\w.-]+)\/([\w.-]+?)(?:\.git)?$/.exec(url) ?? /github\.com[:/]([\w.-]+)\/([\w.-]+?)(?:\.git)?\/?$/.exec(url)
-  return m ? { owner: m[1]!, repo: m[2]! } : null
-}
-
-const parts = (v: string) =>
-  v
-    .trim()
-    .replace(/^v/i, '')
-    .split('-')[0]!
-    .split('.')
-    .map((n) => Number.parseInt(n, 10) || 0)
 
 /** True when `candidate` is a higher version than `current` (numeric major.minor.patch; "v" and pre-release tags ignored). */
 export function isNewerVersion(candidate: string, current: string): boolean {
   const a = parts(candidate)
   const b = parts(current)
-  for (let i = 0; i < Math.max(a.length, b.length); i++) {
+  for (let i = 0; i < Math.max(a.length, b.length); i += 1) {
     const d = (a[i] ?? 0) - (b[i] ?? 0)
-    if (d) return d > 0
+    if (d) {
+      return d > 0
+    }
   }
   return false
 }

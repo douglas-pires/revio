@@ -10,5 +10,5 @@ export interface EditorTarget {
   repo: string
   /** Path inside the repository. */
   path: string
-  line?: number
+  line?: number | undefined
 }

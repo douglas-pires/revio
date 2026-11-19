@@ -1,10 +1,18 @@
+import type { ResolvedGuideline } from '@shared/guideline.types.ts'
 import { describe, expect, it } from 'vitest'
-import { prContext } from './briefing.service'
-import type { ResolvedGuideline } from '@shared/guideline.types'
+import { makeDetail, makeFile } from '../../../test/fixtures.ts'
+import { prContext } from './briefing.service.ts'
 
-import { makeDetail, makeFile } from '../../../test/fixtures'
-
-const guide: ResolvedGuideline = { id: 'g', repo: 'acme/web', path: 'apps/web/', title: 'Web rules', body: 'No any.', enabled: true, updatedAt: '', matchedFiles: 1 }
+const guide: ResolvedGuideline = {
+  id: 'g',
+  repo: 'acme/web',
+  path: 'apps/web/',
+  title: 'Web rules',
+  body: 'No any.',
+  enabled: true,
+  updatedAt: '',
+  matchedFiles: 1,
+}
 
 describe('prContext', () => {
   it('fits the smallest diffs first and lists the rest as omitted', () => {
@@ -18,7 +26,7 @@ describe('prContext', () => {
       ],
     })
     const { context, omitted } = prContext(pr, [], 50)
-    expect(omitted.sort()).toEqual(['big.ts', 'image.png'])
+    expect(omitted.toSorted((a, b) => a.localeCompare(b))).toEqual(['big.ts', 'image.png'])
     expect(context).toContain('<file path="small.ts"')
     expect(context).toContain('<file path="mid.ts"')
     expect(context).not.toContain('<file path="big.ts"')
@@ -28,7 +36,24 @@ describe('prContext', () => {
   it('includes scoped guidelines, the description and existing comments', () => {
     const pr = makeDetail({
       body: 'Fixes login.',
-      comments: [{ id: 1, path: 'src/a.ts', line: 3, startLine: null, side: 'RIGHT', body: 'why?', author: 'bo', authorAvatar: '', createdAt: '', url: '', outdated: false, subjectType: 'line', nodeId: 'N1', reactions: [] }],
+      comments: [
+        {
+          id: 1,
+          path: 'src/a.ts',
+          line: 3,
+          startLine: null,
+          side: 'RIGHT',
+          body: 'why?',
+          author: 'bo',
+          authorAvatar: '',
+          createdAt: '',
+          url: '',
+          outdated: false,
+          subjectType: 'line',
+          nodeId: 'N1',
+          reactions: [],
+        },
+      ],
     })
     const { context } = prContext(pr, [guide])
     expect(context).toContain('<guideline title="Web rules" scope="acme/web › apps/web/">\nNo any.\n</guideline>')

@@ -1,5 +1,28 @@
 /// <reference lib="webworker" />
-import { TokenHighlighter, type Tok, type TokenRow } from './highlight-tokens.util'
+import { type Tok, TokenHighlighter, type TokenRow } from './highlight-tokens.util.ts'
+
+const highlighter = new TokenHighlighter()
+
+async function answer(req: HighlightRequest): Promise<HighlightResponse> {
+  if (req.kind === 'code') {
+    return { id: req.id, kind: 'code', lines: await highlighter.tokenizeCode(req.language, req.code) }
+  }
+  const map = await highlighter.tokenizeRows(req.path, req.rows, req.patchLength)
+  return { id: req.id, kind: 'rows', tokens: map && [...map] }
+}
+
+/** The answer when tokenizing throws: the request's kind with nothing highlighted. */
+function failedAnswer(req: HighlightRequest): HighlightResponse {
+  if (req.kind === 'code') {
+    return { id: req.id, kind: 'code', lines: null }
+  }
+  return { id: req.id, kind: 'rows', tokens: null }
+}
+
+globalThis.onmessage = async (e: MessageEvent<HighlightRequest>) => {
+  const req = e.data
+  globalThis.postMessage(await answer(req).catch(() => failedAnswer(req)))
+}
 
 /** Rows of a diff, tokenized per side, or a plain code block in a named language. */
 export type HighlightRequest =
@@ -9,17 +32,3 @@ export type HighlightRequest =
 export type HighlightResponse =
   | { id: number; kind: 'rows'; tokens: [number, Tok[]][] | null }
   | { id: number; kind: 'code'; lines: Tok[][] | null }
-
-const highlighter = new TokenHighlighter()
-
-async function answer(req: HighlightRequest): Promise<HighlightResponse> {
-  if (req.kind === 'code') return { id: req.id, kind: 'code', lines: await highlighter.tokenizeCode(req.language, req.code) }
-  const map = await highlighter.tokenizeRows(req.path, req.rows, req.patchLength)
-  return { id: req.id, kind: 'rows', tokens: map ? [...map] : null }
-}
-
-self.onmessage = async (e: MessageEvent<HighlightRequest>) => {
-  const req = e.data
-  const failed: HighlightResponse = req.kind === 'code' ? { id: req.id, kind: 'code', lines: null } : { id: req.id, kind: 'rows', tokens: null }
-  self.postMessage(await answer(req).catch(() => failed))
-}

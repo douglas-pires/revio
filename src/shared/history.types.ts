@@ -39,12 +39,12 @@ export interface PullCommit extends CommitSummary {
 /** A file a commit changed. */
 export interface CommitFile {
   path: string
-  previousPath?: string
+  previousPath?: string | undefined
   status: string
   additions: number
   deletions: number
   /** Unified diff; missing for binary or very large changes. */
-  patch?: string
+  patch?: string | undefined
 }
 
 /** A commit in a repository. */

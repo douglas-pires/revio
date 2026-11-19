@@ -1,6 +1,6 @@
-import type { PullDetail, PullRef } from '@shared/pull.types'
-import { pullKey } from '@shared/pull.types'
-import { InFlight } from '../common/in-flight.util'
+import type { PullDetail, PullRef } from '@shared/pull.types.ts'
+import { pullKey } from '@shared/pull.types.ts'
+import { InFlight } from '../common/in-flight.util.ts'
 
 type Fetch = (ref: PullRef) => Promise<PullDetail>
 
@@ -9,7 +9,7 @@ type Fetch = (ref: PullRef) => Promise<PullDetail>
  * Concurrent requests for the same PR share one fetch.
  */
 export class PullCache {
-  #entries = new Map<string, { at: number; pr: PullDetail }>()
+  readonly #entries = new Map<string, { at: number; pr: PullDetail }>()
   readonly #inFlight = new InFlight<PullDetail>()
   readonly #fetch: Fetch
 
@@ -21,7 +21,9 @@ export class PullCache {
   get(ref: PullRef, maxAgeMs = 0): Promise<PullDetail> {
     const key = pullKey(ref)
     const hit = this.#entries.get(key)
-    if (hit && maxAgeMs > 0 && Date.now() - hit.at <= maxAgeMs) return Promise.resolve(hit.pr)
+    if (hit && maxAgeMs > 0 && Date.now() - hit.at <= maxAgeMs) {
+      return Promise.resolve(hit.pr)
+    }
     return this.#inFlight.run(key, async () => {
       const pr = await this.#fetch(ref)
       this.#entries.set(key, { at: Date.now(), pr })

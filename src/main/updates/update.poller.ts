@@ -1,9 +1,12 @@
-import type { UpdateStatus } from '@shared/update.types'
-import type { LatestRelease } from './updates.service'
-import { isNewerVersion } from './release.util'
+import { errorMessage } from '@shared/error.util.ts'
+import { MS_PER_HOUR } from '@shared/time.util.ts'
+import type { UpdateStatus } from '@shared/update.types.ts'
+import { isNewerVersion } from './release.util.ts'
+import type { LatestRelease } from './updates.service.ts'
 
 const FIRST_CHECK_DELAY_MS = 15_000
-const CHECK_EVERY_MS = 6 * 60 * 60_000
+const CHECK_EVERY_HOURS = 6
+const CHECK_EVERY_MS = CHECK_EVERY_HOURS * MS_PER_HOUR
 
 interface UpdatePollerDeps {
   current: string
@@ -23,7 +26,17 @@ export class UpdatePoller {
 
   constructor(deps: UpdatePollerDeps) {
     this.#deps = deps
-    this.#status = { current: deps.current, latest: null, available: false, releaseUrl: null, downloadUrl: null, notes: '', checkedAt: null, checking: false, error: null }
+    this.#status = {
+      current: deps.current,
+      latest: null,
+      available: false,
+      releaseUrl: null,
+      downloadUrl: null,
+      notes: '',
+      checkedAt: null,
+      checking: false,
+      error: null,
+    }
   }
 
   get status(): UpdateStatus {
@@ -31,28 +44,42 @@ export class UpdatePoller {
   }
 
   start() {
-    setTimeout(() => void this.check(), FIRST_CHECK_DELAY_MS)
-    this.#timer = setInterval(() => void this.check(), CHECK_EVERY_MS)
+    setTimeout(() => this.check(), FIRST_CHECK_DELAY_MS)
+    this.#timer = setInterval(() => this.check(), CHECK_EVERY_MS)
   }
 
   stop() {
-    if (this.#timer) clearInterval(this.#timer)
+    if (this.#timer) {
+      clearInterval(this.#timer)
+    }
   }
 
   /** Checks now; concurrent calls share one check. */
   check(): Promise<UpdateStatus> {
-    this.#running ??= this.#check().finally(() => (this.#running = null))
+    this.#running ??= this.#check().finally(() => {
+      this.#running = null
+    })
     return this.#running
   }
 
   async #check(): Promise<UpdateStatus> {
     const { sourceName } = this.#deps
-    if (!sourceName) return this.#set({ error: 'This build has no release source to check.' })
+    if (!sourceName) {
+      return this.#set({ error: 'This build has no release source to check.' })
+    }
     this.#set({ checking: true, error: null })
     try {
       const latest = await this.#deps.loadLatest()
       const checkedAt = new Date().toISOString()
-      if (!latest) return this.#set({ checking: false, checkedAt, latest: null, available: false, error: `No releases found in ${sourceName}, or your GitHub token cannot see it.` })
+      if (!latest) {
+        return this.#set({
+          checking: false,
+          checkedAt,
+          latest: null,
+          available: false,
+          error: `No releases found in ${sourceName}, or your GitHub token cannot see it.`,
+        })
+      }
       return this.#set({
         checking: false,
         checkedAt,
@@ -63,7 +90,7 @@ export class UpdatePoller {
         notes: latest.notes,
       })
     } catch (err) {
-      return this.#set({ checking: false, error: err instanceof Error ? err.message : String(err) })
+      return this.#set({ checking: false, error: errorMessage(err) })
     }
   }
 

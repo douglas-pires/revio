@@ -1,4 +1,5 @@
 <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1024 1024">
+  <title>Revio</title>
   <!-- Revio app icon: a lens reviewing a diff. Content sits on the macOS icon grid (824px squircle, 100px margin). -->
   <defs>
     <linearGradient id="bg" x1="0" y1="0" x2="0" y2="1">

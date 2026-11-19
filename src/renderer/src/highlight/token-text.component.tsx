@@ -1,12 +1,16 @@
-import type { Tok } from './highlight-tokens.util'
+import { withOffsets } from '../common/numbered-lines.util.ts'
+import type { Tok } from './highlight-tokens.util.ts'
 
 /** A line of code: highlighted tokens when available, else the plain text. */
-export function TokenText({ tokens, text }: { tokens?: readonly Tok[]; text: string }) {
-  if (!tokens?.length) return <>{text || ' '}</>
+export function TokenText({ tokens, text }: { tokens?: readonly Tok[] | undefined; text: string }) {
+  if (!tokens?.length) {
+    return <>{text || ' '}</>
+  }
   return (
     <>
-      {tokens.map((t, i) => (
-        <span key={i} className="tok" style={t.style}>
+      {withOffsets(tokens).map((t) => (
+        // biome-ignore lint/style/noInlineStyles: each token carries its theme colors as CSS variables (see styles.css .tok).
+        <span key={t.offset} className="tok" style={t.style}>
           {t.text}
         </span>
       ))}

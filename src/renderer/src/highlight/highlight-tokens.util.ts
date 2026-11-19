@@ -1,11 +1,102 @@
 import { createHighlighterCore, type HighlighterCore } from 'shiki/core'
+
 import { createJavaScriptRegexEngine } from 'shiki/engine/javascript'
+
 import { bundledLanguages, bundledLanguagesAlias } from 'shiki/langs'
+
+const EXT: Record<string, string> = {
+  ts: 'typescript',
+  mts: 'typescript',
+  cts: 'typescript',
+  tsx: 'tsx',
+  js: 'javascript',
+  mjs: 'javascript',
+  cjs: 'javascript',
+  jsx: 'jsx',
+  json: 'json',
+  jsonc: 'jsonc',
+  md: 'markdown',
+  mdx: 'mdx',
+  css: 'css',
+  scss: 'scss',
+  less: 'less',
+  html: 'html',
+  vue: 'vue',
+  svelte: 'svelte',
+  py: 'python',
+  go: 'go',
+  rs: 'rust',
+  java: 'java',
+  kt: 'kotlin',
+  kts: 'kotlin',
+  rb: 'ruby',
+  php: 'php',
+  sh: 'shellscript',
+  bash: 'shellscript',
+  zsh: 'shellscript',
+  yml: 'yaml',
+  yaml: 'yaml',
+  sql: 'sql',
+  toml: 'toml',
+  tf: 'terraform',
+  hcl: 'hcl',
+  graphql: 'graphql',
+  gql: 'graphql',
+  swift: 'swift',
+  c: 'c',
+  h: 'c',
+  cpp: 'cpp',
+  hpp: 'cpp',
+  cs: 'csharp',
+  xml: 'xml',
+  prisma: 'prisma',
+  proto: 'proto',
+  dart: 'dart',
+  ex: 'elixir',
+  exs: 'elixir',
+  lua: 'lua',
+  scala: 'scala',
+  ini: 'ini',
+  env: 'dotenv',
+  csv: 'csv',
+}
+
+const FILENAMES: Record<string, string> = { Dockerfile: 'docker', Makefile: 'make', '.gitignore': 'gitignore' }
+
+const MAX_PATCH = 250_000
+
+type Loader = () => Promise<unknown>
+
+const loaders = {
+  ...(bundledLanguagesAlias as Record<string, Loader>),
+  ...(bundledLanguages as Record<string, Loader>),
+}
+
+const THEMES = { dark: 'github-dark-default', light: 'github-light-default' } as const
+
+function tokenLines(core: HighlighterCore, code: string, lang: string): Tok[][] {
+  return core
+    .codeToTokens(code, { lang, themes: THEMES, defaultColor: false })
+    .tokens.map((line) => line.map((t) => ({ text: t.content, style: t.htmlStyle })))
+}
+
+/** Owns one Shiki instance and the languages loaded into it. */
+/** Loads a language's grammar into the highlighter; false when there is none or it fails to load. */
+function loadLanguage(core: HighlighterCore, lang: string): Promise<boolean> {
+  const loader = loaders[lang]
+  if (!loader) {
+    return Promise.resolve(false)
+  }
+  return core.loadLanguage(loader() as never).then(
+    () => true,
+    () => false,
+  )
+}
 
 /** A colored span. `style` carries both theme colors as CSS variables (see styles.css `.tok`). */
 export interface Tok {
   text: string
-  style?: Record<string, string>
+  style?: Record<string, string> | undefined
 }
 
 /** The parts of a diff row the tokenizer needs (structured-clone friendly). */
@@ -14,45 +105,40 @@ export interface TokenRow {
   text: string
 }
 
-const EXT: Record<string, string> = {
-  ts: 'typescript', mts: 'typescript', cts: 'typescript', tsx: 'tsx', js: 'javascript', mjs: 'javascript',
-  cjs: 'javascript', jsx: 'jsx', json: 'json', jsonc: 'jsonc', md: 'markdown', mdx: 'mdx', css: 'css',
-  scss: 'scss', less: 'less', html: 'html', vue: 'vue', svelte: 'svelte', py: 'python', go: 'go', rs: 'rust',
-  java: 'java', kt: 'kotlin', kts: 'kotlin', rb: 'ruby', php: 'php', sh: 'shellscript', bash: 'shellscript',
-  zsh: 'shellscript', yml: 'yaml', yaml: 'yaml', sql: 'sql', toml: 'toml', tf: 'terraform', hcl: 'hcl',
-  graphql: 'graphql', gql: 'graphql', swift: 'swift', c: 'c', h: 'c', cpp: 'cpp', hpp: 'cpp', cs: 'csharp',
-  xml: 'xml', prisma: 'prisma', proto: 'proto', dart: 'dart', ex: 'elixir', exs: 'elixir', lua: 'lua',
-  scala: 'scala', ini: 'ini', env: 'dotenv', csv: 'csv',
-}
-const FILENAMES: Record<string, string> = { Dockerfile: 'docker', Makefile: 'make', '.gitignore': 'gitignore' }
-const MAX_PATCH = 250_000
-
-type Loader = () => Promise<unknown>
-const loaders = { ...(bundledLanguagesAlias as Record<string, Loader>), ...(bundledLanguages as Record<string, Loader>) }
-
 export function languageFor(path: string): string | null {
   const name = path.slice(path.lastIndexOf('/') + 1)
-  if (FILENAMES[name]) return FILENAMES[name]
-  if (name.startsWith('Dockerfile')) return 'docker'
-  const ext = name.includes('.') ? name.slice(name.lastIndexOf('.') + 1).toLowerCase() : ''
+  if (FILENAMES[name]) {
+    return FILENAMES[name]
+  }
+  if (name.startsWith('Dockerfile')) {
+    return 'docker'
+  }
+  let ext = ''
+  if (name.includes('.')) {
+    ext = name.slice(name.lastIndexOf('.') + 1).toLowerCase()
+  }
   const lang = EXT[ext] ?? ext
-  return lang in loaders ? lang : null
+  if (!(lang in loaders)) {
+    return null
+  }
+  return lang
 }
 
 /** The Shiki language for a fence's info string (```ts, ```typescript, ```py…), or null when unknown. */
 export function languageNamed(name: string): string | null {
   const key = name.trim().toLowerCase()
-  if (!key) return null
-  if (key in loaders) return key
+  if (!key) {
+    return null
+  }
+  if (key in loaders) {
+    return key
+  }
   return languageFor(`file.${key}`)
 }
 
-const THEMES = { dark: 'github-dark-default', light: 'github-light-default' } as const
-
-/** Owns one Shiki instance and the languages loaded into it. */
 export class TokenHighlighter {
   #core: Promise<HighlighterCore> | null = null
-  #languages = new Map<string, Promise<boolean>>()
+  readonly #languages = new Map<string, Promise<boolean>>()
 
   #highlighter() {
     // The JS regex engine avoids WebAssembly, which the app's CSP does not allow.
@@ -67,8 +153,7 @@ export class TokenHighlighter {
   #ensureLanguage(core: HighlighterCore, lang: string) {
     let ready = this.#languages.get(lang)
     if (!ready) {
-      const loader = loaders[lang]
-      ready = loader ? core.loadLanguage(loader() as never).then(() => true, () => false) : Promise.resolve(false)
+      ready = loadLanguage(core, lang)
       this.#languages.set(lang, ready)
     }
     return ready
@@ -77,9 +162,13 @@ export class TokenHighlighter {
   /** Tokens per line of a code block, or null when the language is unknown or the code is too large. */
   async tokenizeCode(language: string, code: string): Promise<Tok[][] | null> {
     const lang = languageNamed(language)
-    if (!lang || code.length > MAX_PATCH) return null
+    if (!lang || code.length > MAX_PATCH) {
+      return null
+    }
     const core = await this.#highlighter()
-    if (!(await this.#ensureLanguage(core, lang))) return null
+    if (!(await this.#ensureLanguage(core, lang))) {
+      return null
+    }
     try {
       return tokenLines(core, code, lang)
     } catch {
@@ -94,18 +183,30 @@ export class TokenHighlighter {
    */
   async tokenizeRows(path: string, rows: readonly TokenRow[], patchLength: number): Promise<Map<number, Tok[]> | null> {
     const lang = languageFor(path)
-    if (!lang || patchLength > MAX_PATCH) return null
+    if (!lang || patchLength > MAX_PATCH) {
+      return null
+    }
     const core = await this.#highlighter()
-    if (!(await this.#ensureLanguage(core, lang))) return null
+    if (!(await this.#ensureLanguage(core, lang))) {
+      return null
+    }
 
     const out = new Map<number, Tok[]>()
     const tokenize = (indices: number[], keep: (row: TokenRow) => boolean) => {
-      if (!indices.some((i) => keep(rows[i]!))) return
+      const kept = (i: number) => {
+        const row = rows[i]
+        return row !== undefined && keep(row)
+      }
+      if (!indices.some(kept)) {
+        return
+      }
       try {
-        const lines = tokenLines(core, indices.map((i) => rows[i]!.text).join('\n'), lang)
-        indices.forEach((rowIdx, n) => {
-          if (keep(rows[rowIdx]!)) out.set(rowIdx, lines[n] ?? [])
-        })
+        const lines = tokenLines(core, indices.map((i) => rows[i]?.text).join('\n'), lang)
+        for (const [n, rowIdx] of indices.entries()) {
+          if (kept(rowIdx)) {
+            out.set(rowIdx, lines[n] ?? [])
+          }
+        }
       } catch {
         /* leave these rows plain */
       }
@@ -119,18 +220,18 @@ export class TokenHighlighter {
       oldSide = []
       newSide = []
     }
-    rows.forEach((r, i) => {
-      if (r.kind === 'hunk') return flush()
-      if (r.kind !== 'add') oldSide.push(i)
-      if (r.kind !== 'del') newSide.push(i)
-    })
+    for (const [i, r] of rows.entries()) {
+      if (r.kind === 'hunk') {
+        flush()
+      }
+      if (r.kind === 'del' || r.kind === 'ctx') {
+        oldSide.push(i)
+      }
+      if (r.kind === 'add' || r.kind === 'ctx') {
+        newSide.push(i)
+      }
+    }
     flush()
     return out
   }
-}
-
-function tokenLines(core: HighlighterCore, code: string, lang: string): Tok[][] {
-  return core
-    .codeToTokens(code, { lang, themes: THEMES, defaultColor: false })
-    .tokens.map((line) => line.map((t) => ({ text: t.content, style: t.htmlStyle })))
 }
