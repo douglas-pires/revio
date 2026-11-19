@@ -1,8 +1,11 @@
+import type { FileAtCommit } from '@shared/history.types.ts'
 import { useCallback, useMemo, useState } from 'react'
-import type { FileAtCommit } from '@shared/history.types'
-import { errorMessage } from '../common/format.util'
-import type { DiffRow } from './diff.util'
-import { expandGap, expandRows, gapsOf, hiddenIn, type ExpandDirection, type GapShown } from './diff-expand.util'
+import { errorMessage } from '../common/format.util.ts'
+import type { DiffRow } from './diff.util.ts'
+import { type ExpandDirection, expandGap, expandRows, type GapShown, gapsOf, hiddenIn } from './diff-expand.util.ts'
+
+const FINAL_NEWLINE = /\r?\n$/u
+const NEWLINE = /\r?\n/u
 
 /**
  * The diff rows with any lines the reviewer revealed around the hunks. The file at the PR head is fetched on the
@@ -15,26 +18,41 @@ export function useExpandedContext(at: FileAtCommit, rows: DiffRow[], enabled: b
   const [error, setError] = useState<string | null>(null)
   const { repo, sha, path } = at
 
-  const expanded = useMemo(() => (enabled ? expandRows(rows, lines, shown) : rows), [enabled, rows, lines, shown])
+  const expanded = useMemo(() => {
+    if (!enabled) {
+      return rows
+    }
+    return expandRows(rows, lines, shown)
+  }, [enabled, rows, lines, shown])
 
   const load = useCallback(async () => {
-    if (lines) return lines
-    const text = await window.revio.getFileContent({ repo, sha, path })
-    if (text == null) throw new Error('GitHub did not return this file (binary or too large).')
-    const loaded = text.replace(/\r?\n$/, '').split(/\r?\n/)
+    if (lines) {
+      return lines
+    }
+    const text = await globalThis.revio.getFileContent({ repo, sha, path })
+    if (text === null) {
+      throw new Error('GitHub did not return this file (binary or too large).')
+    }
+    const loaded = text.replace(FINAL_NEWLINE, '').split(NEWLINE)
     setLines(loaded)
     return loaded
   }, [lines, repo, sha, path])
 
   const expand = useCallback(
     async (index: number, direction: ExpandDirection) => {
-      if (loading) return
+      if (loading) {
+        return
+      }
       setLoading(true)
       setError(null)
       try {
         const file = await load()
         const gap = gapsOf(rows, file.length)[index]
-        if (gap) setShown((prev) => new Map(prev).set(index, expandGap(prev.get(index), direction, hiddenIn(gap, prev.get(index)))))
+        if (gap) {
+          setShown((prev) =>
+            new Map(prev).set(index, expandGap(prev.get(index), direction, hiddenIn(gap, prev.get(index)))),
+          )
+        }
       } catch (e) {
         setError(errorMessage(e))
       } finally {

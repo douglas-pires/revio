@@ -2,7 +2,13 @@ import { mkdtempSync, writeFileSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 import { describe, expect, it, vi } from 'vitest'
-import { GithubTokens, parseScopes, readDotEnvToken, type TokenSources } from './github-tokens.service'
+import {
+  CLI_TOKEN_TTL_MS,
+  GithubTokens,
+  parseScopes,
+  readDotEnvToken,
+  type TokenSources,
+} from './github-tokens.service.ts'
 
 describe('parseScopes', () => {
   it('splits a classic token scope header', () => {
@@ -24,6 +30,7 @@ const writeDotEnv = (text: string) => {
   return path
 }
 
+// biome-ignore lint/security/noSecrets: a test name, not a secret.
 describe('readDotEnvToken', () => {
   it('reads GH_TOKEN before GITHUB_TOKEN, and nothing without a file', () => {
     expect(readDotEnvToken(writeDotEnv('GITHUB_TOKEN=b\nGH_TOKEN=a\n'))).toBe('a')
@@ -35,11 +42,19 @@ describe('readDotEnvToken', () => {
 
 describe('GithubTokens.resolve', () => {
   const makeSources = (over: Partial<TokenSources> = {}): TokenSources => ({
-    readSaved: () => undefined, save: vi.fn(), dotEnvPath: null, env: {}, readCliToken: async () => '', ...over,
+    readSaved: () => undefined,
+    save: vi.fn(),
+    dotEnvPath: null,
+    env: {},
+    readCliToken: async () => '',
+    ...over,
   })
 
   it.each([
-    [{ readSaved: () => 'saved', dotEnvPath: writeDotEnv('GITHUB_TOKEN=file'), env: { GITHUB_TOKEN: 'env' } }, 'settings'],
+    [
+      { readSaved: () => 'saved', dotEnvPath: writeDotEnv('GITHUB_TOKEN=file'), env: { GITHUB_TOKEN: 'env' } },
+      'settings',
+    ],
     [{ dotEnvPath: writeDotEnv('GITHUB_TOKEN=file'), env: { GITHUB_TOKEN: 'env' } }, 'dotenv'],
     [{ env: { GH_TOKEN: 'gh', GITHUB_TOKEN: 'env' } }, 'GH_TOKEN'],
     [{ env: { GITHUB_TOKEN: 'env' } }, 'GITHUB_TOKEN'],
@@ -51,6 +66,20 @@ describe('GithubTokens.resolve', () => {
   it('fails with guidance when there is no token, even if the CLI errors', async () => {
     const tokens = new GithubTokens(makeSources({ readCliToken: () => Promise.reject(new Error('no gh')) }))
     await expect(tokens.resolve()).rejects.toThrow('gh auth login')
+  })
+
+  it('asks the CLI once per minute, and again right away after a failure', async () => {
+    let clock = 0
+    const readCliToken = vi.fn().mockRejectedValueOnce(new Error('not logged in')).mockResolvedValue('cli')
+    const tokens = new GithubTokens(makeSources({ readCliToken, now: () => clock }))
+    await expect(tokens.resolve()).rejects.toThrow()
+    expect((await tokens.resolve()).token).toBe('cli')
+    clock = CLI_TOKEN_TTL_MS - 1
+    await tokens.resolve()
+    expect(readCliToken).toHaveBeenCalledTimes(2)
+    clock = CLI_TOKEN_TTL_MS
+    await tokens.resolve()
+    expect(readCliToken).toHaveBeenCalledTimes(3)
   })
 
   it('refuses an empty paste without calling GitHub or saving', async () => {

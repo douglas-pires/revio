@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest'
-import { parsePatch } from './diff.util'
-import { MAX_MATCHES, occurrences, searchDiffs, stepMatch } from './diff-search.util'
+import { parsePatch } from './diff.util.ts'
+import { MAX_MATCHES, occurrences, searchDiffs, stepMatch } from './diff-search.util.ts'
 
 const insensitive = { caseSensitive: false }
 

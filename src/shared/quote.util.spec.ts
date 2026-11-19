@@ -1,9 +1,11 @@
 import { describe, expect, it } from 'vitest'
-import { quoteReply } from './quote.util'
+import { quoteReply } from './quote.util.ts'
 
 describe('quoteReply', () => {
   it('quotes the first paragraph and addresses the author', () => {
-    expect(quoteReply('Can you check this?\nIt looks off.\n\nAlso unrelated.', 'ana')).toBe('> Can you check this?\n> It looks off.\n\n@ana ')
+    expect(quoteReply('Can you check this?\nIt looks off.\n\nAlso unrelated.', 'ana')).toBe(
+      '> Can you check this?\n> It looks off.\n\n@ana ',
+    )
   })
 
   it('clips a long paragraph', () => {

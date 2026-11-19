@@ -1,10 +1,11 @@
+import type { ThreadsInbox } from '@shared/thread.types.ts'
+import { MS_PER_MINUTE } from '@shared/time.util.ts'
 import { useCallback, useEffect, useState } from 'react'
-import type { ThreadsInbox } from '@shared/thread.types'
-import { errorMessage } from '../common/format.util'
-import { applyReply, setMembership } from './thread-edits.util'
+import { errorMessage } from '../common/format.util.ts'
+import { applyReply, setMembership } from './thread-edits.util.ts'
 
 /** A copy this recent is reused when the inbox opens; Refresh always fetches. */
-const THREADS_MAX_AGE_MS = 2 * 60_000
+const THREADS_MAX_AGE_MS = 2 * MS_PER_MINUTE
 
 /** Unresolved review threads you are part of, loaded when the inbox opens, with reply and resolve. */
 export function useThreads() {
@@ -16,7 +17,7 @@ export function useThreads() {
   const reload = useCallback(async (maxAgeMs = 0) => {
     setError(null)
     try {
-      setData(await window.revio.getThreads(maxAgeMs))
+      setData(await globalThis.revio.getThreads(maxAgeMs))
       setResolved(new Set())
     } catch (e) {
       setError(errorMessage(e))
@@ -24,16 +25,16 @@ export function useThreads() {
   }, [])
 
   useEffect(() => {
-    void reload(THREADS_MAX_AGE_MS)
+    reload(THREADS_MAX_AGE_MS)
   }, [reload])
 
   const reply = useCallback(async (threadId: string, body: string) => {
-    const comment = await window.revio.replyToThread(threadId, body)
+    const comment = await globalThis.revio.replyToThread(threadId, body)
     setData((d) => d && { ...d, threads: applyReply(d.threads, threadId, comment) })
   }, [])
 
   const setThreadResolved = useCallback(async (threadId: string, value: boolean) => {
-    await window.revio.setThreadResolved(threadId, value)
+    await globalThis.revio.setThreadResolved(threadId, value)
     setResolved((current) => setMembership(current, threadId, value))
   }, [])
 

@@ -1,5 +1,5 @@
 import { describe, expect, it, vi } from 'vitest'
-import { MemoCache } from './memo.cache'
+import { MemoCache } from './memo.cache.ts'
 
 describe('MemoCache', () => {
   it('loads a key once, sharing a load in progress', async () => {

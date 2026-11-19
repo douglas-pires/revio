@@ -1,7 +1,7 @@
-import type { UpdateStatus } from './update.types'
-import type { Inbox } from './inbox.types'
-import type { MentionsInbox } from './mention.types'
-import type { PullRef } from './pull.types'
+import type { Inbox } from './inbox.types.ts'
+import type { MentionsInbox } from './mention.types.ts'
+import type { PullRef } from './pull.types.ts'
+import type { UpdateStatus } from './update.types.ts'
 
 export type MainEvent =
   | { type: 'mentions'; mentions: MentionsInbox }

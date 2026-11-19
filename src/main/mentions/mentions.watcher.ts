@@ -1,8 +1,9 @@
-import { isSamePull, type PullRef } from '@shared/pull.types'
-import type { MentionsInbox } from '@shared/mention.types'
-import { InFlight } from '../common/in-flight.util'
-import { markMentionRead } from './mention-match.util'
-import { MENTION_WINDOW_DAYS } from './mentions.service'
+import { errorMessage } from '@shared/error.util.ts'
+import type { MentionsInbox } from '@shared/mention.types.ts'
+import { isSamePull, type PullRef } from '@shared/pull.types.ts'
+import { InFlight } from '../common/in-flight.util.ts'
+import { markMentionRead } from './mention-match.util.ts'
+import { MENTION_WINDOW_DAYS } from './mentions.service.ts'
 
 export interface MentionWatcherDeps {
   load: () => Promise<MentionsInbox>
@@ -31,20 +32,34 @@ export class MentionWatcher {
   /** Marks the PR's GitHub notification read and clears its "new" mentions. */
   async markRead(ref: PullRef) {
     const mention = this.#latest?.mentions.find((m) => isSamePull(m, ref))
-    if (mention?.notificationId) await this.#deps.markRead(mention.notificationId)
-    if (!this.#latest) return
+    if (mention?.notificationId) {
+      await this.#deps.markRead(mention.notificationId)
+    }
+    if (!this.#latest) {
+      return
+    }
     this.#publish({ ...this.#latest, mentions: markMentionRead(this.#latest.mentions, ref) })
   }
 
   async #load(): Promise<MentionsInbox> {
+    let inbox: MentionsInbox
     try {
-      this.#publish(await this.#deps.load())
+      inbox = await this.#deps.load()
     } catch (err) {
-      const error = err instanceof Error ? err.message : String(err)
+      const error = errorMessage(err)
       console.error('[revio] mentions failed:', error)
-      this.#publish(this.#latest ? { ...this.#latest, error } : { viewer: '', mentions: [], windowDays: MENTION_WINDOW_DAYS, fetchedAt: new Date().toISOString(), error })
+      inbox = this.#withError(error)
     }
-    return this.#latest!
+    this.#publish(inbox)
+    return inbox
+  }
+
+  /** The last mentions with the error, or an empty list carrying it. */
+  #withError(error: string): MentionsInbox {
+    if (this.#latest) {
+      return { ...this.#latest, error }
+    }
+    return { viewer: '', mentions: [], windowDays: MENTION_WINDOW_DAYS, fetchedAt: new Date().toISOString(), error }
   }
 
   #publish(inbox: MentionsInbox) {

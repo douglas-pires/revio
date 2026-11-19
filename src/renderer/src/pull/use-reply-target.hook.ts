@@ -6,14 +6,21 @@ export interface ReplyTarget {
   consume: () => void
 }
 
-export const ReplyTargetContext = createContext<ReplyTarget>({ commentId: null, consume: () => {} })
+export const ReplyTargetContext = createContext<ReplyTarget>({
+  commentId: null,
+  consume: () => {
+    // Outside a PR view there is no reply target to consume.
+  },
+})
 
 /** Calls `open` once when this thread holds the reply target. */
 export function useOpenReplyIfTarget(commentIds: readonly number[], open: () => void) {
   const target = useContext(ReplyTargetContext)
-  const hit = target.commentId != null && commentIds.includes(target.commentId)
+  const hit = target.commentId !== null && commentIds.includes(target.commentId)
   useEffect(() => {
-    if (!hit) return
+    if (!hit) {
+      return
+    }
     open()
     target.consume()
   }, [hit, open, target])

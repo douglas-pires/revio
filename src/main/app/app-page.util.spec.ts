@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest'
-import { isAppPage } from './app-page.util'
+import { isAppPage } from './app-page.util.ts'
 
 describe('isAppPage', () => {
   const built = { indexFile: '/Applications/Revio.app/Contents/Resources/app.asar/out/renderer/index.html' }

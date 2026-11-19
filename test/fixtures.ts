@@ -1,7 +1,7 @@
-import type { Guideline } from '@shared/guideline.types'
-import type { PullSummary } from '@shared/inbox.types'
-import type { PullDetail, PullFile } from '@shared/pull.types'
-import type { MiniPr } from '../src/main/stacks/stack-graph.util'
+import type { Guideline } from '@shared/guideline.types.ts'
+import type { PullSummary } from '@shared/inbox.types.ts'
+import type { PullDetail, PullFile } from '@shared/pull.types.ts'
+import type { MiniPr } from '../src/main/stacks/stack-graph.util.ts'
 
 export function makeSummary(over: Partial<PullSummary> = {}): PullSummary {
   return {
@@ -31,7 +31,15 @@ export function makeSummary(over: Partial<PullSummary> = {}): PullSummary {
 }
 
 export function makeFile(over: Partial<PullFile> = {}): PullFile {
-  return { path: 'src/a.ts', sha: 'sha1', status: 'modified', additions: 1, deletions: 0, patch: '@@ -1,1 +1,2 @@\n a\n+b', ...over }
+  return {
+    path: 'src/a.ts',
+    sha: 'sha1',
+    status: 'modified',
+    additions: 1,
+    deletions: 0,
+    patch: '@@ -1,1 +1,2 @@\n a\n+b',
+    ...over,
+  }
 }
 
 export function makeDetail(over: Partial<PullDetail> = {}): PullDetail {
@@ -79,4 +87,12 @@ export function makeMiniPr(number: number, head: string, base: string, repo = 'a
 
 export function makeGuideline(id: string, repo: string, path = '', enabled = true): Guideline {
   return { id, repo, path, title: id, body: '', enabled, updatedAt: '' }
+}
+
+/** The value, or a failed test saying what was missing; use instead of a non-null assertion. */
+export function expectPresent<T>(value: T | null | undefined, what = 'value'): T {
+  if (value === null || value === undefined) {
+    throw new Error(`Expected a ${what}, got ${String(value)}`)
+  }
+  return value
 }

@@ -1,5 +1,6 @@
+import type { UpdateStatus } from '@shared/update.types.ts'
 import { useState } from 'react'
-import type { UpdateStatus } from '@shared/update.types'
+import { downloadLinkOf, openLink } from './update-links.util.ts'
 
 const DISMISSED_KEY = 'revio.dismissedUpdate'
 
@@ -14,8 +15,10 @@ const readDismissed = () => {
 /** A slim bar when a newer Revio is out. Hiding it hides that version only. */
 export function UpdateBanner({ status }: { status: UpdateStatus | null }) {
   const [dismissed, setDismissed] = useState(readDismissed)
-  if (!status?.available || !status.latest || dismissed === status.latest) return null
-  const latest = status.latest
+  if (!(status?.available && status.latest) || dismissed === status.latest) {
+    return null
+  }
+  const { latest } = status
   const hide = () => {
     try {
       localStorage.setItem(DISMISSED_KEY, latest)
@@ -25,20 +28,30 @@ export function UpdateBanner({ status }: { status: UpdateStatus | null }) {
     setDismissed(latest)
   }
   return (
-    <div data-update-banner className="drag flex shrink-0 items-center gap-3 border-b border-accent/40 bg-accent/10 px-4 py-1.5 text-[12.5px]">
+    <div
+      data-update-banner={true}
+      className="drag flex shrink-0 items-center gap-3 border-b border-accent/40 bg-accent/10 px-4 py-1.5 text-[12.5px]"
+    >
       <span>
-        <span className="font-semibold">Revio {latest}</span> is available <span className="text-muted">(you have {status.current})</span>
+        <span className="font-semibold">Revio {latest}</span> is available{' '}
+        <span className="text-muted">(you have {status.current})</span>
       </span>
-      <button className="btn btn-primary no-drag py-0" onClick={() => void window.revio.openExternal(status.downloadUrl ?? status.releaseUrl!)}>
+      <button type="button" className="btn btn-primary no-drag py-0" onClick={() => openLink(downloadLinkOf(status))}>
         Download
       </button>
-      {status.releaseUrl && (
-        <button className="btn btn-ghost no-drag py-0" onClick={() => void window.revio.openExternal(status.releaseUrl!)}>
+      {Boolean(status.releaseUrl) && (
+        <button type="button" className="btn btn-ghost no-drag py-0" onClick={() => openLink(status.releaseUrl)}>
           What’s new
         </button>
       )}
       <div className="flex-1" />
-      <button className="btn btn-ghost no-drag py-0" title="Hide until the next version" aria-label="Hide update" onClick={hide}>
+      <button
+        type="button"
+        className="btn btn-ghost no-drag py-0"
+        title="Hide until the next version"
+        aria-label="Hide update"
+        onClick={hide}
+      >
         ✕
       </button>
     </div>

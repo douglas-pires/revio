@@ -1,7 +1,28 @@
 import { describe, expect, it } from 'vitest'
-import { anchorFor, anchorOf, diffSnippet, keysOf, lineRangeOfRows, newSideText, snippetRows, parsePatch, parseRange, sliceAroundLine, toSplit, type DiffRow } from './diff.util'
+import { expectPresent } from '../../../../test/fixtures.ts'
+import {
+  anchorFor,
+  anchorOf,
+  diffSnippet,
+  keysOf,
+  lineRangeOfRows,
+  newSideText,
+  parsePatch,
+  parseRange,
+  sliceAroundLine,
+  snippetRows,
+  toSplit,
+} from './diff.util.ts'
 
-const PATCH = ['@@ -10,4 +10,5 @@ function f() {', ' keep', '-old', '+new', '+extra', ' tail', '\\ No newline at end of file'].join('\n')
+const PATCH = [
+  '@@ -10,4 +10,5 @@ function f() {',
+  ' keep',
+  '-old',
+  '+new',
+  '+extra',
+  ' tail',
+  '\\ No newline at end of file',
+].join('\n')
 
 describe('parsePatch', () => {
   it('numbers old and new lines from the hunk header', () => {
@@ -21,25 +42,34 @@ describe('parsePatch', () => {
   })
 })
 
+describe('parsePatch of nothing', () => {
+  it('has no rows', () => {
+    expect(parsePatch('')).toEqual([])
+  })
+})
+
 describe('anchors', () => {
-  const [, ctx, del, add] = parsePatch(PATCH) as DiffRow[]
+  const rows = parsePatch(PATCH)
+  const ctx = expectPresent(rows[1])
+  const del = expectPresent(rows[2])
+  const add = expectPresent(rows[3])
 
   it('attaches deletions to the left side and everything else to the right', () => {
-    expect(anchorOf(del!)).toEqual({ side: 'LEFT', line: 11 })
-    expect(anchorOf(add!)).toEqual({ side: 'RIGHT', line: 11 })
-    expect(anchorOf(ctx!)).toEqual({ side: 'RIGHT', line: 10 })
+    expect(anchorOf(del)).toEqual({ side: 'LEFT', line: 11 })
+    expect(anchorOf(add)).toEqual({ side: 'RIGHT', line: 11 })
+    expect(anchorOf(ctx)).toEqual({ side: 'RIGHT', line: 10 })
   })
 
   it('picks the requested half in split view, or nothing when that half is empty', () => {
-    expect(anchorFor(ctx!, 'LEFT')).toEqual({ side: 'LEFT', line: 10 })
-    expect(anchorFor(add!, 'LEFT')).toBeNull()
-    expect(anchorFor(del!, 'RIGHT')).toBeNull()
+    expect(anchorFor(ctx, 'LEFT')).toEqual({ side: 'LEFT', line: 10 })
+    expect(anchorFor(add, 'LEFT')).toBeNull()
+    expect(anchorFor(del, 'RIGHT')).toBeNull()
   })
 
   it('gives context lines keys on both sides', () => {
-    expect(keysOf(ctx!)).toEqual(['RIGHT:10', 'LEFT:10'])
-    expect(keysOf(ctx!, 'LEFT')).toEqual(['LEFT:10'])
-    expect(keysOf(del!)).toEqual(['LEFT:11'])
+    expect(keysOf(ctx)).toEqual(['RIGHT:10', 'LEFT:10'])
+    expect(keysOf(ctx, 'LEFT')).toEqual(['LEFT:10'])
+    expect(keysOf(del)).toEqual(['LEFT:11'])
   })
 })
 
@@ -76,7 +106,9 @@ describe('toSplit', () => {
 })
 
 describe('sliceAroundLine', () => {
-  const rows = parsePatch(['@@ -1,6 +1,6 @@', ' a', ' b', '-c', '+C', ' d', ' e', '@@ -40,2 +40,2 @@', ' x', ' y'].join('\n'))
+  const rows = parsePatch(
+    ['@@ -1,6 +1,6 @@', ' a', ' b', '-c', '+C', ' d', ' e', '@@ -40,2 +40,2 @@', ' x', ' y'].join('\n'),
+  )
   const newLines = (slice: ReturnType<typeof sliceAroundLine>) => slice.map((r) => `${r.kind}:${r.newNo ?? r.oldNo}`)
 
   it('takes rows around the line, deleted rows included', () => {
@@ -115,6 +147,7 @@ describe('newSideText', () => {
   })
 })
 
+// biome-ignore lint/security/noSecrets: a test name, not a secret.
 describe('lineRangeOfRows', () => {
   const rows = parsePatch(PATCH)
 

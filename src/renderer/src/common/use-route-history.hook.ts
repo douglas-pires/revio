@@ -1,6 +1,14 @@
 import { useCallback, useEffect, useState } from 'react'
-import { canGoBack, canGoForward, currentEntry, startHistory, step, visit, type NavHistory } from './nav-history.util'
-import { sameRoute, withoutTarget, type Route } from './route.types'
+import {
+  canGoBack,
+  canGoForward,
+  currentEntry,
+  type NavHistory,
+  startHistory,
+  step,
+  visit,
+} from './nav-history.util.ts'
+import { type Route, sameRoute, withoutTarget } from './route.types.ts'
 
 /** Mouse side buttons, as browsers number them. */
 const MOUSE_BACK = 3
@@ -17,9 +25,12 @@ export function useRouteHistory(first: Route) {
   const move = useCallback((delta: -1 | 1) => {
     setHistory((h) => {
       const next = step(h, delta)
-      if (next === h) return h
+      if (next === h) {
+        return h
+      }
       // Arriving again should not re-run a one-time jump (e.g. opening a reply box).
-      const entries = next.entries.map((e, i) => (i === next.index ? withoutTarget(e) : e))
+      const entries = [...next.entries]
+      entries[next.index] = withoutTarget(currentEntry(next))
       return { entries, index: next.index }
     })
   }, [])
@@ -28,18 +39,32 @@ export function useRouteHistory(first: Route) {
 
   useEffect(() => {
     const onMouse = (e: MouseEvent) => {
-      if (e.button === MOUSE_BACK) back()
-      if (e.button === MOUSE_FORWARD) forward()
+      if (e.button === MOUSE_BACK) {
+        back()
+      }
+      if (e.button === MOUSE_FORWARD) {
+        forward()
+      }
     }
-    window.addEventListener('mouseup', onMouse)
-    const off = window.revio.onEvent((e) => {
-      if (e.type === 'navigate') (e.direction === 'back' ? back : forward)()
+    const navigate = { back, forward }
+    globalThis.addEventListener('mouseup', onMouse)
+    const off = globalThis.revio.onEvent((e) => {
+      if (e.type === 'navigate') {
+        navigate[e.direction]()
+      }
     })
     return () => {
-      window.removeEventListener('mouseup', onMouse)
+      globalThis.removeEventListener('mouseup', onMouse)
       off()
     }
   }, [back, forward])
 
-  return { route: currentEntry(history), go, back, forward, canGoBack: canGoBack(history), canGoForward: canGoForward(history) }
+  return {
+    route: currentEntry(history),
+    go,
+    back,
+    forward,
+    canGoBack: canGoBack(history),
+    canGoForward: canGoForward(history),
+  }
 }

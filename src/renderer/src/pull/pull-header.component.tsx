@@ -1,6 +1,25 @@
-import type { PullDetail, ReviewEvent } from '@shared/pull.types'
-import { BranchNames } from './branch-names.component'
-import { MyReviewChip, ReviewPopover } from './review-popover.component'
+import type { PullDetail, ReviewEvent } from '@shared/pull.types.ts'
+import { countOf } from '../common/format.util.ts'
+import { BranchNames } from './branch-names.component.tsx'
+import { MyReviewChip, ReviewPopover } from './review-popover.component.tsx'
+
+const AVATAR_PX = 28
+
+/** Approve opens the popover to approve, or closes it when it is already open for that. */
+function toggledEvent(open: ReviewEvent | false, event: ReviewEvent): ReviewEvent | false {
+  if (open === event) {
+    return false
+  }
+  return event
+}
+
+/** Finish review closes the popover when it is open (whatever it opened for), else opens it to comment. */
+function closedOr(open: ReviewEvent | false, event: ReviewEvent): ReviewEvent | false {
+  if (open) {
+    return false
+  }
+  return event
+}
 
 export function PullHeader(props: {
   pr: PullDetail
@@ -20,10 +39,10 @@ export function PullHeader(props: {
   const approvedAlready = pr.myReview?.state === 'APPROVED' && !pr.myReview.stale
   return (
     <header className="drag flex shrink-0 items-center gap-3 border-b border-line px-4 py-2">
-      <button className="btn btn-ghost no-drag" onClick={props.onBack}>
+      <button type="button" className="btn btn-ghost no-drag" onClick={props.onBack}>
         ←
       </button>
-      <img src={pr.authorAvatar} alt="" className="size-7 rounded-full" />
+      <img src={pr.authorAvatar} alt="" width={AVATAR_PX} height={AVATAR_PX} className="size-7 rounded-full" />
       <div className="min-w-0 flex-1">
         <div className="selectable no-drag truncate text-[14px] font-semibold">
           {pr.title} <span className="font-normal text-muted">#{pr.number}</span>
@@ -34,28 +53,34 @@ export function PullHeader(props: {
         </div>
       </div>
       {props.askCount > 0 && (
-        <button className="btn no-drag" onClick={props.onOpenAsks}>
-          ✦ {props.askCount} Claude chat{props.askCount > 1 ? 's' : ''}
+        <button type="button" className="btn no-drag" onClick={props.onOpenAsks}>
+          ✦ {countOf(props.askCount, 'Claude chat', 'Claude chats')}
         </button>
       )}
-      <button className="btn no-drag" onClick={() => void window.revio.openExternal(pr.url)}>
+      <button type="button" className="btn no-drag" onClick={() => globalThis.revio.openExternal(pr.url)}>
         GitHub ↗
       </button>
-      {pr.myReview && <MyReviewChip review={pr.myReview} />}
+      {pr.myReview !== null && <MyReviewChip review={pr.myReview} />}
       <div className="no-drag relative flex gap-2">
-        {!isAuthor && !approvedAlready && (
+        {!(isAuthor || approvedAlready) && (
           <button
+            type="button"
             className="btn border-ok/50 text-ok hover:bg-ok/10"
-            onClick={() => setReviewOpen(reviewOpen === 'APPROVE' ? false : 'APPROVE')}
+            onClick={() => setReviewOpen(toggledEvent(reviewOpen, 'APPROVE'))}
             title="Approve this pull request"
           >
-            ✓ {pr.myReview?.state === 'APPROVED' ? 'Re-approve' : 'Approve'}
+            ✓ {pr.myReview?.state === 'APPROVED' && 'Re-approve'}
+            {!(pr.myReview?.state === 'APPROVED') && 'Approve'}
           </button>
         )}
-        <button className="btn btn-primary" onClick={() => setReviewOpen(reviewOpen ? false : 'COMMENT')}>
-          Finish review{props.draftCount ? ` (${props.draftCount})` : ''}
+        <button
+          type="button"
+          className="btn btn-primary"
+          onClick={() => setReviewOpen(closedOr(reviewOpen, 'COMMENT'))}
+        >
+          Finish review{Boolean(props.draftCount) && ` (${props.draftCount})`}
         </button>
-        {reviewOpen && (
+        {reviewOpen !== false && (
           <ReviewPopover
             key={reviewOpen}
             initialEvent={reviewOpen}

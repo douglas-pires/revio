@@ -1,13 +1,45 @@
+import type { ResolvedGuideline } from '@shared/guideline.types.ts'
+import type { Stack } from '@shared/inbox.types.ts'
+import type { PullDetail, PullLocalState, PullRef } from '@shared/pull.types.ts'
+import { MS_PER_MINUTE } from '@shared/time.util.ts'
 import { useCallback, useEffect, useRef, useState } from 'react'
-import type { ResolvedGuideline } from '@shared/guideline.types'
-import type { Stack } from '@shared/inbox.types'
-import type { PullDetail, PullLocalState, PullRef } from '@shared/pull.types'
-import { errorMessage } from '../common/format.util'
+import { errorMessage } from '../common/format.util.ts'
+import { hasSameContent } from './pull-content.util.ts'
 
 /** A prefetched copy this recent is shown immediately. */
-const PREFETCH_MAX_AGE_MS = 2 * 60_000
+const PREFETCH_MAX_AGE_MS = 2 * MS_PER_MINUTE
 /** Copies older than this are refreshed in the background after showing. */
 const FRESH_ENOUGH_MS = 15_000
+
+/** The current copy when a refetch changed nothing, so memoized views stay put; else the new one. */
+function keepIfSame(prev: PullDetail | null, next: PullDetail) {
+  if (prev !== null && hasSameContent(prev, next)) {
+    return prev
+  }
+  return next
+}
+
+/** The stack the PR belongs to, or null when it is not stacked (or the lookup failed). */
+function usePullStack(pull: PullRef) {
+  const [stack, setStack] = useState<Stack | null>(null)
+  useEffect(() => {
+    globalThis.revio
+      .getStack(pull)
+      .then(setStack)
+      .catch(() => setStack(null))
+  }, [pull])
+  return stack
+}
+
+/** Fetches a fresh copy behind the one on screen; a failure keeps the copy shown. */
+function refreshInBackground(pull: PullRef, show: (pr: PullDetail) => void) {
+  globalThis.revio
+    .getPull(pull)
+    .then(show)
+    .catch(() => {
+      // The copy on screen stays; the next open fetches again.
+    })
+}
 
 /**
  * The PR, its local review state, the guides that apply and its stack. Shows a recent copy right away
@@ -17,48 +49,49 @@ export function usePullDetail(pull: PullRef, onLoaded: (pr: PullDetail, local: P
   const [pr, setPr] = useState<PullDetail | null>(null)
   const [guides, setGuides] = useState<ResolvedGuideline[]>([])
   const [error, setError] = useState<string | null>(null)
-  const [stack, setStack] = useState<Stack | null>(null)
+  const stack = usePullStack(pull)
   const loaded = useRef(onLoaded)
   loaded.current = onLoaded
+  /** A refetch that changed nothing keeps the current object, so memoized views stay put. */
+  const showPr = useCallback((next: PullDetail) => setPr((prev) => keepIfSame(prev, next)), [])
 
   const load = useCallback(
     async (maxAgeMs = 0) => {
       setError(null)
       try {
-        const [p, l] = await Promise.all([window.revio.getPull(pull, maxAgeMs), window.revio.getLocalState(pull)])
+        const [p, l] = await Promise.all([
+          globalThis.revio.getPull(pull, maxAgeMs),
+          globalThis.revio.getLocalState(pull),
+        ])
         setPr(p)
         loaded.current(p, l)
-        setGuides(await window.revio.resolveGuidelines(pull.repo, p.files.map((f) => f.path)))
-        if (Date.now() - new Date(p.fetchedAt).getTime() > FRESH_ENOUGH_MS)
-          window.revio
-            .getPull(pull)
-            .then(setPr)
-            .catch(() => {})
+        setGuides(
+          await globalThis.revio.resolveGuidelines(
+            pull.repo,
+            p.files.map((f) => f.path),
+          ),
+        )
+        if (Date.now() - new Date(p.fetchedAt).getTime() > FRESH_ENOUGH_MS) {
+          refreshInBackground(pull, showPr)
+        }
       } catch (e) {
         setError(errorMessage(e))
       }
     },
-    [pull],
+    [pull, showPr],
   )
 
   useEffect(() => {
-    void load(PREFETCH_MAX_AGE_MS)
+    load(PREFETCH_MAX_AGE_MS)
   }, [load])
-
-  useEffect(() => {
-    window.revio
-      .getStack(pull)
-      .then(setStack)
-      .catch(() => setStack(null))
-  }, [pull])
 
   /** Posts a reply right away and refetches so it shows. */
   const replyNow = useCallback(
     async (commentId: number, body: string) => {
-      await window.revio.replyToComment(pull, commentId, body)
-      setPr(await window.revio.getPull(pull))
+      await globalThis.revio.replyToComment(pull, commentId, body)
+      showPr(await globalThis.revio.getPull(pull))
     },
-    [pull],
+    [pull, showPr],
   )
 
   return { pr, guides, error, stack, reload: () => load(), replyNow }

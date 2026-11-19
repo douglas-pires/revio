@@ -1,6 +1,23 @@
-import type { OpenThread, ThreadComment } from '@shared/thread.types'
+import { isPresent } from '@shared/presence.util.ts'
+import type { OpenThread, ThreadComment } from '@shared/thread.types.ts'
 
 /** GitHub's GraphQL shapes for a PR and its review threads. */
+/** The thread's line on the new side; none once the code it was on has changed. */
+function currentLine(thread: RawThread) {
+  if (thread.isOutdated) {
+    return null
+  }
+  return thread.line
+}
+
+/** Whose turn it is: yours when someone else spoke last, theirs when you did. */
+function waitingOn(lastAuthor: string | undefined, viewer: string): OpenThread['waitingOn'] {
+  if (lastAuthor === viewer) {
+    return 'others'
+  }
+  return 'you'
+}
+
 export interface RawAuthor {
   __typename: string
   login: string
@@ -38,13 +55,19 @@ export interface RawThreadPr {
  * Only the latest comments are fetched, so taking part earlier in a very long thread may go unnoticed.
  */
 export function triageThread(thread: RawThread, pr: RawThreadPr, viewer: string): OpenThread | null {
-  if (thread.isResolved) return null
-  const comments = thread.comments.nodes.filter((c): c is RawThreadComment => !!c)
+  if (thread.isResolved) {
+    return null
+  }
+  const comments = thread.comments.nodes.filter((c): c is RawThreadComment => Boolean(c))
   const last = comments.at(-1)
-  if (!last) return null
+  if (!last) {
+    return null
+  }
   const yourPr = pr.author?.login === viewer
   const youCommented = comments.some((c) => c.author?.login === viewer)
-  if (!yourPr && !youCommented) return null
+  if (!(yourPr || youCommented)) {
+    return null
+  }
   return {
     id: thread.id,
     repo: pr.repository.nameWithOwner,
@@ -54,11 +77,11 @@ export function triageThread(thread: RawThread, pr: RawThreadPr, viewer: string)
     prAuthor: pr.author?.login ?? 'ghost',
     isDraft: pr.isDraft,
     path: thread.path,
-    line: thread.isOutdated ? null : thread.line,
+    line: currentLine(thread),
     outdated: thread.isOutdated,
     comments: comments.map(toThreadComment),
     totalComments: thread.comments.totalCount,
-    waitingOn: last.author?.login === viewer ? 'others' : 'you',
+    waitingOn: waitingOn(last.author?.login, viewer),
     lastActivityAt: last.createdAt,
   }
 }
@@ -66,8 +89,8 @@ export function triageThread(thread: RawThread, pr: RawThreadPr, viewer: string)
 /** Every open thread across the PRs, the longest-waiting first. */
 export function triageThreads(prs: readonly RawThreadPr[], viewer: string): OpenThread[] {
   return prs
-    .flatMap((pr) => pr.reviewThreads.nodes.flatMap((t) => (t ? [triageThread(t, pr, viewer)] : [])))
-    .filter((t): t is OpenThread => !!t)
+    .flatMap((pr) => pr.reviewThreads.nodes.filter(isPresent).map((t) => triageThread(t, pr, viewer)))
+    .filter((t): t is OpenThread => Boolean(t))
     .sort((a, b) => a.lastActivityAt.localeCompare(b.lastActivityAt))
 }
 

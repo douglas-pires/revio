@@ -1,30 +1,67 @@
 import { useEffect, useState } from 'react'
-import { cx } from '../common/format.util'
-import { useHighlighter, type Tok } from '../highlight/highlight.service'
-import type { DiffRow } from './diff.util'
-import { rowBg } from './diff-cells.component'
-import { TokenText } from '../highlight/token-text.component'
+import { cx } from '../common/format.util.ts'
+import { type Tok, useHighlighter } from '../highlight/highlight.service.ts'
+import { TokenText } from '../highlight/token-text.component.tsx'
+import type { DiffRow } from './diff.util.ts'
+import { DIFF_SIGNS, rowBg, rowKey } from './diff-look.util.ts'
+
+function useStaticTokens(path: string, rows: readonly DiffRow[], sourceLength: number) {
+  const highlighter = useHighlighter()
+  const [tokens, setTokens] = useState<Map<number, Tok[]> | null>(null)
+  useEffect(() => {
+    if (rows.length === 0) {
+      return
+    }
+    let live = true
+    highlighter
+      .highlightRows(path, rows, sourceLength)
+      .then((t) => live && setTokens(t))
+      .catch(() => {
+        // Unhighlighted rows are still readable; nothing to report.
+      })
+    return () => {
+      live = false
+    }
+  }, [highlighter, path, rows, sourceLength])
+  return tokens
+}
 
 /** Read-only, highlighted diff rows (hunk headers included); `markLine` (new side) gets the focus marker. */
-export function StaticDiff({ path, rows, sourceLength, markLine }: { path: string; rows: readonly DiffRow[]; sourceLength: number; markLine?: number }) {
+export function StaticDiff({
+  path,
+  rows,
+  sourceLength,
+  markLine,
+}: {
+  path: string
+  rows: readonly DiffRow[]
+  sourceLength: number
+  markLine?: number
+}) {
   const tokens = useStaticTokens(path, rows, sourceLength)
   return (
     <table className="w-full border-collapse font-mono text-[11.5px] leading-[18px]">
       <tbody>
         {rows.map((row, i) => {
-          if (row.kind === 'hunk')
+          if (row.kind === 'hunk') {
             return (
-              <tr key={i} className="bg-hunk text-muted">
+              <tr key={rowKey(row)} className="bg-hunk text-muted">
                 <td colSpan={3} className="px-2 py-0.5">
                   {row.text}
                 </td>
               </tr>
             )
-          const marked = markLine != null && row.kind !== 'del' && row.newNo === markLine
+          }
+          const marked = row.kind !== 'del' && row.newNo === markLine
           return (
-            <tr key={i} className={cx(rowBg(row.kind), marked && 'shadow-[inset_3px_0_0_var(--color-focus)] !bg-focus/15')}>
-              <td className="w-[1%] px-2 text-right whitespace-nowrap text-muted/70 select-none">{row.kind === 'del' ? row.oldNo : (row.newNo ?? row.oldNo)}</td>
-              <td className="w-4 text-muted select-none">{row.kind === 'add' ? '+' : row.kind === 'del' ? '−' : ''}</td>
+            <tr
+              key={rowKey(row)}
+              className={cx(rowBg(row.kind), marked && 'shadow-[inset_3px_0_0_var(--color-focus)] !bg-focus/15')}
+            >
+              <td className="w-[1%] px-2 text-right whitespace-nowrap text-muted/70 select-none">
+                {row.newNo ?? row.oldNo}
+              </td>
+              <td className="w-4 text-muted select-none">{DIFF_SIGNS[row.kind]}</td>
               <td className="pr-3 break-all whitespace-pre-wrap">
                 <TokenText tokens={tokens?.get(i)} text={row.text} />
               </td>
@@ -34,21 +71,4 @@ export function StaticDiff({ path, rows, sourceLength, markLine }: { path: strin
       </tbody>
     </table>
   )
-}
-
-function useStaticTokens(path: string, rows: readonly DiffRow[], sourceLength: number) {
-  const highlighter = useHighlighter()
-  const [tokens, setTokens] = useState<Map<number, Tok[]> | null>(null)
-  useEffect(() => {
-    if (!rows.length) return
-    let live = true
-    highlighter
-      .highlightRows(path, rows, sourceLength)
-      .then((t) => live && setTokens(t))
-      .catch(() => {})
-    return () => {
-      live = false
-    }
-  }, [highlighter, path, rows, sourceLength])
-  return tokens
 }

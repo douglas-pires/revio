@@ -1,10 +1,16 @@
+import type { PullLocalState } from '@shared/pull.types.ts'
 import { describe, expect, it } from 'vitest'
-import type { PullLocalState } from '@shared/pull.types'
-import { pruneStalePulls } from './pull-state.util'
+import { pruneStalePulls } from './pull-state.util.ts'
 
 const DAY = 864e5
 const NOW = Date.parse('2026-11-16T12:00:00Z')
-const makeState = (touchedAt?: string): PullLocalState => ({ drafts: [], viewed: {}, ...(touchedAt ? { touchedAt } : {}) })
+const makeState = (touchedAt?: string): PullLocalState => {
+  const state: PullLocalState = { drafts: [], viewed: {} }
+  if (touchedAt) {
+    state.touchedAt = touchedAt
+  }
+  return state
+}
 
 describe('pruneStalePulls', () => {
   it('drops PRs untouched for 45 days and keeps recent ones', () => {
@@ -20,6 +26,6 @@ describe('pruneStalePulls', () => {
 
   it('starts the clock now for entries saved before touchedAt existed', () => {
     const out = pruneStalePulls({ legacy: makeState() }, NOW)
-    expect(out.legacy!.touchedAt).toBe(new Date(NOW).toISOString())
+    expect(out.legacy).toMatchObject({ touchedAt: new Date(NOW).toISOString() })
   })
 })

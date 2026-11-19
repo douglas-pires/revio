@@ -1,26 +1,40 @@
+import type { StackPr } from '@shared/inbox.types.ts'
+import type { OpenThread } from '@shared/thread.types.ts'
 import { describe, expect, it } from 'vitest'
 import {
-  readAudience,
+  applyAudience,
   countTeams,
   matchesQuery,
   parseQuery,
+  readAudience,
+  type Searchable,
   stackPrToSearchable,
   summaryToSearchable,
   threadToSearchable,
-  applyAudience,
-  type Searchable,
-} from '@/inbox/inbox-query.util'
-import type { StackPr } from '@shared/inbox.types'
-import type { OpenThread } from '@shared/thread.types'
-import { makeSummary } from '../../../../test/fixtures'
+} from '@/inbox/inbox-query.util.ts'
+import { makeSummary } from '../../../../test/fixtures.ts'
+
+function authorOf(bot: boolean) {
+  if (bot) {
+    return 'semgrep'
+  }
+  return 'bo'
+}
 
 const direct = summaryToSearchable(makeSummary({ id: 'D', title: 'Fix login redirect', author: 'ana' }), true)
-const viaWeb = summaryToSearchable(makeSummary({ id: 'W', title: 'Bump deps', author: 'bo', viaTeam: 'web', isDraft: true }), true)
-const viaApi = summaryToSearchable(makeSummary({ id: 'A', repo: 'acme/api', title: 'Add rate limit', viaTeam: 'api', stale: true }), true)
+const viaWeb = summaryToSearchable(
+  makeSummary({ id: 'W', title: 'Bump deps', author: 'bo', viaTeam: 'web', isDraft: true }),
+  true,
+)
+const viaApi = summaryToSearchable(
+  makeSummary({ id: 'A', repo: 'acme/api', title: 'Add rate limit', viaTeam: 'api', stale: true }),
+  true,
+)
 const reviewed = summaryToSearchable(makeSummary({ id: 'R', title: 'Old work', reviewDecision: 'APPROVED' }), false)
 const all = [direct, viaWeb, viaApi, reviewed]
 
-const search = (text: string, items: Searchable[] = all) => items.filter((pr) => matchesQuery(pr, parseQuery(text))).map((pr) => pr.title)
+const search = (text: string, items: Searchable[] = all) =>
+  items.filter((pr) => matchesQuery(pr, parseQuery(text))).map((pr) => pr.title)
 
 describe('review audience qualifiers', () => {
   it('user-review-requested:@me keeps only requests addressed to you', () => {
@@ -66,13 +80,26 @@ describe('other qualifiers and text', () => {
 
 describe('stack members', () => {
   const member = (inbox: StackPr['inbox']): StackPr => ({
-    id: 'W', number: 2, title: 'Bump deps', url: '', repo: 'acme/web', author: 'bo', authorAvatar: '',
-    headRef: 'b', baseRef: 'a', isDraft: false, reviewDecision: null, inbox, stale: false,
+    id: 'W',
+    number: 2,
+    title: 'Bump deps',
+    url: '',
+    repo: 'acme/web',
+    author: 'bo',
+    authorAvatar: '',
+    headRef: 'b',
+    baseRef: 'a',
+    isDraft: false,
+    reviewDecision: null,
+    inbox,
+    stale: false,
   })
 
   it('reuses the inbox row team, and has no request when outside the inbox', () => {
     const row = makeSummary({ id: 'W', viaTeam: 'web' })
-    expect(matchesQuery(stackPrToSearchable(member('requested'), row), parseQuery('team-review-requested:web'))).toBe(true)
+    expect(matchesQuery(stackPrToSearchable(member('requested'), row), parseQuery('team-review-requested:web'))).toBe(
+      true,
+    )
     expect(matchesQuery(stackPrToSearchable(member(null), undefined), parseQuery('review-requested:@me'))).toBe(false)
     expect(matchesQuery(stackPrToSearchable(member(null), undefined), parseQuery('is:stacked'))).toBe(true)
   })
@@ -80,9 +107,29 @@ describe('stack members', () => {
 
 describe('threads', () => {
   const thread = (bot: boolean): OpenThread => ({
-    id: 't', repo: 'acme/web', number: 3, prTitle: 'Speed up', prUrl: '', prAuthor: 'me', isDraft: false, path: 'src/cache.ts', line: 4,
-    outdated: false, totalComments: 1, waitingOn: 'you', lastActivityAt: '',
-    comments: [{ author: bot ? 'semgrep' : 'bo', authorAvatar: '', bot, body: 'Consider a TTL here', createdAt: '', url: '' }],
+    id: 't',
+    repo: 'acme/web',
+    number: 3,
+    prTitle: 'Speed up',
+    prUrl: '',
+    prAuthor: 'me',
+    isDraft: false,
+    path: 'src/cache.ts',
+    line: 4,
+    outdated: false,
+    totalComments: 1,
+    waitingOn: 'you',
+    lastActivityAt: '',
+    comments: [
+      {
+        author: authorOf(bot),
+        authorAvatar: '',
+        bot,
+        body: 'Consider a TTL here',
+        createdAt: '',
+        url: '',
+      },
+    ],
   })
 
   it('match their file path and comment text', () => {
@@ -102,7 +149,9 @@ describe('threads', () => {
 describe('applyAudience', () => {
   it('swaps the review qualifier and keeps the rest of the query', () => {
     expect(applyAudience('repo:acme/web login ', { kind: 'me' })).toBe('user-review-requested:@me repo:acme/web login ')
-    expect(applyAudience('user-review-requested:@me login', { kind: 'team', team: 'web' })).toBe('team-review-requested:web login ')
+    expect(applyAudience('user-review-requested:@me login', { kind: 'team', team: 'web' })).toBe(
+      'team-review-requested:web login ',
+    )
     expect(applyAudience('-team-review-requested:web login', { kind: 'all' })).toBe('login ')
     expect(applyAudience('team-review-requested:web', { kind: 'all' })).toBe('')
   })
@@ -121,7 +170,12 @@ describe('readAudience', () => {
 
 describe('countTeams', () => {
   it('counts requests per team, largest first', () => {
-    const prs = [makeSummary({ viaTeam: 'web' }), makeSummary({ viaTeam: 'api' }), makeSummary({ viaTeam: 'web' }), makeSummary()]
+    const prs = [
+      makeSummary({ viaTeam: 'web' }),
+      makeSummary({ viaTeam: 'api' }),
+      makeSummary({ viaTeam: 'web' }),
+      makeSummary(),
+    ]
     expect(countTeams(prs)).toEqual([
       ['web', 2],
       ['api', 1],

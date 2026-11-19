@@ -1,12 +1,25 @@
 import { useEffect, useState } from 'react'
-import { cx } from './format.util'
+import { cx } from './format.util.ts'
+
+type CopyState = 'idle' | 'copied' | 'failed'
+
+/** How long the confirmation shows before the icon returns. */
+const CONFIRM_MS = 1500
+
+const STATE_LOOK: Record<CopyState, { className: string; text: string }> = {
+  idle: { className: 'text-muted', text: '⧉' },
+  copied: { className: 'text-ok', text: '✓ copied' },
+  failed: { className: 'text-danger', text: '✕ copy failed' },
+}
 
 /** Copies `text` to the clipboard; the icon after the label confirms for a moment. */
 export function CopyButton(props: { text: string; title: string; className?: string; children: React.ReactNode }) {
-  const [state, setState] = useState<'idle' | 'copied' | 'failed'>('idle')
+  const [state, setState] = useState<CopyState>('idle')
   useEffect(() => {
-    if (state === 'idle') return
-    const t = setTimeout(() => setState('idle'), 1500)
+    if (state === 'idle') {
+      return
+    }
+    const t = setTimeout(() => setState('idle'), CONFIRM_MS)
     return () => clearTimeout(t)
   }, [state])
   return (
@@ -23,8 +36,8 @@ export function CopyButton(props: { text: string; title: string; className?: str
       }
     >
       {props.children}{' '}
-      <span aria-live="polite" className={state === 'copied' ? 'text-ok' : state === 'failed' ? 'text-danger' : 'text-muted'}>
-        {state === 'copied' ? '✓ copied' : state === 'failed' ? '✕ copy failed' : '⧉'}
+      <span aria-live="polite" className={STATE_LOOK[state].className}>
+        {STATE_LOOK[state].text}
       </span>
     </button>
   )

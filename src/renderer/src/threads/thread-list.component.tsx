@@ -1,19 +1,13 @@
+import { summarizeComment } from '@shared/excerpt.util.ts'
+import { reviewCommentIdFromUrl } from '@shared/github-url.util.ts'
+import type { OpenThread } from '@shared/thread.types.ts'
 import { memo, useState } from 'react'
-import type { OpenThread } from '@shared/thread.types'
-import type { OpenPull } from '../common/navigation.types'
-import { useAsyncAction } from '../common/use-async-action.hook'
-import { ago, cx } from '../common/format.util'
-import { SectionHeading } from '../common/section-heading.component'
-import { summarizeComment } from '@shared/excerpt.util'
-import { groupBy } from '../common/group.util'
-import { Composer } from '../pull/review-comments.component'
-import { reviewCommentIdFromUrl } from '@shared/github-url.util'
-
-export interface ThreadActions {
-  onOpen: OpenPull
-  onReply: (threadId: string, body: string) => Promise<void>
-  onResolve: (threadId: string, resolved: boolean) => Promise<void>
-}
+import { ago, countOf, cx } from '../common/format.util.ts'
+import { groupBy } from '../common/group.util.ts'
+import type { OpenPull } from '../common/navigation.types.ts'
+import { SectionHeading } from '../common/section-heading.component.tsx'
+import { useAsyncAction } from '../common/use-async-action.hook.ts'
+import { Composer } from '../pull/review-comments.component.tsx'
 
 interface Props extends ThreadActions {
   threads: readonly OpenThread[]
@@ -21,24 +15,17 @@ interface Props extends ThreadActions {
   filtering: boolean
 }
 
-/** Unresolved review threads, split by who owes the next reply and grouped by PR. */
-export const ThreadList = memo(function ThreadList({ threads, resolved, filtering, ...actions }: Props) {
-  if (!threads.length)
-    return (
-      <div className="rounded-lg border border-dashed border-line px-4 py-10 text-center text-muted">
-        {filtering ? 'No open thread matches this search.' : 'No unresolved review threads on your open PRs. 🎉'}
-      </div>
-    )
-  return (
-    <>
-      <ThreadSection title="Waiting on your reply" hint="someone else spoke last" tone="accent" threads={threads.filter((t) => t.waitingOn === 'you')} resolved={resolved} actions={actions} />
-      <ThreadSection title="Waiting on others" hint="your comment has no answer yet" threads={threads.filter((t) => t.waitingOn === 'others')} resolved={resolved} actions={actions} />
-    </>
-  )
-})
-
-function ThreadSection(props: { title: string; hint: string; tone?: 'accent'; threads: OpenThread[]; resolved: ReadonlySet<string>; actions: ThreadActions }) {
-  if (!props.threads.length) return null
+function ThreadSection(props: {
+  title: string
+  hint: string
+  tone?: 'accent' | undefined
+  threads: OpenThread[]
+  resolved: ReadonlySet<string>
+  actions: ThreadActions
+}) {
+  if (props.threads.length === 0) {
+    return null
+  }
   const open = props.threads.filter((t) => !props.resolved.has(t.id)).length
   const byPr = groupBy(props.threads, (t) => `${t.repo}#${t.number}`)
   return (
@@ -46,20 +33,35 @@ function ThreadSection(props: { title: string; hint: string; tone?: 'accent'; th
       <SectionHeading title={props.title} count={open} hint={props.hint} tone={props.tone} />
       <div className="space-y-3">
         {[...byPr.values()].map((list) => (
-          <PrThreads key={list[0]!.id} threads={list} resolved={props.resolved} actions={props.actions} />
+          <PrThreads key={list[0]?.id} threads={list} resolved={props.resolved} actions={props.actions} />
         ))}
       </div>
     </section>
   )
 }
 
-function PrThreads({ threads, resolved, actions }: { threads: OpenThread[]; resolved: ReadonlySet<string>; actions: ThreadActions }) {
-  const pr = threads[0]!
+function PrThreads({
+  threads,
+  resolved,
+  actions,
+}: {
+  threads: OpenThread[]
+  resolved: ReadonlySet<string>
+  actions: ThreadActions
+}) {
+  const [pr] = threads
+  if (!pr) {
+    return null
+  }
   return (
     <div className="overflow-hidden rounded-lg border border-line bg-panel">
-      <button className="flex w-full items-center gap-2 border-b border-line bg-panel-2 px-4 py-2 text-left text-[12px] hover:bg-hover" onClick={() => actions.onOpen(pr)}>
+      <button
+        type="button"
+        className="flex w-full items-center gap-2 border-b border-line bg-panel-2 px-4 py-2 text-left text-[12px] hover:bg-hover"
+        onClick={() => actions.onOpen(pr)}
+      >
         <span className="truncate font-semibold">{pr.prTitle}</span>
-        {pr.isDraft && <span className="chip bg-panel text-muted">draft</span>}
+        {Boolean(pr.isDraft) && <span className="chip bg-panel text-muted">draft</span>}
         <span className="shrink-0 text-muted">
           {pr.repo}#{pr.number} · {pr.prAuthor}
         </span>
@@ -73,57 +75,110 @@ function PrThreads({ threads, resolved, actions }: { threads: OpenThread[]; reso
   )
 }
 
-function ThreadRow({ thread: t, isResolved, actions }: { thread: OpenThread; isResolved: boolean; actions: ThreadActions }) {
+function ThreadRow({
+  thread: t,
+  isResolved,
+  actions,
+}: {
+  thread: OpenThread
+  isResolved: boolean
+  actions: ThreadActions
+}) {
   const [replying, setReplying] = useState(false)
   const { busy, error, run } = useAsyncAction()
-  const last = t.comments.at(-1)!
   const sendReply = async (body: string) => {
     await run(async () => {
       await actions.onReply(t.id, body)
       setReplying(false)
     })
   }
-  const resolve = (value: boolean) => void run(() => actions.onResolve(t.id, value))
+  const resolve = (value: boolean) => run(() => actions.onResolve(t.id, value))
 
   return (
     <li className="border-b border-line last:border-b-0">
       <div className="group/row flex gap-3 px-4 py-2.5 hover:bg-hover">
-        <ThreadSummary thread={t} dimmed={isResolved} onOpen={() => actions.onOpen(t, { path: t.path, line: t.line, commentId: reviewCommentIdFromUrl(t.comments.at(-1)?.url ?? '') ?? undefined })} />
+        <ThreadSummary
+          thread={t}
+          dimmed={isResolved}
+          onOpen={() =>
+            actions.onOpen(t, {
+              path: t.path,
+              line: t.line,
+              commentId: reviewCommentIdFromUrl(t.comments.at(-1)?.url ?? '') ?? undefined,
+            })
+          }
+        />
         <div className="flex shrink-0 flex-col items-end gap-1">
           <span className="font-mono text-[11.5px] text-muted">{ago(t.lastActivityAt)}</span>
-          <ThreadButtons isResolved={isResolved} busy={busy} replying={replying} onReply={() => setReplying(true)} onResolve={resolve} />
+          <ThreadButtons
+            isResolved={isResolved}
+            busy={busy}
+            replying={replying}
+            onReply={() => setReplying(true)}
+            onResolve={resolve}
+          />
         </div>
       </div>
-      {(replying || error) && (
+      {Boolean(replying || error) && (
         <div className="space-y-2 px-4 pb-3 pl-13">
-          {replying && <Composer label={`Reply to ${last.author}`} onCancel={() => setReplying(false)} onSubmitNow={sendReply} />}
-          {error && <div className="text-[12px] text-danger selectable">{error}</div>}
+          {Boolean(replying) && (
+            <Composer
+              label={`Reply to ${t.comments.at(-1)?.author ?? 'the thread'}`}
+              onCancel={() => setReplying(false)}
+              onSubmitNow={sendReply}
+            />
+          )}
+          {Boolean(error) && <div className="text-[12px] text-danger selectable">{error}</div>}
         </div>
       )}
     </li>
   )
 }
 
+const AVATAR_PX = 24
+
+function summaryTitle(outdated: boolean) {
+  if (outdated) {
+    return 'The code this thread was on has changed since; opens the file.'
+  }
+  return 'Open the PR at this line'
+}
+
+/** `path:line`, or the path alone when the thread has no current line. */
+function pathAndLine(t: OpenThread) {
+  if (!t.line) {
+    return t.path
+  }
+  return `${t.path}:${t.line}`
+}
+
 function ThreadSummary({ thread: t, dimmed, onOpen }: { thread: OpenThread; dimmed: boolean; onOpen: () => void }) {
-  const last = t.comments.at(-1)!
+  const last = t.comments.at(-1)
+  if (!last) {
+    return null
+  }
   return (
     <button
+      type="button"
       className={cx('flex min-w-0 flex-1 gap-3 text-left', dimmed && 'opacity-50')}
       onClick={onOpen}
-      title={t.outdated ? 'The code this thread was on has changed since; opens the file.' : 'Open the PR at this line'}
+      title={summaryTitle(t.outdated)}
     >
-      <img src={last.authorAvatar} alt="" className="mt-0.5 size-6 shrink-0 rounded-full bg-panel-2" />
+      <img
+        src={last.authorAvatar}
+        alt=""
+        width={AVATAR_PX}
+        height={AVATAR_PX}
+        className="mt-0.5 size-6 shrink-0 rounded-full bg-panel-2"
+      />
       <div className="min-w-0 flex-1">
         <div className="flex items-center gap-2 text-[12px]">
-          <code className="truncate" title={`${t.path}${t.line ? `:${t.line}` : ''}`}>
-            {t.path}
-            {t.line ? `:${t.line}` : ''}
+          <code className="truncate" title={pathAndLine(t)}>
+            {pathAndLine(t)}
           </code>
-          {t.outdated && <span className="chip bg-panel-2 text-muted">outdated</span>}
-          {last.bot && <span className="chip bg-panel-2 text-muted">bot</span>}
-          <span className="shrink-0 text-muted">
-            {t.totalComments} comment{t.totalComments === 1 ? '' : 's'}
-          </span>
+          {Boolean(t.outdated) && <span className="chip bg-panel-2 text-muted">outdated</span>}
+          {Boolean(last.bot) && <span className="chip bg-panel-2 text-muted">bot</span>}
+          <span className="shrink-0 text-muted">{countOf(t.totalComments, 'comment', 'comments')}</span>
         </div>
         <div className={cx('mt-0.5 line-clamp-2 text-[12.5px]', t.waitingOn === 'others' && 'text-muted')}>
           <span className="font-medium">{last.author}</span>: {summarizeComment(last.body)}
@@ -133,24 +188,84 @@ function ThreadSummary({ thread: t, dimmed, onOpen }: { thread: OpenThread; dimm
   )
 }
 
-function ThreadButtons(props: { isResolved: boolean; busy: boolean; replying: boolean; onReply: () => void; onResolve: (resolved: boolean) => void }) {
-  if (props.isResolved)
+function ThreadButtons(props: {
+  isResolved: boolean
+  busy: boolean
+  replying: boolean
+  onReply: () => void
+  onResolve: (resolved: boolean) => void
+}) {
+  if (props.isResolved) {
     return (
       <span className="flex items-center gap-1 text-[11.5px] text-ok">
         Resolved
-        <button className="btn btn-ghost py-0 text-[11.5px]" disabled={props.busy} onClick={() => props.onResolve(false)}>
+        <button
+          type="button"
+          className="btn btn-ghost py-0 text-[11.5px]"
+          disabled={props.busy}
+          onClick={() => props.onResolve(false)}
+        >
           Undo
         </button>
       </span>
     )
+  }
   return (
     <span className="flex gap-1">
-      <button className="btn btn-ghost py-0 text-[11.5px]" disabled={props.busy || props.replying} onClick={props.onReply}>
+      <button
+        type="button"
+        className="btn btn-ghost py-0 text-[11.5px]"
+        disabled={props.busy || props.replying}
+        onClick={props.onReply}
+      >
         Reply
       </button>
-      <button className="btn btn-ghost py-0 text-[11.5px]" disabled={props.busy} onClick={() => props.onResolve(true)}>
-        {props.busy && !props.replying ? 'Resolving…' : 'Resolve'}
+      <button
+        type="button"
+        className="btn btn-ghost py-0 text-[11.5px]"
+        disabled={props.busy}
+        onClick={() => props.onResolve(true)}
+      >
+        {Boolean(props.busy && !props.replying) && 'Resolving…'}
+        {!(props.busy && !props.replying) && 'Resolve'}
       </button>
     </span>
   )
 }
+
+export interface ThreadActions {
+  onOpen: OpenPull
+  onReply: (threadId: string, body: string) => Promise<void>
+  onResolve: (threadId: string, resolved: boolean) => Promise<void>
+}
+
+/** Unresolved review threads, split by who owes the next reply and grouped by PR. */
+export const ThreadList = memo(function ThreadListView({ threads, resolved, filtering, ...actions }: Props) {
+  if (threads.length === 0) {
+    return (
+      <div className="rounded-lg border border-dashed border-line px-4 py-10 text-center text-muted">
+        {Boolean(filtering) && 'No open thread matches this search.'}
+        {!filtering && 'No unresolved review threads on your open PRs. 🎉'}
+      </div>
+    )
+  }
+  return (
+    <>
+      <ThreadSection
+        title="Waiting on your reply"
+        hint="someone else spoke last"
+        tone="accent"
+        threads={threads.filter((t) => t.waitingOn === 'you')}
+        resolved={resolved}
+        actions={actions}
+      />
+      <ThreadSection
+        title="Waiting on others"
+        hint="your comment has no answer yet"
+        threads={threads.filter((t) => t.waitingOn === 'others')}
+        resolved={resolved}
+        actions={actions}
+      />
+    </>
+  )
+})

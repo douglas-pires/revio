@@ -1,5 +1,5 @@
 import { describe, expect, it, vi } from 'vitest'
-import { InFlight } from './in-flight.util'
+import { InFlight } from './in-flight.util.ts'
 
 describe('InFlight', () => {
   it('shares a running job per key and starts a new one once it settles', async () => {
@@ -14,6 +14,9 @@ describe('InFlight', () => {
   it('keeps keys apart and lets a failed job be retried', async () => {
     const shared = new InFlight<string>()
     await expect(shared.run('a', async () => Promise.reject(new Error('boom')))).rejects.toThrow('boom')
-    await expect(Promise.all([shared.run('a', async () => 'x'), shared.run('b', async () => 'y')])).resolves.toEqual(['x', 'y'])
+    await expect(Promise.all([shared.run('a', async () => 'x'), shared.run('b', async () => 'y')])).resolves.toEqual([
+      'x',
+      'y',
+    ])
   })
 })

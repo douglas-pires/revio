@@ -1,18 +1,22 @@
-import { app, safeStorage } from 'electron'
 import { existsSync, mkdirSync, readFileSync, renameSync, writeFileSync } from 'node:fs'
 import { join } from 'node:path'
-import type { Guideline } from '@shared/guideline.types'
-import type { PullLocalState } from '@shared/pull.types'
-import type { Settings } from '@shared/settings.types'
-import type { AlertState } from '../alerts/alerts.util'
-import { pruneStalePulls } from '../pulls/pull-state.util'
+import type { Guideline } from '@shared/guideline.types.ts'
+import type { PullLocalState } from '@shared/pull.types.ts'
+import type { Settings } from '@shared/settings.types.ts'
+import { app, safeStorage } from 'electron'
+import type { AlertState } from '../alerts/alerts.util.ts'
+import { pruneStalePulls } from '../pulls/pull-state.util.ts'
+
+/** Writes are batched: a burst of changes within this window is saved once. */
+const SAVE_DELAY_MS = 150
+/** Marks secrets stored without the keychain (when macOS encryption is unavailable). */
+const PLAIN_PREFIX = 'plain:'
 
 type StoredSettings = Omit<Settings, 'hasGithubToken' | 'hasAnthropicKey'> & {
   /** Encrypted with the OS keychain via safeStorage, base64. */
-  githubTokenEnc?: string
-  anthropicKeyEnc?: string
+  githubTokenEnc?: string | undefined
+  anthropicKeyEnc?: string | undefined
 }
-
 
 interface Db {
   settings: StoredSettings
@@ -64,7 +68,9 @@ const file = () => join(app.getPath('userData'), 'revio.json')
 let db: Db | null = null
 
 function load(): Db {
-  if (db) return db
+  if (db) {
+    return db
+  }
   const fresh: Db = {
     settings: { ...DEFAULT_SETTINGS },
     guidelines: DEFAULT_GUIDELINES,
@@ -90,27 +96,36 @@ function load(): Db {
 }
 
 let saveTimer: NodeJS.Timeout | null = null
+
 function save() {
-  if (saveTimer) clearTimeout(saveTimer)
-  saveTimer = setTimeout(flush, 150)
+  if (saveTimer) {
+    clearTimeout(saveTimer)
+  }
+  saveTimer = setTimeout(flush, SAVE_DELAY_MS)
 }
 
-export function flush() {
-  if (!db) return
-  mkdirSync(app.getPath('userData'), { recursive: true })
-  const tmp = `${file()}.tmp`
-  writeFileSync(tmp, JSON.stringify(db, null, 2))
-  renameSync(tmp, file())
+function encrypt(value: string) {
+  if (safeStorage.isEncryptionAvailable()) {
+    return safeStorage.encryptString(value).toString('base64')
+  }
+  return `${PLAIN_PREFIX}${Buffer.from(value).toString('base64')}`
 }
 
-const encrypt = (value: string) =>
-  safeStorage.isEncryptionAvailable()
-    ? safeStorage.encryptString(value).toString('base64')
-    : `plain:${Buffer.from(value).toString('base64')}`
+/** A secret to store: encrypted, or undefined to clear it (null or an empty string). */
+function encryptOrClear(value: string | null) {
+  if (!value) {
+    return
+  }
+  return encrypt(value)
+}
 
-const decrypt = (value?: string) => {
-  if (!value) return undefined
-  if (value.startsWith('plain:')) return Buffer.from(value.slice(6), 'base64').toString()
+function decrypt(value: string | undefined): string | undefined {
+  if (!value) {
+    return undefined
+  }
+  if (value.startsWith(PLAIN_PREFIX)) {
+    return Buffer.from(value.slice(PLAIN_PREFIX.length), 'base64').toString()
+  }
   try {
     return safeStorage.decryptString(Buffer.from(value, 'base64'))
   } catch {
@@ -118,17 +133,31 @@ const decrypt = (value?: string) => {
   }
 }
 
+export function flush() {
+  if (!db) {
+    return
+  }
+  mkdirSync(app.getPath('userData'), { recursive: true })
+  const tmp = `${file()}.tmp`
+  writeFileSync(tmp, JSON.stringify(db, null, 2))
+  renameSync(tmp, file())
+}
+
 export const store = {
   settings(): Settings {
     const { githubTokenEnc, anthropicKeyEnc, ...rest } = load().settings
-    return { ...rest, hasGithubToken: !!githubTokenEnc, hasAnthropicKey: !!anthropicKeyEnc }
+    return { ...rest, hasGithubToken: Boolean(githubTokenEnc), hasAnthropicKey: Boolean(anthropicKeyEnc) }
   },
   updateSettings(patch: Partial<StoredSettings> & { githubToken?: string | null; anthropicApiKey?: string | null }) {
     const s = load().settings
     const { githubToken, anthropicApiKey, ...rest } = patch
     Object.assign(s, rest)
-    if (githubToken !== undefined) s.githubTokenEnc = githubToken ? encrypt(githubToken) : undefined
-    if (anthropicApiKey !== undefined) s.anthropicKeyEnc = anthropicApiKey ? encrypt(anthropicApiKey) : undefined
+    if (githubToken !== undefined) {
+      s.githubTokenEnc = encryptOrClear(githubToken)
+    }
+    if (anthropicApiKey !== undefined) {
+      s.anthropicKeyEnc = encryptOrClear(anthropicApiKey)
+    }
     save()
   },
   githubToken: () => decrypt(load().settings.githubTokenEnc),
@@ -144,7 +173,7 @@ export const store = {
     return load().pulls[key] ?? { drafts: [], viewed: {} }
   },
   updatePull(key: string, fn: (s: PullLocalState) => void) {
-    const pulls = load().pulls
+    const { pulls } = load()
     const state = pulls[key] ?? { drafts: [], viewed: {} }
     fn(state)
     state.touchedAt = new Date().toISOString()

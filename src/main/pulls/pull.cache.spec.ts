@@ -1,6 +1,6 @@
 import { afterEach, describe, expect, it, vi } from 'vitest'
-import { PullCache } from './pull.cache'
-import { makeDetail } from '../../../test/fixtures'
+import { makeDetail } from '../../../test/fixtures.ts'
+import { PullCache } from './pull.cache.ts'
 
 const PR = { repo: 'acme/web', number: 1 }
 

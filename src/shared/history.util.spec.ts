@@ -1,8 +1,16 @@
 import { describe, expect, it } from 'vitest'
-import type { BlameRange, CommitSummary } from './history.types'
-import { blameAt, markPrCommits, patchOfFile } from './history.util'
+import type { BlameRange, CommitSummary } from './history.types.ts'
+import { blameAt, markPrCommits, patchOfFile } from './history.util.ts'
 
-const commit = (sha: string): CommitSummary => ({ sha, shortSha: sha.slice(0, 7), headline: sha, author: 'ana', authorAvatar: '', date: '', url: '' })
+const commit = (sha: string): CommitSummary => ({
+  sha,
+  shortSha: sha.slice(0, 7),
+  headline: sha,
+  author: 'ana',
+  authorAvatar: '',
+  date: '',
+  url: '',
+})
 const range = (start: number, end: number, sha: string): BlameRange => ({ start, end, commit: commit(sha) })
 
 describe('blameAt', () => {

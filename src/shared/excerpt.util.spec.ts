@@ -1,9 +1,11 @@
+import { excerptAround, summarizeAround, summarizeComment } from '@shared/excerpt.util.ts'
 import { describe, expect, it } from 'vitest'
-import { excerptAround, summarizeComment, summarizeAround } from '@shared/excerpt.util'
 
 describe('summarizeComment', () => {
   it('names code and suggestions and flattens markdown', () => {
-    expect(summarizeComment('**Nit:** use this\n```suggestion\nx\n```\nand `y`')).toBe('Nit: use this [suggested change] and y')
+    expect(summarizeComment('**Nit:** use this\n```suggestion\nx\n```\nand `y`')).toBe(
+      'Nit: use this [suggested change] and y',
+    )
   })
 })
 

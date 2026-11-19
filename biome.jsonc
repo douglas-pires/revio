@@ -1,0 +1,131 @@
+{
+  "$schema": "./node_modules/@biomejs/biome/configuration_schema.json",
+  "vcs": {
+    "enabled": true,
+    "clientKind": "git",
+    "useIgnoreFile": true
+  },
+  "files": {
+    "includes": ["**", "!**/out", "!**/dist", "!pnpm-lock.yaml"]
+  },
+  "formatter": {
+    "enabled": true,
+    "indentStyle": "space",
+    "indentWidth": 2,
+    "lineWidth": 120
+  },
+  "javascript": {
+    "formatter": {
+      "quoteStyle": "single",
+      "jsxQuoteStyle": "double",
+      "semicolons": "asNeeded",
+      "trailingCommas": "all",
+      "arrowParentheses": "always"
+    }
+  },
+  "css": {
+    "parser": {
+      "tailwindDirectives": true
+    }
+  },
+  "linter": {
+    "enabled": true,
+    "rules": {
+      // Every rule is an error. The exceptions below are rules written for other frameworks, or ones this app has
+      // decided against; each says why.
+      "preset": "all",
+      "correctness": {
+        // Rules for React Native, Solid and Qwik; this is React DOM.
+        "noReactNativeRawText": "off",
+        "noSolidDestructuredProps": "off",
+        "useQwikValidLexicalScope": "off"
+      },
+      "performance": {
+        // Next.js's <Image>; this app has no Next.js.
+        "noImgElement": "off",
+        // Inline handlers on DOM elements cost nothing here; memoized children get stable callbacks by hand.
+        "noJsxPropsBind": "off",
+        "useSolidForComponent": "off"
+      },
+      "style": {
+        // Only useful once the UI is translated.
+        "noJsxLiterals": "off",
+        "useNamingConvention": {
+          "level": "error",
+          "options": {
+            "strictCase": true,
+            "requireAscii": true,
+            "conventions": [
+              {
+                // Wire formats belong to the APIs that define them (GitHub's pull_number, Anthropic's max_tokens,
+                // GraphQL enums like MERGED, GraphQL's __typename) and environment variables are CONSTANT_CASE.
+                "selector": { "kind": "objectLiteralProperty" },
+                "match": "(?:__)?(.+)",
+                "formats": ["camelCase", "snake_case", "CONSTANT_CASE", "PascalCase"]
+              },
+              {
+                "selector": { "kind": "typeProperty" },
+                "match": "(?:__)?(.+)",
+                "formats": ["camelCase", "snake_case", "CONSTANT_CASE"]
+              }
+            ]
+          }
+        }
+      },
+      "suspicious": {
+        // Preact and Solid use `class`; React needs `className`.
+        "noReactSpecificProps": "off",
+        // The CSS only ever runs in Electron's Chromium, which supports these unprefixed; Baseline also counts Safari.
+        "useBaseline": { "level": "error", "options": { "allowProperties": ["user-select"] } },
+        // Errors and warnings go to the console, which Electron keeps in its logs; nothing else may.
+        "noConsole": { "level": "error", "options": { "allow": ["error", "warn"] } }
+      }
+    }
+  },
+  "overrides": [
+    {
+      // The main process, preload, configs and tests run on Node; only the renderer must stay free of it.
+      "includes": ["src/main/**", "src/preload/**", "*.config.ts", "**/*.spec.ts", "test/**"],
+      "linter": {
+        "rules": {
+          "correctness": { "noNodejsModules": "off", "noProcessGlobal": "off" }
+        }
+      }
+    },
+    {
+      // The one module that reads the process environment; everything else imports `env` from it.
+      "includes": ["src/main/common/env.config.ts"],
+      "linter": {
+        "rules": {
+          "style": { "noProcessEnv": "off" }
+        }
+      }
+    },
+    {
+      // In tests the numbers are the fixture data (line 12, 3 comments); naming each one hides what is tested.
+      "includes": ["**/*.spec.ts"],
+      "linter": {
+        "rules": {
+          "style": { "noMagicNumbers": "off" }
+        }
+      }
+    },
+    {
+      // Vite and Vitest read their config from a default export.
+      "includes": ["*.config.ts"],
+      "linter": {
+        "rules": {
+          "style": { "noDefaultExport": "off" }
+        }
+      }
+    }
+  ],
+  "assist": {
+    "enabled": true,
+    "actions": {
+      "source": {
+        "organizeImports": "on"
+      }
+    }
+  }
+}

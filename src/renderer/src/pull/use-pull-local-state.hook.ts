@@ -1,8 +1,55 @@
-import { useCallback, useState } from 'react'
-import type { AskThread, BriefingRecord } from '@shared/claude.types'
-import type { DraftComment, PullLocalState, PullRef } from '@shared/pull.types'
+import type { AskThread, BriefingRecord } from '@shared/claude.types.ts'
+import type { DraftComment, PullLocalState, PullRef } from '@shared/pull.types.ts'
+import { type Dispatch, type SetStateAction, useCallback, useState } from 'react'
+import { withDraftBody, withSavedThread, withViewed } from './pull-local-state.util.ts'
 
 const EMPTY_STATE: PullLocalState = { drafts: [], viewed: {} }
+
+type SetLocal = Dispatch<SetStateAction<PullLocalState>>
+
+/** Draft comments: add, edit and delete, each saved through the main process. */
+function useDrafts(pull: PullRef, setLocal: SetLocal) {
+  const updateDrafts = useCallback(
+    (change: (drafts: DraftComment[]) => DraftComment[]) =>
+      setLocal((l) => {
+        const drafts = change(l.drafts)
+        globalThis.revio.saveDrafts(pull, drafts)
+        return { ...l, drafts }
+      }),
+    [pull, setLocal],
+  )
+  return {
+    addDraft: useCallback(
+      (d: Omit<DraftComment, 'id'>) => updateDrafts((ds) => [...ds, { ...d, id: crypto.randomUUID() }]),
+      [updateDrafts],
+    ),
+    updateDraft: useCallback(
+      (id: string, body: string) => updateDrafts((ds) => withDraftBody(ds, id, body)),
+      [updateDrafts],
+    ),
+    deleteDraft: useCallback((id: string) => updateDrafts((ds) => ds.filter((d) => d.id !== id)), [updateDrafts]),
+    /** After a review is submitted the main process already cleared them; mirror that locally. */
+    forgetDrafts: useCallback(() => setLocal((l) => ({ ...l, drafts: [] })), [setLocal]),
+  }
+}
+
+/** Claude conversations: saved (once asked) and deleted through the main process. */
+function useAskThreads(pull: PullRef, setLocal: SetLocal) {
+  const updateAsks = useCallback(
+    (change: (asks: AskThread[]) => AskThread[]) =>
+      setLocal((l) => {
+        const asks = change(l.asks ?? [])
+        globalThis.revio.saveAsks(pull, asks)
+        return { ...l, asks }
+      }),
+    [pull, setLocal],
+  )
+  return {
+    /** Saves a Claude conversation; empty (unasked) threads are not persisted. */
+    saveThread: useCallback((thread: AskThread) => updateAsks((asks) => withSavedThread(asks, thread)), [updateAsks]),
+    deleteThread: useCallback((id: string) => updateAsks((asks) => asks.filter((x) => x.id !== id)), [updateAsks]),
+  }
+}
 
 /**
  * Local review state for one PR (drafts, viewed files, Claude chats, briefing), kept in React state
@@ -10,59 +57,26 @@ const EMPTY_STATE: PullLocalState = { drafts: [], viewed: {} }
  */
 export function usePullLocalState(pull: PullRef) {
   const [local, setLocal] = useState<PullLocalState>(EMPTY_STATE)
-
-  const updateDrafts = useCallback(
-    (change: (drafts: DraftComment[]) => DraftComment[]) =>
-      setLocal((l) => {
-        const drafts = change(l.drafts)
-        void window.revio.saveDrafts(pull, drafts)
-        return { ...l, drafts }
-      }),
-    [pull],
-  )
-
-  const addDraft = useCallback((d: Omit<DraftComment, 'id'>) => updateDrafts((ds) => [...ds, { ...d, id: crypto.randomUUID() }]), [updateDrafts])
-  const updateDraft = useCallback((id: string, body: string) => updateDrafts((ds) => ds.map((d) => (d.id === id ? { ...d, body } : d))), [updateDrafts])
-  const deleteDraft = useCallback((id: string) => updateDrafts((ds) => ds.filter((d) => d.id !== id)), [updateDrafts])
-  /** After a review is submitted the main process already cleared them; mirror that locally. */
-  const forgetDrafts = useCallback(() => setLocal((l) => ({ ...l, drafts: [] })), [])
-
   const markViewed = useCallback(
     (path: string, sha: string, viewed: boolean) => {
-      void window.revio.setViewed(pull, path, viewed ? sha : null)
-      setLocal((l) => {
-        const next = { ...l.viewed }
-        if (viewed) next[path] = sha
-        else delete next[path]
-        return { ...l, viewed: next }
-      })
+      let viewedSha: string | null = null
+      if (viewed) {
+        viewedSha = sha
+      }
+      globalThis.revio.setViewed(pull, path, viewedSha)
+      setLocal((l) => ({ ...l, viewed: withViewed(l.viewed, path, viewedSha) }))
     },
     [pull],
   )
-
-  /** Saves a Claude conversation; empty (unasked) threads are not persisted. */
-  const saveThread = useCallback(
-    (thread: AskThread) =>
-      setLocal((l) => {
-        const others = (l.asks ?? []).filter((x) => x.id !== thread.id)
-        const asks = thread.messages.length ? [thread, ...others] : others
-        void window.revio.saveAsks(pull, asks)
-        return { ...l, asks }
-      }),
-    [pull],
-  )
-
-  const deleteThread = useCallback(
-    (id: string) =>
-      setLocal((l) => {
-        const asks = (l.asks ?? []).filter((x) => x.id !== id)
-        void window.revio.saveAsks(pull, asks)
-        return { ...l, asks }
-      }),
-    [pull],
-  )
-
   const setBriefingRecord = useCallback((briefing: BriefingRecord) => setLocal((l) => ({ ...l, briefing })), [])
-
-  return { local, replaceLocal: setLocal, addDraft, updateDraft, deleteDraft, forgetDrafts, markViewed, saveThread, deleteThread, setBriefingRecord }
+  return {
+    local,
+    replaceLocal: setLocal,
+    ...useDrafts(pull, setLocal),
+    markViewed,
+    ...useAskThreads(pull, setLocal),
+    setBriefingRecord,
+  }
 }
+
+export type PullLocalStateApi = ReturnType<typeof usePullLocalState>
