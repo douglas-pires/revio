@@ -1,8 +1,8 @@
 import { describe, expect, it } from 'vitest'
 import { makeSummary } from '../../../../test/fixtures.ts'
-import { groupMyPulls, myPullsNeedingYou } from './my-pulls.util.ts'
+import { countPullsNeedingYou, groupMyPulls } from './my-pulls.util.ts'
 
-const ids = (prs: readonly { id: string }[]) => prs.map((p) => p.id)
+const idsOf = (pulls: readonly { id: string }[]) => pulls.map((pull) => pull.id)
 
 describe('groupMyPulls', () => {
   const prs = [
@@ -14,15 +14,15 @@ describe('groupMyPulls', () => {
   ]
 
   it('sorts your PRs by what they need next, drafts apart whatever their reviews say', () => {
-    const g = groupMyPulls(prs)
-    expect(ids(g.changesRequested)).toEqual(['fix-me'])
-    expect(ids(g.approved)).toEqual(['ship-me'])
-    expect(ids(g.inReview)).toEqual(['waiting', 'no-rules'])
-    expect(ids(g.drafts)).toEqual(['wip'])
+    const groups = groupMyPulls(prs)
+    expect(idsOf(groups.changesRequested)).toEqual(['fix-me'])
+    expect(idsOf(groups.approved)).toEqual(['ship-me'])
+    expect(idsOf(groups.inReview)).toEqual(['waiting', 'no-rules'])
+    expect(idsOf(groups.drafts)).toEqual(['wip'])
   })
 
   it('counts only the ready PRs with changes requested as needing you', () => {
-    expect(myPullsNeedingYou(prs)).toBe(1)
-    expect(myPullsNeedingYou([])).toBe(0)
+    expect(countPullsNeedingYou(prs)).toBe(1)
+    expect(countPullsNeedingYou([])).toBe(0)
   })
 })

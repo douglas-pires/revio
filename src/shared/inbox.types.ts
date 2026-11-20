@@ -62,7 +62,7 @@ export interface Inbox {
   requested: PullSummary[]
   reviewed: PullSummary[]
   /** Your own open PRs, most recently updated first. */
-  mine: PullSummary[]
+  authored: PullSummary[]
   stacks: Stack[]
   fetchedAt: string
   error?: string

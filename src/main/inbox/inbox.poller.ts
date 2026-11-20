@@ -22,7 +22,7 @@ const emptyInbox = (error: string): Inbox => ({
   viewer: '',
   requested: [],
   reviewed: [],
-  mine: [],
+  authored: [],
   stacks: [],
   fetchedAt: new Date().toISOString(),
   error,

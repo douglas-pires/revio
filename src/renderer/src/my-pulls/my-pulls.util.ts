@@ -2,7 +2,8 @@ import type { PullSummary } from '@shared/inbox.types.ts'
 
 type GroupName = 'changesRequested' | 'approved' | 'inReview' | 'drafts'
 
-function groupOf(pr: PullSummary): GroupName {
+/** The group a PR of yours belongs in: drafts apart, then by what reviewers decided. */
+function classifyMyPull(pr: PullSummary): GroupName {
   if (pr.isDraft) {
     return 'drafts'
   }
@@ -30,12 +31,12 @@ export interface MyPullGroups {
 export function groupMyPulls(prs: readonly PullSummary[]): MyPullGroups {
   const groups: MyPullGroups = { changesRequested: [], approved: [], inReview: [], drafts: [] }
   for (const pr of prs) {
-    groups[groupOf(pr)].push(pr)
+    groups[classifyMyPull(pr)].push(pr)
   }
   return groups
 }
 
 /** How many of your PRs need you to act: the ones with changes requested. */
-export function myPullsNeedingYou(prs: readonly PullSummary[]): number {
-  return prs.filter((pr) => groupOf(pr) === 'changesRequested').length
+export function countPullsNeedingYou(prs: readonly PullSummary[]): number {
+  return prs.filter((pr) => classifyMyPull(pr) === 'changesRequested').length
 }

@@ -10,26 +10,27 @@ import { InboxRow } from '../inbox/inbox-row.component.tsx'
 import { groupMyPulls } from './my-pulls.util.ts'
 
 /** Your PRs carry no stack chip (stacks are found for review requests), so there is no stack to open. */
-const NO_STACK = () => {
+const ignoreStackClick = () => {
   // Nothing to do.
 }
 
-function Group(props: {
+/** One group of your PRs under its heading; nothing when the group is empty. */
+function PullGroup(props: {
   title: string
   hint: string
-  prs: readonly PullSummary[]
+  pulls: readonly PullSummary[]
   tone?: 'danger' | undefined
   onOpen: OpenPull
 }) {
-  if (props.prs.length === 0) {
+  if (props.pulls.length === 0) {
     return null
   }
   return (
     <section className="mb-6">
-      <SectionHeading title={props.title} count={props.prs.length} hint={props.hint} tone={props.tone} />
+      <SectionHeading title={props.title} count={props.pulls.length} hint={props.hint} tone={props.tone} />
       <ul className="card">
-        {props.prs.map((pr) => (
-          <InboxRow key={pr.id} pr={pr} onOpen={props.onOpen} onStack={NO_STACK} showUpdated={true} />
+        {props.pulls.map((pull) => (
+          <InboxRow key={pull.id} pr={pull} onOpen={props.onOpen} onStack={ignoreStackClick} time="updated" />
         ))}
       </ul>
     </section>
@@ -39,7 +40,7 @@ function Group(props: {
 /** Your own open PRs, grouped by what they need next: changes to make, ready to merge, in review, drafts. */
 export function MyPulls({ inbox, onOpen }: { inbox: InboxData | null; onOpen: OpenPull }) {
   const refreshAction = useAsyncAction()
-  const groups = groupMyPulls(inbox?.mine ?? [])
+  const groups = groupMyPulls(inbox?.authored ?? [])
   const refresh = () => refreshAction.run(() => globalThis.revio.refreshInbox())
   return (
     <Screen
@@ -54,13 +55,19 @@ export function MyPulls({ inbox, onOpen }: { inbox: InboxData | null; onOpen: Op
       <ScreenBody>
         <ErrorBanner className="mb-4">{refreshAction.error || inbox?.error}</ErrorBanner>
         {inbox === null && <div className="text-muted">Loading…</div>}
-        {inbox !== null && inbox.mine.length === 0 && (
+        {inbox !== null && inbox.authored.length === 0 && (
           <EmptyState title="No open PRs">PRs you open on GitHub show up here.</EmptyState>
         )}
-        <Group title="Changes requested" hint="your move" tone="danger" prs={groups.changesRequested} onOpen={onOpen} />
-        <Group title="Approved" hint="ready to merge" prs={groups.approved} onOpen={onOpen} />
-        <Group title="In review" hint="waiting on reviewers" prs={groups.inReview} onOpen={onOpen} />
-        <Group title="Drafts" hint="not out for review yet" prs={groups.drafts} onOpen={onOpen} />
+        <PullGroup
+          title="Changes requested"
+          hint="your move"
+          tone="danger"
+          pulls={groups.changesRequested}
+          onOpen={onOpen}
+        />
+        <PullGroup title="Approved" hint="ready to merge" pulls={groups.approved} onOpen={onOpen} />
+        <PullGroup title="In review" hint="waiting on reviewers" pulls={groups.inReview} onOpen={onOpen} />
+        <PullGroup title="Drafts" hint="not out for review yet" pulls={groups.drafts} onOpen={onOpen} />
       </ScreenBody>
     </Screen>
   )
