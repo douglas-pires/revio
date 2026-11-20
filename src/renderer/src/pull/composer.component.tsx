@@ -1,6 +1,7 @@
 import { useEffect, useState } from 'react'
 import { cx } from '../common/format.util.ts'
 import { Markdown } from '../common/markdown.component.tsx'
+import { markdownLinkFor } from '../common/markdown-link.util.ts'
 import { forgetUnsentComment, keepUnsentComment, unsentComment } from './unsent-comments.util.ts'
 
 interface ComposerProps {
@@ -43,6 +44,21 @@ function openingBody(props: ComposerProps) {
     return unsentComment(props.unsentKey) ?? props.initial ?? ''
   }
   return props.initial ?? ''
+}
+
+/** Pasting a link over selected words writes `[words](link)`, as on GitHub. */
+function pasteAsLink(e: React.ClipboardEvent<HTMLTextAreaElement>) {
+  const box = e.currentTarget
+  const link = markdownLinkFor(
+    box.value.slice(box.selectionStart, box.selectionEnd),
+    e.clipboardData.getData('text/plain'),
+  )
+  if (link === null) {
+    return
+  }
+  e.preventDefault()
+  // Inserted through the browser's own editing, so ⌘Z undoes it in one step and React sees the change.
+  document.execCommand('insertText', false, link)
 }
 
 /** What ⌘↵ does: add to the pending review, or send the reply right away. */
@@ -204,10 +220,12 @@ export function Composer(props: ComposerProps) {
           // biome-ignore lint/a11y/noAutofocus: the composer opens because the reviewer chose to write; focus goes where they type.
           autoFocus={true}
           aria-label={props.label}
-          className="input min-h-20 resize-y font-sans"
+          // Grows with what you type or paste, up to most of the window, then scrolls.
+          className="input max-h-[60vh] min-h-20 resize-y font-sans [field-sizing:content]"
           placeholder={`Leave a comment (markdown). ⌘↵ to ${submitVerb(Boolean(props.onSubmit))}, Esc to close and keep it`}
           value={body}
           onChange={(e) => setBody(e.target.value)}
+          onPaste={pasteAsLink}
           onKeyDown={(e) => {
             if (e.key === 'Enter' && e.metaKey) {
               submit()
