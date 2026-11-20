@@ -16,6 +16,8 @@ interface LineNotesInput {
   /** The new-side text of lines start..end, to prefill a suggestion. */
   newSideText: (start: number, end: number) => string
   onAsk: (sel: { side: Anchor['side']; start: number; end: number }) => void
+  /** Set while a Claude chat is open: adds the selection to it. */
+  onAddToChat?: ((sel: { side: Anchor['side']; start: number; end: number }) => void) | undefined
 }
 
 /**
@@ -46,6 +48,13 @@ export function useLineNotes(input: LineNotesInput) {
     }
     if (sel.side === 'RIGHT') {
       spec.suggestion = input.newSideText(sel.start, sel.end)
+    }
+    const { onAddToChat } = input
+    if (onAddToChat) {
+      spec.onAddToChat = () => {
+        onAddToChat(sel)
+        selection.clear()
+      }
     }
     return spec
   }
