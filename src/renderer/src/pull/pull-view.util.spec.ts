@@ -1,6 +1,7 @@
 import type { AskThread } from '@shared/claude.types.ts'
 import { describe, expect, it } from 'vitest'
 import {
+  appendSummaryLine,
   askHistory,
   draftFromAsk,
   fileTargetOf,
@@ -10,7 +11,6 @@ import {
   quoteOf,
   replyIdOf,
   toggled,
-  withSummaryLine,
 } from './pull-view.util.ts'
 
 const QUOTE = { kind: 'comment', author: 'bo', authorAvatar: '', body: 'hi', url: '', createdAt: '' } as const
@@ -42,12 +42,12 @@ describe('targets', () => {
 
 describe('small helpers', () => {
   it('adds summary bullets', () => {
-    expect(withSummaryLine('', 'a')).toBe('- a')
-    expect(withSummaryLine('- a', 'b')).toBe('- a\n- b')
+    expect(appendSummaryLine('', 'a')).toBe('- a')
+    expect(appendSummaryLine('- a', 'b')).toBe('- a\n- b')
   })
 
   it('does not add a summary bullet twice', () => {
-    expect(withSummaryLine('- a\n- b', 'a')).toBe('- a\n- b')
+    expect(appendSummaryLine('- a\n- b', 'a')).toBe('- a\n- b')
     expect(hasSummaryLine('- a\n- b', 'b')).toBe(true)
     expect(hasSummaryLine('- ab', 'a')).toBe(false)
   })

@@ -196,11 +196,11 @@ function QuestionsCard({
   return (
     <Card title="Ask the author">
       <ul className="space-y-1.5">
-        {questions.map((q) => (
-          <li key={q} className="group flex items-start gap-2">
+        {questions.map((question) => (
+          <li key={question} className="group flex items-start gap-2">
             <span className="text-muted">?</span>
-            <span className="flex-1 selectable">{q}</span>
-            <AddQuestionButton added={hasSummaryLine(summary, q)} onAdd={() => onAdd(q)} />
+            <span className="flex-1 selectable">{question}</span>
+            <AddQuestionButton added={hasSummaryLine(summary, question)} onAdd={() => onAdd(question)} />
           </li>
         ))}
       </ul>

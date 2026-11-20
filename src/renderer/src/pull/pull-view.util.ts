@@ -46,7 +46,7 @@ export function hasSummaryLine(body: string, line: string) {
 }
 
 /** The review summary with one more bullet; unchanged when that bullet is already there. */
-export function withSummaryLine(body: string, line: string) {
+export function appendSummaryLine(body: string, line: string) {
   if (hasSummaryLine(body, line)) {
     return body
   }
