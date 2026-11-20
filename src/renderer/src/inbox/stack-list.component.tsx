@@ -1,4 +1,5 @@
 import type { Stack, StackPr } from '@shared/inbox.types.ts'
+import { EmptyState } from '../common/empty-state.component.tsx'
 import { cx } from '../common/format.util.ts'
 import type { OpenPull } from '../common/navigation.types.ts'
 import { usePrefetchOnHover } from './use-prefetch-on-hover.hook.ts'
@@ -129,11 +130,11 @@ export function StackList({
 }) {
   if (stacks.length === 0) {
     return (
-      <div className="rounded-lg border border-dashed border-line px-4 py-10 text-center text-muted">
+      <EmptyState>
         {Boolean(filtering) && 'No stack has a PR matching this search.'}
         {!filtering &&
           'None of the PRs in your inbox are stacked. A stack is a PR whose base branch is another open PR’s branch.'}
-      </div>
+      </EmptyState>
     )
   }
   return (

@@ -1,6 +1,6 @@
 import type { PullSummary } from '@shared/inbox.types.ts'
 import { memo } from 'react'
-import { cx } from '../common/format.util.ts'
+import { FilterChips } from '../common/filter-chips.component.tsx'
 import { countTeams, type ReviewAudience } from './inbox-query.util.ts'
 
 /** "team" stands in for team names the token may not read (no read:org). */
@@ -35,24 +35,13 @@ export const AudienceBar = memo(function AudienceBarView({
       title: teamTitle(team),
     })),
   ]
-  return (
-    <div className="flex flex-wrap items-center gap-1.5 text-[12px]">
-      <span className="mr-1 text-muted">Requested from</span>
-      {options.map(({ audience, label, count, title }) => (
-        <button
-          type="button"
-          key={label}
-          title={title}
-          onClick={() => onPick(audience)}
-          className={cx(
-            'rounded-full border px-2.5 py-0.5 whitespace-nowrap',
-            isActive(audience) && 'border-accent bg-accent/15 text-accent',
-            !isActive(audience) && 'border-line text-muted hover:text-fg',
-          )}
-        >
-          {label} <span className="font-mono text-[11px] opacity-80">{count}</span>
-        </button>
-      ))}
-    </div>
-  )
+  const chips = options.map(({ audience, label, count, title }) => ({
+    key: label,
+    label,
+    count,
+    title,
+    active: isActive(audience),
+    onPick: () => onPick(audience),
+  }))
+  return <FilterChips label="Requested from" chips={chips} />
 })

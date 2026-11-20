@@ -1,4 +1,6 @@
 import { cx } from '../common/format.util.ts'
+import { SegmentedControl } from '../common/segmented-control.component.tsx'
+import { ToggleButton } from '../common/toggle-button.component.tsx'
 
 import type { DiffView } from './diff-file.component.tsx'
 
@@ -27,71 +29,49 @@ const FOLD_LABELS = {
 /** Spacing between the toolbar's controls: tighter when a side panel narrows the bar. */
 const GAP = 'ml-3 @max-3xl:ml-1.5'
 
+/** Where a toolbar toggle sits in the tab bar: centred, clear of the tabs' underline. */
+const TOOL = 'mb-1.5 self-center'
+
+const VIEWS = [
+  { value: 'unified', label: 'Unified' },
+  { value: 'split', label: 'Split' },
+] as const
+
 /** The files tab's controls: the comments panel, blame, minimised threads, the shortcuts and the diff layout. */
 function FilesToolbar({ props }: { props: PullTabBarProps }) {
+  const folded = String(props.threadsFolded) as 'true' | 'false'
   return (
     <>
-      <button
-        type="button"
-        className={cx(
-          'mb-1.5 ml-auto shrink-0 self-center rounded px-2 py-0.5 text-[12px] whitespace-nowrap',
-          props.commentsPanelOpen && 'bg-hover text-fg',
-          !props.commentsPanelOpen && 'text-muted hover:text-fg',
-        )}
+      <ToggleButton
+        on={props.commentsPanelOpen}
+        onToggle={props.onToggleCommentsPanel}
         title={TOGGLE_TITLES.comments[String(props.commentsPanelOpen) as 'true' | 'false']}
-        onClick={props.onToggleCommentsPanel}
+        className={cx(TOOL, 'ml-auto')}
       >
         💬 {props.openThreadCount}
-      </button>
-      <button
-        type="button"
-        aria-pressed={props.blame}
-        className={cx(
-          'mb-1.5 shrink-0 self-center rounded px-2 py-0.5 text-[12px]',
-          GAP,
-          props.blame && 'bg-hover text-fg',
-          !props.blame && 'text-muted hover:text-fg',
-        )}
+      </ToggleButton>
+      <ToggleButton
+        on={props.blame}
+        onToggle={props.onToggleBlame}
         title={TOGGLE_TITLES.blame[String(props.blame) as 'true' | 'false']}
-        onClick={props.onToggleBlame}
+        className={cx(TOOL, GAP)}
       >
         Blame
-      </button>
-      <button
-        type="button"
-        aria-pressed={props.threadsFolded}
-        className={cx(
-          'mb-1.5 shrink-0 self-center rounded px-2 py-0.5 text-[12px] whitespace-nowrap',
-          GAP,
-          props.threadsFolded && 'bg-hover text-fg',
-          !props.threadsFolded && 'text-muted hover:text-fg',
-        )}
-        title={TOGGLE_TITLES.fold[String(props.threadsFolded) as 'true' | 'false']}
-        onClick={props.onToggleThreadsFolded}
+      </ToggleButton>
+      <ToggleButton
+        on={props.threadsFolded}
+        onToggle={props.onToggleThreadsFolded}
+        title={TOGGLE_TITLES.fold[folded]}
+        className={cx(TOOL, GAP)}
       >
-        <span className="@4xl:hidden">{FOLD_LABELS[String(props.threadsFolded) as 'true' | 'false'].short}</span>
-        <span className="hidden @4xl:inline">{FOLD_LABELS[String(props.threadsFolded) as 'true' | 'false'].full}</span>
-      </button>
+        <span className="@4xl:hidden">{FOLD_LABELS[folded].short}</span>
+        <span className="hidden @4xl:inline">{FOLD_LABELS[folded].full}</span>
+      </ToggleButton>
       {/* A reminder only, shown when the bar has room for it. */}
       <span className="mb-1.5 ml-3 hidden shrink-0 self-center text-[11.5px] whitespace-nowrap text-muted @5xl:inline">
         <kbd className="kbd">j</kbd>/<kbd className="kbd">k</kbd> files · <kbd className="kbd">v</kbd> viewed
       </span>
-      <div className={cx('mb-1.5 flex shrink-0 rounded-md border border-line p-0.5', GAP)}>
-        {(['unified', 'split'] as const).map((v) => (
-          <button
-            type="button"
-            key={v}
-            onClick={() => props.onView(v)}
-            className={cx(
-              'rounded px-2.5 py-0.5 text-[12px] capitalize',
-              props.view === v && 'bg-hover text-fg',
-              !(props.view === v) && 'text-muted hover:text-fg',
-            )}
-          >
-            {v}
-          </button>
-        ))}
-      </div>
+      <SegmentedControl segments={VIEWS} value={props.view} onChange={props.onView} className={cx('mb-1.5', GAP)} />
     </>
   )
 }

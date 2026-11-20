@@ -3,6 +3,7 @@ import { useEffect, useMemo, useState } from 'react'
 import { CopyButton } from '../common/copy-button.component.tsx'
 import { ago, cx, errorMessage } from '../common/format.util.ts'
 import { toggledOpen } from '../common/group.util.ts'
+import { PanelHeader } from '../common/panel-header.component.tsx'
 import { parsePatch } from './diff.util.ts'
 import { StaticDiff } from './static-diff.component.tsx'
 
@@ -129,22 +130,16 @@ export function FileHistoryPanel(props: {
 
   return (
     <aside data-file-history={true} className="flex w-96 shrink-0 flex-col border-l border-line bg-panel">
-      <div className="flex items-center gap-2 px-3 py-2 text-[11px] text-muted">
-        <span className="font-semibold tracking-wide uppercase">History</span>
-        <span className="min-w-0 truncate font-mono" title={path}>
-          {path.split('/').pop()}
-        </span>
-        <div className="flex-1" />
-        <button
-          type="button"
-          className="rounded px-1.5 py-0.5 hover:text-fg"
-          title="Hide history"
-          aria-label="Hide history"
-          onClick={props.onClose}
-        >
-          ✕
-        </button>
-      </div>
+      <PanelHeader
+        title="History"
+        detail={
+          <span className="min-w-0 truncate font-mono" title={path}>
+            {path.split('/').pop()}
+          </span>
+        }
+        onClose={props.onClose}
+        closeLabel="Hide history"
+      />
       <div className="min-h-0 flex-1 overflow-y-auto pb-3">
         {Boolean(error) && <div className="px-3 py-4 text-[12px] text-danger">{error}</div>}
         {!(entries || error) && <div className="px-3 py-8 text-center text-[12px] text-muted">Loading history…</div>}

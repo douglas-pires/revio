@@ -4,6 +4,7 @@ import { pullKey } from '@shared/pull.types.ts'
 // biome-ignore lint/correctness/noUnresolvedImports: @types/react declares these through its namespace, which Biome's resolver does not follow.
 import { lazy, Suspense, useEffect, useState } from 'react'
 import { cx } from './common/format.util.ts'
+import { HistoryContext } from './common/history.context.ts'
 import type { OpenPull } from './common/navigation.types.ts'
 import { useRouteHistory } from './common/use-route-history.hook.ts'
 import { HighlighterContext, WorkerHighlighter } from './highlight/highlight.service.ts'
@@ -66,44 +67,6 @@ function NavButton(props: {
   )
 }
 
-/** Back and forward through the screens you visited (also ⌘[ / ⌘], swipes and mouse side buttons). */
-function HistoryArrows(props: {
-  canGoBack: boolean
-  canGoForward: boolean
-  onBack: () => void
-  onForward: () => void
-}) {
-  const arrow = (label: string, enabled: boolean, onClick: () => void, d: string) => (
-    <button
-      type="button"
-      aria-label={label}
-      title={label}
-      disabled={!enabled}
-      onClick={onClick}
-      className="no-drag flex size-6 items-center justify-center rounded text-muted hover:bg-hover hover:text-fg disabled:opacity-30 disabled:hover:bg-transparent"
-    >
-      <svg
-        aria-hidden={true}
-        viewBox="0 0 24 24"
-        className="size-4"
-        fill="none"
-        stroke="currentColor"
-        strokeWidth="2"
-        strokeLinecap="round"
-        strokeLinejoin="round"
-      >
-        <path d={d} />
-      </svg>
-    </button>
-  )
-  return (
-    <div className="mb-1 flex gap-0.5">
-      {arrow('Back (⌘[)', props.canGoBack, props.onBack, 'M15 6l-6 6 6 6')}
-      {arrow('Forward (⌘])', props.canGoForward, props.onForward, 'M9 6l6 6-6 6')}
-    </div>
-  )
-}
-
 const SETTINGS_ICON =
   'M12 15a3 3 0 1 0 0-6 3 3 0 0 0 0 6zM19.4 15a1.7 1.7 0 0 0 .3 1.8l.1.1a2 2 0 1 1-2.8 2.8l-.1-.1a1.7 1.7 0 0 0-1.8-.3 1.7 1.7 0 0 0-1 1.5V21a2 2 0 1 1-4 0v-.1a1.7 1.7 0 0 0-1.1-1.5 1.7 1.7 0 0 0-1.8.3l-.1.1a2 2 0 1 1-2.8-2.8l.1-.1a1.7 1.7 0 0 0 .3-1.8 1.7 1.7 0 0 0-1.5-1H3a2 2 0 1 1 0-4h.1a1.7 1.7 0 0 0 1.5-1.1 1.7 1.7 0 0 0-.3-1.8l-.1-.1a2 2 0 1 1 2.8-2.8l.1.1a1.7 1.7 0 0 0 1.8.3H9a1.7 1.7 0 0 0 1-1.5V3a2 2 0 1 1 4 0v.1a1.7 1.7 0 0 0 1 1.5 1.7 1.7 0 0 0 1.8-.3l.1-.1a2 2 0 1 1 2.8 2.8l-.1.1a1.7 1.7 0 0 0-.3 1.8V9a1.7 1.7 0 0 0 1.5 1H21a2 2 0 1 1 0 4h-.1a1.7 1.7 0 0 0-1.5 1z'
 
@@ -131,7 +94,7 @@ function useLiveData(setRoute: RouteHistory['go']) {
   return { inbox, mentions }
 }
 
-/** The left rail: back/forward and the screens, with counts on Inbox (red when something is stale) and Mentions. */
+/** The left rail: the screens, with counts on Inbox (red when something is stale) and Mentions. */
 function NavRail({
   history,
   inbox,
@@ -150,12 +113,6 @@ function NavRail({
   }
   return (
     <nav className="drag flex w-[68px] shrink-0 flex-col items-center gap-1 border-r border-line bg-panel pt-11 pb-3">
-      <HistoryArrows
-        canGoBack={history.canGoBack}
-        canGoForward={history.canGoForward}
-        onBack={history.back}
-        onForward={history.forward}
-      />
       <NavButton
         active={route.view === 'inbox' || route.view === 'pull'}
         label="Inbox"
@@ -240,15 +197,17 @@ export function App() {
   useEffect(() => () => highlighter.dispose(), [highlighter])
   return (
     <HighlighterContext value={highlighter}>
-      <div className="flex h-full">
-        <NavRail history={history} inbox={inbox} mentions={mentions} />
-        <main className="flex min-w-0 flex-1 flex-col">
-          <UpdateBanner status={updateStatus} />
-          <div className="min-h-0 flex-1">
-            <Screen history={history} inbox={inbox} mentions={mentions} inboxSearch={inboxSearch} />
-          </div>
-        </main>
-      </div>
+      <HistoryContext value={history}>
+        <div className="flex h-full">
+          <NavRail history={history} inbox={inbox} mentions={mentions} />
+          <main className="flex min-w-0 flex-1 flex-col">
+            <UpdateBanner status={updateStatus} />
+            <div className="min-h-0 flex-1">
+              <Screen history={history} inbox={inbox} mentions={mentions} inboxSearch={inboxSearch} />
+            </div>
+          </main>
+        </div>
+      </HistoryContext>
     </HighlighterContext>
   )
 }

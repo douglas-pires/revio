@@ -2,6 +2,7 @@ import type { ResolvedGuideline } from '@shared/guideline.types.ts'
 import type { PullDetail } from '@shared/pull.types.ts'
 import type { ReactNode } from 'react'
 import { Markdown } from '../common/markdown.component.tsx'
+import { SectionHeading } from '../common/section-heading.component.tsx'
 import { suggestFolders } from './files.util.ts'
 
 /** Folders offered for a new guide, at most. */
@@ -18,12 +19,14 @@ function GuidesSection(props: {
   const folders = suggestFolders(props.paths).filter((p) => !guides.some((g) => g.repo === repo && g.path === p))
   return (
     <section>
-      <h3 className="mb-2 flex items-center gap-2 text-[11px] font-semibold tracking-wide text-muted uppercase">
-        Your guides for this PR
-        <button type="button" className="btn btn-ghost py-0 font-normal normal-case" onClick={() => props.onEdit(repo)}>
-          Edit
-        </button>
-      </h3>
+      <SectionHeading
+        title="Your guides for this PR"
+        action={
+          <button type="button" className="btn btn-ghost py-0" onClick={() => props.onEdit(repo)}>
+            Edit
+          </button>
+        }
+      />
       <div className="flex flex-wrap gap-2">
         {guides.map((g) => (
           <button type="button" key={g.id} className="btn" title={g.body} onClick={() => props.onEdit(g.repo, g.path)}>
@@ -70,8 +73,8 @@ export function OverviewTab(props: {
         onEdit={props.onEditGuidelines}
       />
       <section>
-        <h3 className="mb-2 text-[11px] font-semibold tracking-wide text-muted uppercase">Description</h3>
-        <div className="rounded-lg border border-line bg-panel px-5 py-4">
+        <SectionHeading title="Description" />
+        <div className="card px-5 py-4">
           <Markdown>{pr.body || '_No description provided._'}</Markdown>
         </div>
       </section>

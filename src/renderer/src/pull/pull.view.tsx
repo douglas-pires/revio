@@ -1,6 +1,7 @@
 import type { PullDetail, PullRef } from '@shared/pull.types.ts'
 import { ErrorBanner } from '../common/error-banner.component.tsx'
 import type { OpenPull, PullTarget } from '../common/navigation.types.ts'
+import { Screen, ScreenBody, ScreenHeader } from '../common/screen.component.tsx'
 import { FileTree } from './file-tree.component.tsx'
 import { PullHeader } from './pull-header.component.tsx'
 import { PullSidePanels } from './pull-side-panels.component.tsx'
@@ -37,7 +38,6 @@ function PullViewHeader({ v, pr, props }: { v: PullViewState; pr: PullDetail; pr
       draftCount={v.local.drafts.length}
       askCount={askCount}
       onOpenAsks={() => v.ask.setThread(savedAsks[0] ?? null)}
-      onBack={props.onBack}
       reviewOpen={review.open}
       setReviewOpen={review.setOpen}
       reviewBody={review.body}
@@ -60,12 +60,16 @@ export function PullView(props: PullViewProps) {
   const { pr } = v
   if (v.error) {
     return (
-      <div className="p-6">
-        <button type="button" className="btn mb-4" onClick={props.onBack}>
-          ← Inbox
-        </button>
-        <ErrorBanner>{v.error}</ErrorBanner>
-      </div>
+      <Screen
+        header={<ScreenHeader title={`${props.pull.repo}#${props.pull.number}`} subtitle="Couldn't open this PR" />}
+      >
+        <ScreenBody>
+          <ErrorBanner className="mb-4">{v.error}</ErrorBanner>
+          <button type="button" className="btn" onClick={props.onBack}>
+            Back to the inbox
+          </button>
+        </ScreenBody>
+      </Screen>
     )
   }
   if (!pr) {

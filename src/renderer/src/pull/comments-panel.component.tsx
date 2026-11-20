@@ -5,6 +5,9 @@ import { ago, countOf, cx } from '../common/format.util.ts'
 import { groupBy } from '../common/group.util.ts'
 import { isTyping } from '../common/keyboard.util.ts'
 import { MatchText } from '../common/match-text.component.tsx'
+import { PanelHeader } from '../common/panel-header.component.tsx'
+import { SectionHeading } from '../common/section-heading.component.tsx'
+import { ToggleButton } from '../common/toggle-button.component.tsx'
 import {
   type CommentThread,
   matchingComment,
@@ -221,9 +224,12 @@ function Drafts({
 }) {
   return (
     <div className="mb-2 rounded-md border border-accent/30 bg-accent/5 pb-1">
-      <div className="px-1.5 pt-1.5 pb-0.5 text-[10.5px] font-semibold tracking-wide text-accent uppercase">
-        Your pending comments {drafts.length}
-      </div>
+      <SectionHeading
+        title="Your pending comments"
+        count={drafts.length}
+        tone="accent"
+        className="mb-0 px-1.5 pt-1.5 pb-0.5"
+      />
       {drafts.map((d) => (
         <button
           type="button"
@@ -278,38 +284,30 @@ export const CommentsPanel = memo(function CommentsPanelView(props: {
 
   return (
     <aside className="flex w-80 shrink-0 flex-col border-l border-line bg-panel">
-      <div className="flex items-center gap-2 px-3 py-2 text-[11px] text-muted">
-        <span className="font-semibold tracking-wide uppercase">Comments {props.threads.length - resolvedCount}</span>
-        <span>open</span>
-        {newCount > 0 && (
-          <span className="text-accent" title="Comments by others since your last review">
-            · {newCount} new
-          </span>
-        )}
-        <div className="flex-1" />
-        {settledCount > 0 && (
-          <button
-            type="button"
-            className={cx(
-              'rounded px-1.5 py-0.5',
-              showResolved && 'bg-hover text-fg',
-              !showResolved && 'hover:text-fg',
+      <PanelHeader
+        title="Comments"
+        detail={
+          <span>
+            {props.threads.length - resolvedCount} open
+            {newCount > 0 && (
+              <span className="text-accent" title="Comments by others since your last review">
+                {' '}
+                · {newCount} new
+              </span>
             )}
-            onClick={() => setShowResolved(!showResolved)}
-          >
-            {Boolean(showResolved) && 'Hide'}
-            {!showResolved && 'Show'} {settledCount} resolved
-          </button>
-        )}
-        <button
-          type="button"
-          className="rounded px-1.5 py-0.5 hover:text-fg"
-          title="Hide comments"
-          onClick={props.onClose}
-        >
-          ✕
-        </button>
-      </div>
+          </span>
+        }
+        actions={
+          settledCount > 0 && (
+            <ToggleButton on={showResolved} onToggle={() => setShowResolved(!showResolved)}>
+              {Boolean(showResolved) && 'Hide'}
+              {!showResolved && 'Show'} {settledCount} resolved
+            </ToggleButton>
+          )
+        }
+        onClose={props.onClose}
+        closeLabel="Hide comments"
+      />
       <CommentSearch
         query={query}
         onChange={setQuery}
