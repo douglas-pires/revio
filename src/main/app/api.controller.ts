@@ -2,6 +2,7 @@ import { type ApiMethod, IPC, type RevioApi } from '@shared/api.contract.ts'
 import type { AskActivity } from '@shared/claude.types.ts'
 import { type PullRef, pullKey } from '@shared/pull.types.ts'
 import { ipcMain, shell } from 'electron'
+import { showNotification } from '../alerts/notification.service.ts'
 import { ask } from '../claude/ask.service.ts'
 import { generateBriefing } from '../claude/briefing.service.ts'
 import { isWebUrl } from '../common/web-url.util.ts'
@@ -255,6 +256,10 @@ export function registerApi(deps: ApiDeps) {
     ...historyHandlers(deps),
     getUpdateStatus: () => deps.updates.status,
     checkForUpdates: () => deps.updates.check(),
+    testNotification: () =>
+      showNotification('Revio notifications work', 'Review requests and mentions will show up like this.', () =>
+        deps.window.show(),
+      ),
     ...guidelineHandlers(deps),
     ...claudeHandlers(deps),
     listEditors: () => installedEditors(),

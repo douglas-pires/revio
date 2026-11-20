@@ -85,6 +85,9 @@ export interface RevioApi {
   /** Checks GitHub for a newer release now. */
   checkForUpdates: () => Promise<UpdateStatus>
 
+  /** Shows a sample notification; false when macOS refused it (notifications off for Revio). */
+  testNotification: () => Promise<boolean>
+
   openExternal: (url: string) => Promise<void>
   onEvent: (listener: (event: MainEvent) => void) => () => void
 }
