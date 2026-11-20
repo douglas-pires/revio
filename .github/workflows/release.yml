@@ -1,6 +1,13 @@
-# Builds an installable Revio for macOS on every push to main and publishes it as a GitHub release.
-# The version is the package.json major.minor plus the run number (e.g. 0.1.42), so every build is newer than the
-# last; the app's "Check for updates" compares against the latest release.
+# Builds an installable Revio for macOS.
+#
+# - Every push to main publishes a pre-release, e.g. 0.2.0-dev.43: something to install and try. GitHub never marks a
+#   pre-release as the latest release, so the app's "Check for updates" does not offer it to anyone.
+# - A release happens only when you ask for one: run this workflow by hand (Actions → Release → Run workflow, or
+#   `gh workflow run release.yml`), or push a tag like v0.2.0. It publishes a normal release with every change since
+#   the last one, and the app offers it as an update.
+#
+# The version to release is package.json's `version` (the next release), unless you give one when running the
+# workflow or push a tag. After releasing, raise package.json's version to the next one. See docs/releasing.md.
 #
 # Signing and notarization use these repository secrets; without all of them the build is ad-hoc signed, which macOS
 # blocks on first launch:
@@ -14,7 +21,13 @@ name: Release
 on:
   push:
     branches: [main]
+    tags: ['v*']
   workflow_dispatch:
+    inputs:
+      version:
+        description: Version to release, e.g. 0.2.0 (empty = package.json's version)
+        required: false
+        type: string
 
 permissions:
   contents: write
@@ -46,19 +59,47 @@ jobs:
 
       - run: pnpm test
 
+      # A tag push or a manual run is a release; a push to main is a pre-release of the next version.
       - name: Set the version
         id: version
+        env:
+          REQUESTED: ${{ inputs.version }}
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: |
-          base=$(node -p "require('./package.json').version.split('.').slice(0, 2).join('.')")
-          version="$base.${{ github.run_number }}"
+          next=$(node -p "require('./package.json').version")
+          if [ "$GITHUB_REF_TYPE" = tag ]; then
+            version="${GITHUB_REF_NAME#v}"
+            kind=release
+          elif [ "$GITHUB_EVENT_NAME" = workflow_dispatch ]; then
+            version="${REQUESTED#v}"
+            version="${version:-$next}"
+            kind=release
+          else
+            version="$next-dev.${{ github.run_number }}"
+            kind=prerelease
+          fi
+          if ! printf '%s' "$version" | grep -Eq '^[0-9]+\.[0-9]+\.[0-9]+(-dev\.[0-9]+)?$'; then
+            echo "::error::'$version' is not a version like 0.2.0"
+            exit 1
+          fi
+          if [ "$kind" = release ] && gh release view "v$version" >/dev/null 2>&1; then
+            echo "::error::v$version is already released. Raise package.json's version, or pass a newer one."
+            exit 1
+          fi
           pnpm pkg set version="$version"
-          echo "version=$version" >> "$GITHUB_OUTPUT"
+          {
+            echo "version=$version"
+            echo "kind=$kind"
+            # macOS wants plain numbers in the app's version; the build number keeps every build distinct.
+            echo "short=${version%%-*}"
+          } >> "$GITHUB_OUTPUT"
 
+      # Everything since the last release (pre-releases do not count), so a release lists every change it brings.
       - name: Release notes
         run: |
-          previous=$(git describe --tags --abbrev=0 --match 'v*' 2>/dev/null || true)
+          previous=$(git describe --tags --abbrev=0 --match 'v*' --exclude '*-dev.*' HEAD^ 2>/dev/null || true)
           range=${previous:+$previous..}HEAD
-          git log --no-merges --format='- %s' "$range" | head -50 > release-notes.md
+          git log --no-merges --format='- %s' "$range" | head -100 > release-notes.md
 
       - run: pnpm build
 
@@ -70,6 +111,7 @@ jobs:
           APPLE_API_KEY_P8: ${{ secrets.APPLE_API_KEY_P8 }}
           APPLE_API_KEY_ID: ${{ secrets.APPLE_API_KEY_ID }}
           APPLE_API_ISSUER: ${{ secrets.APPLE_API_ISSUER }}
+          VERSION_FLAGS: -c.mac.bundleShortVersion=${{ steps.version.outputs.short }} -c.buildVersion=${{ github.run_number }}
         run: |
           missing=()
           for name in CSC_LINK CSC_KEY_PASSWORD APPLE_API_KEY_P8 APPLE_API_KEY_ID APPLE_API_ISSUER; do
@@ -82,7 +124,7 @@ jobs:
           if [ ${#missing[@]} -eq 0 ]; then
             export APPLE_API_KEY="$RUNNER_TEMP/AuthKey.p8"
             printf '%s' "$APPLE_API_KEY_P8" > "$APPLE_API_KEY"
-            pnpm exec electron-builder --mac --arm64 --publish never
+            pnpm exec electron-builder --mac --arm64 --publish never $VERSION_FLAGS
             app=dist/mac-arm64/Revio.app
             codesign --verify --deep --strict "$app"
             xcrun stapler validate "$app"
@@ -90,7 +132,7 @@ jobs:
           else
             echo "::warning::Signing secrets are not set; building an ad-hoc signed app that macOS will block on first launch."
             unset CSC_LINK CSC_KEY_PASSWORD
-            CSC_IDENTITY_AUTO_DISCOVERY=false pnpm exec electron-builder --mac --arm64 --publish never -c.mac.identity=-
+            CSC_IDENTITY_AUTO_DISCOVERY=false pnpm exec electron-builder --mac --arm64 --publish never -c.mac.identity=- $VERSION_FLAGS
           fi
 
       # One release with every file, created in a single call. electron-builder's own publishing uploads the dmg and
@@ -98,8 +140,24 @@ jobs:
       - name: Publish
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          VERSION: ${{ steps.version.outputs.version }}
+          KIND: ${{ steps.version.outputs.kind }}
         run: |
           shopt -s nullglob
           files=(dist/*.dmg dist/*.zip dist/*.blockmap dist/latest-mac.yml)
-          gh release create "v${{ steps.version.outputs.version }}" "${files[@]}" \
-            --target "$GITHUB_SHA" --title "${{ steps.version.outputs.version }}" --notes-file release-notes.md
+          flags=(--latest)
+          if [ "$KIND" = prerelease ]; then
+            flags=(--prerelease --latest=false)
+          fi
+          gh release create "v$VERSION" "${files[@]}" "${flags[@]}" \
+            --target "$GITHUB_SHA" --title "$VERSION" --notes-file release-notes.md
+
+      # Pre-releases pile up with every merge; keep the newest ten.
+      - name: Prune old pre-releases
+        if: steps.version.outputs.kind == 'prerelease'
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          gh release list --limit 200 --json tagName,isPrerelease \
+            --jq '[.[] | select(.isPrerelease and (.tagName | test("-dev\\.")))] | .[10:] | .[].tagName' |
+            while read -r tag; do gh release delete "$tag" --yes --cleanup-tag; done
