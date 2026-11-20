@@ -9,6 +9,7 @@ import { AskHistory } from './ask-history.component.tsx'
 import { snippetRows } from './diff.util.ts'
 import { StaticDiff } from './static-diff.component.tsx'
 import { useAskConversation } from './use-ask-conversation.hook.ts'
+import { useStickToBottom } from './use-stick-to-bottom.hook.ts'
 
 const QUICK = [
   'What does this change do, and why?',
@@ -118,14 +119,20 @@ function AskConversation({
   props,
   chat,
   scroller,
+  onScroll,
 }: {
   props: AskPanelProps
   chat: ReturnType<typeof useAskConversation>
   scroller: React.RefObject<HTMLDivElement | null>
+  onScroll: () => void
 }) {
   const { thread } = props
   return (
-    <div ref={scroller} className="min-h-0 flex-1 space-y-3 overflow-x-hidden overflow-y-auto px-3 py-3">
+    <div
+      ref={scroller}
+      onScroll={onScroll}
+      className="min-h-0 flex-1 space-y-3 overflow-x-hidden overflow-y-auto px-3 py-3"
+    >
       <SelectionSnippet thread={thread} onJump={props.onJump} />
       {withPositions(thread.messages).map(({ item, position }) => (
         <AskMessage key={position} message={item} onUseAsDraft={(body) => props.onUseAsDraft(thread, body)} />
@@ -181,6 +188,31 @@ function QuestionBox({
   )
 }
 
+/**
+ * The conversation follows the answer as it streams while you are at the bottom, and leaves you where you are once you
+ * scroll up to read. Opening a chat, or sending a question, takes you to the bottom.
+ */
+function useChatScroll(scroller: React.RefObject<HTMLDivElement | null>, thread: AskThread, pending: string | null) {
+  const stick = useStickToBottom(scroller)
+  const { follow, jump } = stick
+  const lastRole = thread.messages.at(-1)?.role
+  // biome-ignore lint/correctness/useExhaustiveDependencies: new messages and streamed text are the triggers; each follows to the bottom unless you scrolled up.
+  useEffect(() => {
+    follow()
+  }, [thread.messages.length, pending, follow])
+  // biome-ignore lint/correctness/useExhaustiveDependencies: thread.id is the trigger; another chat opens at its latest message.
+  useEffect(() => {
+    jump()
+  }, [thread.id, jump])
+  // biome-ignore lint/correctness/useExhaustiveDependencies: a new message is the trigger; your own question takes you down to read the answer as it comes.
+  useEffect(() => {
+    if (lastRole === 'user') {
+      jump()
+    }
+  }, [thread.messages.length, lastRole, jump])
+  return stick
+}
+
 export function AskPanel(props: AskPanelProps) {
   const { thread } = props
   const chat = useAskConversation(props.pull, thread, props.onChange)
@@ -197,10 +229,7 @@ export function AskPanel(props: AskPanelProps) {
     setListing(false)
   }, [thread.id])
 
-  // biome-ignore lint/correctness/useExhaustiveDependencies: new messages and streamed text are the triggers; each scrolls to the bottom.
-  useEffect(() => {
-    scroller.current?.scrollTo({ top: scroller.current.scrollHeight })
-  }, [thread.messages.length, chat.pending])
+  const stick = useChatScroll(scroller, thread, chat.pending)
 
   return (
     <aside className="flex w-[440px] shrink-0 flex-col border-l border-line bg-panel">
@@ -238,7 +267,20 @@ export function AskPanel(props: AskPanelProps) {
           />
         </div>
       )}
-      {!listing && <AskConversation props={props} chat={chat} scroller={scroller} />}
+      {!listing && (
+        <div className="relative flex min-h-0 flex-1 flex-col">
+          <AskConversation props={props} chat={chat} scroller={scroller} onScroll={stick.onScroll} />
+          {Boolean(stick.away) && (
+            <button
+              type="button"
+              className="btn absolute bottom-2 left-1/2 -translate-x-1/2 bg-panel-2 shadow-lg"
+              onClick={stick.jump}
+            >
+              ↓ Latest
+            </button>
+          )}
+        </div>
+      )}
       {!listing && <QuestionBox input={input} thread={thread} chat={chat} onClose={props.onClose} />}
     </aside>
   )
