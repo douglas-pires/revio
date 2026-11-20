@@ -2,6 +2,8 @@ import type { DraftComment, ReviewComment } from '@shared/pull.types.ts'
 
 import { useCallback, useState } from 'react'
 
+import { CopyButton } from '../common/copy-button.component.tsx'
+
 import { ago, countOf } from '../common/format.util.ts'
 
 import { Markdown } from '../common/markdown.component.tsx'
@@ -140,8 +142,8 @@ export function CommentView({ c }: { c: ReviewComment }) {
         className="mt-0.5 size-5 shrink-0 rounded-full"
       />
       <div className="min-w-0 flex-1">
-        <div className="text-[12px]">
-          <span className="font-semibold text-fg">{c.author}</span>{' '}
+        <div className="group/comment flex items-baseline gap-1 text-[12px]">
+          <span className="font-semibold text-fg">{c.author}</span>
           <a
             className="text-muted hover:underline"
             href={c.url}
@@ -152,6 +154,13 @@ export function CommentView({ c }: { c: ReviewComment }) {
           >
             {ago(c.createdAt)} ago
           </a>
+          <CopyButton
+            text={c.url}
+            title="Copy the comment's GitHub link"
+            className="ml-auto text-[11px] text-muted opacity-0 hover:text-fg focus-visible:opacity-100 group-hover/comment:opacity-100"
+          >
+            Copy link
+          </CopyButton>
         </div>
         <Markdown className="text-[12.5px]" codePath={c.path}>
           {c.body}

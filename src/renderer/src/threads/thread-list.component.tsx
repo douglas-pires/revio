@@ -2,6 +2,7 @@ import { summarizeComment } from '@shared/excerpt.util.ts'
 import { reviewCommentIdFromUrl } from '@shared/github-url.util.ts'
 import type { OpenThread } from '@shared/thread.types.ts'
 import { memo, useState } from 'react'
+import { CopyButton } from '../common/copy-button.component.tsx'
 import { EmptyState } from '../common/empty-state.component.tsx'
 import { ago, countOf, cx } from '../common/format.util.ts'
 import { groupBy } from '../common/group.util.ts'
@@ -110,7 +111,10 @@ function ThreadRow({
           }
         />
         <div className="flex shrink-0 flex-col items-end gap-1">
-          <span className="font-mono text-[11.5px] text-muted">{ago(t.lastActivityAt)}</span>
+          <span className="flex items-baseline gap-2">
+            <ThreadLink url={t.comments.at(-1)?.url} />
+            <span className="font-mono text-[11.5px] text-muted">{ago(t.lastActivityAt)}</span>
+          </span>
           <ThreadButtons
             isResolved={isResolved}
             busy={busy}
@@ -187,6 +191,22 @@ function ThreadSummary({ thread: t, dimmed, onOpen }: { thread: OpenThread; dimm
         </div>
       </div>
     </button>
+  )
+}
+
+/** Copies the GitHub link of the thread's latest comment; shows on hover. */
+function ThreadLink({ url }: { url: string | undefined }) {
+  if (!url) {
+    return null
+  }
+  return (
+    <CopyButton
+      text={url}
+      title="Copy the latest comment's GitHub link"
+      className="text-[11px] text-muted opacity-0 hover:text-fg focus-visible:opacity-100 group-hover/row:opacity-100"
+    >
+      Copy link
+    </CopyButton>
   )
 }
 
