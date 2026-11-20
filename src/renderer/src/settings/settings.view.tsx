@@ -78,12 +78,12 @@ function apiKeyHint(hasKey: boolean) {
   return 'Optional. Falls back to ANTHROPIC_API_KEY or an `ant auth login` profile.'
 }
 
-/** What a test notification showed, as a hint under the button. */
-function testResultText(shown: boolean | null) {
-  if (shown === null) {
+/** What the test notification did, as a hint under the button; nothing before the first test. */
+function describeTestResult(wasShown: boolean | null) {
+  if (wasShown === null) {
     return null
   }
-  if (shown) {
+  if (wasShown) {
     return 'Sent. If nothing appeared, check System Settings → Notifications → Revio.'
   }
   return 'macOS did not show it. Turn on notifications for Revio in System Settings → Notifications.'
@@ -91,21 +91,22 @@ function testResultText(shown: boolean | null) {
 
 /** Sends a sample notification, which also makes macOS ask for (and list) Revio's notification permission. */
 function TestNotification() {
-  const action = useAsyncAction()
-  const [shown, setShown] = useState<boolean | null>(null)
-  const send = () =>
-    action.run(async () => {
-      setShown(await globalThis.revio.testNotification())
+  const sending = useAsyncAction()
+  const [wasShown, setWasShown] = useState<boolean | null>(null)
+  const resultText = describeTestResult(wasShown)
+  const sendTestNotification = () =>
+    sending.run(async () => {
+      setWasShown(await globalThis.revio.testNotification())
     })
   return (
     <div className="flex flex-col gap-1">
       <div>
-        <button type="button" className="btn" disabled={action.busy} onClick={send}>
+        <button type="button" className="btn" disabled={sending.busy} onClick={sendTestNotification}>
           Send a test notification
         </button>
       </div>
-      {testResultText(shown) && <p className="text-[12px] text-muted">{testResultText(shown)}</p>}
-      {Boolean(action.error) && <p className="text-[12px] text-danger">{action.error}</p>}
+      {resultText !== null && <p className="text-[12px] text-muted">{resultText}</p>}
+      {Boolean(sending.error) && <p className="text-[12px] text-danger">{sending.error}</p>}
     </div>
   )
 }

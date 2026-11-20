@@ -35,7 +35,7 @@ let state: AlertState
 const runAlerts = (inbox: Inbox, notify: Notify, now = NOW, alertSettings = settings) =>
   raiseAlerts(inbox, { settings: alertSettings, state, notify, now })
 beforeEach(() => {
-  state = { requested: {}, staleAlertedAt: {}, seeded: true, mentionsSeen: {}, mentionsSeenSeeded: true }
+  state = { requested: {}, staleAlertedAt: {}, seeded: true, seenMentions: {}, seenMentionsRecorded: true }
 })
 
 describe('raiseAlerts', () => {
@@ -192,11 +192,11 @@ describe('mention alerts', () => {
   const alertIds = (inbox: MentionsInbox) => findUnalertedMentions(inbox, state).map((a) => a.snippet.id)
 
   it('finds nothing before the first fetch is recorded, which is silent', () => {
-    state.mentionsSeenSeeded = false
+    state.seenMentionsRecorded = false
     const inbox = makeMentions(mention(snippet('a', true)))
     expect(alertIds(inbox)).toEqual([])
     recordMentionAlerts(inbox, state)
-    expect(state.mentionsSeenSeeded).toBe(true)
+    expect(state.seenMentionsRecorded).toBe(true)
     expect(alertIds(inbox)).toEqual([])
   })
 
@@ -212,7 +212,7 @@ describe('mention alerts', () => {
   it('forgets mentions that left the window', () => {
     recordMentionAlerts(makeMentions(mention(snippet('a', true))), state)
     recordMentionAlerts(makeMentions(), state)
-    expect(state.mentionsSeen).toEqual({})
+    expect(state.seenMentions).toEqual({})
   })
 })
 

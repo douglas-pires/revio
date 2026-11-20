@@ -63,9 +63,9 @@ export interface AlertState {
    * `mentionsAlerted`, which held only unread mentions: a fresh key means the first fetch after upgrading records
    * the backlog silently instead of alerting on every mention in the window.
    */
-  mentionsSeen: Record<string, string>
+  seenMentions: Record<string, string>
   /** False until the first mentions fetch, which records existing mentions silently. */
-  mentionsSeenSeeded: boolean
+  seenMentionsRecorded: boolean
 }
 
 export type AlertSettings = Pick<
@@ -161,11 +161,11 @@ export function formatHours(h: number) {
  * tokens cannot read, so mentions would never alert with one.
  */
 export function findUnalertedMentions(inbox: MentionsInbox, state: AlertState): MentionAlert[] {
-  if (!state.mentionsSeenSeeded) {
+  if (!state.seenMentionsRecorded) {
     return []
   }
   return inbox.mentions.flatMap((mention) =>
-    mention.snippets.filter((s) => !state.mentionsSeen[s.id]).map((snippet) => ({ mention, snippet })),
+    mention.snippets.filter((snippet) => !state.seenMentions[snippet.id]).map((snippet) => ({ mention, snippet })),
   )
 }
 
@@ -174,16 +174,15 @@ export function findUnalertedMentions(inbox: MentionsInbox, state: AlertState): 
  * first fetch as recorded (so a fresh install does not alert on the backlog). Mutates `state`.
  */
 export function recordMentionAlerts(inbox: MentionsInbox, state: AlertState) {
-  const live = new Set(inbox.mentions.flatMap((m) => m.snippets.map((s) => s.id)))
-  for (const m of inbox.mentions) {
-    for (const s of m.snippets) {
-      state.mentionsSeen[s.id] ??= s.createdAt
+  const snippets = inbox.mentions.flatMap((mention) => mention.snippets)
+  const inWindow = new Set(snippets.map((snippet) => snippet.id))
+  for (const snippet of snippets) {
+    state.seenMentions[snippet.id] ??= snippet.createdAt
+  }
+  for (const id of Object.keys(state.seenMentions)) {
+    if (!inWindow.has(id)) {
+      delete state.seenMentions[id]
     }
   }
-  for (const id of Object.keys(state.mentionsSeen)) {
-    if (!live.has(id)) {
-      delete state.mentionsSeen[id]
-    }
-  }
-  state.mentionsSeenSeeded = true
+  state.seenMentionsRecorded = true
 }
