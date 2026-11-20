@@ -59,8 +59,8 @@ function Thread(props: {
           −
         </button>
       )}
-      {props.thread.map((c) => (
-        <CommentView key={c.id} c={c} />
+      {props.thread.map((comment) => (
+        <CommentView key={comment.id} comment={comment} />
       ))}
       {props.drafts.map((d) => (
         <DraftView key={d.id} d={d} onUpdate={props.onUpdateDraft} onDelete={props.onDeleteDraft} />
@@ -131,11 +131,11 @@ function FoldedThread({
   )
 }
 
-export function CommentView({ c }: { c: ReviewComment }) {
+export function CommentView({ comment }: { comment: ReviewComment }) {
   return (
-    <div data-comment-id={c.id} className="flex scroll-mt-12 gap-2 rounded">
+    <div data-comment-id={comment.id} className="flex scroll-mt-12 gap-2 rounded">
       <img
-        src={c.authorAvatar}
+        src={comment.authorAvatar}
         alt=""
         width={AVATAR_PX}
         height={AVATAR_PX}
@@ -143,29 +143,29 @@ export function CommentView({ c }: { c: ReviewComment }) {
       />
       <div className="min-w-0 flex-1">
         <div className="group/comment flex items-baseline gap-1 text-[12px]">
-          <span className="font-semibold text-fg">{c.author}</span>
+          <span className="font-semibold text-fg">{comment.author}</span>
           <a
             className="text-muted hover:underline"
-            href={c.url}
+            href={comment.url}
             onClick={(e) => {
               e.preventDefault()
-              globalThis.revio.openExternal(c.url)
+              globalThis.revio.openExternal(comment.url)
             }}
           >
-            {ago(c.createdAt)} ago
+            {ago(comment.createdAt)} ago
           </a>
           <CopyButton
-            text={c.url}
+            text={comment.url}
             title="Copy the comment's GitHub link"
             className="ml-auto text-[11px] text-muted opacity-0 hover:text-fg focus-visible:opacity-100 group-hover/comment:opacity-100"
           >
             Copy link
           </CopyButton>
         </div>
-        <Markdown className="text-[12.5px]" codePath={c.path}>
-          {c.body}
+        <Markdown className="text-[12.5px]" codePath={comment.path}>
+          {comment.body}
         </Markdown>
-        <ReactionBar subjectId={c.nodeId} reactions={c.reactions} />
+        <ReactionBar subjectId={comment.nodeId} reactions={comment.reactions} />
       </div>
     </div>
   )

@@ -78,7 +78,7 @@ function PrThreads({
 }
 
 function ThreadRow({
-  thread: t,
+  thread,
   isResolved,
   actions,
 }: {
@@ -86,34 +86,35 @@ function ThreadRow({
   isResolved: boolean
   actions: ThreadActions
 }) {
+  const latestComment = thread.comments.at(-1)
   const [replying, setReplying] = useState(false)
   const { busy, error, run } = useAsyncAction()
   const sendReply = async (body: string) => {
     await run(async () => {
-      await actions.onReply(t.id, body)
+      await actions.onReply(thread.id, body)
       setReplying(false)
     })
   }
-  const resolve = (value: boolean) => run(() => actions.onResolve(t.id, value))
+  const resolve = (value: boolean) => run(() => actions.onResolve(thread.id, value))
 
   return (
     <li className="border-b border-line last:border-b-0">
       <div className="group/row flex gap-3 px-4 py-2.5 hover:bg-hover">
         <ThreadSummary
-          thread={t}
+          thread={thread}
           dimmed={isResolved}
           onOpen={() =>
-            actions.onOpen(t, {
-              path: t.path,
-              line: t.line,
-              commentId: reviewCommentIdFromUrl(t.comments.at(-1)?.url ?? '') ?? undefined,
+            actions.onOpen(thread, {
+              path: thread.path,
+              line: thread.line,
+              commentId: reviewCommentIdFromUrl(latestComment?.url ?? '') ?? undefined,
             })
           }
         />
         <div className="flex shrink-0 flex-col items-end gap-1">
           <span className="flex items-baseline gap-2">
-            <ThreadLink url={t.comments.at(-1)?.url} />
-            <span className="font-mono text-[11.5px] text-muted">{ago(t.lastActivityAt)}</span>
+            <CopyLatestCommentLinkButton url={latestComment?.url} />
+            <span className="font-mono text-[11.5px] text-muted">{ago(thread.lastActivityAt)}</span>
           </span>
           <ThreadButtons
             isResolved={isResolved}
@@ -128,8 +129,8 @@ function ThreadRow({
         <div className="space-y-2 px-4 pb-3 pl-13">
           {Boolean(replying) && (
             <Composer
-              label={`Reply to ${t.comments.at(-1)?.author ?? 'the thread'}`}
-              unsentKey={`thread:${t.id}`}
+              label={`Reply to ${latestComment?.author ?? 'the thread'}`}
+              unsentKey={`thread:${thread.id}`}
               onCancel={() => setReplying(false)}
               onSubmitNow={sendReply}
             />
@@ -195,7 +196,7 @@ function ThreadSummary({ thread: t, dimmed, onOpen }: { thread: OpenThread; dimm
 }
 
 /** Copies the GitHub link of the thread's latest comment; shows on hover. */
-function ThreadLink({ url }: { url: string | undefined }) {
+function CopyLatestCommentLinkButton({ url }: { url: string | undefined }) {
   if (!url) {
     return null
   }
