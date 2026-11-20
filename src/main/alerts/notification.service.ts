@@ -1,14 +1,30 @@
 import { Notification } from 'electron'
 
 /**
- * Notifications still on screen. macOS drops the click handler of a notification that was garbage-collected,
- * so each is held until it is clicked or closed.
+ * Notifications still on screen. Electron removes a notification from Notification Center once its object is
+ * garbage-collected, often before you see it, so each is held until it is clicked or closed.
  */
 const notificationsOnScreen = new Set<Notification>()
+/**
+ * Unread notifications pile up in Notification Center without ever closing; past this many, the oldest are let go
+ * (and leave Notification Center) so the set cannot grow without end.
+ */
+const MAX_HELD_NOTIFICATIONS = 100
+
+/** Lets go of the oldest held notifications once there are more than `MAX_HELD_NOTIFICATIONS`. */
+function releaseOldestNotifications() {
+  for (const oldest of notificationsOnScreen) {
+    if (notificationsOnScreen.size <= MAX_HELD_NOTIFICATIONS) {
+      return
+    }
+    notificationsOnScreen.delete(oldest)
+  }
+}
 
 /** Keeps the notification alive until it is clicked or closed, then lets it go. */
 function holdUntilDismissed(notification: Notification, onClick: () => void) {
   notificationsOnScreen.add(notification)
+  releaseOldestNotifications()
   const forgetNotification = () => notificationsOnScreen.delete(notification)
   notification.on('click', () => {
     forgetNotification()
