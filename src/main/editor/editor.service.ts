@@ -1,22 +1,18 @@
 import { execFile } from 'node:child_process'
-import { existsSync, readdirSync } from 'node:fs'
+import { existsSync } from 'node:fs'
 import { homedir } from 'node:os'
 import { join } from 'node:path'
 import type { EditorInfo, EditorTarget } from '@shared/editor.types.ts'
 import { shell } from 'electron'
-import { env } from '../common/env.config.ts'
-import { shellPath } from '../common/shell.util.ts'
+import { findClones } from './clone-finder.service.ts'
 import { EDITORS, type EditorSpec, launchFor } from './editor-launch.util.ts'
-import { cloneCandidates, pathInside, REPO_NAME, remotePointsAt } from './local-clone.util.ts'
+import { pathInside, REPO_NAME } from './local-clone.util.ts'
 
 const APP_FOLDERS = [
   '/Applications',
   join(homedir(), 'Applications'),
   join(homedir(), 'Applications', 'JetBrains Toolbox'),
 ]
-
-// Home-folder entries that never hold code and can be large.
-const SKIP = new Set(['Library', 'Applications', 'Movies', 'Music', 'Pictures', 'Public', 'node_modules'])
 
 const appPathOf = (editor: EditorSpec) => APP_FOLDERS.map((dir) => join(dir, `${editor.app}.app`)).find(existsSync)
 
@@ -51,31 +47,6 @@ function validLine(line: number | undefined): number | null {
   return null
 }
 
-async function remotesOf(dir: string): Promise<string[]> {
-  if (!existsSync(join(dir, '.git'))) {
-    return []
-  }
-  try {
-    const out = await run('git', ['-C', dir, 'config', '--get-regexp', '^remote\\..*\\.url$'], {
-      ...env,
-      PATH: await shellPath(),
-    })
-    return out.split('\n').map((line) => line.split(' ')[1] ?? '')
-  } catch {
-    return []
-  }
-}
-
-const subfoldersOf = (dir: string) => {
-  try {
-    return readdirSync(dir, { withFileTypes: true })
-      .filter((d) => d.isDirectory() && !d.name.startsWith('.') && !SKIP.has(d.name))
-      .map((d) => d.name)
-  } catch {
-    return []
-  }
-}
-
 /** The known editors installed on this Mac. */
 export function installedEditors(): EditorInfo[] {
   return EDITORS.filter((e) => appPathOf(e)).map(({ id, name }) => ({ id, name }))
@@ -83,31 +54,25 @@ export function installedEditors(): EditorInfo[] {
 
 /** Finds and remembers where your clones of GitHub repositories live, and opens their files in your editor. */
 export class EditorService {
-  readonly #clones = new Map<string, string>()
+  /** Clones found by the last scan, by lowercased `owner/name`. */
+  #clones = new Map<string, string>()
   readonly #settings: () => { editor: string; codeFolders: string[] }
 
   constructor(settings: () => { editor: string; codeFolders: string[] }) {
     this.#settings = settings
   }
 
-  /** The clone of `repo` in your code folders or your home folder (and one level below them), or null. */
-  async findClone(repo: string): Promise<string | null> {
-    const known = this.#clones.get(repo)
+  /** The clone of `repo` in your code folders or your home folder (up to three folders below them), or null. */
+  findClone(repo: string): string | null {
+    const key = repo.toLowerCase()
+    const known = this.#clones.get(key)
     if (known && existsSync(known)) {
       return known
     }
+    // Not found, or moved since: scan again, which also picks up clones made since the last scan.
     const roots = [...this.#settings().codeFolders.map((f) => f.replace(HOME_PREFIX, homedir())), homedir()]
-    for (const root of roots) {
-      for (const dir of cloneCandidates(root, repo, subfoldersOf(root))) {
-        // biome-ignore lint/performance/noAwaitInLoops: folders are checked one at a time and the first clone wins; checking them all at once would start a git process per folder.
-        const remotes = await remotesOf(dir)
-        if (remotes.some((url) => remotePointsAt(url, repo))) {
-          this.#clones.set(repo, dir)
-          return dir
-        }
-      }
-    }
-    return null
+    this.#clones = findClones(roots)
+    return this.#clones.get(key) ?? null
   }
 
   #editor(): { spec: EditorSpec; appPath: string } {
@@ -129,7 +94,7 @@ export class EditorService {
     if (!REPO_NAME.test(target.repo)) {
       throw new Error(`Bad repository name: ${target.repo}`)
     }
-    const clone = await this.findClone(target.repo)
+    const clone = this.findClone(target.repo)
     if (!clone) {
       throw new Error(`No local clone of ${target.repo} found. Add the folder that holds it under Settings → Editor.`)
     }
