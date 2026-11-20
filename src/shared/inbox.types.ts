@@ -61,6 +61,8 @@ export interface Inbox {
   viewer: string
   requested: PullSummary[]
   reviewed: PullSummary[]
+  /** Your own open PRs, most recently updated first. */
+  mine: PullSummary[]
   stacks: Stack[]
   fetchedAt: string
   error?: string

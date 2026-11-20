@@ -27,6 +27,7 @@ const makeInbox = (...requested: PullSummary[]): Inbox => ({
   viewer: 'me',
   requested,
   reviewed: [],
+  mine: [],
   stacks: [],
   fetchedAt: '',
 })

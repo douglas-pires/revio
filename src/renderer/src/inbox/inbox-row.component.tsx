@@ -36,7 +36,11 @@ function StackChip({ stack, onStack }: { stack: NonNullable<PullSummary['stack']
   )
 }
 
-function RowStats({ pr, muted }: { pr: PullSummary; muted: boolean }) {
+/**
+ * Size, then a time: how long the request has waited, or (muted rows and `showUpdated`) when the PR last changed.
+ */
+function RowStats({ pr, muted, showUpdated }: { pr: PullSummary; muted: boolean; showUpdated: boolean }) {
+  const updated = muted || showUpdated
   return (
     <div className="flex shrink-0 items-center gap-3 font-mono text-[11.5px]">
       <span className="text-muted" title={`${pr.changedFiles} files`}>
@@ -46,7 +50,7 @@ function RowStats({ pr, muted }: { pr: PullSummary; muted: boolean }) {
         <span className="text-ok">+{pr.additions}</span> <span className="text-danger">−{pr.deletions}</span>
       </span>
       <span className="chip w-7 justify-center bg-panel-2 text-muted">{sizeLabelOf(pr.additions + pr.deletions)}</span>
-      {!muted && (
+      {!updated && (
         <span
           className={cx('w-12 text-right', pr.stale && 'font-semibold text-danger', !pr.stale && 'text-muted')}
           title={requestedTitle(pr.requestedAt)}
@@ -54,7 +58,11 @@ function RowStats({ pr, muted }: { pr: PullSummary; muted: boolean }) {
           {duration(pr.waitingHours)}
         </span>
       )}
-      {Boolean(muted) && <span className="w-12 text-right text-muted">{ago(pr.updatedAt)}</span>}
+      {Boolean(updated) && (
+        <span className="w-12 text-right text-muted" title={`updated ${new Date(pr.updatedAt).toLocaleString()}`}>
+          {ago(pr.updatedAt)}
+        </span>
+      )}
     </div>
   )
 }
@@ -70,11 +78,14 @@ export function InboxRow({
   onOpen,
   onStack,
   muted = false,
+  showUpdated = false,
 }: {
   pr: PullSummary
   onOpen: OpenPull
   onStack: (id: string) => void
   muted?: boolean | undefined
+  /** Show when the PR last changed instead of how long a request has waited. */
+  showUpdated?: boolean | undefined
 }) {
   const prefetch = usePrefetchOnHover()
   const open = () => onOpen(pr)
@@ -111,7 +122,7 @@ export function InboxRow({
             {pr.repo}#{pr.number} · {pr.author} · {pr.headRef} → {pr.baseRef}
           </div>
         </div>
-        <RowStats pr={pr} muted={muted} />
+        <RowStats pr={pr} muted={muted} showUpdated={showUpdated} />
       </div>
     </li>
   )

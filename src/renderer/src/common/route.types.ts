@@ -15,6 +15,7 @@ export type Route =
   | { view: 'pull'; pull: PullRef; target?: PullTarget | undefined }
   | { view: 'guidelines'; repo?: string | undefined; path?: string | undefined }
   | { view: 'mentions' }
+  | { view: 'mine' }
   | { view: 'settings' }
 
 /** The same screen, whatever it was opened to jump to. */
