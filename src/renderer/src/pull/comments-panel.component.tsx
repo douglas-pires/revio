@@ -66,20 +66,33 @@ function visibleThreads(threads: readonly CommentThread[], query: string, showRe
  * The comment a thread previews: the search match, else the first one. The thread always reads as the comment
  * that opened it, so your own comments stay findable once someone replies; new replies show beneath it.
  */
-function previewedComment(t: CommentThread, query: string) {
+function pickPreviewedComment(thread: CommentThread, query: string) {
   if (query.trim()) {
-    return matchingComment(t, query)
+    return matchingComment(thread, query)
   }
-  return t.comments[0] ?? null
+  return thread.comments[0] ?? null
 }
 
 /** The newest reply since your last review, shown under the thread's first comment. Null when searching. */
-function freshReplyOf(fresh: readonly ReviewComment[], shown: ReviewComment, query: string) {
-  const latest = fresh.at(-1)
-  if (query.trim() || !latest || latest.id === shown.id) {
+function findNewestReplyToShow(newSinceReview: readonly ReviewComment[], previewed: ReviewComment, query: string) {
+  const newestReply = newSinceReview.at(-1)
+  if (query.trim() || !newestReply || newestReply.id === previewed.id) {
     return null
   }
-  return latest
+  return newestReply
+}
+
+/** A new reply quoted under the thread's first comment: its author and the start of its text. */
+function NewestReply({ reply }: { reply: ReviewComment | null }) {
+  if (!reply) {
+    return null
+  }
+  return (
+    <div className="mt-1 border-l-2 border-accent/40 pl-1.5 text-[11.5px]">
+      <span className="font-medium">{reply.author}</span>{' '}
+      <span className="line-clamp-2 text-muted">{excerptAround(reply.body, '', EXCERPT_CHARS)}</span>
+    </div>
+  )
 }
 
 /** How many matched, shown only while searching. */
@@ -180,8 +193,8 @@ function ThreadItem({
   }
   const last = replies.at(-1) ?? root
   const fresh = newComments(t, reviewed)
-  const shown = previewedComment(t, query) ?? root
-  const freshReply = freshReplyOf(fresh, shown, query)
+  const shown = pickPreviewedComment(t, query) ?? root
+  const newestReply = findNewestReplyToShow(fresh, shown, query)
   return (
     <button
       type="button"
@@ -189,7 +202,7 @@ function ThreadItem({
         'flex w-full gap-2 rounded px-1.5 py-1.5 text-left hover:bg-hover',
         t.resolved && fresh.length === 0 && 'opacity-60',
       )}
-      onClick={() => onJump(t.path, jumpLineOf(t), freshReply?.id ?? shown.id)}
+      onClick={() => onJump(t.path, jumpLineOf(t), newestReply?.id ?? shown.id)}
       title={threadTitle(t)}
     >
       <img
@@ -216,12 +229,7 @@ function ThreadItem({
         <div className="line-clamp-2 text-muted">
           <MatchText text={excerptAround(shown.body, query.trim(), EXCERPT_CHARS)} query={query} />
         </div>
-        {freshReply && (
-          <div className="mt-1 border-l-2 border-accent/40 pl-1.5 text-[11.5px]">
-            <span className="font-medium">{freshReply.author}</span>{' '}
-            <span className="line-clamp-2 text-muted">{excerptAround(freshReply.body, '', EXCERPT_CHARS)}</span>
-          </div>
-        )}
+        <NewestReply reply={newestReply} />
         {replies.length > 0 && (
           <div className="mt-0.5 truncate text-[11px] text-muted">
             {countOf(replies.length, 'reply', 'replies')} · last by <span className="text-fg">{last.author}</span>
