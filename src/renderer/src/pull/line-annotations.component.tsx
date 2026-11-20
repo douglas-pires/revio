@@ -1,11 +1,14 @@
 import type { DraftComment, ReviewComment } from '@shared/pull.types.ts'
-import { type CommentActions, Composer, DraftView, ReviewThread } from './review-comments.component.tsx'
+import { Composer } from './composer.component.tsx'
+import { type CommentActions, DraftView, ReviewThread } from './review-comments.component.tsx'
 
 export interface ComposerSpec {
   label: string
+  unsentKey: string
   suggestion?: string | undefined
   onSubmit: (body: string) => void
   onAsk: () => void
+  onAddToChat?: (() => void) | undefined
   onCancel: () => void
 }
 

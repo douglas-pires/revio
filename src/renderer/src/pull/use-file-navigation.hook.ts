@@ -11,8 +11,10 @@ export function useFileNavigation(opts: {
   onFilesTab: boolean
   showFiles: () => void
   initialTarget?: ScrollTarget | undefined
+  /** Called with the comment a jump lands on, so its thread can open if it was minimised. */
+  onRevealComment?: (commentId: number) => void
 }) {
-  const { pr, showFiles } = opts
+  const { pr, showFiles, onRevealComment } = opts
   const [collapsed, setCollapsed] = useState<Record<string, boolean>>({})
   const [current, setCurrent] = useState<string | null>(null)
   const [scrollTarget, setScrollTarget] = useState<ScrollTarget | null>(null)
@@ -21,13 +23,16 @@ export function useFileNavigation(opts: {
   const jump = useCallback(
     (target: ScrollTarget, expand = true) => {
       showFiles()
+      if (target.commentId !== undefined) {
+        onRevealComment?.(target.commentId)
+      }
       setCurrent(target.path)
       if (expand) {
         setCollapsed((c) => ({ ...c, [target.path]: false }))
       }
       setScrollTarget(target)
     },
-    [showFiles],
+    [showFiles, onRevealComment],
   )
   const goTo = useCallback(
     (path: string, line: number | null = null, expand = true, commentId?: number) =>
@@ -57,5 +62,8 @@ export function useFileNavigation(opts: {
     [],
   )
 
-  return { collapsed, replaceCollapsed: setCollapsed, setFileCollapsed, collapseFiles, current, goTo, jump }
+  /** Makes a file current without scrolling, as clicking in it does. */
+  const select = useCallback((path: string) => setCurrent(path), [])
+
+  return { collapsed, replaceCollapsed: setCollapsed, setFileCollapsed, collapseFiles, current, select, goTo, jump }
 }

@@ -2,15 +2,25 @@ import type { DraftComment, ReviewComment } from '@shared/pull.types.ts'
 
 import { useCallback, useState } from 'react'
 
-import { ago, cx } from '../common/format.util.ts'
+import { ago, countOf } from '../common/format.util.ts'
 
 import { Markdown } from '../common/markdown.component.tsx'
+
+import { Composer } from './composer.component.tsx'
 
 import { ReactionBar } from './reaction-bar.component.tsx'
 
 import { useOpenReplyIfTarget } from './use-reply-target.hook.ts'
 
+import { useThreadFold } from './use-thread-fold.hook.ts'
+
 const AVATAR_PX = 20
+const MARKDOWN_MARKS = /[`*_~]/gu
+
+/** A comment's first line without markdown marks, for a one-line summary. */
+function firstLineAsText(body: string) {
+  return (body.split('\n')[0] ?? '').replaceAll(MARKDOWN_MARKS, '')
+}
 
 function Thread(props: {
   thread: ReviewComment[]
@@ -22,12 +32,31 @@ function Thread(props: {
 }) {
   const [replying, setReplying] = useState(false)
   const openReply = useCallback(() => setReplying(true), [])
-  useOpenReplyIfTarget(
-    props.thread.map((c) => c.id),
-    openReply,
-  )
+  const ids = props.thread.map((c) => c.id)
+  useOpenReplyIfTarget(ids, openReply)
+  const fold = useThreadFold()
+  if (fold?.isFolded(ids)) {
+    return (
+      <FoldedThread
+        thread={props.thread}
+        pendingReplies={props.drafts.length}
+        onOpen={() => fold.setFolded(ids, false)}
+      />
+    )
+  }
   return (
-    <div className="space-y-2 rounded-md border border-line bg-panel p-3">
+    <div className="relative space-y-2 rounded-md border border-line bg-panel p-3">
+      {fold !== null && (
+        <button
+          type="button"
+          className="btn btn-ghost absolute top-2 right-2 px-1.5 py-0 text-muted"
+          title="Minimize this thread"
+          aria-label="Minimize this thread"
+          onClick={() => fold.setFolded(ids, true)}
+        >
+          −
+        </button>
+      )}
       {props.thread.map((c) => (
         <CommentView key={c.id} c={c} />
       ))}
@@ -38,6 +67,7 @@ function Thread(props: {
         <Composer
           label="Reply"
           codePath={props.thread[0]?.path}
+          unsentKey={`reply:${props.thread[0]?.id}`}
           onCancel={() => setReplying(false)}
           onSubmit={(body) => {
             props.onReplyLater(body)
@@ -58,127 +88,44 @@ function Thread(props: {
   )
 }
 
-interface ComposerProps {
-  label: string
-  initial?: string
-  suggestion?: string | undefined
-  /** The file being commented on, so the preview highlights ```suggestion blocks. */
-  codePath?: string | undefined
-  onCancel: () => void
-  /** Adds the comment to your pending review. Without it, the box only replies right away. */
-  onSubmit?: (body: string) => void
-  onSubmitNow?: (body: string) => Promise<void>
-  onAsk?: () => void
-}
-
-/** The comment with a GitHub suggestion block of `lines` added on a new line. */
-function withSuggestion(body: string, lines: string | undefined) {
-  const block = `\`\`\`suggestion\n${lines}\n\`\`\`\n`
-  if (!body) {
-    return block
-  }
-  return `${body}\n${block}`
-}
-
-/** What ⌘↵ does: add to the pending review, or send the reply right away. */
-function submitVerb(addsToReview: boolean) {
-  if (addsToReview) {
-    return 'add'
-  }
-  return 'send'
-}
-
-/** The label, Write / Preview, and the shortcuts to ask Claude or insert a suggestion. */
-function ComposerToolbar({
-  props,
-  preview,
-  setPreview,
-  setBody,
+/** A minimised thread: who started it, how many comments, and the latest one's first line. Click to open it. */
+function FoldedThread({
+  thread,
+  pendingReplies,
+  onOpen,
 }: {
-  props: ComposerProps
-  preview: boolean
-  setPreview: (preview: boolean) => void
-  setBody: (change: (body: string) => string) => void
+  thread: readonly ReviewComment[]
+  pendingReplies: number
+  onOpen: () => void
 }) {
+  const [root] = thread
+  const last = thread.at(-1)
+  if (!(root && last)) {
+    return null
+  }
   return (
-    <div className="mb-1.5 flex items-center gap-1 text-[11.5px] text-muted">
-      <span className="mr-2">{props.label}</span>
-      <button
-        type="button"
-        className={cx('btn btn-ghost py-0', !preview && 'bg-hover')}
-        onClick={() => setPreview(false)}
-      >
-        Write
-      </button>
-      <button
-        type="button"
-        className={cx('btn btn-ghost py-0', preview && 'bg-hover')}
-        onClick={() => setPreview(true)}
-      >
-        Preview
-      </button>
-      <div className="flex-1" />
-      {props.onAsk !== undefined && (
-        <button
-          type="button"
-          className="btn btn-ghost py-0 text-accent"
-          title="Ask Claude about the selected lines"
-          onClick={props.onAsk}
-        >
-          ✦ Ask Claude
-        </button>
+    <button
+      type="button"
+      data-folded-thread={root.id}
+      className="flex w-full items-center gap-2 rounded-md border border-line bg-panel px-3 py-1.5 text-left text-[12px] hover:bg-hover"
+      title="Show this thread"
+      onClick={onOpen}
+    >
+      <span aria-hidden={true} className="text-muted">
+        ▸
+      </span>
+      <img src={root.authorAvatar} alt="" width={AVATAR_PX} height={AVATAR_PX} className="size-4 rounded-full" />
+      <span className="shrink-0 font-medium">{root.author}</span>
+      <span className="shrink-0 text-muted">{countOf(thread.length, 'comment', 'comments')}</span>
+      {pendingReplies > 0 && (
+        <span className="chip shrink-0 bg-warn/20 py-0 text-[10.5px] text-warn">
+          {countOf(pendingReplies, 'pending reply', 'pending replies')}
+        </span>
       )}
-      {props.suggestion !== undefined && (
-        <button
-          type="button"
-          className="btn btn-ghost py-0"
-          title="Insert a GitHub suggestion block with the selected lines"
-          onClick={() => setBody((b) => withSuggestion(b, props.suggestion))}
-        >
-          ± Suggest change
-        </button>
-      )}
-    </div>
-  )
-}
-
-/** Cancel, Reply now (when the box can send right away) and Add to review / Update (when it adds a draft). */
-function ComposerButtons({
-  props,
-  body,
-  busy,
-  sendNow,
-  submit,
-}: {
-  props: ComposerProps
-  body: string
-  busy: boolean
-  sendNow: () => void
-  submit: () => void
-}) {
-  return (
-    <div className="mt-1.5 flex justify-end gap-2">
-      <button type="button" className="btn btn-ghost" onClick={props.onCancel}>
-        Cancel
-      </button>
-      {props.onSubmitNow !== undefined && (
-        <button
-          type="button"
-          className={cx('btn', !props.onSubmit && 'btn-primary')}
-          disabled={!body.trim() || busy}
-          onClick={sendNow}
-        >
-          {Boolean(busy) && 'Sending…'}
-          {!busy && 'Reply now'}
-        </button>
-      )}
-      {props.onSubmit !== undefined && (
-        <button type="button" className="btn btn-primary" disabled={!body.trim()} onClick={submit}>
-          {Boolean(props.initial) && 'Update'}
-          {!props.initial && 'Add to review'}
-        </button>
-      )}
-    </div>
+      <span className="min-w-0 flex-1 truncate text-muted">
+        {last.author}: {firstLineAsText(last.body)}
+      </span>
+    </button>
   )
 }
 
@@ -270,6 +217,7 @@ export function DraftView({
       <Composer
         label="Edit draft"
         codePath={d.path}
+        unsentKey={`draft:${d.id}`}
         initial={d.body}
         onCancel={() => setEditing(false)}
         onSubmit={(body) => {
@@ -299,62 +247,6 @@ export function DraftView({
       <Markdown className="text-[12.5px]" codePath={d.path}>
         {d.body}
       </Markdown>
-    </div>
-  )
-}
-
-export function Composer(props: ComposerProps) {
-  const [body, setBody] = useState(props.initial ?? '')
-  const [busy, setBusy] = useState(false)
-  const [preview, setPreview] = useState(false)
-  const sendNow = async () => {
-    if (!(props.onSubmitNow && body.trim()) || busy) {
-      return
-    }
-    setBusy(true)
-    try {
-      await props.onSubmitNow(body.trim())
-    } finally {
-      setBusy(false)
-    }
-  }
-  const submit = () => {
-    if (!props.onSubmit) {
-      sendNow()
-    } else if (body.trim()) {
-      props.onSubmit(body.trim())
-    }
-  }
-  return (
-    <div className="rounded-md border border-accent/50 bg-panel p-2">
-      <ComposerToolbar props={props} preview={preview} setPreview={setPreview} setBody={setBody} />
-      {Boolean(preview) && (
-        <div className="min-h-20 rounded-md border border-line p-2">
-          <Markdown className="text-[12.5px]" codePath={props.codePath}>
-            {body || '_Nothing to preview_'}
-          </Markdown>
-        </div>
-      )}
-      {!preview && (
-        <textarea
-          // biome-ignore lint/a11y/noAutofocus: the composer opens because the reviewer chose to write; focus goes where they type.
-          autoFocus={true}
-          aria-label={props.label}
-          className="input min-h-20 resize-y font-sans"
-          placeholder={`Leave a comment (markdown). ⌘↵ to ${submitVerb(Boolean(props.onSubmit))}`}
-          value={body}
-          onChange={(e) => setBody(e.target.value)}
-          onKeyDown={(e) => {
-            if (e.key === 'Enter' && e.metaKey) {
-              submit()
-            }
-            if (e.key === 'Escape') {
-              props.onCancel()
-            }
-          }}
-        />
-      )}
-      <ComposerButtons props={props} body={body} busy={busy} sendNow={sendNow} submit={submit} />
     </div>
   )
 }

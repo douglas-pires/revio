@@ -1,4 +1,5 @@
 import { type ApiMethod, IPC, type RevioApi } from '@shared/api.contract.ts'
+import type { AskActivity } from '@shared/claude.types.ts'
 import { type PullRef, pullKey } from '@shared/pull.types.ts'
 import { ipcMain, shell } from 'electron'
 import { ask } from '../claude/ask.service.ts'
@@ -214,9 +215,14 @@ function claudeHandlers({ store, pulls, window }: ApiDeps): Pick<ApiHandlers, 'g
       return record
     },
     askClaude: async (ref, thread) => {
+      const onActivity = (activity: AskActivity) => window.send({ type: 'ask-activity', threadId: thread.id, activity })
+      onActivity({ kind: 'step', label: 'Loading the PR and your review guides' })
       const { pr, guidelines } = await loadContext(ref)
-      const onDelta = (text: string) => window.send({ type: 'ask-delta', threadId: thread.id, text })
-      return { answer: await ask({ pr, guidelines, briefing: store.pull(pullKey(ref)).briefing, thread }, onDelta) }
+      const out = {
+        onText: (text: string) => window.send({ type: 'ask-delta', threadId: thread.id, text }),
+        onActivity,
+      }
+      return { answer: await ask({ pr, guidelines, briefing: store.pull(pullKey(ref)).briefing, thread }, out) }
     },
   }
 }

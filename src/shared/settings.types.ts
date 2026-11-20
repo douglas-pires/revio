@@ -8,7 +8,10 @@ export interface Settings {
   staleRepeatHours: number
   /** Count team review requests, not only requests addressed to you directly. */
   includeTeamRequests: boolean
+  /** A new review request. */
   notifyOnRequest: boolean
+  /** A review requested again on a PR you already reviewed. */
+  notifyOnReRequest: boolean
   notifyOnStale: boolean
   notifyOnMention: boolean
   /** Skip draft PRs in the inbox and alerts. */

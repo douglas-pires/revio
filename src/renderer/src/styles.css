@@ -48,10 +48,22 @@
   }
 }
 
-html,
+/*
+ * The window never scrolls; only the app's own panes do. Without this, anything taller than the window (a library
+ * that appends to <body>, say) lets a wheel that reaches the end of a pane carry on and scroll the whole page, pushing
+ * the PR header out of view. `clip`, unlike `hidden`, cannot be scrolled from script either, so scrollIntoView cannot
+ * shift the page or the app inside it.
+ */
+html {
+  height: 100%;
+  overflow: hidden;
+  overscroll-behavior: none;
+}
+
 body,
 #root {
   height: 100%;
+  overflow: clip;
 }
 
 body {
@@ -68,6 +80,23 @@ input,
 .selectable,
 .prose {
   user-select: text;
+}
+
+/*
+ * Lines a comment is on, kept marked once the selection is gone: a tint laid over the added/removed colour (as an
+ * image, so the cell's own background still shows through) and a bar down the line numbers.
+ */
+tr.commented-line > td,
+td.commented-line {
+  background-image: linear-gradient(
+    color-mix(in srgb, var(--color-accent) 12%, transparent),
+    color-mix(in srgb, var(--color-accent) 12%, transparent)
+  );
+}
+
+tr.commented-line > td:first-child,
+td.commented-line:has(+ td + td[data-half]) {
+  box-shadow: inset 3px 0 0 var(--color-accent);
 }
 
 .drag {

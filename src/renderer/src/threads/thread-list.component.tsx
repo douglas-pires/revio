@@ -7,7 +7,7 @@ import { groupBy } from '../common/group.util.ts'
 import type { OpenPull } from '../common/navigation.types.ts'
 import { SectionHeading } from '../common/section-heading.component.tsx'
 import { useAsyncAction } from '../common/use-async-action.hook.ts'
-import { Composer } from '../pull/review-comments.component.tsx'
+import { Composer } from '../pull/composer.component.tsx'
 
 interface Props extends ThreadActions {
   threads: readonly OpenThread[]
@@ -124,6 +124,7 @@ function ThreadRow({
           {Boolean(replying) && (
             <Composer
               label={`Reply to ${t.comments.at(-1)?.author ?? 'the thread'}`}
+              unsentKey={`thread:${t.id}`}
               onCancel={() => setReplying(false)}
               onSubmitNow={sendReply}
             />

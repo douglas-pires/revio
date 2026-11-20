@@ -33,6 +33,7 @@ import { usePullDetail } from './use-pull-detail.hook.ts'
 import { type PullLocalStateApi, usePullLocalState } from './use-pull-local-state.hook.ts'
 
 import type { SetReaction } from './use-reactions.hook.ts'
+import { useThreadFoldState } from './use-thread-fold.hook.ts'
 
 const DIFF_VIEWS: readonly DiffView[] = ['unified', 'split']
 
@@ -106,7 +107,11 @@ function useAskState() {
   const start = useCallback((sel: AskSelection) => {
     setThread({ id: crypto.randomUUID(), ...sel, messages: [], createdAt: new Date().toISOString() })
   }, [])
-  return { thread, setThread, start }
+  /** Adds lines to the open chat, for the next question. */
+  const addContext = useCallback((sel: AskSelection) => {
+    setThread((t) => t && { ...t, pendingContext: [...(t.pendingContext ?? []), sel] })
+  }, [])
+  return { thread, setThread, start, addContext }
 }
 
 /** Where the PR opened: a conversation comment to quote, a place in the diff, and a reply box to open once. */
@@ -137,6 +142,11 @@ function useViewedToggle(
   )
 }
 
+/** Sets your reaction on a comment of this PR. */
+function useReactionSetter(pull: PullRef): SetReaction {
+  return useCallback((subjectId, content, on) => globalThis.revio.setReaction(pull, subjectId, content, on), [pull])
+}
+
 export const PANEL_STATES = ['open', 'closed'] as const
 
 export const BLAME_STATES = ['off', 'on'] as const
@@ -159,11 +169,13 @@ export function usePullView(pullRef: PullRef, initialTarget: PullTarget | undefi
     local.replaceLocal(l)
     nav.replaceCollapsed(initialCollapsed(p, l))
   })
+  const threadFold = useThreadFoldState()
   const nav = useFileNavigation({
     pr: detail.pr,
     onFilesTab,
     showFiles: choices.showFiles,
     initialTarget: arrival.fileTarget,
+    onRevealComment: threadFold.reveal,
   })
   const briefing = useBriefing(pull, (record) => {
     local.setBriefingRecord(record)
@@ -172,10 +184,7 @@ export function usePullView(pullRef: PullRef, initialTarget: PullTarget | undefi
   const indexes = usePullIndexes(detail.pr, local.local)
   const find = useDiffFind({ files: indexes.orderedFiles, jump: nav.jump, onFilesTab, showFiles: choices.showFiles })
 
-  const setReaction: SetReaction = useCallback(
-    (subjectId, content, on) => globalThis.revio.setReaction(pull, subjectId, content, on),
-    [pull],
-  )
+  const setReaction = useReactionSetter(pull)
   const toggleViewed = useViewedToggle(local.markViewed, nav.setFileCollapsed)
   useFileKeyboardNav({
     enabled: detail.pr !== null && review.open === false,
@@ -196,6 +205,7 @@ export function usePullView(pullRef: PullRef, initialTarget: PullTarget | undefi
     ask,
     ...arrival,
     nav,
+    threadFold,
     briefing,
     find,
     setReaction,

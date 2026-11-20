@@ -3,6 +3,21 @@ import { anchorKey } from './diff.util.ts'
 
 const includesFolded = (text: string, q: string) => text.toLowerCase().includes(q)
 
+interface LineSpan {
+  side: DiffSide
+  line: number | null
+  startLine?: number | null | undefined
+}
+
+/** The lines a comment covers: startLine..line on its side, or just its line. */
+function linesOf({ side, line, startLine }: LineSpan): string[] {
+  if (line === null) {
+    return []
+  }
+  const first = Math.min(startLine ?? line, line)
+  return Array.from({ length: line - first + 1 }, (_, i) => anchorKey(side, first + i))
+}
+
 /** A review thread on this PR: its first comment, the replies, and whether it is resolved. */
 export interface CommentThread {
   rootId: number
@@ -101,6 +116,16 @@ export function indexFileComments(
   return index
 }
 
+/**
+ * Every line a comment is on, as `anchorKey`s: GitHub's comments that still point at a line, and your pending ones
+ * (replies sit on their thread's lines already). So the diff can keep those lines marked after the selection is gone.
+ */
+export function commentedLines(comments: readonly ReviewComment[], drafts: readonly DraftComment[]): Set<string> {
+  const onLines = comments.filter((c) => !c.outdated && c.subjectType === 'line')
+  const newDrafts = drafts.filter((d) => !d.inReplyTo)
+  return new Set([...onLines, ...newDrafts].flatMap(linesOf))
+}
+
 /** The thread's comment that matches `query` (text or author), or null. The file path matching counts as the first comment. */
 export function matchingComment(t: CommentThread, query: string): ReviewComment | null {
   const q = query.trim().toLowerCase()
@@ -116,6 +141,21 @@ export function matchingComment(t: CommentThread, query: string): ReviewComment 
     return t.comments[0] ?? null
   }
   return null
+}
+
+/** Who you are and when you last reviewed, to tell which comments are new to you. */
+export interface ReviewedBy {
+  viewer: string
+  /** Null before your first review: then nothing is "new", it is all unread. */
+  since: string | null
+}
+
+/** The thread's comments by others since your last review, oldest first. */
+export function newComments(t: CommentThread, { viewer, since }: ReviewedBy): ReviewComment[] {
+  if (since === null) {
+    return []
+  }
+  return t.comments.filter((c) => c.author !== viewer && c.createdAt > since)
 }
 
 /** Threads with a comment, author or file path matching `query`, resolved ones included. */

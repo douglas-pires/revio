@@ -32,6 +32,8 @@ export function Gutter(props: {
   divider?: boolean | undefined
   /** False for lines shown from the file around the diff, which GitHub takes no comments on. */
   commentable?: boolean | undefined
+  /** A comment is on this line: keep it marked (the unified table marks the whole row instead). */
+  commented?: boolean | undefined
   children: React.ReactNode
 }) {
   const commentable = props.commentable ?? true
@@ -52,6 +54,7 @@ export function Gutter(props: {
         commentable && 'cursor-pointer',
         props.divider && 'border-l',
         props.focus && 'shadow-[inset_3px_0_0_var(--color-focus)]',
+        props.commented && 'commented-line',
         props.kind === 'add' && 'bg-add-strong/40',
         props.kind === 'del' && 'bg-del-strong/40',
       )}
@@ -102,13 +105,15 @@ export function Half(props: {
   lineNo: number | null
   tokens?: Tok[] | undefined
   selected: boolean
+  /** A comment is on this line: keep it marked. */
+  commented: boolean
   focus: boolean
   onDown: (shift: boolean) => void
   onEnter: () => void
   divider?: boolean | undefined
   note?: React.ReactNode
 }) {
-  const bg = halfBackground(props.selected, props.row.kind)
+  const bg = cx(halfBackground(props.selected, props.row.kind), props.commented && 'commented-line')
   return (
     <>
       <Gutter
@@ -117,6 +122,7 @@ export function Half(props: {
         onDown={props.onDown}
         onEnter={props.onEnter}
         divider={props.divider}
+        commented={props.commented}
         commentable={!(props.row.kind !== 'hunk' && props.row.expanded)}
       >
         {props.lineNo ?? ''}

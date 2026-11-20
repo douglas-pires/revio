@@ -31,6 +31,7 @@ const DEFAULT_SETTINGS: StoredSettings = {
   staleRepeatHours: 24,
   includeTeamRequests: true,
   notifyOnRequest: true,
+  notifyOnReRequest: true,
   notifyOnStale: true,
   notifyOnMention: true,
   ignoreDrafts: true,

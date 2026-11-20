@@ -3,6 +3,7 @@ import type { FileCommentIndex } from './comment-threads.util.ts'
 import { draftFromSelection, rangeLabel } from './diff-file.util.ts'
 import { type ComposerSpec, LineAnnotations } from './line-annotations.component.tsx'
 import type { CommentActions } from './review-comments.component.tsx'
+import { useUnsentScope } from './unsent-comments.util.ts'
 import type { Anchor, LineSelectionApi } from './use-line-selection.hook.ts'
 
 /** What a line's notes need: the file's comments, the line selection, and what a new comment can do. */
@@ -15,6 +16,8 @@ interface LineNotesInput {
   /** The new-side text of lines start..end, to prefill a suggestion. */
   newSideText: (start: number, end: number) => string
   onAsk: (sel: { side: Anchor['side']; start: number; end: number }) => void
+  /** Set while a Claude chat is open: adds the selection to it. */
+  onAddToChat?: ((sel: { side: Anchor['side']; start: number; end: number }) => void) | undefined
 }
 
 /**
@@ -23,6 +26,7 @@ interface LineNotesInput {
  */
 export function useLineNotes(input: LineNotesInput) {
   const { path, index, selection } = input
+  const scope = useUnsentScope()
   const composerFor = (anchor: Anchor | null): ComposerSpec | null => {
     const { sel } = selection
     if (!(sel && selection.composerAt(anchor))) {
@@ -30,6 +34,8 @@ export function useLineNotes(input: LineNotesInput) {
     }
     const spec: ComposerSpec = {
       label: rangeLabel(sel),
+      // By the line the box opens under, not the whole range: select up to the same line again and your text is back.
+      unsentKey: `${scope}:line:${path}:${sel.side}:${sel.end}`,
       onCancel: selection.clear,
       onAsk: () => {
         input.onAsk(sel)
@@ -42,6 +48,13 @@ export function useLineNotes(input: LineNotesInput) {
     }
     if (sel.side === 'RIGHT') {
       spec.suggestion = input.newSideText(sel.start, sel.end)
+    }
+    const { onAddToChat } = input
+    if (onAddToChat) {
+      spec.onAddToChat = () => {
+        onAddToChat(sel)
+        selection.clear()
+      }
     }
     return spec
   }

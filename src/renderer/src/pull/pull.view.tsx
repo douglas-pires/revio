@@ -6,9 +6,11 @@ import { PullHeader } from './pull-header.component.tsx'
 import { PullSidePanels } from './pull-side-panels.component.tsx'
 import { PullTabs } from './pull-tabs.component.tsx'
 import { StackBar } from './stack-bar.component.tsx'
+import { UnsentScopeContext } from './unsent-comments.util.ts'
 import { type PullViewState, usePullView } from './use-pull-view.hook.ts'
 import { ReactionsContext } from './use-reactions.hook.ts'
 import { ReplyTargetContext } from './use-reply-target.hook.ts'
+import { ThreadFoldContext } from './use-thread-fold.hook.ts'
 
 interface PullViewProps {
   pull: PullRef
@@ -76,23 +78,27 @@ export function PullView(props: PullViewProps) {
   return (
     <ReactionsContext value={v.setReaction}>
       <ReplyTargetContext value={v.replyTarget}>
-        <div className="flex h-full flex-col">
-          <PullViewHeader v={v} pr={pr} props={props} />
-          {v.stack !== null && <StackBar stack={v.stack} pull={v.pull} onOpen={props.onOpenPull} />}
-          <div className="flex min-h-0 flex-1">
-            <FileTree
-              files={pr.files}
-              viewed={v.local.viewed}
-              current={v.nav.current}
-              focusPaths={v.focusPaths}
-              ignorePaths={v.ignorePaths}
-              draftCounts={v.draftCounts}
-              onSelect={v.nav.goTo}
-            />
-            <PullTabs v={v} pr={pr} onEditGuidelines={props.onEditGuidelines} />
-            <PullSidePanels v={v} pr={pr} />
-          </div>
-        </div>
+        <UnsentScopeContext value={`${props.pull.repo}#${props.pull.number}`}>
+          <ThreadFoldContext value={v.threadFold}>
+            <div className="flex h-full flex-col">
+              <PullViewHeader v={v} pr={pr} props={props} />
+              {v.stack !== null && <StackBar stack={v.stack} pull={v.pull} onOpen={props.onOpenPull} />}
+              <div className="flex min-h-0 flex-1">
+                <FileTree
+                  files={pr.files}
+                  viewed={v.local.viewed}
+                  current={v.nav.current}
+                  focusPaths={v.focusPaths}
+                  ignorePaths={v.ignorePaths}
+                  draftCounts={v.draftCounts}
+                  onSelect={v.nav.goTo}
+                />
+                <PullTabs v={v} pr={pr} onEditGuidelines={props.onEditGuidelines} />
+                <PullSidePanels v={v} pr={pr} />
+              </div>
+            </div>
+          </ThreadFoldContext>
+        </UnsentScopeContext>
       </ReplyTargetContext>
     </ReactionsContext>
   )

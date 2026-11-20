@@ -1,6 +1,7 @@
 import type { PullFile } from '@shared/pull.types.ts'
 import { useEffect, useRef } from 'react'
 import { isTyping } from '../common/keyboard.util.ts'
+import { fileInView } from './file-in-view.util.ts'
 
 interface NavState {
   enabled: boolean
@@ -14,15 +15,15 @@ interface NavState {
 /** j goes down the list, k up. */
 const STEPS = { j: 1, k: -1 } as const
 
-/** Where the current file sits in the list, -1 when none is current. */
-function indexOfCurrent(s: NavState) {
-  if (!s.current) {
+/** Where a file sits in the list, -1 for none. */
+function indexOfPath(s: NavState, path: string | null) {
+  if (!path) {
     return -1
   }
-  return s.files.findIndex((f) => f.path === s.current)
+  return s.files.findIndex((f) => f.path === path)
 }
 
-/** v: marks the current file viewed and moves on to the next unviewed one; unmarking keeps it open. */
+/** v: marks the file you are reading viewed (see `fileInView`) and moves on to the next unviewed one; unmarking keeps it open. */
 function toggleViewedAndMove(s: NavState, index: number) {
   const file = s.files[Math.max(0, index)]
   if (!file) {
@@ -53,7 +54,8 @@ function nextUnviewed(files: PullFile[], index: number, viewed: Record<string, s
 }
 
 /**
- * j/k move between files, v toggles "viewed" and moves on to the next unviewed file.
+ * j/k move between files; v toggles "viewed" on the file you are reading (the one you clicked or jumped to while it is
+ * on screen, else the one at the top of the diff) and moves on to the next unviewed file.
  * Reads the latest state through a ref so the window listener is attached once.
  */
 export function useFileKeyboardNav(state: NavState) {
@@ -70,11 +72,11 @@ export function useFileKeyboardNav(state: NavState) {
         return
       }
       e.preventDefault()
-      const index = indexOfCurrent(s)
       if (e.key === 'v') {
-        toggleViewedAndMove(s, index)
+        toggleViewedAndMove(s, indexOfPath(s, fileInView(s.current)))
         return
       }
+      const index = indexOfPath(s, s.current)
       const target = s.files[stepIndex(index, e.key, s.files.length)]
       if (target) {
         s.goTo(target.path, false)

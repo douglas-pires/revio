@@ -6,7 +6,7 @@ import { FindBar } from './find-bar.component.tsx'
 import { MentionedComment } from './mentioned-comment.component.tsx'
 import { OverviewTab } from './overview-tab.component.tsx'
 import { PullTabBar } from './pull-tab-bar.component.tsx'
-import { toggled, withSummaryLine } from './pull-view.util.ts'
+import { markedAsAi, toggled, withSummaryLine } from './pull-view.util.ts'
 import { TabPane } from './tab-pane.component.tsx'
 import { BLAME_STATES, PANEL_STATES, type PullViewState } from './use-pull-view.hook.ts'
 
@@ -22,7 +22,7 @@ function BriefingCard({ v, pr }: { v: PullViewState; pr: PullDetail }) {
       validLine={(path, line) => Boolean(v.rightLines.get(path)?.has(line))}
       patchOf={v.patchOf}
       onDraft={(path, line, body) => {
-        v.addDraft({ path, line, side: 'RIGHT', body })
+        v.addDraft({ path, line, side: 'RIGHT', body: markedAsAi(body) })
         v.nav.goTo(path, line)
       }}
       onAddToSummary={(q) => v.review.setBody((b) => withSummaryLine(b, q))}
@@ -61,6 +61,14 @@ function OverviewPane({
   )
 }
 
+/** "Add to chat" for selected lines, only while a Claude chat is open. */
+function addToOpenChat(v: PullViewState) {
+  if (v.ask.thread === null) {
+    return
+  }
+  return v.ask.addContext
+}
+
 function FilesPane({ v, pr }: { v: PullViewState; pr: PullDetail }) {
   return (
     <FilesTab
@@ -77,6 +85,7 @@ function FilesPane({ v, pr }: { v: PullViewState; pr: PullDetail }) {
       viewed={v.local.viewed}
       collapsed={v.nav.collapsed}
       current={v.nav.current}
+      onSelectFile={v.nav.select}
       onToggleCollapsed={v.nav.setFileCollapsed}
       onToggleViewed={v.toggleViewed}
       onAddDraft={v.addDraft}
@@ -84,6 +93,7 @@ function FilesPane({ v, pr }: { v: PullViewState; pr: PullDetail }) {
       onDeleteDraft={v.deleteDraft}
       onReplyNow={v.replyNow}
       onAsk={v.ask.start}
+      onAddToChat={addToOpenChat(v)}
     />
   )
 }
@@ -112,6 +122,8 @@ export function PullTabs({
         }}
         blame={v.blame === 'on'}
         onToggleBlame={() => v.setBlame(toggled(v.blame, BLAME_STATES))}
+        threadsFolded={v.threadFold.all}
+        onToggleThreadsFolded={() => v.threadFold.setAll(!v.threadFold.all)}
         view={v.view}
         onView={v.changeView}
       />

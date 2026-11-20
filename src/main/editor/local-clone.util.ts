@@ -1,18 +1,40 @@
-import { isAbsolute, join, relative, resolve } from 'node:path'
+import { isAbsolute, relative, resolve } from 'node:path'
 
 const GITHUB_REMOTE = /github\.com[:/]+(?<owner>[^/]+)\/(?<name>[^/]+?)(?:\.git)?\/?$/iu
+const REMOTE_SECTION = /^\[remote\s+"[^"]*"\]$/u
+const REMOTE_URL = /^url\s*=\s*(?<url>\S+)/u
+const GIT_DIR_LINE = /^gitdir:\s*(?<dir>.+?)\s*$/mu
 
-/** Whether a git remote URL points at `owner/name` on GitHub (https or ssh, with or without .git). */
-export function remotePointsAt(url: string, repo: string): boolean {
-  const groups = GITHUB_REMOTE.exec(url.trim())?.groups
-  return groups !== undefined && `${groups.owner}/${groups.name}`.toLowerCase() === repo.toLowerCase()
+/** The remote URLs in a git config file (`url = …` lines inside `[remote "…"]` sections). */
+export function remoteUrlsIn(gitConfig: string): string[] {
+  const urls: string[] = []
+  let inRemote = false
+  for (const raw of gitConfig.split('\n')) {
+    const line = raw.trim()
+    if (line.startsWith('[')) {
+      inRemote = REMOTE_SECTION.test(line)
+    } else if (inRemote) {
+      const url = REMOTE_URL.exec(line)?.groups?.url
+      if (url) {
+        urls.push(url)
+      }
+    }
+  }
+  return urls
 }
 
-/** Folders that may hold a clone of `owner/name` under `root`: root/name, root/owner/name and one level deeper. */
-export function cloneCandidates(root: string, repo: string, subfolders: readonly string[]): string[] {
-  const [owner, name] = repo.split('/') as [string, string]
-  const under = (dir: string) => [join(dir, name), join(dir, owner, name)]
-  return [...under(root), ...subfolders.flatMap((d) => under(join(root, d)))]
+/** The `owner/name` a remote URL points at on GitHub, lowercased, or null for other hosts. */
+export function githubRepoOf(url: string): string | null {
+  const groups = GITHUB_REMOTE.exec(url.trim())?.groups
+  if (!groups) {
+    return null
+  }
+  return `${groups.owner}/${groups.name}`.toLowerCase()
+}
+
+/** Where a linked worktree's `.git` file points (`gitdir: …`), or null when it is not one. */
+export function gitDirOf(dotGitFile: string): string | null {
+  return GIT_DIR_LINE.exec(dotGitFile)?.groups?.dir ?? null
 }
 
 /** The absolute path of `path` inside `clone`, or null if it would point outside it. */

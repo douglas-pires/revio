@@ -16,9 +16,9 @@ import { AskClaudeButton } from './ask-claude-button.component.tsx'
 
 import { BlameNote } from './blame-note.component.tsx'
 
-import { type FileCommentIndex, indexFileComments } from './comment-threads.util.ts'
+import { commentedLines, type FileCommentIndex, indexFileComments } from './comment-threads.util.ts'
 
-import { diffSnippet, type LineRow, newSideText, parsePatch, parseRange } from './diff.util.ts'
+import { anchorKey, diffSnippet, type LineRow, newSideText, parsePatch, parseRange } from './diff.util.ts'
 
 import { editorLineOf, isInFocus } from './diff-file.util.ts'
 
@@ -161,6 +161,8 @@ export interface DiffFileProps {
   onDeleteDraft: (id: string) => void
   onReplyNow: (commentId: number, body: string) => Promise<void>
   onAsk: (selection: AskSelection) => void
+  /** Set while a Claude chat is open: adds selected lines to it. */
+  onAddToChat?: ((selection: AskSelection) => void) | undefined
 }
 
 // biome-ignore lint/complexity/noExcessiveLinesPerFunction: one file's diff wires together its hooks (viewport, rows, comments, selection, blame); each piece lives in its own module.
@@ -194,8 +196,20 @@ export const DiffFile = memo(function DiffFileView(props: DiffFileProps) {
     () => indexFileComments(file.path, props.comments, props.drafts),
     [file.path, props.comments, props.drafts],
   )
-  const ask = (side: DiffSide, start: number, end: number) =>
-    props.onAsk({ path: file.path, side, startLine: start, endLine: end, snippet: diffSnippet(rows, side, start, end) })
+  const commented = useMemo(() => commentedLines(props.comments, props.drafts), [props.comments, props.drafts])
+  const selectionOf = (side: DiffSide, start: number, end: number): AskSelection => ({
+    path: file.path,
+    side,
+    startLine: start,
+    endLine: end,
+    snippet: diffSnippet(rows, side, start, end),
+  })
+  const ask = (side: DiffSide, start: number, end: number) => props.onAsk(selectionOf(side, start, end))
+  const { onAddToChat } = props
+  let addToChat: ((sel: { side: DiffSide; start: number; end: number }) => void) | undefined
+  if (onAddToChat) {
+    addToChat = (sel) => onAddToChat(selectionOf(sel.side, sel.start, sel.end))
+  }
   const notesFor = useLineNotes({
     path: file.path,
     index,
@@ -204,6 +218,7 @@ export const DiffFile = memo(function DiffFileView(props: DiffFileProps) {
     actions,
     newSideText: (start, end) => newSideText(rows, start, end),
     onAsk: (sel) => ask(sel.side, sel.start, sel.end),
+    onAddToChat: addToChat,
   })
 
   const table: DiffTableProps = {
@@ -211,6 +226,7 @@ export const DiffFile = memo(function DiffFileView(props: DiffFileProps) {
     tokens,
     selection,
     inFocus: (row) => isInFocus(row, focusRanges),
+    commented: (a) => a !== null && commented.has(anchorKey(a.side, a.line)),
     notesFor,
     onMouseUp: textAsk.onMouseUp,
   }

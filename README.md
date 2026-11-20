@@ -2,8 +2,10 @@
 
 # Revio
 
-A macOS desktop app for doing code reviews faster: a review inbox with alerts, your own review guides per repo/folder,
-a GitHub-style diff with draft comments, and a Claude briefing that tells you what a PR does, where to look and what to skip.
+An IRE, an **integrated review environment**: what an IDE is for writing code, Revio is for reviewing it. A macOS
+desktop app that puts the whole review in one place: a review inbox with alerts, your own review guides per repo/folder,
+a GitHub-style diff with draft comments, and a Claude briefing that tells you what a PR does, where to look and what to
+skip.
 
 <picture>
   <source media="(prefers-color-scheme: dark)" srcset="docs/screenshots/inbox-dark.png">

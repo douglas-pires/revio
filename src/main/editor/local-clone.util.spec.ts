@@ -1,28 +1,41 @@
 import { describe, expect, it } from 'vitest'
-import { cloneCandidates, pathInside, remotePointsAt } from './local-clone.util.ts'
+import { gitDirOf, githubRepoOf, pathInside, remoteUrlsIn } from './local-clone.util.ts'
 
-describe('remotePointsAt', () => {
-  it('matches https and ssh remotes, ignoring case and .git', () => {
-    expect(remotePointsAt('https://github.com/Acme/Widgets.git', 'acme/widgets')).toBe(true)
-    expect(remotePointsAt('git@github.com:acme/widgets', 'acme/widgets')).toBe(true)
-    expect(remotePointsAt('ssh://git@github.com/acme/widgets.git/', 'acme/widgets')).toBe(true)
+describe('githubRepoOf', () => {
+  it('reads https and ssh remotes, ignoring case and .git', () => {
+    expect(githubRepoOf('https://github.com/Acme/Widgets.git')).toBe('acme/widgets')
+    expect(githubRepoOf('git@github.com:acme/widgets')).toBe('acme/widgets')
+    expect(githubRepoOf('ssh://git@github.com/acme/widgets.git/')).toBe('acme/widgets')
   })
 
-  it('rejects other repos and hosts', () => {
-    expect(remotePointsAt('https://github.com/acme/widgets-old.git', 'acme/widgets')).toBe(false)
-    expect(remotePointsAt('https://gitlab.com/acme/widgets.git', 'acme/widgets')).toBe(false)
-    expect(remotePointsAt('https://github.com/other/widgets.git', 'acme/widgets')).toBe(false)
+  it('ignores other hosts', () => {
+    expect(githubRepoOf('https://gitlab.com/acme/widgets.git')).toBeNull()
   })
 })
 
-describe('cloneCandidates', () => {
-  it('looks for name and owner/name in the folder and its subfolders', () => {
-    expect(cloneCandidates('/u', 'acme/widgets', ['code'])).toEqual([
-      '/u/widgets',
-      '/u/acme/widgets',
-      '/u/code/widgets',
-      '/u/code/acme/widgets',
-    ])
+describe('remoteUrlsIn', () => {
+  it('lists the url of every remote, and nothing from other sections', () => {
+    const config = [
+      '[core]',
+      '\trepositoryformatversion = 0',
+      '[remote "origin"]',
+      '\turl = git@github.com:acme/widgets.git',
+      '\tfetch = +refs/heads/*:refs/remotes/origin/*',
+      '[branch "main"]',
+      '\tremote = origin',
+      '[remote "upstream"]',
+      '\turl = https://github.com/upstream/widgets.git',
+      '[submodule "docs"]',
+      '\turl = https://github.com/acme/docs.git',
+    ].join('\n')
+    expect(remoteUrlsIn(config)).toEqual(['git@github.com:acme/widgets.git', 'https://github.com/upstream/widgets.git'])
+  })
+})
+
+describe('gitDirOf', () => {
+  it('reads where a linked worktree keeps its git data', () => {
+    expect(gitDirOf('gitdir: /code/widgets/.git/worktrees/fix\n')).toBe('/code/widgets/.git/worktrees/fix')
+    expect(gitDirOf('')).toBeNull()
   })
 })
 
