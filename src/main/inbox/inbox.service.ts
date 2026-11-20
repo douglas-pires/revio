@@ -82,7 +82,7 @@ const findLastReviewAt = (pr: RawPr, viewer: string) =>
   pr.latestReviews.nodes.find((r) => r?.author?.login === viewer)?.submittedAt ?? null
 
 /** `request` is set for PRs waiting on your review, null for ones you already reviewed. */
-function toSummary(pr: RawPr, staleAfterHours: number, request: ReviewRequest | null): PullSummary {
+function toSummary(pr: RawPr, staleAfterHours: number, request: ReviewRequest | null, viewer: string): PullSummary {
   const isRequested = Boolean(request)
   const { viaTeam, requestedAt } = request ?? { viaTeam: null, requestedAt: null }
   const since = new Date(requestedAt ?? pr.createdAt).getTime()
@@ -100,6 +100,7 @@ function toSummary(pr: RawPr, staleAfterHours: number, request: ReviewRequest | 
     updatedAt: pr.updatedAt,
     requestedAt,
     viaTeam,
+    yourLastReviewAt: findLastReviewAt(pr, viewer),
     additions: pr.additions,
     deletions: pr.deletions,
     changedFiles: pr.changedFiles,
@@ -161,9 +162,9 @@ function sortInbox(data: InboxSearch, viewer: string, staleAfterHours: number) {
   for (const pr of data.requested.nodes.filter(isPr)) {
     const request = readReviewRequest(pr, viewer)
     if (awaitsYou(request, findLastReviewAt(pr, viewer))) {
-      requested.push(toSummary(pr, staleAfterHours, request))
+      requested.push(toSummary(pr, staleAfterHours, request, viewer))
     } else {
-      reviewedSinceRequest.push(toSummary(pr, staleAfterHours, null))
+      reviewedSinceRequest.push(toSummary(pr, staleAfterHours, null, viewer))
     }
   }
   requested.sort((a, b) => b.waitingHours - a.waitingHours)
@@ -171,7 +172,7 @@ function sortInbox(data: InboxSearch, viewer: string, staleAfterHours: number) {
   const otherReviewed = data.reviewed.nodes.filter((n): n is RawPr => isPr(n) && !listed.has(n.id))
   return {
     requested,
-    reviewed: [...reviewedSinceRequest, ...otherReviewed.map((pr) => toSummary(pr, staleAfterHours, null))],
+    reviewed: [...reviewedSinceRequest, ...otherReviewed.map((pr) => toSummary(pr, staleAfterHours, null, viewer))],
   }
 }
 

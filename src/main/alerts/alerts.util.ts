@@ -25,9 +25,17 @@ function requestTitle(change: RequestChange, pr: PullSummary) {
   return verb
 }
 
+/** Whether this kind of request is set to notify: new ones and re-requests have their own settings. */
+function wantsRequestAlert(change: RequestChange, settings: AlertSettings) {
+  if (change === 'repeat') {
+    return settings.notifyOnReRequest
+  }
+  return settings.notifyOnRequest
+}
+
 /** Notifies about one queued PR: a new or renewed request, and a stale one when its alert is due. Records the latter. */
 function alertRequest(pr: PullSummary, change: RequestChange | null, ctx: Required<AlertContext>) {
-  if (change && ctx.settings.notifyOnRequest) {
+  if (change && wantsRequestAlert(change, ctx.settings)) {
     ctx.notify(requestTitle(change, pr), describePull(pr), pr)
   }
   if (ctx.settings.notifyOnStale && isStaleAlertDue(pr, ctx.state, ctx.settings.staleRepeatHours, ctx.now)) {
@@ -56,7 +64,10 @@ export interface AlertState {
   mentionsSeeded: boolean
 }
 
-export type AlertSettings = Pick<Settings, 'notifyOnRequest' | 'notifyOnStale' | 'staleRepeatHours'>
+export type AlertSettings = Pick<
+  Settings,
+  'notifyOnRequest' | 'notifyOnReRequest' | 'notifyOnStale' | 'staleRepeatHours'
+>
 
 export type Notify = (title: string, body: string, pr: PullSummary) => void
 
@@ -83,13 +94,17 @@ export function raiseAlerts(inbox: Inbox, { settings, state, notify, now = Date.
   state.seeded = true
 }
 
-/** Whether this request is new ('first'), renewed ('repeat'), or already alerted (null). Does not change state. */
+/**
+ * Whether this request is new ('first'), renewed ('repeat'), or already alerted (null). Does not change state.
+ * A request on a PR you already reviewed is a re-request even though the PR left your queue in between (your review
+ * takes you off its reviewers, so Revio forgot it).
+ */
 export function requestChange(pr: PullSummary, state: AlertState): RequestChange | null {
   const seen = state.requested[pr.id]
   if (seen === requestMarker(pr)) {
     return null
   }
-  if (seen) {
+  if (seen || pr.yourLastReviewAt !== null) {
     return 'repeat'
   }
   return 'first'

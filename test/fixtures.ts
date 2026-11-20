@@ -17,6 +17,7 @@ export function makeSummary(over: Partial<PullSummary> = {}): PullSummary {
     updatedAt: '2026-11-01T10:00:00Z',
     requestedAt: '2026-11-01T10:00:00Z',
     viaTeam: null,
+    yourLastReviewAt: null,
     additions: 1,
     deletions: 0,
     changedFiles: 1,

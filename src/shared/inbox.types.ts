@@ -13,6 +13,8 @@ export interface PullSummary {
   requestedAt: string | null
   /** Whether the request is addressed to a team you are in rather than to you. */
   viaTeam: string | null
+  /** When you last reviewed this PR, if ever: a request after it is a re-request. */
+  yourLastReviewAt: string | null
   additions: number
   deletions: number
   changedFiles: number
