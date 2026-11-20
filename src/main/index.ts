@@ -76,7 +76,7 @@ const mentions = new MentionWatcher({
       state: () => store.alerts(),
       save: () => store.saveAlerts(),
       enabled: () => store.settings().notifyOnMention,
-      show: showNotification,
+      show: (title, body, onClick) => showNotification(title, body, { onClick }),
       openPull: (ref) => window.focusAndOpen(ref),
       showApp: () => window.show(),
     })

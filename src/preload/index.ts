@@ -63,6 +63,7 @@ const methods = [
   'saveAsks',
   'getUpdateStatus',
   'checkForUpdates',
+  'testNotification',
   'openExternal',
   'onEvent',
 ] as const satisfies readonly (keyof RevioApi)[]

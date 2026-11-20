@@ -86,7 +86,7 @@ function load(): Db {
     settings: { ...DEFAULT_SETTINGS },
     guidelines: DEFAULT_GUIDELINES,
     pulls: {},
-    alerts: { requested: {}, staleAlertedAt: {}, seeded: false, mentionsAlerted: {}, mentionsSeeded: false },
+    alerts: { requested: {}, staleAlertedAt: {}, seeded: false, seenMentions: {}, seenMentionsRecorded: false },
     sync: { settingsUpdatedAt: {}, deletedGuidelines: {} },
   }
   try {
