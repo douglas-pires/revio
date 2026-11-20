@@ -4,10 +4,10 @@ Merging into `main` does not ship anything to people using Revio. You decide whe
 
 ## What each push does
 
-| You do | The Release workflow publishes | Offered as an update? |
-|---|---|---|
-| Merge a PR into `main` | A pre-release, e.g. `0.2.0-dev.43` | No. GitHub never marks a pre-release as the latest release |
-| Run the workflow by hand, or push a tag `v0.2.0` | A release, e.g. `0.2.0`, listing every change since the last release | Yes, to everyone, the next time Revio checks |
+| You do                                           | The Release workflow publishes                                       | Offered as an update?                                      |
+| ------------------------------------------------ | -------------------------------------------------------------------- | ---------------------------------------------------------- |
+| Merge a PR into `main`                           | A pre-release, e.g. `0.2.0-dev.43`                                   | No. GitHub never marks a pre-release as the latest release |
+| Run the workflow by hand, or push a tag `v0.2.0` | A release, e.g. `0.2.0`, listing every change since the last release | Yes, to everyone, the next time Revio checks               |
 
 The newest ten pre-releases are kept on the [Releases](https://github.com/douglas-pires/revio/releases) page. Older
 ones are deleted. Install one to try what is on `main` before releasing it.

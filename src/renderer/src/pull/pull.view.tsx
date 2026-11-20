@@ -4,6 +4,7 @@ import type { OpenPull, PullTarget } from '../common/navigation.types.ts'
 import { Screen, ScreenBody, ScreenHeader } from '../common/screen.component.tsx'
 import { FileTree } from './file-tree.component.tsx'
 import { PullHeader } from './pull-header.component.tsx'
+import { PullLoading } from './pull-loading.component.tsx'
 import { PullSidePanels } from './pull-side-panels.component.tsx'
 import { PullTabs } from './pull-tabs.component.tsx'
 import { StackBar } from './stack-bar.component.tsx'
@@ -73,11 +74,7 @@ export function PullView(props: PullViewProps) {
     )
   }
   if (!pr) {
-    return (
-      <div className="flex h-full items-center justify-center text-muted">
-        Loading {props.pull.repo}#{props.pull.number}…
-      </div>
-    )
+    return <PullLoading pull={props.pull} stack={v.stack} tab={v.tab} onTab={v.setTab} onOpenPull={props.onOpenPull} />
   }
   return (
     <ReactionsContext value={v.setReaction}>

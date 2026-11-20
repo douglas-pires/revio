@@ -5,6 +5,7 @@ import { MS_PER_MINUTE } from '@shared/time.util.ts'
 import { useCallback, useEffect, useRef, useState } from 'react'
 import { errorMessage } from '../common/format.util.ts'
 import { hasSameContent } from './pull-content.util.ts'
+import { knownStackOf, rememberStack } from './stack-memory.util.ts'
 
 /** A prefetched copy this recent is shown immediately. */
 const PREFETCH_MAX_AGE_MS = 2 * MS_PER_MINUTE
@@ -19,13 +20,21 @@ function keepIfSame(prev: PullDetail | null, next: PullDetail) {
   return next
 }
 
-/** The stack the PR belongs to, or null when it is not stacked (or the lookup failed). */
+/**
+ * The stack the PR belongs to, or null when it is not stacked (or the lookup failed). Moving along a stack starts
+ * from the stack you came from, so its bar shows at once instead of after the lookup.
+ */
 function usePullStack(pull: PullRef) {
-  const [stack, setStack] = useState<Stack | null>(null)
+  const [stack, setStack] = useState<Stack | null>(() => knownStackOf(pull))
   useEffect(() => {
     globalThis.revio
       .getStack(pull)
-      .then(setStack)
+      .then((found) => {
+        if (found) {
+          rememberStack(found)
+        }
+        setStack(found)
+      })
       .catch(() => setStack(null))
   }, [pull])
   return stack

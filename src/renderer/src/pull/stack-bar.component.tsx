@@ -1,7 +1,9 @@
 import type { Stack, StackPr } from '@shared/inbox.types.ts'
 import { isSamePull, type PullRef } from '@shared/pull.types.ts'
+import { useLayoutEffect, useRef } from 'react'
 import { cx } from '../common/format.util.ts'
 import type { OpenPull } from '../common/navigation.types.ts'
+import { rememberStackScroll, stackScrollOf } from './stack-memory.util.ts'
 
 /** The dot by each PR: waiting on you (red when stale), approved, changes requested, or neither. */
 function dotOf(p: StackPr) {
@@ -58,10 +60,43 @@ function StepButton({ pr, label, onOpen }: { pr: StackPr | undefined; label: str
   )
 }
 
+/** Whether an item is wholly outside the visible part of its scroller (a sliver showing still counts as in view). */
+function isOutOfView(item: DOMRect, view: DOMRect) {
+  return item.right <= view.left || item.left >= view.right
+}
+
+/** Marks the open PR in the chain, for screen readers and for scrolling it into view. */
+function currentMarker(current: boolean): 'page' | undefined {
+  let marker: 'page' | undefined
+  if (current) {
+    marker = 'page'
+  }
+  return marker
+}
+
 /** Every PR of the stack in order, the open one marked. */
 function StackChain({ stack, index, onOpen }: { stack: Stack; index: number; onOpen: OpenPull }) {
+  const scroller = useRef<HTMLDivElement>(null)
+  // Each PR's view draws a new bar: put it back where you had it scrolled, then bring the open PR into view if needed.
+  useLayoutEffect(() => {
+    const el = scroller.current
+    if (!el) {
+      return
+    }
+    el.scrollLeft = stackScrollOf(stack)
+    const open = el.querySelector('[aria-current="page"]')
+    if (open && isOutOfView(open.getBoundingClientRect(), el.getBoundingClientRect())) {
+      open.scrollIntoView({ block: 'nearest', inline: 'nearest' })
+    }
+    // Scroll events can arrive late; the bar's position as it goes is what the next PR's bar starts from.
+    return () => rememberStackScroll(stack, el.scrollLeft)
+  }, [stack])
   return (
-    <div className="flex min-w-0 flex-1 items-center gap-1 overflow-x-auto">
+    <div
+      ref={scroller}
+      onScroll={(e) => rememberStackScroll(stack, e.currentTarget.scrollLeft)}
+      className="flex min-w-0 flex-1 items-center gap-1 overflow-x-auto"
+    >
       {stack.nodes.map(({ pr, depth }, i) => {
         const current = i === index
         return (
@@ -71,6 +106,7 @@ function StackChain({ stack, index, onOpen }: { stack: Stack; index: number; onO
               type="button"
               onClick={() => !current && onOpen(pr)}
               title={chainTitle(pr)}
+              aria-current={currentMarker(current)}
               className={cx(
                 'flex max-w-56 items-center gap-1.5 rounded px-1.5 py-0.5',
                 current && 'bg-hover font-semibold text-fg ring-1 ring-accent/60',
