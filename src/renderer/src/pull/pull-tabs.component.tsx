@@ -26,6 +26,7 @@ function BriefingCard({ v, pr }: { v: PullViewState; pr: PullDetail }) {
         v.nav.goTo(path, line)
       }}
       onAddToSummary={(q) => v.review.setBody((b) => withSummaryLine(b, q))}
+      summary={v.review.body}
     />
   )
 }

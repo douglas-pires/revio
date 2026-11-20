@@ -4,6 +4,7 @@ import {
   askHistory,
   draftFromAsk,
   fileTargetOf,
+  hasSummaryLine,
   markedAsAi,
   newSideOnly,
   quoteOf,
@@ -43,6 +44,12 @@ describe('small helpers', () => {
   it('adds summary bullets', () => {
     expect(withSummaryLine('', 'a')).toBe('- a')
     expect(withSummaryLine('- a', 'b')).toBe('- a\n- b')
+  })
+
+  it('does not add a summary bullet twice', () => {
+    expect(withSummaryLine('- a\n- b', 'a')).toBe('- a\n- b')
+    expect(hasSummaryLine('- a\n- b', 'b')).toBe(true)
+    expect(hasSummaryLine('- ab', 'a')).toBe(false)
   })
 
   it('keeps only new-side lines', () => {

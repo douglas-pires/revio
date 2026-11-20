@@ -2,6 +2,7 @@ import type { Briefing, BriefingRecord, FocusItem } from '@shared/claude.types.t
 import { ago, cx } from '../common/format.util.ts'
 import { Markdown } from '../common/markdown.component.tsx'
 import { CodeSnippet } from './code-snippet.component.tsx'
+import { hasSummaryLine } from './pull-view.util.ts'
 
 type Concern = Briefing['concerns'][number]
 type GuidelineCheck = Briefing['guidelineChecks'][number]
@@ -32,6 +33,8 @@ interface BriefingPanelProps {
   onJump: Jump
   onDraft: (path: string, line: number, body: string) => void
   onAddToSummary: (text: string) => void
+  /** The review summary being written, to show which questions are already in it. */
+  summary: string
   validLine: (path: string, line: number) => boolean
   /** The file's diff, for showing the code a concern points at. */
   patchOf: (path: string) => string | undefined
@@ -160,7 +163,36 @@ function ConcernsCard(
   )
 }
 
-function QuestionsCard({ questions, onAdd }: { questions: readonly string[]; onAdd: (text: string) => void }) {
+/** Adds a question to the review summary; once there, says so instead. */
+function AddQuestionButton({ added, onAdd }: { added: boolean; onAdd: () => void }) {
+  if (added) {
+    return (
+      <span className="shrink-0 text-[11.5px] text-ok" title="In the summary of the review you submit">
+        ✓ in review summary
+      </span>
+    )
+  }
+  return (
+    <button
+      type="button"
+      className="btn btn-ghost hidden shrink-0 py-0 group-hover:inline-flex"
+      title="Add this question to the summary of the review you submit"
+      onClick={onAdd}
+    >
+      + to review summary
+    </button>
+  )
+}
+
+function QuestionsCard({
+  questions,
+  summary,
+  onAdd,
+}: {
+  questions: readonly string[]
+  summary: string
+  onAdd: (text: string) => void
+}) {
   return (
     <Card title="Ask the author">
       <ul className="space-y-1.5">
@@ -168,13 +200,7 @@ function QuestionsCard({ questions, onAdd }: { questions: readonly string[]; onA
           <li key={q} className="group flex items-start gap-2">
             <span className="text-muted">?</span>
             <span className="flex-1 selectable">{q}</span>
-            <button
-              type="button"
-              className="btn btn-ghost hidden py-0 group-hover:inline-flex"
-              onClick={() => onAdd(q)}
-            >
-              + to review
-            </button>
+            <AddQuestionButton added={hasSummaryLine(summary, q)} onAdd={() => onAdd(q)} />
           </li>
         ))}
       </ul>
@@ -269,7 +295,9 @@ export function BriefingPanel(props: BriefingPanelProps) {
       </Card>
       {b.focus.length > 0 && <FocusCard focus={b.focus} onJump={props.onJump} />}
       {b.concerns.length > 0 && <ConcernsCard {...props} concerns={b.concerns} />}
-      {b.questions.length > 0 && <QuestionsCard questions={b.questions} onAdd={props.onAddToSummary} />}
+      {b.questions.length > 0 && (
+        <QuestionsCard questions={b.questions} summary={props.summary} onAdd={props.onAddToSummary} />
+      )}
       {b.guidelineChecks.length > 0 && <GuidesCard checks={b.guidelineChecks} />}
       {b.ignore.length > 0 && <SkimCard ignore={b.ignore} />}
       {record.omittedFiles.length > 0 && (
