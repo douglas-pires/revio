@@ -2,6 +2,7 @@ import type { AskMessage, AskThread } from '@shared/claude.types.ts'
 import type { PullRef } from '@shared/pull.types.ts'
 import { useEffect, useState } from 'react'
 import { errorMessage } from '../common/format.util.ts'
+import { type AskProgress, finishedProgress, startProgress, withActivity } from './ask-progress.util.ts'
 
 /**
  * Asking Claude about a selection: the question being typed, the answer streaming in (`pending`, null when idle)
@@ -11,12 +12,16 @@ export function useAskConversation(pull: PullRef, thread: AskThread, onChange: (
   const [question, setQuestion] = useState('')
   const [pending, setPending] = useState<string | null>(null)
   const [error, setError] = useState<string | null>(null)
+  const [progress, setProgress] = useState<AskProgress | null>(null)
 
   useEffect(
     () =>
       globalThis.revio.onEvent((e) => {
         if (e.type === 'ask-delta' && e.threadId === thread.id) {
           setPending((p) => (p ?? '') + e.text)
+        }
+        if (e.type === 'ask-activity' && e.threadId === thread.id) {
+          setProgress((p) => p && withActivity(p, e.activity))
         }
       }),
     [thread.id],
@@ -37,11 +42,15 @@ export function useAskConversation(pull: PullRef, thread: AskThread, onChange: (
     onChange(asked)
     setQuestion('')
     setPending('')
+    setProgress(startProgress(thread.id, Date.now()))
     setError(null)
     try {
       const { answer } = await globalThis.revio.askClaude(pull, asked)
       onChange({ ...asked, messages: [...asked.messages, { role: 'assistant', content: answer }] })
+      // Kept above the answer, folded, so you can see how it came about.
+      setProgress((p) => p && finishedProgress(p, Date.now()))
     } catch (e) {
+      setProgress(null)
       setError(errorMessage(e))
       // Drop the unanswered question so it can be retried or edited.
       onChange(thread)
@@ -51,5 +60,5 @@ export function useAskConversation(pull: PullRef, thread: AskThread, onChange: (
     }
   }
 
-  return { question, setQuestion, pending, error, setError, send }
+  return { question, setQuestion, pending, progress, error, setError, send }
 }

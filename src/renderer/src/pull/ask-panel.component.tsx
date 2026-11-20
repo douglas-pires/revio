@@ -5,6 +5,7 @@ import { CopyButton } from '../common/copy-button.component.tsx'
 import { cx } from '../common/format.util.ts'
 import { Markdown } from '../common/markdown.component.tsx'
 import { withPositions } from '../common/numbered-lines.util.ts'
+import { FinishedActivity, PendingAnswer } from './ask-activity.component.tsx'
 import { PendingContext, SentContext } from './ask-context.component.tsx'
 import { AskHistory } from './ask-history.component.tsx'
 import { snippetRows } from './diff.util.ts'
@@ -61,18 +62,6 @@ function AskMessage({ message, onUseAsDraft }: { message: AskMessageType; onUseA
       </div>
     </div>
   )
-}
-
-/** The answer as it streams in, or a waiting note before the first words. */
-function PendingAnswer({ text }: { text: string }) {
-  if (!text) {
-    return (
-      <div className="flex items-center gap-2 text-muted">
-        <span className="size-2 animate-pulse rounded-full bg-accent" /> Reading the file and the PR…
-      </div>
-    )
-  }
-  return <Markdown className="text-[13px]">{text}</Markdown>
 }
 
 /** The selected code with a link to it and a copy button. */
@@ -139,9 +128,14 @@ function AskConversation({
     >
       <SelectionSnippet thread={thread} onJump={props.onJump} />
       {withPositions(thread.messages).map(({ item, position }) => (
-        <AskMessage key={position} message={item} onUseAsDraft={(body) => props.onUseAsDraft(thread, body)} />
+        <div key={position} className="space-y-2">
+          {position === thread.messages.length && item.role === 'assistant' && (
+            <FinishedActivity progress={chat.progress} threadId={thread.id} />
+          )}
+          <AskMessage message={item} onUseAsDraft={(body) => props.onUseAsDraft(thread, body)} />
+        </div>
       ))}
-      {chat.pending !== null && <PendingAnswer text={chat.pending} />}
+      {chat.pending !== null && <PendingAnswer text={chat.pending} progress={chat.progress} />}
       {chat.error !== null && <p className="selectable text-danger">{chat.error}</p>}
       {thread.messages.length === 0 && chat.pending === null && (
         <div className="flex flex-wrap gap-1.5">

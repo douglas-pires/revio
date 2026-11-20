@@ -25,6 +25,8 @@ export interface BriefingRecord {
   /** Files whose diff was not sent to Claude (binary, or over the size budget). */
   omittedFiles: string[]
 }
+/** What Claude is doing while it answers: a step it started, or a piece of its (summarised) reasoning. */
+export type AskActivity = { kind: 'step'; label: string } | { kind: 'thinking'; text: string }
 /** Lines of the diff given to Claude: where they are and how they read. */
 export interface AskContext {
   path: string
