@@ -22,6 +22,8 @@ export interface Settings {
   editor: string
   /** Extra folders to look for local clones in, besides your home folder. */
   codeFolders: string[]
+  /** Sync the synced settings and the review guides with your other Macs through iCloud Drive. */
+  syncViaIcloud: boolean
   /** Secrets are never sent back to the renderer, only whether they are set. */
   hasGithubToken: boolean
   hasAnthropicKey: boolean
@@ -41,4 +43,12 @@ export interface SettingsPatch extends Partial<Omit<Settings, 'hasGithubToken' |
   /** null clears the stored token. */
   githubToken?: string | null
   anthropicApiKey?: string | null
+}
+/** Where syncing through iCloud stands on this Mac. */
+export interface SyncStatus {
+  state: 'off' | 'synced' | 'downloading' | 'unavailable' | 'error'
+  /** When this Mac last read and wrote the synced copy. */
+  lastSyncedAt: string | null
+  /** Why syncing is unavailable or failed. */
+  message: string | null
 }

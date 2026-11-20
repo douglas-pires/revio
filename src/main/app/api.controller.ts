@@ -18,6 +18,7 @@ import { commentOnPull, fetchFileAt, replyToComment, submitReview } from '../pul
 import { setReaction } from '../reactions/reactions.service.ts'
 import { fetchStack } from '../stacks/stacks.service.ts'
 import type { store as appStore } from '../store/store.service.ts'
+import type { IcloudSync } from '../sync/icloud-sync.service.ts'
 import type { ThreadCache } from '../threads/threads.cache.ts'
 import { replyToThread, setThreadResolved } from '../threads/threads.service.ts'
 import type { UpdatePoller } from '../updates/update.poller.ts'
@@ -27,28 +28,32 @@ type ApiHandlers = {
   [K in ApiMethod]: (...args: Parameters<RevioApi[K]>) => ReturnType<RevioApi[K]> | Awaited<ReturnType<RevioApi[K]>>
 }
 
-const INBOX_SETTINGS = ['githubToken', 'includeTeamRequests', 'ignoreDrafts', 'staleAfterHours'] as const
+const INBOX_SETTINGS: readonly string[] = ['githubToken', 'includeTeamRequests', 'ignoreDrafts', 'staleAfterHours']
 
-function settingsHandlers({
-  store,
-  tokens,
-  poller,
-}: ApiDeps): Pick<ApiHandlers, 'getSettings' | 'updateSettings' | 'githubAuthStatus' | 'saveGithubToken'> {
+type SettingsMethods =
+  | 'getSettings'
+  | 'updateSettings'
+  | 'githubAuthStatus'
+  | 'saveGithubToken'
+  | 'getSyncStatus'
+  | 'syncNow'
+
+function settingsHandlers({ store, tokens, poller, sync }: ApiDeps): Pick<ApiHandlers, SettingsMethods> {
   return {
     getSettings: () => store.settings(),
     updateSettings: (patch) => {
       store.updateSettings(patch)
-      if (patch.githubToken !== undefined) {
-        resetClient()
-      }
-      if (patch.pollIntervalMinutes !== undefined) {
-        poller.reschedule()
-      }
-      if (INBOX_SETTINGS.some((key) => patch[key] !== undefined)) {
-        poller.poll()
+      reactToSettings(
+        poller,
+        Object.keys(patch).filter((key) => patch[key as keyof typeof patch] !== undefined),
+      )
+      if (patch.syncViaIcloud !== undefined) {
+        sync.refresh()
       }
       return store.settings()
     },
+    getSyncStatus: () => sync.status,
+    syncNow: () => sync.syncNow(),
     githubAuthStatus: () => tokens.describe(),
     saveGithubToken: async (token) => {
       await tokens.verifyAndSave(token)
@@ -237,6 +242,7 @@ export interface ApiDeps {
   threads: ThreadCache
   mentions: MentionWatcher
   editor: EditorService
+  sync: IcloudSync
   window: AppWindow
 }
 
@@ -271,4 +277,17 @@ export function registerApi(deps: ApiDeps) {
     const fn = handlers[method] as (...a: unknown[]) => unknown
     return fn(...args)
   })
+}
+
+/** Lets the inbox catch up with changed settings, whether changed here or synced from another Mac. */
+export function reactToSettings(poller: Pick<InboxPoller, 'reschedule' | 'poll'>, changed: readonly string[]) {
+  if (changed.includes('githubToken')) {
+    resetClient()
+  }
+  if (changed.includes('pollIntervalMinutes')) {
+    poller.reschedule()
+  }
+  if (changed.some((key) => INBOX_SETTINGS.includes(key))) {
+    poller.poll()
+  }
 }

@@ -26,6 +26,8 @@ const methods = [
   'updateSettings',
   'githubAuthStatus',
   'saveGithubToken',
+  'getSyncStatus',
+  'syncNow',
   'getInbox',
   'getMentions',
   'refreshMentions',

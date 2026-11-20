@@ -1,11 +1,13 @@
 import type { Settings as S, SettingsPatch } from '@shared/settings.types.ts'
-import { useEffect, useState } from 'react'
+import { useCallback, useEffect, useState } from 'react'
 import { errorMessage } from '../common/format.util.ts'
 import { Screen, ScreenBody, ScreenHeader } from '../common/screen.component.tsx'
 import { SectionHeading } from '../common/section-heading.component.tsx'
 import { UpdateSettings } from '../updates/update-settings.component.tsx'
 import { EditorSettings } from './editor-settings.component.tsx'
 import { GithubTokenSettings } from './github-token-settings.component.tsx'
+import { SyncSettings } from './sync-settings.component.tsx'
+import { useSyncStatus } from './use-sync-status.hook.ts'
 
 function Group({ title, children }: { title: string; children: React.ReactNode }) {
   return (
@@ -185,6 +187,15 @@ function ClaudeGroup({ s, update }: { s: S; update: Update }) {
 export function Settings() {
   const [s, setS] = useState<S | null>(null)
   const [msg, setMsg] = useState<string | null>(null)
+  // Bumped when another Mac's settings come in, so the fields that keep their own text show the new values.
+  const [revision, setRevision] = useState(0)
+  const reload = useCallback(() => {
+    globalThis.revio.getSettings().then((next) => {
+      setS(next)
+      setRevision((r) => r + 1)
+    })
+  }, [])
+  const syncStatus = useSyncStatus(reload)
 
   useEffect(() => {
     globalThis.revio.getSettings().then(setS)
@@ -209,7 +220,7 @@ export function Settings() {
       header={
         <ScreenHeader
           title="Settings"
-          subtitle="GitHub, alerts, your editor and Claude"
+          subtitle="GitHub, alerts, your editor, Claude and sync"
           actions={Boolean(msg) && <span className="text-muted">{msg}</span>}
         />
       }
@@ -234,9 +245,13 @@ export function Settings() {
             <EditorSettings settings={s} update={update} />
           </Group>
 
-          <AlertsGroup s={s} update={update} />
+          <AlertsGroup key={`alerts-${revision}`} s={s} update={update} />
 
-          <ClaudeGroup s={s} update={update} />
+          <ClaudeGroup key={`claude-${revision}`} s={s} update={update} />
+
+          <Group title="Sync">
+            <SyncSettings settings={s} status={syncStatus} update={update} />
+          </Group>
         </div>
       </ScreenBody>
     </Screen>

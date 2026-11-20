@@ -7,7 +7,7 @@ import type { Inbox, Stack } from './inbox.types.ts'
 import type { MentionsInbox } from './mention.types.ts'
 import type { DraftComment, PullDetail, PullLocalState, PullRef, SubmitReviewInput } from './pull.types.ts'
 import type { ReactionContent, ReactionSummary } from './reaction.types.ts'
-import type { GithubAuthStatus, Settings, SettingsPatch } from './settings.types.ts'
+import type { GithubAuthStatus, Settings, SettingsPatch, SyncStatus } from './settings.types.ts'
 import type { ThreadComment, ThreadsInbox } from './thread.types.ts'
 import type { UpdateStatus } from './update.types.ts'
 
@@ -19,6 +19,10 @@ export interface RevioApi {
   githubAuthStatus: () => Promise<GithubAuthStatus>
   /** Verifies the token with GitHub, then stores it encrypted and refreshes the inbox. */
   saveGithubToken: (token: string) => Promise<GithubAuthStatus>
+  /** Where syncing settings and guides through iCloud stands. */
+  getSyncStatus: () => Promise<SyncStatus>
+  /** Syncs with iCloud now, when syncing is on. */
+  syncNow: () => Promise<SyncStatus>
 
   getInbox: () => Promise<Inbox | null>
   /** PRs that mention you or your teams recently (the last fetch, or a fresh one the first time). */

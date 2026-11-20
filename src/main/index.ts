@@ -2,7 +2,7 @@ import { readFileSync } from 'node:fs'
 import { join } from 'node:path'
 import { app, BrowserWindow } from 'electron'
 import { showNotification } from './alerts/notification.service.ts'
-import { registerApi } from './app/api.controller.ts'
+import { reactToSettings, registerApi } from './app/api.controller.ts'
 import { installAppMenu } from './app/app.menu.ts'
 import { AppWindow } from './app/app.window.ts'
 import { env } from './common/env.config.ts'
@@ -20,6 +20,7 @@ import { PullCache } from './pulls/pull.cache.ts'
 import { fetchPull } from './pulls/pull.service.ts'
 import { StackFinder } from './stacks/stacks.service.ts'
 import { flush, store } from './store/store.service.ts'
+import { ICLOUD_DRIVE, IcloudSync } from './sync/icloud-sync.service.ts'
 import { ThreadCache } from './threads/threads.cache.ts'
 import { fetchThreads } from './threads/threads.service.ts'
 import { releaseSourceOf } from './updates/release.util.ts'
@@ -92,7 +93,15 @@ const poller = new InboxPoller({
 })
 
 const editor = new EditorService(() => store.settings())
-registerApi({ store, tokens, poller, pulls, history, updates, threads, mentions, editor, window })
+const sync = new IcloudSync({
+  drive: ICLOUD_DRIVE,
+  enabled: () => store.settings().syncViaIcloud,
+  local: () => store.syncSnapshot(),
+  apply: (snapshot) => reactToSettings(poller, store.applySyncSnapshot(snapshot).settings),
+  onStatus: (status, applied) => window.send({ type: 'sync', status, applied }),
+})
+store.onSyncedChange(() => sync.localChanged())
+registerApi({ store, tokens, poller, pulls, history, updates, threads, mentions, editor, sync, window })
 
 app.setName('Revio')
 
@@ -111,6 +120,7 @@ app.whenReady().then(() => {
   }
   window.create()
   poller.start()
+  sync.refresh()
   app.on('activate', () => {
     if (BrowserWindow.getAllWindows().length === 0) {
       window.create()
@@ -125,4 +135,7 @@ app.on('window-all-closed', () => {
   }
 })
 
-app.on('before-quit', flush)
+app.on('before-quit', () => {
+  sync.flush()
+  flush()
+})

@@ -113,6 +113,17 @@ function useGuideEditing(initialRepo: string | undefined, initialPath: string | 
     })
   }, [initialRepo, initialPath, load])
 
+  // Guides synced in from another Mac show up without leaving the page; unsaved edits stay as drafts.
+  useEffect(
+    () =>
+      globalThis.revio.onEvent((e) => {
+        if (e.type === 'sync' && e.applied) {
+          load()
+        }
+      }),
+    [load],
+  )
+
   const discard = () => {
     if (draft) {
       edits.update((ds) => withoutDraft(ds, draftKeyOf(draft)))

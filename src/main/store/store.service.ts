@@ -6,6 +6,8 @@ import type { Settings } from '@shared/settings.types.ts'
 import { app, safeStorage } from 'electron'
 import type { AlertState } from '../alerts/alerts.util.ts'
 import { pruneStalePulls } from '../pulls/pull-state.util.ts'
+import type { SyncedSettingKey, SyncSnapshot } from '../sync/sync.types.ts'
+import { isSyncedSetting, SYNC_FORMAT, SYNCED_SETTING_KEYS } from '../sync/sync-merge.util.ts'
 
 /** Writes are batched: a burst of changes within this window is saved once. */
 const SAVE_DELAY_MS = 150
@@ -18,11 +20,18 @@ type StoredSettings = Omit<Settings, 'hasGithubToken' | 'hasAnthropicKey'> & {
   anthropicKeyEnc?: string | undefined
 }
 
+/** What syncing needs to merge with other Macs: when each synced setting changed, and which guides were deleted. */
+interface SyncState {
+  settingsUpdatedAt: Partial<Record<SyncedSettingKey, string>>
+  deletedGuidelines: Record<string, string>
+}
+
 interface Db {
   settings: StoredSettings
   guidelines: Guideline[]
   pulls: Record<string, PullLocalState>
   alerts: AlertState
+  sync: SyncState
 }
 
 const DEFAULT_SETTINGS: StoredSettings = {
@@ -39,6 +48,7 @@ const DEFAULT_SETTINGS: StoredSettings = {
   claudeModel: 'claude-opus-5-5',
   editor: '',
   codeFolders: [],
+  syncViaIcloud: false,
 }
 
 const DEFAULT_GUIDELINES: Guideline[] = [
@@ -77,6 +87,7 @@ function load(): Db {
     guidelines: DEFAULT_GUIDELINES,
     pulls: {},
     alerts: { requested: {}, staleAlertedAt: {}, seeded: false, mentionsAlerted: {}, mentionsSeeded: false },
+    sync: { settingsUpdatedAt: {}, deletedGuidelines: {} },
   }
   try {
     if (existsSync(file())) {
@@ -86,6 +97,7 @@ function load(): Db {
         guidelines: raw.guidelines ?? fresh.guidelines,
         pulls: pruneStalePulls(raw.pulls ?? {}),
         alerts: { ...fresh.alerts, ...raw.alerts },
+        sync: { ...fresh.sync, ...raw.sync },
       }
       return db
     }
@@ -134,6 +146,29 @@ function decrypt(value: string | undefined): string | undefined {
   }
 }
 
+const sameValue = (a: unknown, b: unknown) => JSON.stringify(a) === JSON.stringify(b)
+
+let onSyncedChange: (() => void) | null = null
+
+/** Tells the sync service that something it syncs changed here. */
+function syncedChanged() {
+  onSyncedChange?.()
+}
+
+/** Notes when each synced setting in the patch changed; true when any did. */
+function stampSettings(d: Db, patch: Record<string, unknown>) {
+  const now = new Date().toISOString()
+  const current = d.settings as unknown as Record<string, unknown>
+  let changed = false
+  for (const [key, value] of Object.entries(patch)) {
+    if (isSyncedSetting(key) && value !== undefined && !sameValue(current[key], value)) {
+      d.sync.settingsUpdatedAt[key] = now
+      changed = true
+    }
+  }
+  return changed
+}
+
 export function flush() {
   if (!db) {
     return
@@ -152,6 +187,7 @@ export const store = {
   updateSettings(patch: Partial<StoredSettings> & { githubToken?: string | null; anthropicApiKey?: string | null }) {
     const s = load().settings
     const { githubToken, anthropicApiKey, ...rest } = patch
+    const synced = stampSettings(load(), rest)
     Object.assign(s, rest)
     if (githubToken !== undefined) {
       s.githubTokenEnc = encryptOrClear(githubToken)
@@ -160,14 +196,71 @@ export const store = {
       s.anthropicKeyEnc = encryptOrClear(anthropicApiKey)
     }
     save()
+    if (synced) {
+      syncedChanged()
+    }
   },
   githubToken: () => decrypt(load().settings.githubTokenEnc),
   anthropicKey: () => decrypt(load().settings.anthropicKeyEnc),
 
   guidelines: () => load().guidelines,
+  /** Replaces the guides, remembering the ones removed so syncing deletes them on your other Macs too. */
   setGuidelines(list: Guideline[]) {
-    load().guidelines = list
+    const d = load()
+    const kept = new Set(list.map((g) => g.id))
+    const now = new Date().toISOString()
+    for (const g of d.guidelines) {
+      if (!kept.has(g.id)) {
+        d.sync.deletedGuidelines[g.id] = now
+      }
+    }
+    d.guidelines = list
     save()
+    syncedChanged()
+  },
+
+  /** Calls `listener` whenever a synced setting or a guide changes on this Mac. */
+  onSyncedChange(listener: () => void) {
+    onSyncedChange = listener
+  },
+  /** The synced settings and the guides, as syncing merges them. */
+  syncSnapshot(): SyncSnapshot {
+    const d = load()
+    const current = d.settings as unknown as Record<string, unknown>
+    const settings = Object.fromEntries(
+      SYNCED_SETTING_KEYS.map((key) => [
+        key,
+        { value: current[key], updatedAt: d.sync.settingsUpdatedAt[key] ?? null },
+      ]),
+    )
+    return {
+      format: SYNC_FORMAT,
+      settings,
+      guidelines: d.guidelines,
+      deletedGuidelines: { ...d.sync.deletedGuidelines },
+    }
+  },
+  /** Takes in a merged snapshot without counting it as a change made here; says which settings and whether guides changed. */
+  applySyncSnapshot(snapshot: SyncSnapshot): { settings: SyncedSettingKey[]; guidelines: boolean } {
+    const d = load()
+    const current = d.settings as unknown as Record<string, unknown>
+    const stamped = snapshot.settings as Record<string, { value: unknown; updatedAt: string | null } | undefined>
+    const changed: SyncedSettingKey[] = []
+    for (const key of SYNCED_SETTING_KEYS) {
+      const entry = stamped[key]
+      if (entry && !sameValue(current[key], entry.value)) {
+        current[key] = entry.value
+        changed.push(key)
+      }
+      if (entry?.updatedAt) {
+        d.sync.settingsUpdatedAt[key] = entry.updatedAt
+      }
+    }
+    const guidelines = !sameValue(d.guidelines, snapshot.guidelines)
+    d.guidelines = snapshot.guidelines
+    d.sync.deletedGuidelines = { ...snapshot.deletedGuidelines }
+    save()
+    return { settings: changed, guidelines }
   },
 
   pull(key: string): PullLocalState {
