@@ -17,7 +17,12 @@ import {
 
 const HOUR = 36e5
 const NOW = Date.parse('2026-11-16T12:00:00Z')
-const settings: AlertSettings = { notifyOnRequest: true, notifyOnStale: true, staleRepeatHours: 24 }
+const settings: AlertSettings = {
+  notifyOnRequest: true,
+  notifyOnReRequest: true,
+  notifyOnStale: true,
+  staleRepeatHours: 24,
+}
 const makeInbox = (...requested: PullSummary[]): Inbox => ({
   viewer: 'me',
   requested,
@@ -82,9 +87,35 @@ describe('raiseAlerts', () => {
     runAlerts(makeInbox(makeSummary({ stale: true })), notify, NOW, {
       ...settings,
       notifyOnRequest: false,
+      notifyOnReRequest: false,
       notifyOnStale: false,
     })
     expect(notify).not.toHaveBeenCalled()
+  })
+})
+
+describe('re-requested reviews', () => {
+  it('calls it a re-review when you reviewed the PR before it came back to your queue', () => {
+    const notify = vi.fn()
+    runAlerts(makeInbox(makeSummary()), notify, NOW)
+    // Your review took you off the reviewers, so the PR left your queue; then the author asked again.
+    runAlerts(makeInbox(), notify, NOW)
+    const again = makeSummary({ requestedAt: '2026-11-12T09:00:00Z', yourLastReviewAt: '2026-11-11T16:00:00Z' })
+    runAlerts(makeInbox(again), notify, NOW)
+    expect(notify.mock.calls.map((c) => c[0])).toEqual(['Review requested', 'Re-review requested'])
+  })
+
+  it('has separate switches for new requests and re-requests', () => {
+    const notify = vi.fn()
+    const fresh = makeSummary({ id: 'PR_new' })
+    const again = makeSummary({ id: 'PR_again', yourLastReviewAt: '2026-11-11T16:00:00Z' })
+    runAlerts(makeInbox(fresh, again), notify, NOW, { ...settings, notifyOnReRequest: false })
+    expect(notify.mock.calls.map((c) => c[1])).toEqual(['acme/web#1 · Add thing\nby ana'])
+    expect(notify).toHaveBeenCalledOnce()
+    const quiet = vi.fn()
+    state.requested = {}
+    runAlerts(makeInbox(fresh, again), quiet, NOW, { ...settings, notifyOnRequest: false })
+    expect(quiet.mock.calls.map((c) => c[0])).toEqual(['Re-review requested'])
   })
 })
 

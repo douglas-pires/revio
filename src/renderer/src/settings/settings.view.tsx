@@ -78,9 +78,14 @@ function AlertsGroup({ s, update }: { s: S; update: Update }) {
   return (
     <Group title="Alerts">
       <Toggle
-        label="Notify when a review is requested (or re-requested)"
+        label="Notify when a review is requested"
         checked={s.notifyOnRequest}
         onChange={(v) => update({ notifyOnRequest: v })}
+      />
+      <Toggle
+        label="Notify when a review is requested again on a PR you already reviewed"
+        checked={s.notifyOnReRequest}
+        onChange={(v) => update({ notifyOnReRequest: v })}
       />
       <Toggle
         label="Notify when a review goes stale"
