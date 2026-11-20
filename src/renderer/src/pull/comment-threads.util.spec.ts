@@ -4,6 +4,7 @@ import {
   groupCommentThreads,
   indexFileComments,
   matchingComment,
+  newComments,
   searchDrafts,
   searchThreads,
 } from '@/pull/comment-threads.util.ts'
@@ -121,5 +122,34 @@ describe('searching comments', () => {
     expect(searchDrafts(drafts, 'TYPO')).toHaveLength(1)
     expect(searchDrafts(drafts, 'x.ts')).toHaveLength(1)
     expect(searchDrafts(drafts, 'zzz')).toEqual([])
+  })
+})
+
+describe('newComments', () => {
+  const thread = expectPresent(
+    groupCommentThreads(
+      [
+        makeComment(1, { author: 'me' }),
+        makeComment(2, { inReplyTo: 1, author: 'bo' }),
+        makeComment(4, { inReplyTo: 1, author: 'me' }),
+        makeComment(5, { inReplyTo: 1, author: 'bo' }),
+      ],
+      [],
+      ['b.ts'],
+    )[0],
+  )
+
+  it("lists others' comments after your last review", () => {
+    const fresh = newComments(thread, { viewer: 'me', since: '2026-11-03T00:00:00Z' })
+    expect(fresh.map((c) => c.id)).toEqual([5])
+  })
+
+  it('leaves out your own comments', () => {
+    const fresh = newComments(thread, { viewer: 'me', since: '2026-11-01T12:00:00Z' })
+    expect(fresh.map((c) => c.id)).toEqual([2, 5])
+  })
+
+  it('is empty before your first review', () => {
+    expect(newComments(thread, { viewer: 'me', since: null })).toEqual([])
   })
 })
