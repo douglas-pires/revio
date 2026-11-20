@@ -10,31 +10,31 @@ import { useGitLog } from './use-git-log.hook.ts'
  * with filters in the middle, the picked commit's files and message on the right. CI results come from GitHub.
  */
 export function GitLog() {
-  const log = useGitLog()
+  const gitLog = useGitLog()
   return (
     <div className="flex h-full min-h-0 flex-col">
       <ScreenHeader
         title="Git log"
-        subtitle={log.repos?.find((r) => r.repo === log.repo)?.path}
+        subtitle={gitLog.repos?.find((localRepo) => localRepo.repo === gitLog.repo)?.path}
         actions={
           <>
             <select
               className="input w-auto max-w-72 py-1 text-[12px]"
               aria-label="Repository"
-              value={log.repo}
-              onChange={(e) => log.setRepo(e.target.value)}
+              value={gitLog.repo}
+              onChange={(event) => gitLog.setRepo(event.target.value)}
             >
-              {log.repos?.map((r) => (
-                <option key={r.repo} value={r.repo}>
-                  {r.repo}
+              {gitLog.repos?.map((localRepo) => (
+                <option key={localRepo.repo} value={localRepo.repo}>
+                  {localRepo.repo}
                 </option>
               ))}
             </select>
             <button
               type="button"
               className="btn"
-              onClick={log.reload}
-              disabled={log.loading}
+              onClick={gitLog.reload}
+              disabled={gitLog.loading}
               title="Read the log again"
             >
               ⟳
@@ -42,37 +42,37 @@ export function GitLog() {
           </>
         }
       />
-      {Boolean(log.error) && <ErrorBanner className="m-3">{log.error}</ErrorBanner>}
-      {log.repos !== null && log.repos.length === 0 && (
+      {Boolean(gitLog.error) && <ErrorBanner className="m-3">{gitLog.error}</ErrorBanner>}
+      {gitLog.repos !== null && gitLog.repos.length === 0 && (
         <div className="p-8 text-center text-muted">
           No local clones found. Add the folders that hold your repositories under Settings → Editor.
         </div>
       )}
-      {Boolean(log.repo) && (
+      {Boolean(gitLog.repo) && (
         <div className="flex min-h-0 flex-1">
           <BranchPanel
-            branches={log.branches}
-            picked={log.filters.branch}
-            onPick={(branch) => log.setFilters({ ...log.filters, branch })}
+            branches={gitLog.branches}
+            picked={gitLog.filters.branch}
+            onPick={(branch) => gitLog.setFilters({ ...gitLog.filters, branch })}
           />
           <CommitList
-            commits={log.commits}
-            branches={log.branches}
-            filters={log.filters}
-            onFilters={log.setFilters}
-            ci={log.ci}
-            selected={log.commit.selected}
-            onSelect={log.commit.setSelected}
-            loading={log.loading}
-            more={log.more}
-            onLoadMore={log.loadMore}
+            commits={gitLog.commits}
+            branches={gitLog.branches}
+            filters={gitLog.filters}
+            onFilters={gitLog.setFilters}
+            ci={gitLog.ci}
+            selected={gitLog.commit.selected}
+            onSelect={gitLog.commit.setSelected}
+            loading={gitLog.loading}
+            more={gitLog.more}
+            onLoadMore={gitLog.loadMore}
           />
           <CommitDetailPanel
-            repo={log.repo}
-            hash={log.commit.selected}
-            detail={log.commit.detail}
-            ci={log.ci[log.commit.selected ?? '']}
-            error={log.commit.error}
+            repo={gitLog.repo}
+            hash={gitLog.commit.selected}
+            detail={gitLog.commit.detail}
+            ci={gitLog.ci[gitLog.commit.selected ?? '']}
+            error={gitLog.commit.error}
           />
         </div>
       )}

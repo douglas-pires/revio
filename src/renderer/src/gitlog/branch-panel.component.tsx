@@ -1,24 +1,24 @@
 import type { Branch, Branches } from '@shared/git-log.types.ts'
 import { useState } from 'react'
 import { cx } from '../common/format.util.ts'
-import { type BranchFolder, branchTree, filterBranches, leafName } from './branch-tree.util.ts'
+import { type BranchFolder, buildBranchTree, filterBranches, readLeafName } from './branch-tree.util.ts'
 
 /** Indent per folder level. */
 const INDENT_PX = 12
 /** Space before the first level. */
 const BASE_PAD_PX = 8
 
-const padOf = (depth: number) => ({ paddingLeft: depth * INDENT_PX + BASE_PAD_PX })
+const indentByDepth = (depth: number) => ({ paddingLeft: depth * INDENT_PX + BASE_PAD_PX })
 
 /** ★ marks the branch checked out, ⎇ the others. */
-function branchIcon(current: boolean) {
+function pickBranchIcon(current: boolean) {
   if (current) {
     return '★'
   }
   return '⎇'
 }
 
-function folderArrow(open: boolean) {
+function pickFolderArrow(open: boolean) {
   if (open) {
     return '▾'
   }
@@ -42,7 +42,7 @@ function BranchRow(props: { branch: Branch; label: string; depth: number; active
     <button
       type="button"
       // biome-ignore lint/style/noInlineStyles: the indent follows the folder depth.
-      style={padOf(props.depth)}
+      style={indentByDepth(props.depth)}
       className={cx(
         'flex w-full items-center gap-1.5 rounded py-0.5 pr-2 text-left text-[12px]',
         props.active && 'bg-accent/15 text-fg',
@@ -51,7 +51,9 @@ function BranchRow(props: { branch: Branch; label: string; depth: number; active
       title={props.branch.name}
       onClick={props.onPick}
     >
-      <span className={cx('shrink-0', props.branch.current && 'text-warn')}>{branchIcon(props.branch.current)}</span>
+      <span className={cx('shrink-0', props.branch.current && 'text-warn')}>
+        {pickBranchIcon(props.branch.current)}
+      </span>
       <span className="min-w-0 flex-1 truncate">{props.label}</span>
       <TrackCounts branch={props.branch} />
     </button>
@@ -67,27 +69,33 @@ function Folder(props: { folder: BranchFolder; depth: number; picked: string; on
         <button
           type="button"
           // biome-ignore lint/style/noInlineStyles: the indent follows the folder depth.
-          style={padOf(props.depth)}
+          style={indentByDepth(props.depth)}
           className="flex w-full items-center gap-1.5 rounded py-0.5 text-left text-[12px] text-muted hover:bg-hover"
           onClick={() => setOpen(!open)}
         >
-          <span className="w-2.5 shrink-0">{folderArrow(open)}</span>
+          <span className="w-2.5 shrink-0">{pickFolderArrow(open)}</span>
           <span className="truncate">{props.folder.name}</span>
         </button>
       )}
       {Boolean(open) &&
-        props.folder.folders.map((f) => (
-          <Folder key={f.path} folder={f} depth={props.depth + 1} picked={props.picked} onPick={props.onPick} />
+        props.folder.folders.map((folder) => (
+          <Folder
+            key={folder.path}
+            folder={folder}
+            depth={props.depth + 1}
+            picked={props.picked}
+            onPick={props.onPick}
+          />
         ))}
       {Boolean(open) &&
-        props.folder.branches.map((b) => (
+        props.folder.branches.map((branch) => (
           <BranchRow
-            key={b.name}
-            branch={b}
-            label={leafName(b.name)}
+            key={branch.name}
+            branch={branch}
+            label={readLeafName(branch.name)}
             depth={props.depth + 1}
-            active={b.name === props.picked}
-            onPick={() => props.onPick(b.name)}
+            active={branch.name === props.picked}
+            onPick={() => props.onPick(branch.name)}
           />
         ))}
     </>
@@ -101,7 +109,7 @@ function Section(props: { title: string; branches: Branch[]; picked: string; onP
   return (
     <div className="mb-2">
       <div className="px-2 pt-1 pb-0.5 text-[11px] font-semibold text-muted">{props.title}</div>
-      <Folder folder={branchTree(props.branches)} depth={-1} picked={props.picked} onPick={props.onPick} />
+      <Folder folder={buildBranchTree(props.branches)} depth={-1} picked={props.picked} onPick={props.onPick} />
     </div>
   )
 }
@@ -109,9 +117,9 @@ function Section(props: { title: string; branches: Branch[]; picked: string; onP
 /** Left pane: HEAD, local and remote branches as folders. Picking one shows its log; picking it again shows all. */
 export function BranchPanel(props: { branches: Branches | null; picked: string; onPick: (branch: string) => void }) {
   const [query, setQuery] = useState('')
-  const all = filterBranches(props.branches?.branches ?? [], query)
+  const matchingBranches = filterBranches(props.branches?.branches ?? [], query)
   // Picking the branch already shown goes back to every branch.
-  const toggle = (branch: string) => {
+  const toggleBranch = (branch: string) => {
     if (branch === props.picked) {
       props.onPick('')
     } else {
@@ -127,7 +135,7 @@ export function BranchPanel(props: { branches: Branches | null; picked: string; 
           placeholder="Branch"
           aria-label="Filter branches"
           value={query}
-          onChange={(e) => setQuery(e.target.value)}
+          onChange={(event) => setQuery(event.target.value)}
         />
       </div>
       <div className="min-h-0 flex-1 overflow-y-auto px-1 pb-2">
@@ -146,17 +154,22 @@ export function BranchPanel(props: { branches: Branches | null; picked: string; 
           <button
             type="button"
             className="w-full truncate rounded px-2 py-0.5 text-left text-[12px] text-muted hover:bg-hover hover:text-fg"
-            onClick={() => toggle(props.branches?.head ?? '')}
+            onClick={() => toggleBranch(props.branches?.head ?? '')}
           >
             HEAD (Current branch)
           </button>
         )}
-        <Section title="Local" branches={all.filter((b) => b.kind === 'local')} picked={props.picked} onPick={toggle} />
+        <Section
+          title="Local"
+          branches={matchingBranches.filter((branch) => branch.kind === 'local')}
+          picked={props.picked}
+          onPick={toggleBranch}
+        />
         <Section
           title="Remote"
-          branches={all.filter((b) => b.kind === 'remote')}
+          branches={matchingBranches.filter((branch) => branch.kind === 'remote')}
           picked={props.picked}
-          onPick={toggle}
+          onPick={toggleBranch}
         />
       </div>
     </aside>

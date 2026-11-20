@@ -8,10 +8,10 @@ type GitLogMethods = 'listLocalRepos' | 'getBranches' | 'getLog' | 'getCommit' |
 export function gitLogApi(editor: EditorService): Pick<RevioApi, GitLogMethods> {
   const gitLog = new GitLogService(editor)
   return {
-    listLocalRepos: async () => gitLog.repos(),
-    getBranches: (repo) => gitLog.branches(repo),
-    getLog: (repo, query) => gitLog.log(repo, query),
-    getCommit: (repo, hash) => gitLog.commit(repo, hash),
+    listLocalRepos: async () => gitLog.listRepos(),
+    getBranches: (repo) => gitLog.readBranches(repo),
+    getLog: (repo, query) => gitLog.readLog(repo, query),
+    getCommit: (repo, hash) => gitLog.readCommit(repo, hash),
     getCommitCi: (repo, hashes) => fetchCommitCi(repo, hashes),
   }
 }

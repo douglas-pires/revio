@@ -64,12 +64,15 @@ export class EditorService {
 
   /** Every clone in your code folders and home folder (rescanned each call), by repository name. */
   listClones(): { repo: string; path: string }[] {
-    this.#clones = findClones(this.#roots())
-    return [...this.#clones].map(([repo, path]) => ({ repo, path })).sort((a, b) => a.repo.localeCompare(b.repo))
+    this.#clones = findClones(this.#listSearchRoots())
+    return [...this.#clones]
+      .map(([repo, path]) => ({ repo, path }))
+      .sort((left, right) => left.repo.localeCompare(right.repo))
   }
 
-  #roots() {
-    return [...this.#settings().codeFolders.map((f) => f.replace(HOME_PREFIX, homedir())), homedir()]
+  /** Your code folders (with "~" expanded) and your home folder: where clones are looked for. */
+  #listSearchRoots() {
+    return [...this.#settings().codeFolders.map((folder) => folder.replace(HOME_PREFIX, homedir())), homedir()]
   }
 
   /** The clone of `repo` in your code folders or your home folder (up to three folders below them), or null. */
@@ -80,7 +83,7 @@ export class EditorService {
       return known
     }
     // Not found, or moved since: scan again, which also picks up clones made since the last scan.
-    this.#clones = findClones(this.#roots())
+    this.#clones = findClones(this.#listSearchRoots())
     return this.#clones.get(key) ?? null
   }
 

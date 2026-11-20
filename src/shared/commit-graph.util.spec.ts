@@ -1,21 +1,21 @@
 import { describe, expect, it } from 'vitest'
 import { layoutGraph } from './commit-graph.util.ts'
 
-const c = (hash: string, ...parents: string[]) => ({ hash, parents })
+const commit = (hash: string, ...parents: string[]) => ({ hash, parents })
 
 describe('layoutGraph', () => {
   it('keeps a straight history on one lane', () => {
-    const rows = layoutGraph([c('c', 'b'), c('b', 'a'), c('a')])
-    expect(rows.map((r) => r.lane)).toEqual([0, 0, 0])
-    expect(rows.map((r) => r.width)).toEqual([1, 1, 1])
+    const rows = layoutGraph([commit('c', 'b'), commit('b', 'a'), commit('a')])
+    expect(rows.map((row) => row.lane)).toEqual([0, 0, 0])
+    expect(rows.map((row) => row.width)).toEqual([1, 1, 1])
     expect(rows[1]?.top).toEqual([{ from: 0, to: 0, color: 0 }])
     expect(rows[2]?.bottom).toEqual([])
   })
 
   it('opens a lane for a merged branch and closes it where the branch started', () => {
     // m merges f into main; f and b both come from a.
-    const rows = layoutGraph([c('m', 'b', 'f'), c('f', 'a'), c('b', 'a'), c('a')])
-    expect(rows.map((r) => r.lane)).toEqual([0, 1, 0, 0])
+    const rows = layoutGraph([commit('m', 'b', 'f'), commit('f', 'a'), commit('b', 'a'), commit('a')])
+    expect(rows.map((row) => row.lane)).toEqual([0, 1, 0, 0])
     // The merge draws its first parent straight down and the second off to a new lane.
     expect(rows[0]?.bottom).toEqual([
       { from: 0, to: 0, color: 0 },
@@ -30,14 +30,14 @@ describe('layoutGraph', () => {
   })
 
   it('starts a new lane for a branch tip nothing waited for', () => {
-    const rows = layoutGraph([c('x', 'a'), c('y', 'a'), c('a')])
-    expect(rows.map((r) => r.lane)).toEqual([0, 1, 0])
+    const rows = layoutGraph([commit('x', 'a'), commit('y', 'a'), commit('a')])
+    expect(rows.map((row) => row.lane)).toEqual([0, 1, 0])
     expect(rows[1]?.color).not.toBe(rows[0]?.color)
   })
 
   it('joins a merged parent that already has a lane, keeping that lane going', () => {
     // t (tip of another branch) waits on b; then m merges b too.
-    const rows = layoutGraph([c('t', 'b'), c('m', 'a', 'b'), c('b', 'a'), c('a')])
+    const rows = layoutGraph([commit('t', 'b'), commit('m', 'a', 'b'), commit('b', 'a'), commit('a')])
     const [, merge] = rows
     expect(merge?.lane).toBe(1)
     expect(merge?.bottom).toEqual([
