@@ -82,6 +82,23 @@ input,
   user-select: text;
 }
 
+/*
+ * Lines a comment is on, kept marked once the selection is gone: a tint laid over the added/removed colour (as an
+ * image, so the cell's own background still shows through) and a bar down the line numbers.
+ */
+tr.commented-line > td,
+td.commented-line {
+  background-image: linear-gradient(
+    color-mix(in srgb, var(--color-accent) 12%, transparent),
+    color-mix(in srgb, var(--color-accent) 12%, transparent)
+  );
+}
+
+tr.commented-line > td:first-child,
+td.commented-line:has(+ td + td[data-half]) {
+  box-shadow: inset 3px 0 0 var(--color-accent);
+}
+
 .drag {
   -webkit-app-region: drag;
 }

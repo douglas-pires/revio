@@ -10,6 +10,8 @@ export interface DiffTableProps {
   tokens: Map<number, Tok[]> | null
   selection: LineSelectionApi
   inFocus: (row: DiffRow) => boolean
+  /** Whether a comment (yours pending, or on GitHub) is on this line, to keep it marked. */
+  commented: (anchor: Anchor | null) => boolean
   /** Comments and the comment box under a line, or null when there are none. */
   notesFor: (keys: string[], anchor: Anchor | null) => ReactNode
   onMouseUp: (e: React.MouseEvent) => void

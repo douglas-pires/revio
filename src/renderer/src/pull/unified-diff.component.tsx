@@ -13,6 +13,7 @@ export function UnifiedDiff({
   tokens,
   selection,
   inFocus,
+  commented,
   notesFor,
   onMouseUp,
   noteFor,
@@ -34,7 +35,12 @@ export function UnifiedDiff({
                 onMouseEnter={() => selection.over(a)}
                 data-new-line={row.newNo ?? undefined}
                 data-old-line={row.oldNo ?? undefined}
-                className={cx('group', rowBg(row.kind), selection.contains(a) && '!bg-accent/20')}
+                className={cx(
+                  'group',
+                  rowBg(row.kind),
+                  commented(a) && 'commented-line',
+                  selection.contains(a) && '!bg-accent/20',
+                )}
               >
                 <Gutter
                   kind={row.kind}

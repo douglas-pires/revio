@@ -16,9 +16,9 @@ import { AskClaudeButton } from './ask-claude-button.component.tsx'
 
 import { BlameNote } from './blame-note.component.tsx'
 
-import { type FileCommentIndex, indexFileComments } from './comment-threads.util.ts'
+import { commentedLines, type FileCommentIndex, indexFileComments } from './comment-threads.util.ts'
 
-import { diffSnippet, type LineRow, newSideText, parsePatch, parseRange } from './diff.util.ts'
+import { anchorKey, diffSnippet, type LineRow, newSideText, parsePatch, parseRange } from './diff.util.ts'
 
 import { editorLineOf, isInFocus } from './diff-file.util.ts'
 
@@ -194,6 +194,7 @@ export const DiffFile = memo(function DiffFileView(props: DiffFileProps) {
     () => indexFileComments(file.path, props.comments, props.drafts),
     [file.path, props.comments, props.drafts],
   )
+  const commented = useMemo(() => commentedLines(props.comments, props.drafts), [props.comments, props.drafts])
   const ask = (side: DiffSide, start: number, end: number) =>
     props.onAsk({ path: file.path, side, startLine: start, endLine: end, snippet: diffSnippet(rows, side, start, end) })
   const notesFor = useLineNotes({
@@ -211,6 +212,7 @@ export const DiffFile = memo(function DiffFileView(props: DiffFileProps) {
     tokens,
     selection,
     inFocus: (row) => isInFocus(row, focusRanges),
+    commented: (a) => a !== null && commented.has(anchorKey(a.side, a.line)),
     notesFor,
     onMouseUp: textAsk.onMouseUp,
   }
