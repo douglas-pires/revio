@@ -1,5 +1,6 @@
 import type { AskThread } from '@shared/claude.types.ts'
 import type { PullDetail } from '@shared/pull.types.ts'
+import { useMemo } from 'react'
 import { AskPanel } from './ask-panel.component.tsx'
 import { CommentsPanel } from './comments-panel.component.tsx'
 import { FileHistoryPanel } from './file-history-panel.component.tsx'
@@ -38,6 +39,7 @@ function AskSidePanel({ v, thread }: { v: PullViewState; thread: AskThread }) {
 
 /** The panel beside the diff: a Claude conversation, else a file's history, else the comments list. */
 export function PullSidePanels({ v, pr }: { v: PullViewState; pr: PullDetail }) {
+  const reviewedBy = useMemo(() => ({ viewer: pr.viewer, since: pr.lastReviewedAt }), [pr.viewer, pr.lastReviewedAt])
   const askThread = v.ask.thread
   if (askThread !== null) {
     return <AskSidePanel v={v} thread={askThread} />
@@ -65,6 +67,7 @@ export function PullSidePanels({ v, pr }: { v: PullViewState; pr: PullDetail }) 
       threads={v.commentThreads}
       drafts={v.local.drafts}
       current={v.nav.current}
+      reviewed={reviewedBy}
       onJump={(path, line, commentId) => v.nav.goTo(path, line, true, commentId)}
       onClose={() => v.setCommentsPanel('closed')}
     />

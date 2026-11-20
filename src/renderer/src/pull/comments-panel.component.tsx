@@ -1,11 +1,18 @@
 import { excerptAround } from '@shared/excerpt.util.ts'
-import type { DraftComment } from '@shared/pull.types.ts'
+import type { DraftComment, ReviewComment } from '@shared/pull.types.ts'
 import { memo, useEffect, useRef, useState } from 'react'
 import { ago, countOf, cx } from '../common/format.util.ts'
 import { groupBy } from '../common/group.util.ts'
 import { isTyping } from '../common/keyboard.util.ts'
 import { MatchText } from '../common/match-text.component.tsx'
-import { type CommentThread, matchingComment, searchDrafts, searchThreads } from './comment-threads.util.ts'
+import {
+  type CommentThread,
+  matchingComment,
+  newComments,
+  type ReviewedBy,
+  searchDrafts,
+  searchThreads,
+} from './comment-threads.util.ts'
 
 /** Characters of a comment shown in the panel, around a search match when there is one. */
 const EXCERPT_CHARS = 200
@@ -33,15 +40,31 @@ function threadTitle(t: CommentThread) {
   return `Go to line ${t.line}`
 }
 
-/** A search looks through resolved threads too; otherwise they show only when asked. */
-function visibleThreads(threads: readonly CommentThread[], query: string, showResolved: boolean) {
+/** Resolved, with nothing new since your last review: hidden until you ask for resolved threads. */
+function isSettled(t: CommentThread, reviewed: ReviewedBy) {
+  return t.resolved && newComments(t, reviewed).length === 0
+}
+
+/**
+ * A search looks through resolved threads too. Otherwise a resolved thread shows only when asked, unless someone
+ * commented on it since your last review (the author's "fixed" as they resolve it, say).
+ */
+function visibleThreads(threads: readonly CommentThread[], query: string, showResolved: boolean, reviewed: ReviewedBy) {
   if (query.trim()) {
     return searchThreads(threads, query)
   }
   if (showResolved) {
     return threads
   }
-  return threads.filter((t) => !t.resolved)
+  return threads.filter((t) => !isSettled(t, reviewed))
+}
+
+/** The comment a thread previews: the search match, else the newest one since your review, else the first. */
+function previewedComment(t: CommentThread, query: string, fresh: readonly ReviewComment[]) {
+  if (query.trim()) {
+    return matchingComment(t, query)
+  }
+  return fresh.at(-1) ?? t.comments[0] ?? null
 }
 
 /** How many matched, shown only while searching. */
@@ -125,22 +148,36 @@ function CommentSearch({
   )
 }
 
-function ThreadItem({ thread: t, query, onJump }: { thread: CommentThread; query: string; onJump: JumpTo }) {
+function ThreadItem({
+  thread: t,
+  query,
+  reviewed,
+  onJump,
+}: {
+  thread: CommentThread
+  query: string
+  reviewed: ReviewedBy
+  onJump: JumpTo
+}) {
   const [root, ...replies] = t.comments
   if (!root) {
     return null
   }
   const last = replies.at(-1) ?? root
-  const shown = matchingComment(t, query) ?? root
+  const fresh = newComments(t, reviewed)
+  const shown = previewedComment(t, query, fresh) ?? root
   return (
     <button
       type="button"
-      className={cx('flex w-full gap-2 rounded px-1.5 py-1.5 text-left hover:bg-hover', t.resolved && 'opacity-60')}
+      className={cx(
+        'flex w-full gap-2 rounded px-1.5 py-1.5 text-left hover:bg-hover',
+        t.resolved && fresh.length === 0 && 'opacity-60',
+      )}
       onClick={() => onJump(t.path, jumpLineOf(t), shown.id)}
       title={threadTitle(t)}
     >
       <img
-        src={root.authorAvatar}
+        src={shown.authorAvatar}
         alt=""
         width={AVATAR_PX}
         height={AVATAR_PX}
@@ -152,6 +189,11 @@ function ThreadItem({ thread: t, query, onJump }: { thread: CommentThread; query
             <MatchText text={shown.author} query={query} />
           </span>
           <span className="shrink-0 font-mono text-[10.5px] text-muted">{describeThreadLine(t)}</span>
+          {fresh.length > 0 && (
+            <span className="chip bg-accent/15 py-0 text-[10px] text-accent" title="Since your last review">
+              {fresh.length} new
+            </span>
+          )}
           {Boolean(t.resolved) && <span className="chip bg-ok/15 py-0 text-[10px] text-ok">resolved</span>}
           <span className="ml-auto shrink-0 text-[10.5px] text-muted">{ago(last.createdAt)}</span>
         </div>
@@ -219,14 +261,18 @@ export const CommentsPanel = memo(function CommentsPanelView(props: {
   threads: readonly CommentThread[]
   drafts: readonly DraftComment[]
   current: string | null
+  reviewed: ReviewedBy
   onJump: JumpTo
   onClose: () => void
 }) {
+  const { reviewed } = props
   const [showResolved, setShowResolved] = useState(false)
   const [query, setQuery] = useState('')
   const searching = query.trim() !== ''
   const resolvedCount = props.threads.filter((t) => t.resolved).length
-  const visible = visibleThreads(props.threads, query, showResolved)
+  const settledCount = props.threads.filter((t) => isSettled(t, reviewed)).length
+  const newCount = props.threads.reduce((n, t) => n + newComments(t, reviewed).length, 0)
+  const visible = visibleThreads(props.threads, query, showResolved, reviewed)
   const drafts = searchDrafts(props.drafts, query)
   const byFile = groupBy(visible, (t) => t.path)
 
@@ -235,8 +281,13 @@ export const CommentsPanel = memo(function CommentsPanelView(props: {
       <div className="flex items-center gap-2 px-3 py-2 text-[11px] text-muted">
         <span className="font-semibold tracking-wide uppercase">Comments {props.threads.length - resolvedCount}</span>
         <span>open</span>
+        {newCount > 0 && (
+          <span className="text-accent" title="Comments by others since your last review">
+            · {newCount} new
+          </span>
+        )}
         <div className="flex-1" />
-        {resolvedCount > 0 && (
+        {settledCount > 0 && (
           <button
             type="button"
             className={cx(
@@ -247,7 +298,7 @@ export const CommentsPanel = memo(function CommentsPanelView(props: {
             onClick={() => setShowResolved(!showResolved)}
           >
             {Boolean(showResolved) && 'Hide'}
-            {!showResolved && 'Show'} {resolvedCount} resolved
+            {!showResolved && 'Show'} {settledCount} resolved
           </button>
         )}
         <button
@@ -273,7 +324,7 @@ export const CommentsPanel = memo(function CommentsPanelView(props: {
           <div key={path} className="mb-2">
             <FileHeading path={path} current={path === props.current} />
             {threads.map((t) => (
-              <ThreadItem key={t.rootId} thread={t} query={query} onJump={props.onJump} />
+              <ThreadItem key={t.rootId} thread={t} query={query} reviewed={reviewed} onJump={props.onJump} />
             ))}
           </div>
         ))}

@@ -61,6 +61,8 @@ export interface PullDetail {
     submittedAt: string
     stale: boolean
   } | null
+  /** When you last submitted a review of any kind; comments by others after it are new to you. Null before your first. */
+  lastReviewedAt: string | null
   isDraft: boolean
   additions: number
   deletions: number

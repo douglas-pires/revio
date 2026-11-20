@@ -118,6 +118,21 @@ export function matchingComment(t: CommentThread, query: string): ReviewComment 
   return null
 }
 
+/** Who you are and when you last reviewed, to tell which comments are new to you. */
+export interface ReviewedBy {
+  viewer: string
+  /** Null before your first review: then nothing is "new", it is all unread. */
+  since: string | null
+}
+
+/** The thread's comments by others since your last review, oldest first. */
+export function newComments(t: CommentThread, { viewer, since }: ReviewedBy): ReviewComment[] {
+  if (since === null) {
+    return []
+  }
+  return t.comments.filter((c) => c.author !== viewer && c.createdAt > since)
+}
+
 /** Threads with a comment, author or file path matching `query`, resolved ones included. */
 export function searchThreads(threads: readonly CommentThread[], query: string): CommentThread[] {
   return threads.filter((t) => matchingComment(t, query))

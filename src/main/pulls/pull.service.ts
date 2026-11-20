@@ -158,6 +158,15 @@ function myReviewOf(reviews: readonly RestReview[], viewer: string, headSha: str
   }
 }
 
+/** When you last submitted a review, of any kind. */
+function lastReviewedAtOf(reviews: readonly RestReview[], viewer: string): string | null {
+  const times = reviews
+    .filter((r) => r.user?.login === viewer && r.state !== 'PENDING' && isPresent(r.submitted_at))
+    .map((r) => r.submitted_at ?? '')
+    .sort()
+  return times.at(-1) ?? null
+}
+
 function toPullFile(f: RestFile): PullFile {
   return {
     path: f.filename,
@@ -228,6 +237,7 @@ export async function fetchPull(ref: PullRef): Promise<PullDetail> {
     baseSha: p.base.sha,
     viewer,
     myReview: myReviewOf(reviews, viewer, p.head.sha),
+    lastReviewedAt: lastReviewedAtOf(reviews, viewer),
     isDraft: Boolean(p.draft),
     additions: p.additions,
     deletions: p.deletions,
