@@ -6,6 +6,6 @@ export const LANE_PX = 12
 export const MAX_LANES = 14
 
 /** Width of the graph column for rows this wide. */
-export function graphWidth(lanes: number) {
+export function measureGraphWidth(lanes: number) {
   return Math.min(Math.max(lanes, 1), MAX_LANES) * LANE_PX
 }

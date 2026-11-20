@@ -1,42 +1,134 @@
-import type { Branch, CiState, Commit, FileChange, FileChangeStatus, LogQuery } from '@shared/git-log.types.ts'
+import type {
+  Branch,
+  CiState,
+  Commit,
+  CommitDetail,
+  FileChange,
+  FileChangeStatus,
+  LogQuery,
+} from '@shared/git-log.types.ts'
 
 /** Field and record separators in `git log` output: characters a commit message never holds. */
-const FIELD = '\u001f'
-const RECORD = '\u001e'
+const FIELD_SEPARATOR = '\u001f'
+const RECORD_SEPARATOR = '\u001e'
 const HASH_PREFIX = /^[0-9a-f]{7,40}$/iu
-const TRACK = /(?<dir>ahead|behind) (?<n>\d+)/gu
-const STATUSES = new Set<string>(['A', 'M', 'D', 'R', 'C', 'T'])
+const TRACKING_COUNT = /(?<direction>ahead|behind) (?<count>\d+)/gu
+const CHANGE_STATUSES = new Set<string>(['A', 'M', 'D', 'R', 'C', 'T'])
 const HEAD_ARROW = /^HEAD -> /u
 const LEADING_NEWLINE = /^\n/u
+const LOCAL_BRANCH_PREFIX = 'refs/heads/'
+const REMOTE_BRANCH_PREFIX = 'refs/remotes/'
 
 /** Decorations as `git log` prints them: "HEAD -> main, origin/main, tag: v1". */
 function parseRefs(decoration: string): string[] {
   return decoration
     .split(', ')
-    .map((r) => r.replace(HEAD_ARROW, '').trim())
-    .filter((r) => r !== '' && r !== 'HEAD')
+    .map((ref) => ref.replace(HEAD_ARROW, '').trim())
+    .filter((ref) => ref !== '' && ref !== 'HEAD')
 }
 
 /** "[ahead 2, behind 1]" as numbers. */
-function parseTrack(track: string) {
+function parseTrackingCounts(tracking: string) {
   const counts = { ahead: 0, behind: 0 }
-  for (const m of track.matchAll(TRACK)) {
-    const n = Number(m.groups?.n ?? 0)
-    if (m.groups?.dir === 'ahead') {
-      counts.ahead = n
+  for (const match of tracking.matchAll(TRACKING_COUNT)) {
+    const count = Number(match.groups?.count ?? 0)
+    if (match.groups?.direction === 'ahead') {
+      counts.ahead = count
     } else {
-      counts.behind = n
+      counts.behind = count
     }
   }
   return counts
 }
 
-function toStatus(code: string): FileChangeStatus {
-  const s = code.charAt(0)
-  if (STATUSES.has(s)) {
-    return s as FileChangeStatus
+/** The change letter of a `--name-status` code ("R087" is a rename); anything unknown reads as modified. */
+function readChangeStatus(code: string): FileChangeStatus {
+  const letter = code.charAt(0)
+  if (CHANGE_STATUSES.has(letter)) {
+    return letter as FileChangeStatus
   }
   return 'M'
+}
+
+/** Whether the search text is a message search rather than a commit hash. */
+function isMessageSearch(text: string) {
+  return text !== '' && !HASH_PREFIX.test(text)
+}
+
+/** The message, author and date filters, as `git log` options. */
+function buildFilterArgs(query: LogQuery): string[] {
+  const text = query.text.trim()
+  const author = query.author.trim()
+  const args: string[] = []
+  if (isMessageSearch(text) || author) {
+    args.push('--regexp-ignore-case', '--fixed-strings')
+  }
+  if (isMessageSearch(text)) {
+    args.push(`--grep=${text}`)
+  }
+  if (author) {
+    args.push(`--author=${author}`)
+  }
+  if (query.sinceDays > 0) {
+    args.push(`--since=${query.sinceDays}.days.ago`)
+  }
+  return args
+}
+
+/** One branch, or every branch when none is picked. */
+function buildBranchArgs(branch: string): string[] {
+  if (branch) {
+    // `--end-of-options` keeps a branch named like an option from being read as one.
+    return ['--end-of-options', branch]
+  }
+  return ['--all']
+}
+
+/** Which history to read: one branch or all of them, and only a path's commits when one is given. */
+function buildRangeArgs(query: LogQuery): string[] {
+  const range = buildBranchArgs(query.branch)
+  const path = query.path.trim()
+  if (path) {
+    return [...range, '--', path]
+  }
+  return range
+}
+
+function parseCommitRecord(record: string): Commit {
+  const [hash = '', parents = '', author = '', authorEmail = '', date = '', subject = '', refs = ''] =
+    record.split(FIELD_SEPARATOR)
+  return {
+    hash,
+    parents: parents.split(' ').filter(Boolean),
+    author,
+    authorEmail,
+    date,
+    subject,
+    refs: parseRefs(refs),
+  }
+}
+
+/** One `for-each-ref` line: a local branch with its tracking counts, a remote branch, or nothing (origin/HEAD). */
+function parseBranchLine(line: string): Branch[] {
+  const [ref = '', headMarker = '', tracking = ''] = line.split('\t')
+  if (ref.startsWith(LOCAL_BRANCH_PREFIX)) {
+    const name = ref.slice(LOCAL_BRANCH_PREFIX.length)
+    return [{ name, kind: 'local', current: headMarker === '*', ...parseTrackingCounts(tracking) }]
+  }
+  if (ref.startsWith(REMOTE_BRANCH_PREFIX) && !ref.endsWith('/HEAD')) {
+    return [{ name: ref.slice(REMOTE_BRANCH_PREFIX.length), kind: 'remote', current: false, ahead: 0, behind: 0 }]
+  }
+  return []
+}
+
+/** One `--name-status` line: "M\tpath", or "R087\told\tnew" for a rename. */
+function parseChangeLine(line: string): FileChange {
+  const [code = '', firstPath = '', secondPath] = line.split('\t')
+  const status = readChangeStatus(code)
+  if (secondPath !== undefined && (status === 'R' || status === 'C')) {
+    return { status, path: secondPath, from: firstPath }
+  }
+  return { status, path: firstPath }
 }
 
 /** The `--format` that `parseLog` reads: hash, parents, author, email, date, subject, refs. */
@@ -52,87 +144,59 @@ export function looksLikeHash(text: string): boolean {
 }
 
 /** Arguments for `git log` from a query; `pageSize + 1` commits are asked for, to tell whether more follow. */
-export function logArgs(q: LogQuery, pageSize: number): string[] {
-  const args = ['log', `--format=${LOG_FORMAT}`, '--date-order', `--max-count=${pageSize + 1}`, `--skip=${q.skip}`]
-  const text = q.text.trim()
-  const author = q.author.trim()
-  if ((text && !looksLikeHash(text)) || author) {
-    args.push('--regexp-ignore-case', '--fixed-strings')
-  }
-  if (text && !looksLikeHash(text)) {
-    args.push(`--grep=${text}`)
-  }
-  if (author) {
-    args.push(`--author=${author}`)
-  }
-  if (q.sinceDays > 0) {
-    args.push(`--since=${q.sinceDays}.days.ago`)
-  }
-  if (q.branch) {
-    // `--end-of-options` keeps a branch named like an option from being read as one.
-    args.push('--end-of-options', q.branch)
-  } else {
-    args.push('--all')
-  }
-  if (q.path.trim()) {
-    args.push('--', q.path.trim())
-  }
-  return args
+export function buildLogArgs(query: LogQuery, pageSize: number): string[] {
+  return [
+    'log',
+    `--format=${LOG_FORMAT}`,
+    '--date-order',
+    `--max-count=${pageSize + 1}`,
+    `--skip=${query.skip}`,
+    ...buildFilterArgs(query),
+    ...buildRangeArgs(query),
+  ]
 }
 
-export function parseLog(out: string): Commit[] {
-  return out
-    .split(RECORD)
-    .map((r) => r.replace(LEADING_NEWLINE, ''))
-    .filter((r) => r.trim() !== '')
-    .map((r) => {
-      const [hash = '', parents = '', author = '', authorEmail = '', date = '', subject = '', refs = ''] =
-        r.split(FIELD)
-      return {
-        hash,
-        parents: parents.split(' ').filter(Boolean),
-        author,
-        authorEmail,
-        date,
-        subject,
-        refs: parseRefs(refs),
-      }
-    })
+export function parseLog(output: string): Commit[] {
+  return output
+    .split(RECORD_SEPARATOR)
+    .map((record) => record.replace(LEADING_NEWLINE, ''))
+    .filter((record) => record.trim() !== '')
+    .map(parseCommitRecord)
 }
 
 /** Local and remote branches from `git for-each-ref refs/heads refs/remotes`, skipping `origin/HEAD`. */
-export function parseBranches(out: string): Branch[] {
-  return out
+export function parseBranches(output: string): Branch[] {
+  return output
     .split('\n')
     .filter((line) => line.trim() !== '')
-    .flatMap((line): Branch[] => {
-      const [ref = '', head = '', track = ''] = line.split('\t')
-      if (ref.startsWith('refs/heads/')) {
-        return [{ name: ref.slice('refs/heads/'.length), kind: 'local', current: head === '*', ...parseTrack(track) }]
-      }
-      if (ref.startsWith('refs/remotes/') && !ref.endsWith('/HEAD')) {
-        return [{ name: ref.slice('refs/remotes/'.length), kind: 'remote', current: false, ahead: 0, behind: 0 }]
-      }
-      return []
-    })
+    .flatMap(parseBranchLine)
 }
 
 /** `git show --name-status` lines: "M\tpath", "R087\told\tnew". */
 export function parseNameStatus(lines: readonly string[]): FileChange[] {
-  return lines
-    .filter((l) => l.includes('\t'))
-    .map((l) => {
-      const [code = '', a = '', b] = l.split('\t')
-      const status = toStatus(code)
-      if (b !== undefined && (status === 'R' || status === 'C')) {
-        return { status, path: b, from: a }
-      }
-      return { status, path: a }
-    })
+  return lines.filter((line) => line.includes('\t')).map(parseChangeLine)
+}
+
+/** The `--format` that `parseCommitDetail` reads, for `git show`: author, email, date, committer, message. */
+export const SHOW_FORMAT = `${['%an', '%ae', '%aI', '%cn', '%B'].join('%x1f')}%x1e`
+
+/** A commit's details from `git show --format=SHOW_FORMAT --name-status`. */
+export function parseCommitDetail(hash: string, output: string): CommitDetail {
+  const [header = '', changes = ''] = output.split(RECORD_SEPARATOR)
+  const [author = '', authorEmail = '', date = '', committer = '', message = ''] = header.split(FIELD_SEPARATOR)
+  return {
+    hash,
+    message: message.trim(),
+    author,
+    authorEmail,
+    date,
+    committer,
+    files: parseNameStatus(changes.split('\n')),
+  }
 }
 
 /** GitHub's rollup state for a commit's checks, as Revio shows it. */
-export function toCiState(rollup: string | null | undefined): CiState {
+export function readCiState(rollup: string | null | undefined): CiState {
   if (rollup === 'SUCCESS') {
     return 'success'
   }

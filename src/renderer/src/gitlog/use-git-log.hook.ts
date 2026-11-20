@@ -27,11 +27,11 @@ function storeRepo(repo: string) {
 }
 
 /** The log so far with a new page: the first page replaces it, later ones add to it. */
-function withPage(prev: Commit[], page: LogPage, skip: number) {
+function appendPage(loaded: Commit[], page: LogPage, skip: number) {
   if (skip === 0) {
     return page.commits
   }
-  return [...prev, ...page.commits]
+  return [...loaded, ...page.commits]
 }
 
 /** The repositories with a clone here, and the one picked (remembered between visits). */
@@ -42,12 +42,12 @@ function useRepoChoice() {
   useEffect(() => {
     globalThis.revio
       .listLocalRepos()
-      .then((list) => {
-        setRepos(list)
-        const stored = readStoredRepo()
-        setRepoState(list.find((r) => r.repo === stored)?.repo ?? list[0]?.repo ?? '')
+      .then((localRepos) => {
+        setRepos(localRepos)
+        const storedRepo = readStoredRepo()
+        setRepoState(localRepos.find((localRepo) => localRepo.repo === storedRepo)?.repo ?? localRepos[0]?.repo ?? '')
       })
-      .catch((e) => setError(errorMessage(e)))
+      .catch((failure) => setError(errorMessage(failure)))
   }, [])
   const setRepo = useCallback((next: string) => {
     storeRepo(next)
@@ -61,8 +61,8 @@ function useDebouncedFilters() {
   const [filters, setFilters] = useState<LogFilters>(NO_FILTERS)
   const [applied, setApplied] = useState<LogFilters>(NO_FILTERS)
   useEffect(() => {
-    const t = setTimeout(() => setApplied(filters), FILTER_DELAY_MS)
-    return () => clearTimeout(t)
+    const timer = setTimeout(() => setApplied(filters), FILTER_DELAY_MS)
+    return () => clearTimeout(timer)
   }, [filters])
   return { filters, setFilters, applied }
 }
@@ -70,21 +70,21 @@ function useDebouncedFilters() {
 /** CI states for commits as they load, asked once per commit and repository. */
 function useCiStates(repo: string, commits: readonly Commit[]) {
   const [ci, setCi] = useState<Record<string, CiState>>({})
-  const asked = useRef({ repo: '', hashes: new Set<string>() })
+  const askedCi = useRef({ repo: '', hashes: new Set<string>() })
   useEffect(() => {
-    if (asked.current.repo !== repo) {
-      asked.current = { repo, hashes: new Set() }
+    if (askedCi.current.repo !== repo) {
+      askedCi.current = { repo, hashes: new Set() }
       setCi({})
     }
-    const fresh = commits.map((c) => c.hash).filter((h) => !asked.current.hashes.has(h))
-    if (!repo || fresh.length === 0) {
+    const unaskedHashes = commits.map((commit) => commit.hash).filter((hash) => !askedCi.current.hashes.has(hash))
+    if (!repo || unaskedHashes.length === 0) {
       return
     }
-    for (const h of fresh) {
-      asked.current.hashes.add(h)
+    for (const hash of unaskedHashes) {
+      askedCi.current.hashes.add(hash)
     }
     globalThis.revio
-      .getCommitCi(repo, fresh)
+      .getCommitCi(repo, unaskedHashes)
       .then((states) => setCi((prev) => ({ ...prev, ...states })))
       .catch(() => {
         // No CI marks for these; the log works without them.
@@ -104,13 +104,21 @@ function useSelectedCommit(repo: string) {
     if (!(repo && selected)) {
       return
     }
-    let live = true
+    let stillSelected = true
     globalThis.revio
       .getCommit(repo, selected)
-      .then((d) => live && setDetail(d))
-      .catch((e) => live && setError(errorMessage(e)))
+      .then((commitDetail) => {
+        if (stillSelected) {
+          setDetail(commitDetail)
+        }
+      })
+      .catch((failure) => {
+        if (stillSelected) {
+          setError(errorMessage(failure))
+        }
+      })
     return () => {
-      live = false
+      stillSelected = false
     }
   }, [repo, selected])
   return { selected, setSelected, detail, error }
@@ -128,7 +136,7 @@ function useBranches(repo: string) {
     globalThis.revio
       .getBranches(repo)
       .then(setBranches)
-      .catch((e) => setError(errorMessage(e)))
+      .catch((failure) => setError(errorMessage(failure)))
   }, [repo])
   useEffect(() => {
     setBranches(null)
@@ -143,30 +151,30 @@ function useLogPages(repo: string, applied: LogFilters) {
   const [more, setMore] = useState(false)
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState<string | null>(null)
-  const latest = useRef(0)
+  const latestLoad = useRef(0)
   const load = useCallback(
     async (skip: number) => {
       if (!repo) {
         return
       }
-      latest.current += 1
-      const id = latest.current
+      latestLoad.current += 1
+      const loadId = latestLoad.current
       setLoading(true)
       setError(null)
       try {
         const page = await globalThis.revio.getLog(repo, { ...applied, skip })
-        if (latest.current === id) {
-          setCommits((prev) => withPage(prev, page, skip))
+        if (latestLoad.current === loadId) {
+          setCommits((loaded) => appendPage(loaded, page, skip))
           setMore(page.more)
         }
-      } catch (e) {
-        if (latest.current === id) {
-          setError(errorMessage(e))
+      } catch (failure) {
+        if (latestLoad.current === loadId) {
+          setError(errorMessage(failure))
           setCommits([])
           setMore(false)
         }
       } finally {
-        if (latest.current === id) {
+        if (latestLoad.current === loadId) {
           setLoading(false)
         }
       }

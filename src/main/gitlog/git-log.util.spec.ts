@@ -1,19 +1,27 @@
 import type { LogQuery } from '@shared/git-log.types.ts'
 import { describe, expect, it } from 'vitest'
-import { logArgs, looksLikeHash, parseBranches, parseLog, parseNameStatus, toCiState } from './git-log.util.ts'
+import {
+  buildLogArgs,
+  looksLikeHash,
+  parseBranches,
+  parseCommitDetail,
+  parseLog,
+  parseNameStatus,
+  readCiState,
+} from './git-log.util.ts'
 
 const ALL: LogQuery = { branch: '', text: '', author: '', sinceDays: 0, path: '', skip: 0 }
 
-describe('logArgs', () => {
+describe('buildLogArgs', () => {
   it('reads every branch by default, one page plus one to tell whether more follow', () => {
-    const args = logArgs(ALL, 100)
+    const args = buildLogArgs(ALL, 100)
     expect(args).toContain('--max-count=101')
     expect(args).toContain('--skip=0')
     expect(args.at(-1)).toBe('--all')
   })
 
   it('adds the filters, with the path after "--" and the branch after --end-of-options', () => {
-    const args = logArgs(
+    const args = buildLogArgs(
       { branch: 'main', text: 'fix login', author: 'Ana', sinceDays: 7, path: 'src/app.ts', skip: 100 },
       50,
     )
@@ -31,7 +39,7 @@ describe('logArgs', () => {
   })
 
   it('does not grep for a hash: that is matched against the commits', () => {
-    expect(logArgs({ ...ALL, text: 'a1b2c3d' }, 10).some((a) => a.startsWith('--grep'))).toBe(false)
+    expect(buildLogArgs({ ...ALL, text: 'a1b2c3d' }, 10).some((arg) => arg.startsWith('--grep'))).toBe(false)
     expect(looksLikeHash('a1b2c3d')).toBe(true)
     expect(looksLikeHash('fix it')).toBe(false)
   })
@@ -51,7 +59,7 @@ describe('parseLog', () => {
       ],
       ['h1', '', 'Bo', 'bo@x.dev', '2026-11-19T10:00:00+01:00', 'First', ''],
     ]
-      .map((f) => `${f.join('\u001f')}\u001e`)
+      .map((fields) => `${fields.join('\u001f')}\u001e`)
       .join('\n')
     expect(parseLog(out)).toEqual([
       {
@@ -102,11 +110,27 @@ describe('parseNameStatus', () => {
   })
 })
 
-describe('toCiState', () => {
+describe('parseCommitDetail', () => {
+  it('reads the header fields, the whole message and the changed files', () => {
+    const header = ['Ana', 'ana@x.dev', '2026-11-20T10:00:00+01:00', 'GitHub', 'Fix login\n\nLonger text\n']
+    const output = [header.join('\u001f'), '\nM\tsrc/a.ts\n'].join('\u001e')
+    expect(parseCommitDetail('abc123', output)).toEqual({
+      hash: 'abc123',
+      message: 'Fix login\n\nLonger text',
+      author: 'Ana',
+      authorEmail: 'ana@x.dev',
+      date: '2026-11-20T10:00:00+01:00',
+      committer: 'GitHub',
+      files: [{ status: 'M', path: 'src/a.ts' }],
+    })
+  })
+})
+
+describe('readCiState', () => {
   it('maps GitHub rollup states', () => {
-    expect(toCiState('SUCCESS')).toBe('success')
-    expect(toCiState('ERROR')).toBe('failure')
-    expect(toCiState('EXPECTED')).toBe('pending')
-    expect(toCiState(null)).toBe('none')
+    expect(readCiState('SUCCESS')).toBe('success')
+    expect(readCiState('ERROR')).toBe('failure')
+    expect(readCiState('EXPECTED')).toBe('pending')
+    expect(readCiState(null)).toBe('none')
   })
 })

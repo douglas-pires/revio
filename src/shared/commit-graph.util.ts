@@ -1,86 +1,104 @@
+/** A column of the graph, waiting for the next commit of its line of history. */
 interface Lane {
-  /** The commit this lane waits for. */
-  hash: string
+  awaitedHash: string
   color: number
 }
 
-/** The lanes after a commit: its own lane carries on to its first parent, other parents may open lanes. */
-interface Step {
-  /** Lanes below the dot, before gaps close (null where a lane ended). */
-  after: (Lane | null)[]
-  /** Positions in `after` of lanes opened for the commit's other parents. */
-  opened: number[]
+/** The commit's dot: the lane it sits on and that lane's colour. */
+interface Dot {
+  lane: number
+  color: number
+}
+
+/** The lanes below a commit, before ended lanes close up (null where a lane ended). */
+interface LanesBelow {
+  lanes: (Lane | null)[]
+  /** Positions of the lanes opened for the commit's other parents. */
+  openedForParents: number[]
   nextColor: number
 }
 
-/** Every lane waiting for this commit ends at its dot; the dot's lane carries on to the first parent. */
-function stepPast(
-  c: GraphCommit,
-  lanes: readonly Lane[],
-  at: { lane: number; color: number; nextColor: number },
-): Step {
-  const { lane, color, nextColor } = at
-  const after: (Lane | null)[] = lanes.map((l, i) => {
-    if (l.hash !== c.hash) {
-      return l
+/** The lane waiting for the commit, or a new lane at the right when none was (a branch tip). */
+function placeDot(lanes: readonly Lane[], hash: string, nextColor: number) {
+  const waiting = lanes.findIndex((lane) => lane.awaitedHash === hash)
+  if (waiting >= 0) {
+    return { lanes, dot: { lane: waiting, color: lanes[waiting]?.color ?? 0 }, nextColor }
+  }
+  const opened = { awaitedHash: hash, color: nextColor }
+  return { lanes: [...lanes, opened], dot: { lane: lanes.length, color: nextColor }, nextColor: nextColor + 1 }
+}
+
+/** Every lane waiting for this commit ends at its dot, except the dot's own, which carries on to the first parent. */
+function continueLanes(commit: GraphCommit, lanes: readonly Lane[], dot: Dot): (Lane | null)[] {
+  const [firstParent] = commit.parents
+  return lanes.map((lane, position) => {
+    if (lane.awaitedHash !== commit.hash) {
+      return lane
     }
-    const [first] = c.parents
-    if (i === lane && first) {
-      return { hash: first, color }
+    if (position === dot.lane && firstParent) {
+      return { awaitedHash: firstParent, color: dot.color }
     }
     return null
   })
-  const opened: number[] = []
-  let next = nextColor
-  for (const p of c.parents.slice(1)) {
-    if (!after.some((l) => l?.hash === p)) {
-      after.push({ hash: p, color: next })
-      next += 1
-      opened.push(after.length - 1)
-    }
-  }
-  return { after, opened, nextColor: next }
 }
 
-/** Where each surviving lane lands once the gaps close. */
-function closeGaps(after: readonly (Lane | null)[]) {
-  const moved = new Map<number, number>()
-  const lanes: Lane[] = []
-  after.forEach((l, i) => {
-    if (l) {
-      moved.set(i, lanes.length)
-      lanes.push(l)
+/** The lanes below the commit: continued ones, plus a new lane for each other parent no lane waits for yet. */
+function openLanesBelow(commit: GraphCommit, lanes: readonly Lane[], dot: Dot, nextColor: number): LanesBelow {
+  const below = continueLanes(commit, lanes, dot)
+  const openedForParents: number[] = []
+  let color = nextColor
+  for (const parent of commit.parents.slice(1)) {
+    if (!below.some((lane) => lane?.awaitedHash === parent)) {
+      below.push({ awaitedHash: parent, color })
+      color += 1
+      openedForParents.push(below.length - 1)
+    }
+  }
+  return { lanes: below, openedForParents, nextColor: color }
+}
+
+/** Drops the lanes that ended, remembering where each remaining lane moved to. */
+function closeEndedLanes(lanes: readonly (Lane | null)[]) {
+  const movedTo = new Map<number, number>()
+  const remaining: Lane[] = []
+  lanes.forEach((lane, position) => {
+    if (lane) {
+      movedTo.set(position, remaining.length)
+      remaining.push(lane)
     }
   })
-  return { moved, lanes }
+  return { movedTo, remaining }
 }
 
-/** The lane a top-half line ends at: the dot's, for every lane that waited for this commit. */
-function topTarget(l: Lane, i: number, c: GraphCommit, lane: number) {
-  if (l.hash === c.hash) {
-    return lane
-  }
-  return i
+/** Upper half of the row: each lane runs down to the middle, and lanes waiting for this commit bend to its dot. */
+function drawUpperHalf(commit: GraphCommit, lanes: readonly Lane[], dot: Dot): GraphEdge[] {
+  return lanes.map((lane, position) => {
+    let to = position
+    if (lane.awaitedHash === commit.hash) {
+      to = dot.lane
+    }
+    return { from: position, to, color: lane.color }
+  })
 }
 
-/** Bottom-half lines: lanes passing by, the dot's own lane, and lines from the dot to the lanes of its parents. */
-function bottomEdges(c: GraphCommit, lane: number, step: Step, moved: ReadonlyMap<number, number>): GraphEdge[] {
-  const otherParents = new Set(c.parents.slice(1))
+/** Lower half of the row: lanes passing by, the dot's own lane, and lines from the dot to the lanes of its parents. */
+function drawLowerHalf(commit: GraphCommit, dot: Dot, below: LanesBelow, movedTo: ReadonlyMap<number, number>) {
+  const mergedParents = new Set(commit.parents.slice(1))
   const edges: GraphEdge[] = []
-  step.after.forEach((l, i) => {
-    const to = moved.get(i)
-    if (!l || to === undefined) {
+  below.lanes.forEach((lane, position) => {
+    const to = movedTo.get(position)
+    if (!lane || to === undefined) {
       return
     }
-    if (i === lane || step.opened.includes(i)) {
+    if (position === dot.lane || below.openedForParents.includes(position)) {
       // The dot's own lane, or a lane opened for one of its parents: the line starts at the dot.
-      edges.push({ from: lane, to, color: l.color })
+      edges.push({ from: dot.lane, to, color: lane.color })
       return
     }
-    edges.push({ from: i, to, color: l.color })
-    if (otherParents.has(l.hash)) {
+    edges.push({ from: position, to, color: lane.color })
+    if (mergedParents.has(lane.awaitedHash)) {
       // A merge of a line of history that already has a lane: join it from the dot.
-      edges.push({ from: lane, to, color: l.color })
+      edges.push({ from: dot.lane, to, color: lane.color })
     }
   })
   return edges
@@ -120,28 +138,19 @@ export interface GraphRow {
  * as narrow as the branches alive at each row.
  */
 export function layoutGraph(commits: readonly GraphCommit[]): GraphRow[] {
-  let lanes: Lane[] = []
-  let nextColor = 0
+  let above: { lanes: Lane[]; nextColor: number } = { lanes: [], nextColor: 0 }
   const rows: GraphRow[] = []
-  for (const c of commits) {
-    let lane = lanes.findIndex((l) => l.hash === c.hash)
-    if (lane < 0) {
-      lanes = [...lanes, { hash: c.hash, color: nextColor }]
-      nextColor += 1
-      lane = lanes.length - 1
-    }
-    const color = lanes[lane]?.color ?? 0
-    const step = stepPast(c, lanes, { lane, color, nextColor })
-    ;({ nextColor } = step)
-    const { moved, lanes: below } = closeGaps(step.after)
+  for (const commit of commits) {
+    const placed = placeDot(above.lanes, commit.hash, above.nextColor)
+    const below = openLanesBelow(commit, placed.lanes, placed.dot, placed.nextColor)
+    const { movedTo, remaining } = closeEndedLanes(below.lanes)
     rows.push({
-      lane,
-      color,
-      top: lanes.map((l, i) => ({ from: i, to: topTarget(l, i, c, lane), color: l.color })),
-      bottom: bottomEdges(c, lane, step, moved),
-      width: Math.max(lanes.length, step.after.length, 1),
+      ...placed.dot,
+      top: drawUpperHalf(commit, placed.lanes, placed.dot),
+      bottom: drawLowerHalf(commit, placed.dot, below, movedTo),
+      width: Math.max(placed.lanes.length, below.lanes.length, 1),
     })
-    lanes = below
+    above = { lanes: remaining, nextColor: below.nextColor }
   }
   return rows
 }
