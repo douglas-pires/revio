@@ -1,6 +1,7 @@
 import type { DraftComment, ReviewComment } from '@shared/pull.types.ts'
 import { describe, expect, it } from 'vitest'
 import {
+  commentedLines,
   groupCommentThreads,
   indexFileComments,
   matchingComment,
@@ -151,5 +152,27 @@ describe('newComments', () => {
 
   it('is empty before your first review', () => {
     expect(newComments(thread, { viewer: 'me', since: null })).toEqual([])
+  })
+})
+
+describe('commentedLines', () => {
+  it('covers every line of a range comment and the line of a single-line one', () => {
+    const lines = commentedLines(
+      [makeComment(1, { line: 12, startLine: 10 }), makeComment(2, { line: 3, side: 'LEFT' })],
+      [],
+    )
+    expect(lines).toEqual(new Set(['LEFT:3', 'RIGHT:10', 'RIGHT:11', 'RIGHT:12']))
+  })
+
+  it('includes your pending comments but not replies, outdated or file comments', () => {
+    const lines = commentedLines(
+      [makeComment(1, { outdated: true, line: null }), makeComment(2, { subjectType: 'file', line: null })],
+      [
+        { id: 'd1', path: 'b.ts', side: 'RIGHT', line: 21, startLine: 20, body: 'x' },
+        { id: 'd2', path: 'b.ts', side: 'RIGHT', line: 40, body: 'reply', inReplyTo: 7 },
+        { id: 'd3', path: 'b.ts', side: 'RIGHT', line: null, body: 'on the file' },
+      ],
+    )
+    expect(lines).toEqual(new Set(['RIGHT:20', 'RIGHT:21']))
   })
 })
