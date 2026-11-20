@@ -18,7 +18,14 @@ const TOGGLE_TITLES = {
   },
 } as const
 
-const FOLD_LABELS = { true: 'Expand comments', false: 'Minimize comments' } as const
+/** The minimise toggle's label: full on a wide bar, one word on a narrow one (beside a side panel). */
+const FOLD_LABELS = {
+  true: { short: 'Expand', full: 'Expand comments' },
+  false: { short: 'Minimize', full: 'Minimize comments' },
+} as const
+
+/** Spacing between the toolbar's controls: tighter when a side panel narrows the bar. */
+const GAP = 'ml-3 @max-3xl:ml-1.5'
 
 /** The files tab's controls: the comments panel, blame, minimised threads, the shortcuts and the diff layout. */
 function FilesToolbar({ props }: { props: PullTabBarProps }) {
@@ -27,7 +34,7 @@ function FilesToolbar({ props }: { props: PullTabBarProps }) {
       <button
         type="button"
         className={cx(
-          'mb-1.5 ml-auto self-center rounded px-2 py-0.5 text-[12px]',
+          'mb-1.5 ml-auto shrink-0 self-center rounded px-2 py-0.5 text-[12px] whitespace-nowrap',
           props.commentsPanelOpen && 'bg-hover text-fg',
           !props.commentsPanelOpen && 'text-muted hover:text-fg',
         )}
@@ -40,7 +47,8 @@ function FilesToolbar({ props }: { props: PullTabBarProps }) {
         type="button"
         aria-pressed={props.blame}
         className={cx(
-          'mb-1.5 ml-3 self-center rounded px-2 py-0.5 text-[12px]',
+          'mb-1.5 shrink-0 self-center rounded px-2 py-0.5 text-[12px]',
+          GAP,
           props.blame && 'bg-hover text-fg',
           !props.blame && 'text-muted hover:text-fg',
         )}
@@ -53,19 +61,22 @@ function FilesToolbar({ props }: { props: PullTabBarProps }) {
         type="button"
         aria-pressed={props.threadsFolded}
         className={cx(
-          'mb-1.5 ml-3 self-center rounded px-2 py-0.5 text-[12px] whitespace-nowrap',
+          'mb-1.5 shrink-0 self-center rounded px-2 py-0.5 text-[12px] whitespace-nowrap',
+          GAP,
           props.threadsFolded && 'bg-hover text-fg',
           !props.threadsFolded && 'text-muted hover:text-fg',
         )}
         title={TOGGLE_TITLES.fold[String(props.threadsFolded) as 'true' | 'false']}
         onClick={props.onToggleThreadsFolded}
       >
-        {FOLD_LABELS[String(props.threadsFolded) as 'true' | 'false']}
+        <span className="@4xl:hidden">{FOLD_LABELS[String(props.threadsFolded) as 'true' | 'false'].short}</span>
+        <span className="hidden @4xl:inline">{FOLD_LABELS[String(props.threadsFolded) as 'true' | 'false'].full}</span>
       </button>
-      <span className="mb-1.5 ml-3 self-center text-[11.5px] text-muted">
+      {/* A reminder only, shown when the bar has room for it. */}
+      <span className="mb-1.5 ml-3 hidden shrink-0 self-center text-[11.5px] whitespace-nowrap text-muted @5xl:inline">
         <kbd className="kbd">j</kbd>/<kbd className="kbd">k</kbd> files · <kbd className="kbd">v</kbd> viewed
       </span>
-      <div className="mb-1.5 ml-3 flex rounded-md border border-line p-0.5">
+      <div className={cx('mb-1.5 flex shrink-0 rounded-md border border-line p-0.5', GAP)}>
         {(['unified', 'split'] as const).map((v) => (
           <button
             type="button"
@@ -105,14 +116,15 @@ export type PullTab = 'overview' | 'files' | 'commits'
 export function PullTabBar(props: PullTabBarProps) {
   const { tab } = props
   return (
-    <div className="flex shrink-0 gap-1 border-b border-line px-4 pt-2">
+    // A size container: the files toolbar fits itself to the bar's width (narrower beside a side panel).
+    <div className="@container flex shrink-0 gap-1 border-b border-line px-4 pt-2">
       {(['overview', 'files', 'commits'] as const).map((t) => (
         <button
           type="button"
           key={t}
           onClick={() => props.onTab(t)}
           className={cx(
-            '-mb-px border-b-2 px-3 py-1.5 font-medium',
+            '-mb-px shrink-0 border-b-2 px-3 py-1.5 font-medium whitespace-nowrap @max-3xl:px-2',
             tab === t && 'border-accent text-fg',
             !(tab === t) && 'border-transparent text-muted hover:text-fg',
           )}
