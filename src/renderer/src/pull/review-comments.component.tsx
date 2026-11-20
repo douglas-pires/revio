@@ -2,7 +2,7 @@ import type { DraftComment, ReviewComment } from '@shared/pull.types.ts'
 
 import { useCallback, useState } from 'react'
 
-import { ago } from '../common/format.util.ts'
+import { ago, countOf } from '../common/format.util.ts'
 
 import { Markdown } from '../common/markdown.component.tsx'
 
@@ -12,7 +12,15 @@ import { ReactionBar } from './reaction-bar.component.tsx'
 
 import { useOpenReplyIfTarget } from './use-reply-target.hook.ts'
 
+import { useThreadFold } from './use-thread-fold.hook.ts'
+
 const AVATAR_PX = 20
+const MARKDOWN_MARKS = /[`*_~]/gu
+
+/** A comment's first line without markdown marks, for a one-line summary. */
+function firstLineAsText(body: string) {
+  return (body.split('\n')[0] ?? '').replaceAll(MARKDOWN_MARKS, '')
+}
 
 function Thread(props: {
   thread: ReviewComment[]
@@ -24,12 +32,31 @@ function Thread(props: {
 }) {
   const [replying, setReplying] = useState(false)
   const openReply = useCallback(() => setReplying(true), [])
-  useOpenReplyIfTarget(
-    props.thread.map((c) => c.id),
-    openReply,
-  )
+  const ids = props.thread.map((c) => c.id)
+  useOpenReplyIfTarget(ids, openReply)
+  const fold = useThreadFold()
+  if (fold?.isFolded(ids)) {
+    return (
+      <FoldedThread
+        thread={props.thread}
+        pendingReplies={props.drafts.length}
+        onOpen={() => fold.setFolded(ids, false)}
+      />
+    )
+  }
   return (
-    <div className="space-y-2 rounded-md border border-line bg-panel p-3">
+    <div className="relative space-y-2 rounded-md border border-line bg-panel p-3">
+      {fold !== null && (
+        <button
+          type="button"
+          className="btn btn-ghost absolute top-2 right-2 px-1.5 py-0 text-muted"
+          title="Minimize this thread"
+          aria-label="Minimize this thread"
+          onClick={() => fold.setFolded(ids, true)}
+        >
+          −
+        </button>
+      )}
       {props.thread.map((c) => (
         <CommentView key={c.id} c={c} />
       ))}
@@ -58,6 +85,47 @@ function Thread(props: {
         </button>
       )}
     </div>
+  )
+}
+
+/** A minimised thread: who started it, how many comments, and the latest one's first line. Click to open it. */
+function FoldedThread({
+  thread,
+  pendingReplies,
+  onOpen,
+}: {
+  thread: readonly ReviewComment[]
+  pendingReplies: number
+  onOpen: () => void
+}) {
+  const [root] = thread
+  const last = thread.at(-1)
+  if (!(root && last)) {
+    return null
+  }
+  return (
+    <button
+      type="button"
+      data-folded-thread={root.id}
+      className="flex w-full items-center gap-2 rounded-md border border-line bg-panel px-3 py-1.5 text-left text-[12px] hover:bg-hover"
+      title="Show this thread"
+      onClick={onOpen}
+    >
+      <span aria-hidden={true} className="text-muted">
+        ▸
+      </span>
+      <img src={root.authorAvatar} alt="" width={AVATAR_PX} height={AVATAR_PX} className="size-4 rounded-full" />
+      <span className="shrink-0 font-medium">{root.author}</span>
+      <span className="shrink-0 text-muted">{countOf(thread.length, 'comment', 'comments')}</span>
+      {pendingReplies > 0 && (
+        <span className="chip shrink-0 bg-warn/20 py-0 text-[10.5px] text-warn">
+          {countOf(pendingReplies, 'pending reply', 'pending replies')}
+        </span>
+      )}
+      <span className="min-w-0 flex-1 truncate text-muted">
+        {last.author}: {firstLineAsText(last.body)}
+      </span>
+    </button>
   )
 }
 

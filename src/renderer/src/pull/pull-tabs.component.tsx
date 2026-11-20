@@ -113,6 +113,8 @@ export function PullTabs({
         }}
         blame={v.blame === 'on'}
         onToggleBlame={() => v.setBlame(toggled(v.blame, BLAME_STATES))}
+        threadsFolded={v.threadFold.all}
+        onToggleThreadsFolded={() => v.threadFold.setAll(!v.threadFold.all)}
         view={v.view}
         onView={v.changeView}
       />
