@@ -18,7 +18,15 @@ async function mermaidFor(theme: MermaidTheme) {
   if (configuredTheme !== theme) {
     // strict: no click handlers or HTML labels from the diagram source; output SVG is sanitized. Links in the
     // diagram still render; the block's click handler opens them in the browser.
-    mermaid.initialize({ startOnLoad: false, securityLevel: 'strict', theme, fontFamily: 'inherit' })
+    // suppressErrorRendering: on a parse error Mermaid would otherwise draw its own full-page "Syntax error" graphic
+    // into <body>, outside the app; the block shows its own note instead.
+    mermaid.initialize({
+      startOnLoad: false,
+      securityLevel: 'strict',
+      theme,
+      fontFamily: 'inherit',
+      suppressErrorRendering: true,
+    })
     configuredTheme = theme
   }
   return mermaid
@@ -54,7 +62,13 @@ function useMermaidSvg(code: string) {
     mermaidFor(theme)
       .then((m) => m.render(`${id}-${theme}`, code))
       .then((drawn) => live && setSvg(drawn.svg))
-      .catch((e: unknown) => live && setError(errorMessage(e)))
+      .catch((e: unknown) => {
+        // Mermaid renders into a temporary element in <body> (`d` + the render id); drop it if a failure left it there.
+        document.querySelector(`#d${CSS.escape(`${id}-${theme}`)}`)?.remove()
+        if (live) {
+          setError(errorMessage(e))
+        }
+      })
     return () => {
       live = false
     }
