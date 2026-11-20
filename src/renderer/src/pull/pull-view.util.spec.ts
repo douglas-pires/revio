@@ -4,6 +4,7 @@ import {
   askHistory,
   draftFromAsk,
   fileTargetOf,
+  markedAsAi,
   newSideOnly,
   quoteOf,
   replyIdOf,
@@ -50,8 +51,13 @@ describe('small helpers', () => {
   })
 
   it('drafts from a conversation, with a start line only for ranges', () => {
-    expect(draftFromAsk(thread(), 'x')).toEqual({ path: 'a.ts', side: 'RIGHT', line: 3, body: 'x' })
+    expect(draftFromAsk(thread(), 'x')).toEqual({ path: 'a.ts', side: 'RIGHT', line: 3, body: '🤖 x' })
     expect(draftFromAsk(thread({ startLine: 1 }), 'x')).toMatchObject({ startLine: 1 })
+  })
+
+  it('marks a comment Claude wrote with a robot, once', () => {
+    expect(markedAsAi('Retries skip status 0.')).toBe('🤖 Retries skip status 0.')
+    expect(markedAsAi(markedAsAi('Retries skip status 0.'))).toBe('🤖 Retries skip status 0.')
   })
 
   it('lists an unsaved conversation first', () => {
