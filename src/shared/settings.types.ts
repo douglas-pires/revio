@@ -20,6 +20,8 @@ export interface Settings {
   claudeModel: string
   /** Editor id to open files in ("" = the first one installed). */
   editor: string
+  /** Keys that open the file you are reading in your editor, like "Cmd+O" ("" = off). */
+  openInEditorShortcut: string
   /** Extra folders to look for local clones in, besides your home folder. */
   codeFolders: string[]
   /** Sync the synced settings and the review guides with your other Macs through iCloud Drive. */

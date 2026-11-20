@@ -2,6 +2,7 @@ import type { PullFile } from '@shared/pull.types.ts'
 import { useEffect, useRef } from 'react'
 import { isTyping } from '../common/keyboard.util.ts'
 import { fileInView } from './file-in-view.util.ts'
+import { useOpenInEditorShortcut } from './use-open-in-editor-shortcut.hook.ts'
 
 interface NavState {
   enabled: boolean
@@ -56,9 +57,11 @@ function nextUnviewed(files: PullFile[], index: number, viewed: Record<string, s
 /**
  * j/k move between files; v toggles "viewed" on the file you are reading (the one you clicked or jumped to while it is
  * on screen, else the one at the top of the diff) and moves on to the next unviewed file.
+ * The Open in editor shortcut works alongside them (`useOpenInEditorShortcut`).
  * Reads the latest state through a ref so the window listener is attached once.
  */
 export function useFileKeyboardNav(state: NavState) {
+  useOpenInEditorShortcut({ enabled: state.enabled, current: state.current })
   const latest = useRef(state)
   latest.current = state
 

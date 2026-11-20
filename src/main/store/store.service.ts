@@ -47,6 +47,7 @@ const DEFAULT_SETTINGS: StoredSettings = {
   claudeBackend: 'auto',
   claudeModel: 'claude-opus-5-5',
   editor: '',
+  openInEditorShortcut: 'Cmd+O',
   codeFolders: [],
   syncViaIcloud: false,
 }
