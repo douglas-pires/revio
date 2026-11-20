@@ -1,6 +1,7 @@
 import type { AskThread, BriefingRecord } from './claude.types.ts'
 import type { EditorInfo, EditorTarget } from './editor.types.ts'
 import type { MainEvent } from './event.types.ts'
+import type { Branches, CiState, CommitDetail, LocalRepo, LogPage, LogQuery } from './git-log.types.ts'
 import type { Guideline, ResolvedGuideline } from './guideline.types.ts'
 import type { BlameRange, CommitFile, CommitRef, FileAtCommit, FileHistoryEntry, PullCommit } from './history.types.ts'
 import type { Inbox, Stack, StackPrComments } from './inbox.types.ts'
@@ -89,6 +90,13 @@ export interface RevioApi {
 
   /** Shows a sample notification; false when macOS refused it (notifications off for Revio). */
   testNotification: () => Promise<boolean>
+  /** Repositories with a clone on this Mac, for the git log. */
+  listLocalRepos: () => Promise<LocalRepo[]>
+  getBranches: (repo: string) => Promise<Branches>
+  getLog: (repo: string, query: LogQuery) => Promise<LogPage>
+  getCommit: (repo: string, hash: string) => Promise<CommitDetail>
+  /** CI state on GitHub per commit hash. */
+  getCommitCi: (repo: string, hashes: string[]) => Promise<Record<string, CiState>>
 
   openExternal: (url: string) => Promise<void>
   onEvent: (listener: (event: MainEvent) => void) => () => void

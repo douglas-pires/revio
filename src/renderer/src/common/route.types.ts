@@ -16,6 +16,7 @@ export type Route =
   | { view: 'guidelines'; repo?: string | undefined; path?: string | undefined }
   | { view: 'mentions' }
   | { view: 'my-pulls' }
+  | { view: 'log' }
   | { view: 'settings' }
 
 /** The same screen, whatever it was opened to jump to. */
