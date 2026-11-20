@@ -101,14 +101,39 @@ function GuideBody({ draft, onChange, onSave }: { draft: Draft; onChange: Change
   )
 }
 
+/** Above a guide with unsaved edits: they are a draft, kept here until saved or thrown away. */
+function DraftWarning({ isNew, onDiscard }: { isNew: boolean; onDiscard: () => void }) {
+  let what = 'Unsaved changes to this guide.'
+  if (isNew) {
+    what = 'This new guide is not saved yet.'
+  }
+  return (
+    <div
+      role="status"
+      className="flex shrink-0 items-center gap-2 border-b border-warn/30 bg-warn/10 px-5 py-1.5 text-[12px] text-warn"
+    >
+      <span className="chip bg-warn/20 py-0 text-[10.5px]">Draft</span>
+      <span className="min-w-0 flex-1">
+        {what} Revio keeps it as a draft until you save (⌘S) or discard it; Claude only sees saved guides.
+      </span>
+      <button type="button" className="btn btn-ghost py-0 text-[12px] text-warn" onClick={onDiscard}>
+        Discard changes
+      </button>
+    </div>
+  )
+}
+
 /** Edits one guide: whether it is on, where it applies, its text, and saving or deleting it. */
 export function GuideEditor(props: {
   draft: Draft
   repos: readonly string[]
   saved: boolean
   error: string | null
+  /** Edits not saved yet: kept as a draft, shown with a warning. */
+  unsaved: boolean
   onChange: Change
   onSave: () => void
+  onDiscard: () => void
   onDelete: () => void
 }) {
   const { draft, onChange } = props
@@ -135,6 +160,7 @@ export function GuideEditor(props: {
           Save
         </button>
       </header>
+      {Boolean(props.unsaved) && <DraftWarning isNew={!draft.id} onDiscard={props.onDiscard} />}
       <ScopeFields draft={draft} repos={props.repos} onChange={onChange} />
       <GuideBody draft={draft} onChange={onChange} onSave={props.onSave} />
     </section>

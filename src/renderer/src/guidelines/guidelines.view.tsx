@@ -1,6 +1,15 @@
 import type { Guideline } from '@shared/guideline.types.ts'
 import { useCallback, useEffect, useState } from 'react'
 import { errorMessage } from '../common/format.util.ts'
+import {
+  draftKeyOf,
+  type GuideDrafts,
+  hasUnsavedChanges,
+  readGuideDrafts,
+  storeGuideDrafts,
+  withDraft,
+  withoutDraft,
+} from './guide-drafts.util.ts'
 import { GuideEditor } from './guide-editor.component.tsx'
 import { GuideList } from './guide-list.component.tsx'
 import { type Draft, defaultTitle, newDraft } from './guidelines.util.ts'
@@ -21,12 +30,107 @@ function useGuides() {
   return { list, repos, load }
 }
 
+/** Unsaved edits per guide, written to storage as you type so they survive leaving the page. */
+function useGuideDrafts() {
+  const [drafts, setDrafts] = useState<GuideDrafts>(readGuideDrafts)
+  const update = useCallback((change: (d: GuideDrafts) => GuideDrafts) => {
+    setDrafts((d) => {
+      const next = change(d)
+      storeGuideDrafts(next)
+      return next
+    })
+  }, [])
+  return { drafts, update }
+}
+
+/** A guide as you left it: its unsaved draft when there is one, else as saved. */
+function withEdits(d: Draft, drafts: GuideDrafts): Draft {
+  return drafts[draftKeyOf(d)] ?? d
+}
+
 /** The guide to open first: the one asked for (or a new one there), else the first saved one. */
 function initialDraft(list: readonly Guideline[], repo: string | undefined, path: string | undefined): Draft | null {
   if (!repo) {
     return list[0] ?? null
   }
   return list.find((g) => g.repo === repo && g.path === (path ?? '')) ?? newDraft(repo, path)
+}
+
+interface GuideSelection {
+  list: readonly Guideline[]
+  draft: Draft | null
+  setDraft: (d: Draft | null) => void
+  load: () => Promise<Guideline[]>
+  update: (change: (d: GuideDrafts) => GuideDrafts) => void
+}
+
+/** Save (forgetting the draft, showing "Saved" briefly) and delete the open guide. */
+function useGuideSaving({ draft, setDraft, load, update }: GuideSelection) {
+  const [error, setError] = useState<string | null>(null)
+  const [saved, setSaved] = useState(false)
+  const save = async () => {
+    if (!draft) {
+      return
+    }
+    setError(null)
+    try {
+      const g = await globalThis.revio.saveGuideline({ ...draft, title: draft.title || defaultTitle(draft) })
+      update((ds) => withoutDraft(ds, draftKeyOf(draft)))
+      await load()
+      setDraft(g)
+      setSaved(true)
+      setTimeout(() => setSaved(false), SAVED_NOTICE_MS)
+    } catch (e) {
+      setError(errorMessage(e))
+    }
+  }
+  const remove = async () => {
+    // biome-ignore lint/suspicious/noAlert: in Electron, confirm() is a native macOS sheet, the expected control for a destructive step.
+    if (!(draft?.id && confirm(`Delete "${draft.title}"?`))) {
+      return
+    }
+    await globalThis.revio.deleteGuideline(draft.id)
+    update((ds) => withoutDraft(ds, draftKeyOf(draft)))
+    const l = await load()
+    setDraft(l[0] ?? null)
+  }
+  return { error, saved, save, remove }
+}
+
+/** The open guide, as you left it: opening, editing (kept as a draft) and discarding the edits. */
+function useGuideEditing(initialRepo: string | undefined, initialPath: string | undefined) {
+  const { list, repos, load } = useGuides()
+  const edits = useGuideDrafts()
+  const [draft, setDraft] = useState<Draft | null>(null)
+  const savedOf = (d: Draft) => list.find((g) => g.id === d.id)
+
+  useEffect(() => {
+    load().then((l) => {
+      const first = initialDraft(l, initialRepo, initialPath)
+      setDraft(first && withEdits(first, readGuideDrafts()))
+    })
+  }, [initialRepo, initialPath, load])
+
+  const discard = () => {
+    if (draft) {
+      edits.update((ds) => withoutDraft(ds, draftKeyOf(draft)))
+      setDraft(savedOf(draft) ?? list[0] ?? null)
+    }
+  }
+  return {
+    list,
+    repos,
+    drafts: edits.drafts,
+    draft,
+    unsaved: draft !== null && hasUnsavedChanges(draft, savedOf(draft)),
+    open: (d: Draft) => setDraft(withEdits(d, edits.drafts)),
+    change: (d: Draft) => {
+      setDraft(d)
+      edits.update((ds) => withDraft(ds, d, savedOf(d)))
+    },
+    discard,
+    saving: useGuideSaving({ list, draft, setDraft, load, update: edits.update }),
+  }
 }
 
 export function Guidelines({
@@ -36,58 +140,28 @@ export function Guidelines({
   initialRepo?: string | undefined
   initialPath?: string | undefined
 }) {
-  const { list, repos, load } = useGuides()
-  const [draft, setDraft] = useState<Draft | null>(null)
-  const [error, setError] = useState<string | null>(null)
-  const [saved, setSaved] = useState(false)
-
-  useEffect(() => {
-    load().then((l) => setDraft(initialDraft(l, initialRepo, initialPath)))
-  }, [initialRepo, initialPath, load])
-
-  const save = async () => {
-    if (!draft) {
-      return
-    }
-    setError(null)
-    try {
-      const g = await globalThis.revio.saveGuideline({ ...draft, title: draft.title || defaultTitle(draft) })
-      await load()
-      setDraft(g)
-      setSaved(true)
-      setTimeout(() => setSaved(false), SAVED_NOTICE_MS)
-    } catch (e) {
-      setError(errorMessage(e))
-    }
-  }
-
-  const remove = async () => {
-    // biome-ignore lint/suspicious/noAlert: in Electron, confirm() is a native macOS sheet, the expected control for a destructive step.
-    if (!(draft?.id && confirm(`Delete "${draft.title}"?`))) {
-      return
-    }
-    await globalThis.revio.deleteGuideline(draft.id)
-    const l = await load()
-    setDraft(l[0] ?? null)
-  }
-
+  const g = useGuideEditing(initialRepo, initialPath)
+  const { draft, saving } = g
   return (
     <div className="flex h-full">
       <GuideList
-        list={list}
+        list={g.list}
         selectedId={draft?.id}
-        onSelect={setDraft}
-        onNew={() => setDraft(newDraft(repos[0] ?? '*'))}
+        drafts={g.drafts}
+        onSelect={g.open}
+        onNew={() => g.open(newDraft(g.repos[0] ?? '*'))}
       />
       {draft !== null && (
         <GuideEditor
           draft={draft}
-          repos={repos}
-          saved={saved}
-          error={error}
-          onChange={setDraft}
-          onSave={save}
-          onDelete={remove}
+          repos={g.repos}
+          saved={saving.saved}
+          error={saving.error}
+          unsaved={g.unsaved}
+          onChange={g.change}
+          onDiscard={g.discard}
+          onSave={saving.save}
+          onDelete={saving.remove}
         />
       )}
       {draft === null && (
