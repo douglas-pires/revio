@@ -31,10 +31,10 @@ const COMMAND_MODIFIER = /^(?:Cmd|Ctrl|Alt)\+/u
  * The key itself, apart from modifiers. Letters and digits come from the physical key, because Option and Shift
  * change `key` ("ø" for Option+O, "!" for Shift+1).
  */
-function baseKey({ key, code }: Pick<KeyPress, 'key' | 'code'>): string {
-  const m = LETTER_OR_DIGIT.exec(code)
-  if (m) {
-    return m.groups?.letter ?? m.groups?.digit ?? key
+function readBaseKey({ key, code }: Pick<KeyPress, 'key' | 'code'>): string {
+  const letterOrDigit = LETTER_OR_DIGIT.exec(code)
+  if (letterOrDigit) {
+    return letterOrDigit.groups?.letter ?? letterOrDigit.groups?.digit ?? key
   }
   if (key.length === 1) {
     return key.toUpperCase()
@@ -43,12 +43,15 @@ function baseKey({ key, code }: Pick<KeyPress, 'key' | 'code'>): string {
 }
 
 /** A shortcut's parts. A trailing "+" is the plus key itself, not a separator. */
-function partsOf(shortcut: string) {
+function splitShortcut(shortcut: string) {
   if (shortcut.endsWith('++')) {
     return [...shortcut.slice(0, -2).split('+'), '+']
   }
   return shortcut.split('+')
 }
+
+/** The Open in editor shortcut until you change it in Settings. */
+export const DEFAULT_OPEN_IN_EDITOR_SHORTCUT = 'Cmd+O'
 
 /** The parts of a key press a shortcut is made of (a DOM KeyboardEvent has them all). */
 export interface KeyPress {
@@ -61,17 +64,17 @@ export interface KeyPress {
 }
 
 /** The shortcut a key press makes, like "Cmd+O"; null for a lone modifier, which is not a shortcut yet. */
-export function shortcutOf(press: KeyPress): string | null {
+export function readShortcut(press: KeyPress): string | null {
   if (MODIFIER_KEYS.has(press.key)) {
     return null
   }
-  const mods = MODIFIERS.filter(([, flag]) => press[flag]).map(([name]) => name)
-  return [...mods, baseKey(press)].join('+')
+  const modifiers = MODIFIERS.filter(([, flag]) => press[flag]).map(([name]) => name)
+  return [...modifiers, readBaseKey(press)].join('+')
 }
 
 /** Whether a key press is `shortcut`. An empty shortcut matches nothing. */
 export function matchesShortcut(press: KeyPress, shortcut: string): boolean {
-  return shortcut !== '' && shortcutOf(press) === shortcut
+  return shortcut !== '' && readShortcut(press) === shortcut
 }
 
 /** Whether the shortcut uses Cmd, Ctrl or Alt, so it can fire while you type without inserting text. */
@@ -84,7 +87,7 @@ export function formatShortcut(shortcut: string): string {
   if (!shortcut) {
     return ''
   }
-  return partsOf(shortcut)
-    .map((p) => SYMBOLS[p] ?? p)
+  return splitShortcut(shortcut)
+    .map((part) => SYMBOLS[part] ?? part)
     .join('')
 }

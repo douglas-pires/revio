@@ -3,23 +3,50 @@ import { useEffect, useRef, useState } from 'react'
 import { isTyping } from '../common/keyboard.util.ts'
 import { fileInView } from './file-in-view.util.ts'
 
+interface ShortcutState {
+  enabled: boolean
+  currentFile: string | null
+  shortcut: string
+}
+
 /** The shortcut from Settings, read again whenever the window comes back to the front (after changing it, say). */
-function useEditorShortcut() {
+function useEditorShortcutSetting() {
   const [shortcut, setShortcut] = useState('')
   useEffect(() => {
-    const read = () => {
+    const readShortcutSetting = () => {
       globalThis.revio
         .getSettings()
-        .then((s) => setShortcut(s.openInEditorShortcut))
+        .then((settings) => setShortcut(settings.openInEditorShortcut))
         .catch(() => {
           // Keep the last one; the next focus tries again.
         })
     }
-    read()
-    globalThis.addEventListener('focus', read)
-    return () => globalThis.removeEventListener('focus', read)
+    readShortcutSetting()
+    globalThis.addEventListener('focus', readShortcutSetting)
+    return () => globalThis.removeEventListener('focus', readShortcutSetting)
   }, [])
   return shortcut
+}
+
+/** Whether this key press is the shortcut, and allowed here: in a text field only with Cmd, Ctrl or Alt. */
+function isShortcutPress(event: KeyboardEvent, state: ShortcutState) {
+  if (!(state.enabled && matchesShortcut(event, state.shortcut)) || event.repeat) {
+    return false
+  }
+  return !isTyping(event.target) || hasCommandModifier(state.shortcut)
+}
+
+/** The Open in editor button of the file you are reading, or null when no file is on screen. */
+function findOpenInEditorButton(currentFile: string | null): HTMLButtonElement | null {
+  const path = fileInView(currentFile)
+  if (!path) {
+    return null
+  }
+  const button = document.querySelector(`#${CSS.escape(`file-${path}`)} [data-open-in-editor]`)
+  if (button instanceof HTMLButtonElement) {
+    return button
+  }
+  return null
 }
 
 /**
@@ -27,29 +54,23 @@ function useEditorShortcut() {
  * button does, so the selected line and any error show there too. Inside a text field it fires only with Cmd,
  * Ctrl or Alt, so a plain-letter shortcut never eats what you type.
  */
-export function useOpenInEditorShortcut({ enabled, current }: { enabled: boolean; current: string | null }) {
-  const shortcut = useEditorShortcut()
-  const latest = useRef({ enabled, current, shortcut })
-  latest.current = { enabled, current, shortcut }
+export function useOpenInEditorShortcut({ enabled, currentFile }: { enabled: boolean; currentFile: string | null }) {
+  const shortcut = useEditorShortcutSetting()
+  const latestState = useRef<ShortcutState>({ enabled, currentFile, shortcut })
+  latestState.current = { enabled, currentFile, shortcut }
 
   useEffect(() => {
-    const onKey = (e: KeyboardEvent) => {
-      const s = latest.current
-      if (!(s.enabled && matchesShortcut(e, s.shortcut)) || e.repeat) {
+    const openFileOnShortcut = (event: KeyboardEvent) => {
+      if (!isShortcutPress(event, latestState.current)) {
         return
       }
-      if (isTyping(e.target) && !hasCommandModifier(s.shortcut)) {
-        return
+      const button = findOpenInEditorButton(latestState.current.currentFile)
+      if (button) {
+        event.preventDefault()
+        button.click()
       }
-      const path = fileInView(s.current)
-      const button = path && document.querySelector(`#${CSS.escape(`file-${path}`)} [data-open-in-editor]`)
-      if (!(button instanceof HTMLButtonElement)) {
-        return
-      }
-      e.preventDefault()
-      button.click()
     }
-    globalThis.addEventListener('keydown', onKey)
-    return () => globalThis.removeEventListener('keydown', onKey)
+    globalThis.addEventListener('keydown', openFileOnShortcut)
+    return () => globalThis.removeEventListener('keydown', openFileOnShortcut)
   }, [])
 }

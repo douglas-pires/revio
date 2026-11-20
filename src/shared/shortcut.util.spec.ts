@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest'
-import { formatShortcut, hasCommandModifier, type KeyPress, matchesShortcut, shortcutOf } from './shortcut.util.ts'
+import { formatShortcut, hasCommandModifier, type KeyPress, matchesShortcut, readShortcut } from './shortcut.util.ts'
 
 const press = (over: Partial<KeyPress>): KeyPress => ({
   key: 'o',
@@ -11,24 +11,24 @@ const press = (over: Partial<KeyPress>): KeyPress => ({
   ...over,
 })
 
-describe('shortcutOf', () => {
+describe('readShortcut', () => {
   it('writes modifiers in a fixed order before the key', () => {
-    expect(shortcutOf(press({ metaKey: true }))).toBe('Cmd+O')
-    expect(shortcutOf(press({ key: 'O', shiftKey: true, metaKey: true }))).toBe('Cmd+Shift+O')
-    expect(shortcutOf(press({ key: 'e', code: 'KeyE' }))).toBe('E')
+    expect(readShortcut(press({ metaKey: true }))).toBe('Cmd+O')
+    expect(readShortcut(press({ key: 'O', shiftKey: true, metaKey: true }))).toBe('Cmd+Shift+O')
+    expect(readShortcut(press({ key: 'e', code: 'KeyE' }))).toBe('E')
   })
 
   it('reads letters and digits from the physical key, which Option and Shift do not change', () => {
-    expect(shortcutOf(press({ key: 'ø', altKey: true }))).toBe('Alt+O')
-    expect(shortcutOf(press({ key: '!', code: 'Digit1', shiftKey: true }))).toBe('Shift+1')
+    expect(readShortcut(press({ key: 'ø', altKey: true }))).toBe('Alt+O')
+    expect(readShortcut(press({ key: '!', code: 'Digit1', shiftKey: true }))).toBe('Shift+1')
   })
 
   it('keeps named keys as they are', () => {
-    expect(shortcutOf(press({ key: 'Enter', code: 'Enter', metaKey: true }))).toBe('Cmd+Enter')
+    expect(readShortcut(press({ key: 'Enter', code: 'Enter', metaKey: true }))).toBe('Cmd+Enter')
   })
 
   it('is not a shortcut until a key other than a modifier is down', () => {
-    expect(shortcutOf(press({ key: 'Meta', code: 'MetaLeft', metaKey: true }))).toBeNull()
+    expect(readShortcut(press({ key: 'Meta', code: 'MetaLeft', metaKey: true }))).toBeNull()
   })
 })
 

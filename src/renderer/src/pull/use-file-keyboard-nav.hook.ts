@@ -61,7 +61,7 @@ function nextUnviewed(files: PullFile[], index: number, viewed: Record<string, s
  * Reads the latest state through a ref so the window listener is attached once.
  */
 export function useFileKeyboardNav(state: NavState) {
-  useOpenInEditorShortcut({ enabled: state.enabled, current: state.current })
+  useOpenInEditorShortcut({ enabled: state.enabled, currentFile: state.current })
   const latest = useRef(state)
   latest.current = state
 

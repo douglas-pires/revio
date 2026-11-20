@@ -1,6 +1,6 @@
 import type { EditorInfo } from '@shared/editor.types.ts'
 import type { Settings, SettingsPatch } from '@shared/settings.types.ts'
-import { formatShortcut, shortcutOf } from '@shared/shortcut.util.ts'
+import { DEFAULT_OPEN_IN_EDITOR_SHORTCUT, formatShortcut, type KeyPress, readShortcut } from '@shared/shortcut.util.ts'
 import { useEffect, useState } from 'react'
 
 /** Which editor "Open in editor" uses, and where to look for local clones. */
@@ -12,10 +12,26 @@ function automaticLabel(firstInstalled: string | undefined) {
   return `Automatic (${firstInstalled})`
 }
 
-const DEFAULT_EDITOR_SHORTCUT = 'Cmd+O'
+/** What a key press does while recording a shortcut. */
+type RecordingStep = { kind: 'cancel' } | { kind: 'set'; shortcut: string } | { kind: 'wait' }
+
+/** Escape cancels, Backspace or Delete turn the shortcut off, a lone modifier waits for the rest of the keys. */
+function interpretRecordingKey(press: KeyPress): RecordingStep {
+  if (press.key === 'Escape') {
+    return { kind: 'cancel' }
+  }
+  if (press.key === 'Backspace' || press.key === 'Delete') {
+    return { kind: 'set', shortcut: '' }
+  }
+  const shortcut = readShortcut(press)
+  if (shortcut === null) {
+    return { kind: 'wait' }
+  }
+  return { kind: 'set', shortcut }
+}
 
 /** What the recorder button reads: a prompt while recording, else the shortcut or "Off". */
-function recorderLabel(recording: boolean, shortcut: string) {
+function describeRecorderState(recording: boolean, shortcut: string) {
   if (recording) {
     return 'Press the keys…'
   }
@@ -25,10 +41,19 @@ function recorderLabel(recording: boolean, shortcut: string) {
 /** Records a shortcut: click, then press the keys. Escape cancels; Backspace or Delete turns it off. */
 function ShortcutRecorder({ value, onChange }: { value: string; onChange: (shortcut: string) => void }) {
   const [recording, setRecording] = useState(false)
-  const finish = (shortcut: string | null) => {
+  const recordKey = (event: React.KeyboardEvent) => {
+    if (!recording) {
+      return
+    }
+    event.preventDefault()
+    event.stopPropagation()
+    const step = interpretRecordingKey(event)
+    if (step.kind === 'wait') {
+      return
+    }
     setRecording(false)
-    if (shortcut !== null && shortcut !== value) {
-      onChange(shortcut)
+    if (step.kind === 'set' && step.shortcut !== value) {
+      onChange(step.shortcut)
     }
   }
   return (
@@ -39,31 +64,13 @@ function ShortcutRecorder({ value, onChange }: { value: string; onChange: (short
         aria-label="Open in editor shortcut"
         onClick={() => setRecording(true)}
         onBlur={() => setRecording(false)}
-        onKeyDown={(e) => {
-          if (!recording) {
-            return
-          }
-          e.preventDefault()
-          e.stopPropagation()
-          if (e.key === 'Escape') {
-            finish(null)
-            return
-          }
-          if (e.key === 'Backspace' || e.key === 'Delete') {
-            finish('')
-            return
-          }
-          const shortcut = shortcutOf(e)
-          if (shortcut) {
-            finish(shortcut)
-          }
-        }}
+        onKeyDown={recordKey}
       >
-        {recorderLabel(recording, value)}
+        {describeRecorderState(recording, value)}
       </button>
-      {value !== DEFAULT_EDITOR_SHORTCUT && (
-        <button type="button" className="btn btn-ghost" onClick={() => onChange(DEFAULT_EDITOR_SHORTCUT)}>
-          Reset to {formatShortcut(DEFAULT_EDITOR_SHORTCUT)}
+      {value !== DEFAULT_OPEN_IN_EDITOR_SHORTCUT && (
+        <button type="button" className="btn btn-ghost" onClick={() => onChange(DEFAULT_OPEN_IN_EDITOR_SHORTCUT)}>
+          Reset to {formatShortcut(DEFAULT_OPEN_IN_EDITOR_SHORTCUT)}
         </button>
       )}
     </div>
