@@ -1,4 +1,4 @@
-import { cx } from '../common/format.util.ts'
+import { InnerTabs } from '../common/inner-tabs.component.tsx'
 import { SegmentedControl } from '../common/segmented-control.component.tsx'
 import { ToggleButton } from '../common/toggle-button.component.tsx'
 
@@ -6,7 +6,15 @@ import type { DiffView } from './diff-file.component.tsx'
 
 const LABELS: Record<PullTab, string> = { overview: 'Overview', files: 'Files changed', commits: 'Commits' }
 
-/** Overview / Files changed, plus the diff tools shown on the files tab. */
+/** Only the Commits tab carries a count. */
+function commitCountOf(tab: PullTab, count: number): number | undefined {
+  let shown: number | undefined
+  if (tab === 'commits') {
+    shown = count
+  }
+  return shown
+}
+
 /** Tooltips for the toggles, by whether they are on. */
 const TOGGLE_TITLES = {
   comments: { true: 'Hide the comments panel', false: 'Show every comment thread in a panel' },
@@ -29,9 +37,6 @@ const FOLD_LABELS = {
 /** Spacing between the toolbar's controls: tighter when a side panel narrows the bar. */
 const GAP = 'ml-3 @max-3xl:ml-1.5'
 
-/** Where a toolbar toggle sits in the tab bar: centred, clear of the tabs' underline. */
-const TOOL = 'mb-1.5 self-center'
-
 const VIEWS = [
   { value: 'unified', label: 'Unified' },
   { value: 'split', label: 'Split' },
@@ -46,7 +51,6 @@ function FilesToolbar({ props }: { props: PullTabBarProps }) {
         on={props.commentsPanelOpen}
         onToggle={props.onToggleCommentsPanel}
         title={TOGGLE_TITLES.comments[String(props.commentsPanelOpen) as 'true' | 'false']}
-        className={cx(TOOL, 'ml-auto')}
       >
         💬 {props.openThreadCount}
       </ToggleButton>
@@ -54,7 +58,7 @@ function FilesToolbar({ props }: { props: PullTabBarProps }) {
         on={props.blame}
         onToggle={props.onToggleBlame}
         title={TOGGLE_TITLES.blame[String(props.blame) as 'true' | 'false']}
-        className={cx(TOOL, GAP)}
+        className={GAP}
       >
         Blame
       </ToggleButton>
@@ -62,16 +66,16 @@ function FilesToolbar({ props }: { props: PullTabBarProps }) {
         on={props.threadsFolded}
         onToggle={props.onToggleThreadsFolded}
         title={TOGGLE_TITLES.fold[folded]}
-        className={cx(TOOL, GAP)}
+        className={GAP}
       >
         <span className="@4xl:hidden">{FOLD_LABELS[folded].short}</span>
         <span className="hidden @4xl:inline">{FOLD_LABELS[folded].full}</span>
       </ToggleButton>
       {/* A reminder only, shown when the bar has room for it. */}
-      <span className="mb-1.5 ml-3 hidden shrink-0 self-center text-[11.5px] whitespace-nowrap text-muted @5xl:inline">
+      <span className="ml-3 hidden shrink-0 self-center text-[11.5px] whitespace-nowrap text-muted @5xl:inline">
         <kbd className="kbd">j</kbd>/<kbd className="kbd">k</kbd> files · <kbd className="kbd">v</kbd> viewed
       </span>
-      <SegmentedControl segments={VIEWS} value={props.view} onChange={props.onView} className={cx('mb-1.5', GAP)} />
+      <SegmentedControl segments={VIEWS} value={props.view} onChange={props.onView} className={GAP} />
     </>
   )
 }
@@ -94,28 +98,14 @@ interface PullTabBarProps {
 export type PullTab = 'overview' | 'files' | 'commits'
 
 export function PullTabBar(props: PullTabBarProps) {
-  const { tab } = props
+  const tabs = (['overview', 'files', 'commits'] as const).map((t) => ({
+    value: t,
+    label: LABELS[t],
+    count: commitCountOf(t, props.commitCount),
+  }))
   return (
-    // A size container: the files toolbar fits itself to the bar's width (narrower beside a side panel).
-    <div className="@container flex shrink-0 gap-1 border-b border-line px-4 pt-2">
-      {(['overview', 'files', 'commits'] as const).map((t) => (
-        <button
-          type="button"
-          key={t}
-          onClick={() => props.onTab(t)}
-          className={cx(
-            '-mb-px shrink-0 border-b-2 px-3 py-1.5 font-medium whitespace-nowrap @max-3xl:px-2',
-            tab === t && 'border-accent text-fg',
-            !(tab === t) && 'border-transparent text-muted hover:text-fg',
-          )}
-        >
-          {LABELS[t]}
-          {t === 'commits' && (
-            <span className="ml-1.5 rounded-full bg-panel-2 px-1.5 text-[11px] text-muted">{props.commitCount}</span>
-          )}
-        </button>
-      ))}
-      {tab === 'files' && <FilesToolbar props={props} />}
-    </div>
+    <InnerTabs tabs={tabs} value={props.tab} onChange={props.onTab}>
+      {props.tab === 'files' && <FilesToolbar props={props} />}
+    </InnerTabs>
   )
 }
