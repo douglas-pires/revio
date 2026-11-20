@@ -3,7 +3,7 @@ import { useEffect, useRef, useState } from 'react'
 import { ago, errorMessage } from '../common/format.util.ts'
 import { Markdown } from '../common/markdown.component.tsx'
 import type { ConversationQuote } from '../common/navigation.types.ts'
-import { Composer } from './review-comments.component.tsx'
+import { Composer } from './composer.component.tsx'
 
 const AVATAR_PX = 20
 
@@ -65,6 +65,7 @@ export function MentionedComment({
             <Composer
               label="Reply in the conversation"
               initial={quoteReply(quote.body, quote.author)}
+              unsentKey={`mention:${quote.url}`}
               onCancel={() => setReplying(false)}
               onSubmitNow={async (body) => {
                 setError(null)

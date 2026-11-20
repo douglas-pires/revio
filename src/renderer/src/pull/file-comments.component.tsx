@@ -1,5 +1,7 @@
 import type { DraftComment, ReviewComment } from '@shared/pull.types.ts'
-import { type CommentActions, Composer, DraftView, ReviewThread } from './review-comments.component.tsx'
+import { Composer } from './composer.component.tsx'
+import { type CommentActions, DraftView, ReviewThread } from './review-comments.component.tsx'
+import { useUnsentScope } from './unsent-comments.util.ts'
 
 /** Comments on the file as a whole: GitHub's file threads, your drafts for them, and the box to add one. */
 export function FileComments(props: {
@@ -12,6 +14,7 @@ export function FileComments(props: {
   actions: CommentActions
 }) {
   const { actions } = props
+  const scope = useUnsentScope()
   const fileDrafts = props.drafts.filter((d) => d.line === null && !d.inReplyTo)
   if (!(props.threads.length > 0 || fileDrafts.length > 0 || props.composing)) {
     return null
@@ -35,6 +38,7 @@ export function FileComments(props: {
         <Composer
           label="Comment on file"
           codePath={props.path}
+          unsentKey={`${scope}:file:${props.path}`}
           onCancel={props.onCloseComposer}
           onSubmit={(body) => {
             actions.onAddDraft({ path: props.path, side: 'RIGHT', line: null, body })
