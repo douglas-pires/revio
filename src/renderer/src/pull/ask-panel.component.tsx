@@ -2,9 +2,10 @@ import type { AskMessage as AskMessageType, AskThread } from '@shared/claude.typ
 import type { PullRef } from '@shared/pull.types.ts'
 import { useEffect, useMemo, useRef, useState } from 'react'
 import { CopyButton } from '../common/copy-button.component.tsx'
-import { cx } from '../common/format.util.ts'
 import { Markdown } from '../common/markdown.component.tsx'
 import { withPositions } from '../common/numbered-lines.util.ts'
+import { PanelHeader } from '../common/panel-header.component.tsx'
+import { ToggleButton } from '../common/toggle-button.component.tsx'
 import { FinishedActivity, PendingAnswer } from './ask-activity.component.tsx'
 import { PendingContext, SentContext } from './ask-context.component.tsx'
 import { AskHistory } from './ask-history.component.tsx'
@@ -211,6 +212,24 @@ function useChatScroll(scroller: React.RefObject<HTMLDivElement | null>, thread:
   return stick
 }
 
+/** The panel's title, the button that lists your other chats, and ✕. */
+function AskHeader(props: { chats: number; listing: boolean; setListing: (on: boolean) => void; onClose: () => void }) {
+  return (
+    <PanelHeader
+      title="✦ Ask Claude"
+      actions={
+        props.chats > 1 && (
+          <ToggleButton on={props.listing} onToggle={() => props.setListing(!props.listing)}>
+            Chats {props.chats}
+          </ToggleButton>
+        )
+      }
+      onClose={props.onClose}
+      closeLabel="Close"
+    />
+  )
+}
+
 export function AskPanel(props: AskPanelProps) {
   const { thread } = props
   const chat = useAskConversation(props.pull, thread, props.onChange)
@@ -231,24 +250,7 @@ export function AskPanel(props: AskPanelProps) {
 
   return (
     <aside className="flex w-[440px] shrink-0 flex-col border-l border-line bg-panel">
-      <header className="flex items-center gap-2 border-b border-line px-3 py-2">
-        <span className="text-accent">✦</span>
-        <span className="font-semibold">Ask Claude</span>
-        <div className="flex-1" />
-        {props.history.length > 1 && (
-          <button
-            type="button"
-            className={cx('btn py-0.5', listing && 'btn-primary')}
-            onClick={() => setListing(!listing)}
-            aria-pressed={listing}
-          >
-            Chats {props.history.length}
-          </button>
-        )}
-        <button type="button" className="btn btn-ghost px-1.5" onClick={props.onClose} title="Close">
-          ✕
-        </button>
-      </header>
+      <AskHeader chats={props.history.length} listing={listing} setListing={setListing} onClose={props.onClose} />
       {Boolean(listing) && (
         <div className="min-h-0 flex-1 overflow-y-auto px-3 py-3">
           <AskHistory

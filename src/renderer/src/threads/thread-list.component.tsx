@@ -2,6 +2,7 @@ import { summarizeComment } from '@shared/excerpt.util.ts'
 import { reviewCommentIdFromUrl } from '@shared/github-url.util.ts'
 import type { OpenThread } from '@shared/thread.types.ts'
 import { memo, useState } from 'react'
+import { EmptyState } from '../common/empty-state.component.tsx'
 import { ago, countOf, cx } from '../common/format.util.ts'
 import { groupBy } from '../common/group.util.ts'
 import type { OpenPull } from '../common/navigation.types.ts'
@@ -244,10 +245,10 @@ export interface ThreadActions {
 export const ThreadList = memo(function ThreadListView({ threads, resolved, filtering, ...actions }: Props) {
   if (threads.length === 0) {
     return (
-      <div className="rounded-lg border border-dashed border-line px-4 py-10 text-center text-muted">
+      <EmptyState>
         {Boolean(filtering) && 'No open thread matches this search.'}
         {!filtering && 'No unresolved review threads on your open PRs. 🎉'}
-      </div>
+      </EmptyState>
     )
   }
   return (
