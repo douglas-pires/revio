@@ -1,0 +1,34 @@
+/* The code panel's loading placeholder: faint lines with a soft light sweeping across them, and breathing. */
+@keyframes code-sweep {
+  from {
+    background-position: 100% 0;
+  }
+  to {
+    background-position: -100% 0;
+  }
+}
+@keyframes code-breathe {
+  50% {
+    opacity: 0.55;
+  }
+}
+.code-loading {
+  animation: code-breathe 2.4s ease-in-out infinite;
+}
+.code-loading-line {
+  background:
+    linear-gradient(
+      90deg,
+      var(--color-panel-2) 0%,
+      color-mix(in srgb, var(--color-accent) 22%, var(--color-panel-2)) 50%,
+      var(--color-panel-2) 100%
+    )
+    0 0 / 200% 100%;
+  animation: code-sweep 1.6s ease-in-out infinite;
+}
+@media (prefers-reduced-motion: reduce) {
+  .code-loading,
+  .code-loading-line {
+    animation: none;
+  }
+}

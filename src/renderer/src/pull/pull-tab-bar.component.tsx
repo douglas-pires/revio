@@ -1,19 +1,8 @@
 import { InnerTabs } from '../common/inner-tabs.component.tsx'
 import { SegmentedControl } from '../common/segmented-control.component.tsx'
 import { ToggleButton } from '../common/toggle-button.component.tsx'
-
 import type { DiffView } from './diff-file.component.tsx'
-
-const LABELS: Record<PullTab, string> = { overview: 'Overview', files: 'Files changed', commits: 'Commits' }
-
-/** Only the Commits tab carries a count. */
-function commitCountOf(tab: PullTab, count: number): number | undefined {
-  let shown: number | undefined
-  if (tab === 'commits') {
-    shown = count
-  }
-  return shown
-}
+import { type PullTab, pullTabs } from './pull-tabs.util.ts'
 
 /** Tooltips for the toggles, by whether they are on. */
 const TOGGLE_TITLES = {
@@ -95,14 +84,8 @@ interface PullTabBarProps {
   onToggleThreadsFolded: () => void
 }
 
-export type PullTab = 'overview' | 'files' | 'commits'
-
 export function PullTabBar(props: PullTabBarProps) {
-  const tabs = (['overview', 'files', 'commits'] as const).map((t) => ({
-    value: t,
-    label: LABELS[t],
-    count: commitCountOf(t, props.commitCount),
-  }))
+  const tabs = pullTabs(props.commitCount)
   return (
     <InnerTabs tabs={tabs} value={props.tab} onChange={props.onTab}>
       {props.tab === 'files' && <FilesToolbar props={props} />}

@@ -1,24 +1,15 @@
 import type { AskThread } from '@shared/claude.types.ts'
-
 import type { PullRef, ReviewEvent } from '@shared/pull.types.ts'
-
 import { useCallback, useMemo, useState } from 'react'
-
 import { groupBy } from '../common/group.util.ts'
-
 import type { PullTarget } from '../common/navigation.types.ts'
-
 import { useStoredChoice } from '../common/use-stored-choice.hook.ts'
-
 import { groupCommentThreads } from './comment-threads.util.ts'
-
 import type { AskSelection, DiffView } from './diff-file.component.tsx'
-
 import { groupByDir, initialCollapsed, newSideLinesByPath } from './files.util.ts'
-
-import type { PullTab } from './pull-tab-bar.component.tsx'
-
+import type { PullTab } from './pull-tabs.util.ts'
 import { fileTargetOf, quoteOf, replyIdOf } from './pull-view.util.ts'
+import { rememberStackTab, stackTabFor } from './stack-memory.util.ts'
 
 import { useBriefing } from './use-briefing.hook.ts'
 
@@ -71,14 +62,22 @@ function usePullIndexes(pr: ReturnType<typeof usePullDetail>['pr'], local: PullL
 }
 
 /** Which tab, which side panel and which display choices the PR view shows. */
-function useViewChoices() {
-  const [tab, setTab] = useState<PullTab>('overview')
+function useViewChoices(pull: PullRef) {
+  const [tab, showTab] = useState<PullTab>(() => stackTabFor(pull) ?? 'overview')
+  /** Moving to another PR of the same stack opens it on this tab. */
+  const setTab = useCallback(
+    (next: PullTab) => {
+      rememberStackTab(pull, next)
+      showTab(next)
+    },
+    [pull],
+  )
   const [view, changeView] = useStoredChoice<DiffView>('revio.diffView', DIFF_VIEWS, 'unified')
   const [commentsPanel, setCommentsPanel] = useStoredChoice('revio.commentsPanel', PANEL_STATES, 'open')
   const [blame, setBlame] = useStoredChoice('revio.blame', BLAME_STATES, 'off')
   /** The file whose history is open in the side panel. */
   const [historyPath, setHistoryPath] = useState<string | null>(null)
-  const showFiles = useCallback(() => setTab('files'), [])
+  const showFiles = useCallback(() => setTab('files'), [setTab])
   return {
     tab,
     setTab,
@@ -157,7 +156,7 @@ export const BLAME_STATES = ['off', 'on'] as const
  */
 export function usePullView(pullRef: PullRef, initialTarget: PullTarget | undefined) {
   const pull = useStablePull(pullRef)
-  const choices = useViewChoices()
+  const choices = useViewChoices(pull)
   const review = useReviewState()
   const ask = useAskState()
   const arrival = useArrival(initialTarget)

@@ -1,0 +1,131 @@
+/* Revio's mascot (mascot.component.tsx): colours, then the animations. Origins are in the SVG's own coordinates. */
+.mascot .mascot-skin {
+  fill: var(--color-accent);
+}
+.mascot .mascot-antenna line {
+  stroke: var(--color-accent);
+  stroke-width: 3;
+  stroke-linecap: round;
+}
+.mascot .mascot-antenna circle {
+  fill: var(--color-focus);
+}
+.mascot .mascot-belly {
+  fill: color-mix(in srgb, white 22%, var(--color-accent));
+}
+.mascot .mascot-eye {
+  fill: white;
+}
+.mascot .mascot-pupils circle {
+  fill: var(--color-bg);
+}
+.mascot .mascot-pupils .mascot-glint {
+  fill: white;
+}
+.mascot .mascot-cheek {
+  fill: color-mix(in srgb, var(--color-danger) 45%, transparent);
+}
+.mascot .mascot-mouth,
+.mascot .mascot-shine {
+  fill: none;
+  stroke: var(--color-bg);
+  stroke-width: 2;
+  stroke-linecap: round;
+}
+.mascot .mascot-shine {
+  stroke: white;
+  stroke-width: 1.5;
+  opacity: 0.8;
+}
+.mascot .mascot-lens {
+  fill: color-mix(in srgb, white 18%, transparent);
+  stroke: var(--color-fg);
+  stroke-width: 3;
+}
+.mascot .mascot-handle {
+  stroke: var(--color-warn);
+  stroke-width: 5;
+  stroke-linecap: round;
+}
+
+.mascot .mascot-body {
+  animation: mascot-bob 1.8s ease-in-out infinite;
+}
+.mascot .mascot-shadow {
+  fill: black;
+  opacity: 0.3;
+  transform-origin: 60px 98px;
+  animation: mascot-shadow 1.8s ease-in-out infinite;
+}
+.mascot .mascot-antenna {
+  transform-origin: 60px 24px;
+  animation: mascot-wiggle 1.8s ease-in-out infinite;
+}
+.mascot .mascot-eyes {
+  transform-origin: 60px 48px;
+  animation: mascot-blink 4.2s infinite;
+}
+.mascot .mascot-pupils {
+  animation: mascot-look 2.8s ease-in-out infinite;
+}
+.mascot .mascot-glass {
+  transform-origin: 84px 94px;
+  animation: mascot-sweep 2.8s ease-in-out infinite;
+}
+@keyframes mascot-bob {
+  50% {
+    transform: translateY(-4px);
+  }
+}
+@keyframes mascot-shadow {
+  50% {
+    transform: scaleX(0.8);
+    opacity: 0.18;
+  }
+}
+@keyframes mascot-wiggle {
+  25% {
+    transform: rotate(-10deg);
+  }
+  75% {
+    transform: rotate(10deg);
+  }
+}
+@keyframes mascot-blink {
+  0%,
+  92%,
+  100% {
+    transform: scaleY(1);
+  }
+  95% {
+    transform: scaleY(0.1);
+  }
+}
+@keyframes mascot-look {
+  0%,
+  100% {
+    transform: translate(-2.5px, 1px);
+  }
+  50% {
+    transform: translate(2.5px, 1px);
+  }
+}
+@keyframes mascot-sweep {
+  0%,
+  100% {
+    transform: translate(-46px, 2px) rotate(-8deg);
+  }
+  50% {
+    transform: translate(0, 0) rotate(6deg);
+  }
+}
+@media (prefers-reduced-motion: reduce) {
+  .mascot .mascot-body,
+  .mascot .mascot-shadow,
+  .mascot .mascot-antenna,
+  .mascot .mascot-eyes,
+  .mascot .mascot-pupils,
+  .mascot .mascot-glass {
+    animation: none;
+  }
+}
