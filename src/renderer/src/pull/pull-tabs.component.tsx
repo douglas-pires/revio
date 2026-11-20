@@ -6,7 +6,7 @@ import { FindBar } from './find-bar.component.tsx'
 import { MentionedComment } from './mentioned-comment.component.tsx'
 import { OverviewTab } from './overview-tab.component.tsx'
 import { PullTabBar } from './pull-tab-bar.component.tsx'
-import { toggled, withSummaryLine } from './pull-view.util.ts'
+import { markedAsAi, toggled, withSummaryLine } from './pull-view.util.ts'
 import { TabPane } from './tab-pane.component.tsx'
 import { BLAME_STATES, PANEL_STATES, type PullViewState } from './use-pull-view.hook.ts'
 
@@ -22,7 +22,7 @@ function BriefingCard({ v, pr }: { v: PullViewState; pr: PullDetail }) {
       validLine={(path, line) => Boolean(v.rightLines.get(path)?.has(line))}
       patchOf={v.patchOf}
       onDraft={(path, line, body) => {
-        v.addDraft({ path, line, side: 'RIGHT', body })
+        v.addDraft({ path, line, side: 'RIGHT', body: markedAsAi(body) })
         v.nav.goTo(path, line)
       }}
       onAddToSummary={(q) => v.review.setBody((b) => withSummaryLine(b, q))}
