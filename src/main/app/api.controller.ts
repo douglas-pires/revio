@@ -10,6 +10,7 @@ import type { EditorService } from '../editor/editor.service.ts'
 import { installedEditors } from '../editor/editor.service.ts'
 import { gh, resetClient } from '../github/github.client.ts'
 import type { GithubTokens } from '../github/github-tokens.service.ts'
+import { gitLogApi } from '../gitlog/git-log.api.ts'
 import { deleteGuideline, resolveGuidelines, saveGuideline } from '../guidelines/guidelines.service.ts'
 import type { HistoryCache } from '../history/history.cache.ts'
 import type { InboxPoller } from '../inbox/inbox.poller.ts'
@@ -262,6 +263,7 @@ export function registerApi(deps: ApiDeps) {
     testNotification: () => sendTestNotification(() => deps.window.show()),
     ...guidelineHandlers(deps),
     ...claudeHandlers(deps),
+    ...gitLogApi(deps.editor),
     listEditors: () => installedEditors(),
     openInEditor: (target) => deps.editor.open(target),
     openExternal: async (url) => {
