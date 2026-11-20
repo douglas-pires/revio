@@ -52,34 +52,40 @@ function refreshInBackground(pull: PullRef, show: (pr: PullDetail) => void) {
     })
 }
 
+/** Refetches the PR only while the window is visible, and skips a refetch when the last one is recent. */
+function createVisibleRefresher(pull: PullRef, showPull: (pr: PullDetail) => void) {
+  let lastRefreshedAt = Date.now()
+  const refreshIfVisible = () => {
+    if (document.visibilityState !== 'visible') {
+      return
+    }
+    lastRefreshedAt = Date.now()
+    refreshInBackground(pull, showPull)
+  }
+  const refreshIfStale = () => {
+    if (Date.now() - lastRefreshedAt > FRESH_ENOUGH_MS) {
+      refreshIfVisible()
+    }
+  }
+  return { refreshIfVisible, refreshIfStale }
+}
+
 /**
  * Keeps an open PR current, so replies and new comments show up without reopening it: refetches every
  * `LIVE_REFRESH_MS` while the window is visible, and at once when you come back to it.
  */
-function useLiveRefresh(pull: PullRef, show: (pr: PullDetail) => void) {
+function useLiveRefresh(pull: PullRef, showPull: (pr: PullDetail) => void) {
   useEffect(() => {
-    let last = Date.now()
-    const refresh = () => {
-      if (document.visibilityState !== 'visible') {
-        return
-      }
-      last = Date.now()
-      refreshInBackground(pull, show)
-    }
-    const onReturn = () => {
-      if (Date.now() - last > FRESH_ENOUGH_MS) {
-        refresh()
-      }
-    }
-    const timer = setInterval(refresh, LIVE_REFRESH_MS)
-    globalThis.addEventListener('focus', onReturn)
-    document.addEventListener('visibilitychange', onReturn)
+    const { refreshIfVisible, refreshIfStale } = createVisibleRefresher(pull, showPull)
+    const timer = setInterval(refreshIfVisible, LIVE_REFRESH_MS)
+    globalThis.addEventListener('focus', refreshIfStale)
+    document.addEventListener('visibilitychange', refreshIfStale)
     return () => {
       clearInterval(timer)
-      globalThis.removeEventListener('focus', onReturn)
-      document.removeEventListener('visibilitychange', onReturn)
+      globalThis.removeEventListener('focus', refreshIfStale)
+      document.removeEventListener('visibilitychange', refreshIfStale)
     }
-  }, [pull, show])
+  }, [pull, showPull])
 }
 
 /**
