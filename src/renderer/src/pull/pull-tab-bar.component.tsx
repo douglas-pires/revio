@@ -12,11 +12,80 @@ const TOGGLE_TITLES = {
     true: 'Stop showing who last changed each line',
     false: 'Show who last changed each line when you hover it',
   },
+  fold: {
+    true: 'Show every comment thread in the diff in full',
+    false: 'Minimize every comment thread in the diff to one line, to keep the code in view',
+  },
 } as const
 
-export type PullTab = 'overview' | 'files' | 'commits'
+const FOLD_LABELS = { true: 'Expand comments', false: 'Minimize comments' } as const
 
-export function PullTabBar(props: {
+/** The files tab's controls: the comments panel, blame, minimised threads, the shortcuts and the diff layout. */
+function FilesToolbar({ props }: { props: PullTabBarProps }) {
+  return (
+    <>
+      <button
+        type="button"
+        className={cx(
+          'mb-1.5 ml-auto self-center rounded px-2 py-0.5 text-[12px]',
+          props.commentsPanelOpen && 'bg-hover text-fg',
+          !props.commentsPanelOpen && 'text-muted hover:text-fg',
+        )}
+        title={TOGGLE_TITLES.comments[String(props.commentsPanelOpen) as 'true' | 'false']}
+        onClick={props.onToggleCommentsPanel}
+      >
+        💬 {props.openThreadCount}
+      </button>
+      <button
+        type="button"
+        aria-pressed={props.blame}
+        className={cx(
+          'mb-1.5 ml-3 self-center rounded px-2 py-0.5 text-[12px]',
+          props.blame && 'bg-hover text-fg',
+          !props.blame && 'text-muted hover:text-fg',
+        )}
+        title={TOGGLE_TITLES.blame[String(props.blame) as 'true' | 'false']}
+        onClick={props.onToggleBlame}
+      >
+        Blame
+      </button>
+      <button
+        type="button"
+        aria-pressed={props.threadsFolded}
+        className={cx(
+          'mb-1.5 ml-3 self-center rounded px-2 py-0.5 text-[12px] whitespace-nowrap',
+          props.threadsFolded && 'bg-hover text-fg',
+          !props.threadsFolded && 'text-muted hover:text-fg',
+        )}
+        title={TOGGLE_TITLES.fold[String(props.threadsFolded) as 'true' | 'false']}
+        onClick={props.onToggleThreadsFolded}
+      >
+        {FOLD_LABELS[String(props.threadsFolded) as 'true' | 'false']}
+      </button>
+      <span className="mb-1.5 ml-3 self-center text-[11.5px] text-muted">
+        <kbd className="kbd">j</kbd>/<kbd className="kbd">k</kbd> files · <kbd className="kbd">v</kbd> viewed
+      </span>
+      <div className="mb-1.5 ml-3 flex rounded-md border border-line p-0.5">
+        {(['unified', 'split'] as const).map((v) => (
+          <button
+            type="button"
+            key={v}
+            onClick={() => props.onView(v)}
+            className={cx(
+              'rounded px-2.5 py-0.5 text-[12px] capitalize',
+              props.view === v && 'bg-hover text-fg',
+              !(props.view === v) && 'text-muted hover:text-fg',
+            )}
+          >
+            {v}
+          </button>
+        ))}
+      </div>
+    </>
+  )
+}
+
+interface PullTabBarProps {
   tab: PullTab
   onTab: (tab: PullTab) => void
   commitCount: number
@@ -27,7 +96,13 @@ export function PullTabBar(props: {
   onView: (view: DiffView) => void
   blame: boolean
   onToggleBlame: () => void
-}) {
+  threadsFolded: boolean
+  onToggleThreadsFolded: () => void
+}
+
+export type PullTab = 'overview' | 'files' | 'commits'
+
+export function PullTabBar(props: PullTabBarProps) {
   const { tab } = props
   return (
     <div className="flex shrink-0 gap-1 border-b border-line px-4 pt-2">
@@ -48,54 +123,7 @@ export function PullTabBar(props: {
           )}
         </button>
       ))}
-      {tab === 'files' && (
-        <>
-          <button
-            type="button"
-            className={cx(
-              'mb-1.5 ml-auto self-center rounded px-2 py-0.5 text-[12px]',
-              props.commentsPanelOpen && 'bg-hover text-fg',
-              !props.commentsPanelOpen && 'text-muted hover:text-fg',
-            )}
-            title={TOGGLE_TITLES.comments[String(props.commentsPanelOpen) as 'true' | 'false']}
-            onClick={props.onToggleCommentsPanel}
-          >
-            💬 {props.openThreadCount}
-          </button>
-          <button
-            type="button"
-            aria-pressed={props.blame}
-            className={cx(
-              'mb-1.5 ml-3 self-center rounded px-2 py-0.5 text-[12px]',
-              props.blame && 'bg-hover text-fg',
-              !props.blame && 'text-muted hover:text-fg',
-            )}
-            title={TOGGLE_TITLES.blame[String(props.blame) as 'true' | 'false']}
-            onClick={props.onToggleBlame}
-          >
-            Blame
-          </button>
-          <span className="mb-1.5 ml-3 self-center text-[11.5px] text-muted">
-            <kbd className="kbd">j</kbd>/<kbd className="kbd">k</kbd> files · <kbd className="kbd">v</kbd> viewed
-          </span>
-          <div className="mb-1.5 ml-3 flex rounded-md border border-line p-0.5">
-            {(['unified', 'split'] as const).map((v) => (
-              <button
-                type="button"
-                key={v}
-                onClick={() => props.onView(v)}
-                className={cx(
-                  'rounded px-2.5 py-0.5 text-[12px] capitalize',
-                  props.view === v && 'bg-hover text-fg',
-                  !(props.view === v) && 'text-muted hover:text-fg',
-                )}
-              >
-                {v}
-              </button>
-            ))}
-          </div>
-        </>
-      )}
+      {tab === 'files' && <FilesToolbar props={props} />}
     </div>
   )
 }
