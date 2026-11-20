@@ -1,4 +1,5 @@
 import type { DraftComment, ReviewComment } from '@shared/pull.types.ts'
+import { SectionHeading } from '../common/section-heading.component.tsx'
 import { Composer } from './composer.component.tsx'
 import { type CommentActions, DraftView, ReviewThread } from './review-comments.component.tsx'
 import { useUnsentScope } from './unsent-comments.util.ts'
@@ -21,7 +22,7 @@ export function FileComments(props: {
   }
   return (
     <div className="max-w-3xl space-y-2 border-b border-line px-4 py-3">
-      <div className="text-[11px] font-semibold tracking-wide text-muted uppercase">On this file</div>
+      <SectionHeading title="On this file" className="mb-0" />
       {props.threads.map((thread) => (
         <ReviewThread
           key={thread[0]?.id}

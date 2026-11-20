@@ -2,6 +2,7 @@ import type { AskActivity } from './claude.types.ts'
 import type { Inbox } from './inbox.types.ts'
 import type { MentionsInbox } from './mention.types.ts'
 import type { PullRef } from './pull.types.ts'
+import type { SyncStatus } from './settings.types.ts'
 import type { UpdateStatus } from './update.types.ts'
 
 export type MainEvent =
@@ -15,3 +16,5 @@ export type MainEvent =
   | { type: 'ask-delta'; threadId: string; text: string }
   /** What Claude is doing on a question, before and while the answer streams. */
   | { type: 'ask-activity'; threadId: string; activity: AskActivity }
+  /** Sync ran; `applied` when it brought in changes from another Mac. */
+  | { type: 'sync'; status: SyncStatus; applied: boolean }

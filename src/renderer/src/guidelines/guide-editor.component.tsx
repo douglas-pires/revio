@@ -1,9 +1,14 @@
 import { useId, useState } from 'react'
-import { cx } from '../common/format.util.ts'
 import { Markdown } from '../common/markdown.component.tsx'
+import { SegmentedControl } from '../common/segmented-control.component.tsx'
 import { type Draft, defaultTitle } from './guidelines.util.ts'
 
 type Change = (draft: Draft) => void
+
+const BODY_MODES = [
+  { value: 'write', label: 'Write' },
+  { value: 'preview', label: 'Preview' },
+] as const
 
 function Field({ label, htmlFor, children }: { label: string; htmlFor: string; children: React.ReactNode }) {
   return (
@@ -61,20 +66,19 @@ function ScopeFields({ draft, repos, onChange }: { draft: Draft; repos: readonly
 }
 
 /** The guide's markdown: written in a text box (⌘S saves), or previewed. */
-function GuideBody({ draft, onChange, onSave }: { draft: Draft; onChange: Change; onSave: () => void }) {
-  const [preview, setPreview] = useState(false)
+function GuideBody(props: { draft: Draft; onChange: Change; onSave: () => void; actions: React.ReactNode }) {
+  const { draft, onChange, onSave } = props
+  const [mode, setMode] = useState<'write' | 'preview'>('write')
+  const preview = mode === 'preview'
   return (
     <>
-      <div className="flex shrink-0 items-center gap-1 px-5 pt-3">
-        <button type="button" className={cx('btn btn-ghost', !preview && 'bg-hover')} onClick={() => setPreview(false)}>
-          Write
-        </button>
-        <button type="button" className={cx('btn btn-ghost', preview && 'bg-hover')} onClick={() => setPreview(true)}>
-          Preview
-        </button>
-        <span className="ml-2 text-muted">
+      <div className="flex shrink-0 items-center gap-3 px-5 pt-3">
+        <SegmentedControl segments={BODY_MODES} value={mode} onChange={setMode} />
+        <span className="min-w-0 truncate text-muted">
           Markdown. Tell Claude (and future you) what matters here and what to ignore.
         </span>
+        <div className="flex-1" />
+        <div className="flex shrink-0 items-center gap-2">{props.actions}</div>
       </div>
       <div className="min-h-0 flex-1 p-5 pt-2">
         {Boolean(preview) && (
@@ -123,6 +127,40 @@ function DraftWarning({ isNew, onDiscard }: { isNew: boolean; onDiscard: () => v
   )
 }
 
+/** Saved / the error, whether the guide is on, and deleting or saving it. */
+function GuideActions(props: {
+  draft: Draft
+  saved: boolean
+  error: string | null
+  onChange: Change
+  onSave: () => void
+  onDelete: () => void
+}) {
+  const { draft } = props
+  return (
+    <>
+      {Boolean(props.saved) && <span className="text-ok">Saved</span>}
+      {props.error !== null && <span className="text-danger">{props.error}</span>}
+      <label className="flex items-center gap-1.5 text-muted">
+        <input
+          type="checkbox"
+          checked={draft.enabled}
+          onChange={(e) => props.onChange({ ...draft, enabled: e.target.checked })}
+        />
+        Enabled
+      </label>
+      {Boolean(draft.id) && (
+        <button type="button" className="btn btn-ghost text-danger" onClick={props.onDelete}>
+          Delete
+        </button>
+      )}
+      <button type="button" className="btn btn-primary" onClick={props.onSave}>
+        Save
+      </button>
+    </>
+  )
+}
+
 /** Edits one guide: whether it is on, where it applies, its text, and saving or deleting it. */
 export function GuideEditor(props: {
   draft: Draft
@@ -139,30 +177,9 @@ export function GuideEditor(props: {
   const { draft, onChange } = props
   return (
     <section className="flex min-w-0 flex-1 flex-col">
-      <header className="drag flex h-12 shrink-0 items-center gap-2 border-b border-line px-5">
-        <div className="flex-1" />
-        {Boolean(props.saved) && <span className="text-ok">Saved</span>}
-        {props.error !== null && <span className="text-danger">{props.error}</span>}
-        <label className="no-drag flex items-center gap-1.5 text-muted">
-          <input
-            type="checkbox"
-            checked={draft.enabled}
-            onChange={(e) => onChange({ ...draft, enabled: e.target.checked })}
-          />
-          Enabled
-        </label>
-        {Boolean(draft.id) && (
-          <button type="button" className="btn btn-ghost no-drag text-danger" onClick={props.onDelete}>
-            Delete
-          </button>
-        )}
-        <button type="button" className="btn btn-primary no-drag" onClick={props.onSave}>
-          Save
-        </button>
-      </header>
       {Boolean(props.unsaved) && <DraftWarning isNew={!draft.id} onDiscard={props.onDiscard} />}
       <ScopeFields draft={draft} repos={props.repos} onChange={onChange} />
-      <GuideBody draft={draft} onChange={onChange} onSave={props.onSave} />
+      <GuideBody draft={draft} onChange={onChange} onSave={props.onSave} actions={<GuideActions {...props} />} />
     </section>
   )
 }

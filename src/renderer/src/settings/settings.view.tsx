@@ -1,15 +1,19 @@
 import type { Settings as S, SettingsPatch } from '@shared/settings.types.ts'
-import { useEffect, useState } from 'react'
+import { useCallback, useEffect, useState } from 'react'
 import { errorMessage } from '../common/format.util.ts'
+import { Screen, ScreenBody, ScreenHeader } from '../common/screen.component.tsx'
+import { SectionHeading } from '../common/section-heading.component.tsx'
 import { UpdateSettings } from '../updates/update-settings.component.tsx'
 import { EditorSettings } from './editor-settings.component.tsx'
 import { GithubTokenSettings } from './github-token-settings.component.tsx'
+import { SyncSettings } from './sync-settings.component.tsx'
+import { useSyncStatus } from './use-sync-status.hook.ts'
 
 function Group({ title, children }: { title: string; children: React.ReactNode }) {
   return (
     <section>
-      <h2 className="mb-2 text-[11px] font-semibold tracking-wide text-muted uppercase">{title}</h2>
-      <div className="divide-y divide-line rounded-lg border border-line bg-panel">{children}</div>
+      <SectionHeading title={title} />
+      <div className="card divide-y divide-line">{children}</div>
     </section>
   )
 }
@@ -183,6 +187,15 @@ function ClaudeGroup({ s, update }: { s: S; update: Update }) {
 export function Settings() {
   const [s, setS] = useState<S | null>(null)
   const [msg, setMsg] = useState<string | null>(null)
+  // Bumped when another Mac's settings come in, so the fields that keep their own text show the new values.
+  const [revision, setRevision] = useState(0)
+  const reload = useCallback(() => {
+    globalThis.revio.getSettings().then((next) => {
+      setS(next)
+      setRevision((r) => r + 1)
+    })
+  }, [])
+  const syncStatus = useSyncStatus(reload)
 
   useEffect(() => {
     globalThis.revio.getSettings().then(setS)
@@ -203,14 +216,17 @@ export function Settings() {
   }
 
   return (
-    <div className="flex h-full flex-col">
-      <header className="drag flex h-12 shrink-0 items-center border-b border-line px-5">
-        <h1 className="text-[14px] font-semibold">Settings</h1>
-        <div className="flex-1" />
-        {Boolean(msg) && <span className="text-muted">{msg}</span>}
-      </header>
-      <div className="min-h-0 flex-1 overflow-y-auto">
-        <div className="mx-auto max-w-2xl space-y-8 px-6 py-6">
+    <Screen
+      header={
+        <ScreenHeader
+          title="Settings"
+          subtitle="GitHub, alerts, your editor, Claude and sync"
+          actions={Boolean(msg) && <span className="text-muted">{msg}</span>}
+        />
+      }
+    >
+      <ScreenBody narrow={true}>
+        <div className="space-y-8">
           <Group title="Updates">
             <UpdateSettings />
           </Group>
@@ -229,11 +245,15 @@ export function Settings() {
             <EditorSettings settings={s} update={update} />
           </Group>
 
-          <AlertsGroup s={s} update={update} />
+          <AlertsGroup key={`alerts-${revision}`} s={s} update={update} />
 
-          <ClaudeGroup s={s} update={update} />
+          <ClaudeGroup key={`claude-${revision}`} s={s} update={update} />
+
+          <Group title="Sync">
+            <SyncSettings settings={s} status={syncStatus} update={update} />
+          </Group>
         </div>
-      </div>
-    </div>
+      </ScreenBody>
+    </Screen>
   )
 }

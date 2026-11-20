@@ -52,15 +52,8 @@ function firstLineOf(lines: string) {
 
 function Card({ title, tone = 'plain', children }: { title: string; tone?: CardTone; children: React.ReactNode }) {
   return (
-    <section className="rounded-lg border border-line bg-panel">
-      <h3
-        className={cx(
-          'border-b border-line px-4 py-2 text-[11px] font-semibold tracking-wide uppercase',
-          CARD_TONES[tone],
-        )}
-      >
-        {title}
-      </h3>
+    <section className="card">
+      <h3 className={cx('border-b border-line px-4 py-2 text-[12px] font-semibold', CARD_TONES[tone])}>{title}</h3>
       <div className="px-4 py-3">{children}</div>
     </section>
   )

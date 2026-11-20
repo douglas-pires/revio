@@ -1,6 +1,7 @@
 import type { PullFile } from '@shared/pull.types.ts'
 import { memo } from 'react'
 import { cx } from '../common/format.util.ts'
+import { PanelHeader } from '../common/panel-header.component.tsx'
 import { groupByDir } from './files.util.ts'
 
 const PERCENT = 100
@@ -18,13 +19,16 @@ export const FileTree = memo(function FileTreeView(props: {
   const viewedCount = props.files.filter((f) => props.viewed[f.path] === f.sha).length
   return (
     <aside className="flex w-72 shrink-0 flex-col border-r border-line bg-panel">
-      <div className="flex items-center justify-between px-3 py-2 text-[11px] text-muted">
-        <span className="font-semibold tracking-wide uppercase">Files {props.files.length}</span>
-        <span>
-          {viewedCount}/{props.files.length} viewed
-        </span>
-      </div>
-      <div className="mx-3 mb-2 h-1 overflow-hidden rounded bg-panel-2">
+      <PanelHeader
+        title="Files"
+        detail={props.files.length}
+        actions={
+          <span>
+            {viewedCount}/{props.files.length} viewed
+          </span>
+        }
+      />
+      <div className="mx-3 my-2 h-1 overflow-hidden rounded bg-panel-2">
         <div
           className="h-full bg-ok transition-all"
           // biome-ignore lint/style/noInlineStyles: the bar's width is the share of files viewed.

@@ -1,6 +1,8 @@
 import type { Guideline } from '@shared/guideline.types.ts'
 import { useCallback, useEffect, useState } from 'react'
+import { EmptyState } from '../common/empty-state.component.tsx'
 import { errorMessage } from '../common/format.util.ts'
+import { Screen, ScreenHeader } from '../common/screen.component.tsx'
 import {
   draftKeyOf,
   type GuideDrafts,
@@ -111,6 +113,17 @@ function useGuideEditing(initialRepo: string | undefined, initialPath: string | 
     })
   }, [initialRepo, initialPath, load])
 
+  // Guides synced in from another Mac show up without leaving the page; unsaved edits stay as drafts.
+  useEffect(
+    () =>
+      globalThis.revio.onEvent((e) => {
+        if (e.type === 'sync' && e.applied) {
+          load()
+        }
+      }),
+    [load],
+  )
+
   const discard = () => {
     if (draft) {
       edits.update((ds) => withoutDraft(ds, draftKeyOf(draft)))
@@ -143,30 +156,42 @@ export function Guidelines({
   const g = useGuideEditing(initialRepo, initialPath)
   const { draft, saving } = g
   return (
-    <div className="flex h-full">
-      <GuideList
-        list={g.list}
-        selectedId={draft?.id}
-        drafts={g.drafts}
-        onSelect={g.open}
-        onNew={() => g.open(newDraft(g.repos[0] ?? '*'))}
-      />
-      {draft !== null && (
-        <GuideEditor
-          draft={draft}
-          repos={g.repos}
-          saved={saving.saved}
-          error={saving.error}
-          unsaved={g.unsaved}
-          onChange={g.change}
-          onDiscard={g.discard}
-          onSave={saving.save}
-          onDelete={saving.remove}
+    <Screen
+      header={
+        <ScreenHeader
+          title="Review guides"
+          subtitle="What Claude should look for, by repository and folder"
+          actions={
+            <button type="button" className="btn" onClick={() => g.open(newDraft(g.repos[0] ?? '*'))}>
+              + New guide
+            </button>
+          }
         />
-      )}
-      {draft === null && (
-        <div className="flex flex-1 items-center justify-center text-muted">Create your first review guide.</div>
-      )}
-    </div>
+      }
+    >
+      <div className="flex min-h-0 flex-1">
+        <GuideList list={g.list} selectedId={draft?.id} drafts={g.drafts} onSelect={g.open} />
+        {draft !== null && (
+          <GuideEditor
+            draft={draft}
+            repos={g.repos}
+            saved={saving.saved}
+            error={saving.error}
+            unsaved={g.unsaved}
+            onChange={g.change}
+            onDiscard={g.discard}
+            onSave={saving.save}
+            onDelete={saving.remove}
+          />
+        )}
+        {draft === null && (
+          <div className="flex flex-1 items-center justify-center p-6">
+            <EmptyState title="Create your first review guide">
+              Tell Claude what matters in your repositories and what to skip.
+            </EmptyState>
+          </div>
+        )}
+      </div>
+    </Screen>
   )
 }

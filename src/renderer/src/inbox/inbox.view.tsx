@@ -1,10 +1,14 @@
 import type { Inbox as InboxData, PullSummary } from '@shared/inbox.types.ts'
 import { useMemo, useState } from 'react'
+import { EmptyState } from '../common/empty-state.component.tsx'
 import { ErrorBanner } from '../common/error-banner.component.tsx'
-import { cx, describeFreshness } from '../common/format.util.ts'
 import { EMPTY } from '../common/group.util.ts'
+import { ListSkeleton } from '../common/list-skeleton.component.tsx'
 import type { OpenPull } from '../common/navigation.types.ts'
+import { RefreshControl } from '../common/refresh-control.component.tsx'
+import { Screen, ScreenBody, ScreenHeader } from '../common/screen.component.tsx'
 import { SectionHeading } from '../common/section-heading.component.tsx'
+import { SegmentedControl } from '../common/segmented-control.component.tsx'
 import { useAsyncAction } from '../common/use-async-action.hook.ts'
 import { countWaitingOnYou } from '../threads/thread-edits.util.ts'
 import { ThreadList } from '../threads/thread-list.component.tsx'
@@ -29,7 +33,7 @@ import { StackList } from './stack-list.component.tsx'
 type Mode = 'queue' | 'stacks' | 'threads'
 
 /** Placeholder rows while the inbox loads. */
-const SKELETON_ROWS = ['a', 'b', 'c', 'd', 'e']
+const SKELETON_ROWS = 5
 
 function ModeSwitch({
   mode,
@@ -40,24 +44,11 @@ function ModeSwitch({
   labels: { stacks: number; waitingOnYou: number }
   onChange: (mode: Mode) => void
 }) {
-  return (
-    <div className="no-drag flex rounded-md border border-line p-0.5">
-      {(['queue', 'stacks', 'threads'] as const).map((m) => (
-        <button
-          type="button"
-          key={m}
-          onClick={() => onChange(m)}
-          className={cx(
-            'rounded px-2.5 py-0.5 text-[12px] whitespace-nowrap',
-            mode === m && 'bg-hover text-fg',
-            mode !== m && 'text-muted hover:text-fg',
-          )}
-        >
-          {labelMode(m, labels.stacks, labels.waitingOnYou)}
-        </button>
-      ))}
-    </div>
-  )
+  const segments = (['queue', 'stacks', 'threads'] as const).map((m) => ({
+    value: m,
+    label: labelMode(m, labels.stacks, labels.waitingOnYou),
+  }))
+  return <SegmentedControl segments={segments} value={mode} onChange={onChange} />
 }
 
 function ThreadsMode({
@@ -88,7 +79,7 @@ function ThreadsMode({
           onResolve={state.setThreadResolved}
         />
       )}
-      {!(state.threads || state.error) && <Skeleton />}
+      {!(state.threads || state.error) && <ListSkeleton rows={SKELETON_ROWS} />}
     </>
   )
 }
@@ -109,14 +100,12 @@ function PullsMode(props: {
     [props.inbox, props.query],
   )
   if (!props.inbox) {
-    return <Skeleton />
+    return <ListSkeleton rows={SKELETON_ROWS} />
   }
   return (
     <>
       {props.inbox.requested.length > 0 && (
-        <div className="mb-4">
-          <AudienceBar requested={props.inbox.requested} active={readAudience(props.query)} onPick={props.onAudience} />
-        </div>
+        <AudienceBar requested={props.inbox.requested} active={readAudience(props.query)} onPick={props.onAudience} />
       )}
       {props.mode === 'stacks' && (
         <StackList stacks={stacks} filtering={props.filtering} focus={props.focusStack} onOpen={props.onOpen} />
@@ -231,28 +220,14 @@ function Section(props: {
     <section className="mb-6">
       <SectionHeading title={props.title} count={props.items.length} hint={props.hint} tone={props.tone} />
       {props.items.length > 0 && (
-        <ul className="overflow-hidden rounded-lg border border-line bg-panel">
+        <ul className="card">
           {props.items.map((p) => (
             <InboxRow key={p.id} pr={p} onOpen={props.onOpen} onStack={props.onStack} muted={props.muted} />
           ))}
         </ul>
       )}
-      {props.items.length === 0 && (
-        <div className="rounded-lg border border-dashed border-line px-4 py-8 text-center text-muted">
-          {props.empty}
-        </div>
-      )}
+      {props.items.length === 0 && <EmptyState>{props.empty}</EmptyState>}
     </section>
-  )
-}
-
-function Skeleton() {
-  return (
-    <div className="space-y-2">
-      {SKELETON_ROWS.map((row) => (
-        <div key={row} className="h-14 animate-pulse rounded-lg bg-panel" />
-      ))}
-    </div>
   )
 }
 
@@ -288,20 +263,23 @@ export function Inbox({
   }
 
   return (
-    <div className="flex h-full flex-col">
-      <header className="drag flex h-12 shrink-0 items-center gap-3 border-b border-line px-5">
-        <h1 className="text-[14px] font-semibold whitespace-nowrap">Review inbox</h1>
-        <ModeSwitch mode={mode} labels={labels} onChange={setMode} />
-        {Boolean(inbox?.viewer) && <span className="whitespace-nowrap text-muted">@{inbox?.viewer}</span>}
-        <div className="flex-1" />
-        <InboxSearch value={search} onChange={onSearch} />
-        <span className="whitespace-nowrap text-muted">{describeFreshness(inbox?.fetchedAt)}</span>
-        <button type="button" className="btn no-drag" onClick={() => refresh()} disabled={refreshAction.busy}>
-          {Boolean(refreshAction.busy) && 'Refreshing…'}
-          {!refreshAction.busy && 'Refresh'}
-        </button>
-      </header>
-      <div className="min-h-0 flex-1 overflow-y-auto px-5 py-4">
+    <Screen
+      header={
+        <ScreenHeader
+          title="Review inbox"
+          subtitle={inbox?.viewer && `@${inbox.viewer}`}
+          actions={
+            <>
+              <InboxSearch value={search} onChange={onSearch} />
+              <RefreshControl fetchedAt={inbox?.fetchedAt} busy={refreshAction.busy} onRefresh={refresh} />
+            </>
+          }
+        >
+          <ModeSwitch mode={mode} labels={labels} onChange={setMode} />
+        </ScreenHeader>
+      }
+    >
+      <ScreenBody>
         <ErrorBanner className="mb-4">{refreshAction.error || inbox?.error}</ErrorBanner>
         {mode === 'threads' && <ThreadsMode state={threadsState} query={query} filtering={filtering} onOpen={onOpen} />}
         {mode !== 'threads' && (
@@ -316,7 +294,7 @@ export function Inbox({
             onStack={openStack}
           />
         )}
-      </div>
-    </div>
+      </ScreenBody>
+    </Screen>
   )
 }
