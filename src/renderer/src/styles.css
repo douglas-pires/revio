@@ -48,10 +48,22 @@
   }
 }
 
-html,
+/*
+ * The window never scrolls; only the app's own panes do. Without this, anything taller than the window (a library
+ * that appends to <body>, say) lets a wheel that reaches the end of a pane carry on and scroll the whole page, pushing
+ * the PR header out of view. `clip`, unlike `hidden`, cannot be scrolled from script either, so scrollIntoView cannot
+ * shift the page or the app inside it.
+ */
+html {
+  height: 100%;
+  overflow: hidden;
+  overscroll-behavior: none;
+}
+
 body,
 #root {
   height: 100%;
+  overflow: clip;
 }
 
 body {
