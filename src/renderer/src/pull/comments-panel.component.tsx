@@ -70,6 +70,19 @@ function previewedComment(t: CommentThread, query: string, fresh: readonly Revie
   return fresh.at(-1) ?? t.comments[0] ?? null
 }
 
+/** Threads you commented in. */
+function isMine(t: CommentThread, viewer: string) {
+  return t.comments.some((c) => c.author === viewer)
+}
+
+/** Only your threads when `onlyMine` is on; every thread otherwise. */
+function filterMine(threads: readonly CommentThread[], onlyMine: boolean, viewer: string) {
+  if (!onlyMine) {
+    return threads
+  }
+  return threads.filter((t) => isMine(t, viewer))
+}
+
 /** How many matched, shown only while searching. */
 function matchCount(searching: boolean, count: number) {
   if (!searching) {
@@ -78,7 +91,10 @@ function matchCount(searching: boolean, count: number) {
   return count
 }
 
-function emptyText(query: string, threadCount: number) {
+function emptyText(query: string, threadCount: number, onlyMine: boolean) {
+  if (onlyMine && !query.trim()) {
+    return 'You have no comments on this PR yet.'
+  }
   if (query.trim()) {
     return `No comment mentions “${query.trim()}”.`
   }
@@ -274,11 +290,13 @@ export const CommentsPanel = memo(function CommentsPanelView(props: {
   const { reviewed } = props
   const [showResolved, setShowResolved] = useState(false)
   const [query, setQuery] = useState('')
+  const [onlyMine, setOnlyMine] = useState(false)
+  const mineCount = props.threads.filter((t) => isMine(t, reviewed.viewer)).length
   const searching = query.trim() !== ''
   const resolvedCount = props.threads.filter((t) => t.resolved).length
   const settledCount = props.threads.filter((t) => isSettled(t, reviewed)).length
   const newCount = props.threads.reduce((n, t) => n + newComments(t, reviewed).length, 0)
-  const visible = visibleThreads(props.threads, query, showResolved, reviewed)
+  const visible = visibleThreads(filterMine(props.threads, onlyMine, reviewed.viewer), query, showResolved, reviewed)
   const drafts = searchDrafts(props.drafts, query)
   const byFile = groupBy(visible, (t) => t.path)
 
@@ -298,12 +316,19 @@ export const CommentsPanel = memo(function CommentsPanelView(props: {
           </span>
         }
         actions={
-          settledCount > 0 && (
-            <ToggleButton on={showResolved} onToggle={() => setShowResolved(!showResolved)}>
-              {Boolean(showResolved) && 'Hide'}
-              {!showResolved && 'Show'} {settledCount} resolved
-            </ToggleButton>
-          )
+          <>
+            {mineCount > 0 && (
+              <ToggleButton on={onlyMine} onToggle={() => setOnlyMine(!onlyMine)}>
+                Mine {mineCount}
+              </ToggleButton>
+            )}
+            {settledCount > 0 && (
+              <ToggleButton on={showResolved} onToggle={() => setShowResolved(!showResolved)}>
+                {Boolean(showResolved) && 'Hide'}
+                {!showResolved && 'Show'} {settledCount} resolved
+              </ToggleButton>
+            )}
+          </>
         }
         onClose={props.onClose}
         closeLabel="Hide comments"
@@ -316,7 +341,9 @@ export const CommentsPanel = memo(function CommentsPanelView(props: {
       <div className="min-h-0 flex-1 overflow-y-auto px-1.5 pb-3">
         {drafts.length > 0 && <Drafts drafts={drafts} query={query} onJump={props.onJump} />}
         {!(visible.length > 0 || drafts.length > 0) && (
-          <div className="px-3 py-8 text-center text-[12px] text-muted">{emptyText(query, props.threads.length)}</div>
+          <div className="px-3 py-8 text-center text-[12px] text-muted">
+            {emptyText(query, props.threads.length, onlyMine)}
+          </div>
         )}
         {[...byFile].map(([path, threads]) => (
           <div key={path} className="mb-2">
