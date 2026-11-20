@@ -57,5 +57,8 @@ export function useFileNavigation(opts: {
     [],
   )
 
-  return { collapsed, replaceCollapsed: setCollapsed, setFileCollapsed, collapseFiles, current, goTo, jump }
+  /** Makes a file current without scrolling, as clicking in it does. */
+  const select = useCallback((path: string) => setCurrent(path), [])
+
+  return { collapsed, replaceCollapsed: setCollapsed, setFileCollapsed, collapseFiles, current, select, goTo, jump }
 }

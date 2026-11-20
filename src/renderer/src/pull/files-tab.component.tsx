@@ -2,6 +2,7 @@ import type { FocusItem } from '@shared/claude.types.ts'
 import type { DraftComment, PullFile, ReviewComment } from '@shared/pull.types.ts'
 import { EMPTY } from '../common/group.util.ts'
 import { DiffFile, type DiffFileProps, type DiffView } from './diff-file.component.tsx'
+import { filePathAt } from './file-in-view.util.ts'
 
 type FileCallbacks = Pick<
   DiffFileProps,
@@ -30,10 +31,21 @@ export function FilesTab(
     viewed: Readonly<Record<string, string>>
     collapsed: Readonly<Record<string, boolean>>
     current: string | null
+    /** Clicking anywhere in a file makes it the current one, for v and j/k. */
+    onSelectFile: (path: string) => void
   },
 ) {
   return (
-    <div data-find-scope={true} className="space-y-3 p-4">
+    <div
+      data-find-scope={true}
+      className="space-y-3 p-4"
+      onPointerDown={(e) => {
+        const path = filePathAt(e.target as Element)
+        if (path !== null && path !== props.current) {
+          props.onSelectFile(path)
+        }
+      }}
+    >
       {props.files.map((f) => (
         <DiffFile
           key={f.path}
