@@ -20,6 +20,8 @@ interface ComposerProps {
   onSubmit?: (body: string) => void
   onSubmitNow?: (body: string) => Promise<void>
   onAsk?: () => void
+  /** Adds the selected lines to the open Claude chat, for its next question. */
+  onAddToChat?: (() => void) | undefined
 }
 
 /** The comment with a GitHub suggestion block of `lines` added on a new line. */
@@ -107,6 +109,16 @@ function ComposerToolbar({
           onClick={props.onAsk}
         >
           ✦ Ask Claude
+        </button>
+      )}
+      {props.onAddToChat !== undefined && (
+        <button
+          type="button"
+          className="btn btn-ghost py-0 text-accent"
+          title="Add the selected lines to your open chat with Claude, for the next question"
+          onClick={props.onAddToChat}
+        >
+          + Add to chat
         </button>
       )}
       {props.suggestion !== undefined && (

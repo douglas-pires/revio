@@ -6,6 +6,7 @@ import { app } from 'electron'
 import { runWithInput } from '../common/shell.util.ts'
 import { fetchFileAt } from '../pulls/pull.service.ts'
 import { store } from '../store/store.service.ts'
+import { messageText, questionText, selectionBlock } from './ask-prompt.util.ts'
 import { pickBackend, prContext } from './briefing.service.ts'
 
 const SYSTEM = `You are pairing with a code reviewer who is looking at one specific part of a pull request.
@@ -18,6 +19,8 @@ They selected some lines of the diff and asked a question about them. You have t
 - If something is a real risk, say what input or state triggers it. If you are unsure, say what to check.
 - When asked to draft a review comment, write it ready to paste: short, specific, kind; use a GitHub
   \`suggestion\` block only for a concrete replacement of the selected lines.
+- The reviewer may add more parts of the diff to a later question (\`added_selection\`): take them into account
+  with the original selection, and say which part you mean when it matters.
 - Keep it compact: markdown, short paragraphs or bullets, no preamble.`
 
 /** Whole files up to this many lines are sent; longer files get a window around the selection. */
@@ -30,11 +33,6 @@ const DIFF_BUDGET_CHARS = 600_000
 const MAX_ANSWER_TOKENS = 16_000
 /** Ten minutes. */
 const CLI_TIMEOUT_MS = 600_000
-
-const SIDE_LABELS: Record<AskThread['side'], string> = {
-  LEFT: 'removed/old side (base line numbers)',
-  RIGHT: 'new side (head line numbers)',
-}
 
 /** What a question is about: the PR, the guides that apply, its briefing and the conversation so far. */
 interface AskInput {
@@ -107,14 +105,6 @@ async function buildContext({ pr, guidelines, briefing, thread }: AskInput) {
   return `${context}\n\n${briefingGist(briefing)}<full_file_contents>\n${files.join('\n\n')}\n</full_file_contents>`
 }
 
-function selectionBlock(thread: AskThread) {
-  let lines = `${thread.startLine}-${thread.endLine}`
-  if (thread.startLine === thread.endLine) {
-    lines = `${thread.startLine}`
-  }
-  return `<selection path="${thread.path}" lines="${lines}" side="${SIDE_LABELS[thread.side]}">\n${thread.snippet}\n</selection>`
-}
-
 async function askViaApi(context: string, thread: AskThread, model: string, onDelta: (text: string) => void) {
   const [first, ...rest] = thread.messages
   if (first?.role !== 'user') {
@@ -127,10 +117,10 @@ async function askViaApi(context: string, thread: AskThread, model: string, onDe
       role: 'user',
       content: [
         { type: 'text', text: context, cache_control: { type: 'ephemeral' } },
-        { type: 'text', text: `${selectionBlock(thread)}\n\n${first.content}` },
+        { type: 'text', text: `${selectionBlock(thread)}\n\n${questionText(first)}` },
       ],
     },
-    ...rest.map((m) => ({ role: m.role, content: m.content })),
+    ...rest.map((m) => ({ role: m.role, content: messageText(m) })),
   ]
   const stream = client.beta.messages.stream({
     model,
@@ -160,7 +150,7 @@ function transcriptOf(thread: AskThread) {
       if (m.role === 'assistant') {
         return `<your_answer>\n${m.content}\n</your_answer>`
       }
-      return `<question>\n${m.content}\n</question>`
+      return `<question>\n${questionText(m)}\n</question>`
     })
     .join('\n\n')
 }

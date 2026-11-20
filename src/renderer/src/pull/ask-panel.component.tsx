@@ -5,6 +5,7 @@ import { CopyButton } from '../common/copy-button.component.tsx'
 import { cx } from '../common/format.util.ts'
 import { Markdown } from '../common/markdown.component.tsx'
 import { withPositions } from '../common/numbered-lines.util.ts'
+import { PendingContext, SentContext } from './ask-context.component.tsx'
 import { AskHistory } from './ask-history.component.tsx'
 import { snippetRows } from './diff.util.ts'
 import { StaticDiff } from './static-diff.component.tsx'
@@ -37,7 +38,10 @@ function placeholderFor(thread: AskThread) {
 function AskMessage({ message, onUseAsDraft }: { message: AskMessageType; onUseAsDraft: (body: string) => void }) {
   if (message.role === 'user') {
     return (
-      <div className="selectable ml-8 rounded-lg bg-accent/15 px-3 py-2 whitespace-pre-wrap">{message.content}</div>
+      <div className="ml-8">
+        <div className="selectable rounded-lg bg-accent/15 px-3 py-2 whitespace-pre-wrap">{message.content}</div>
+        <SentContext context={message.context} />
+      </div>
     )
   }
   return (
@@ -280,6 +284,14 @@ export function AskPanel(props: AskPanelProps) {
             </button>
           )}
         </div>
+      )}
+      {!listing && (
+        <PendingContext
+          context={thread.pendingContext ?? []}
+          onRemove={(i) =>
+            props.onChange({ ...thread, pendingContext: (thread.pendingContext ?? []).filter((_, j) => j !== i) })
+          }
+        />
       )}
       {!listing && <QuestionBox input={input} thread={thread} chat={chat} onClose={props.onClose} />}
     </aside>

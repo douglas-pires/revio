@@ -61,6 +61,14 @@ function OverviewPane({
   )
 }
 
+/** "Add to chat" for selected lines, only while a Claude chat is open. */
+function addToOpenChat(v: PullViewState) {
+  if (v.ask.thread === null) {
+    return
+  }
+  return v.ask.addContext
+}
+
 function FilesPane({ v, pr }: { v: PullViewState; pr: PullDetail }) {
   return (
     <FilesTab
@@ -85,6 +93,7 @@ function FilesPane({ v, pr }: { v: PullViewState; pr: PullDetail }) {
       onDeleteDraft={v.deleteDraft}
       onReplyNow={v.replyNow}
       onAsk={v.ask.start}
+      onAddToChat={addToOpenChat(v)}
     />
   )
 }

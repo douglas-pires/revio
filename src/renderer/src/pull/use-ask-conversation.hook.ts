@@ -1,4 +1,4 @@
-import type { AskThread } from '@shared/claude.types.ts'
+import type { AskMessage, AskThread } from '@shared/claude.types.ts'
 import type { PullRef } from '@shared/pull.types.ts'
 import { useEffect, useState } from 'react'
 import { errorMessage } from '../common/format.util.ts'
@@ -27,7 +27,13 @@ export function useAskConversation(pull: PullRef, thread: AskThread, onChange: (
     if (!text || pending !== null) {
       return
     }
-    const asked: AskThread = { ...thread, messages: [...thread.messages, { role: 'user', content: text }] }
+    // Lines added to the chat go with this question, and are no longer pending.
+    const { pendingContext, ...rest } = thread
+    const sent: AskMessage = { role: 'user', content: text }
+    if (pendingContext?.length) {
+      sent.context = pendingContext
+    }
+    const asked: AskThread = { ...rest, messages: [...thread.messages, sent] }
     onChange(asked)
     setQuestion('')
     setPending('')

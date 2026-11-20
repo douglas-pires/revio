@@ -107,7 +107,11 @@ function useAskState() {
   const start = useCallback((sel: AskSelection) => {
     setThread({ id: crypto.randomUUID(), ...sel, messages: [], createdAt: new Date().toISOString() })
   }, [])
-  return { thread, setThread, start }
+  /** Adds lines to the open chat, for the next question. */
+  const addContext = useCallback((sel: AskSelection) => {
+    setThread((t) => t && { ...t, pendingContext: [...(t.pendingContext ?? []), sel] })
+  }, [])
+  return { thread, setThread, start, addContext }
 }
 
 /** Where the PR opened: a conversation comment to quote, a place in the diff, and a reply box to open once. */

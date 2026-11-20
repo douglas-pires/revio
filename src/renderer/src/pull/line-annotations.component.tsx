@@ -8,6 +8,7 @@ export interface ComposerSpec {
   suggestion?: string | undefined
   onSubmit: (body: string) => void
   onAsk: () => void
+  onAddToChat?: (() => void) | undefined
   onCancel: () => void
 }
 

@@ -17,6 +17,7 @@ type FileCallbacks = Pick<
   | 'onDeleteDraft'
   | 'onReplyNow'
   | 'onAsk'
+  | 'onAddToChat'
 >
 
 /** Every changed file's diff, in the sidebar's order. */
@@ -69,6 +70,7 @@ export function FilesTab(
           onDeleteDraft={props.onDeleteDraft}
           onReplyNow={props.onReplyNow}
           onAsk={props.onAsk}
+          onAddToChat={props.onAddToChat}
         />
       ))}
     </div>
