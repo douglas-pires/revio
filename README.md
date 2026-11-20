@@ -63,6 +63,7 @@ clone by its GitHub remote, in those folders and your home folder and one level 
 **Updates:** installed builds check the latest GitHub release a little after launch and every 6 hours; **Revio →
 Check for Updates…** and **Settings → Updates** check on demand. When a newer version is out, a bar at the top offers
 **Download** (the dmg for this Mac) and **What's new**; install it by dragging the new Revio into Applications.
+Only releases are offered, not the pre-releases built from every merge; see [Releasing Revio](docs/releasing.md).
 
 All data stays on your Mac, in `~/Library/Application Support/Revio/`.
 

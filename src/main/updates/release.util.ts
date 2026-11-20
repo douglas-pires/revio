@@ -47,6 +47,9 @@ const parts = (v: string) =>
     ?.split('.')
     .map((n) => Number.parseInt(n, 10) || 0) ?? []
 
+/** A pre-release version, like a build of `main` (0.2.0-dev.43). */
+const isPreRelease = (v: string) => v.trim().includes('-')
+
 /** Where releases are published (GitHub only). */
 export interface ReleaseSource {
   owner: string
@@ -72,7 +75,10 @@ export function releaseSourceOf(packageJson: unknown): ReleaseSource | null {
   return githubRepoOf(pkg?.repository)
 }
 
-/** True when `candidate` is a higher version than `current` (numeric major.minor.patch; "v" and pre-release tags ignored). */
+/**
+ * True when `candidate` is a higher version than `current`: numeric major.minor.patch, then, for the same numbers, a
+ * release is newer than a pre-release of it (0.2.0 is newer than 0.2.0-dev.43), as in semver. "v" is ignored.
+ */
 export function isNewerVersion(candidate: string, current: string): boolean {
   const a = parts(candidate)
   const b = parts(current)
@@ -82,7 +88,7 @@ export function isNewerVersion(candidate: string, current: string): boolean {
       return d > 0
     }
   }
-  return false
+  return isPreRelease(current) && !isPreRelease(candidate)
 }
 
 /** The release asset to install on this Mac: the dmg for its architecture, else any dmg. */

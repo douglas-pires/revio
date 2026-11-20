@@ -35,6 +35,9 @@ describe('isNewerVersion', () => {
     ['0.1.9', '0.1.9', false],
     ['0.1.8', '0.1.9', false],
     ['0.1.10-beta', '0.1.10', false],
+    ['0.2.0', '0.2.0-dev.43', true],
+    ['0.2.0-dev.44', '0.2.0-dev.43', false],
+    ['0.2.0-dev.43', '0.1.11', true],
   ])('%s newer than %s: %s', (a, b, expected) => expect(isNewerVersion(a, b)).toBe(expected))
 })
 
