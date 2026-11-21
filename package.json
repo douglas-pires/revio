@@ -1,7 +1,7 @@
 {
   "name": "revio",
   "productName": "Revio",
-  "version": "0.2.1",
+  "version": "0.2.2",
   "description": "A focused desktop app for code reviews, with Claude briefings and scoped review guidelines.",
   "private": true,
   "license": "GPL-3.0-or-later",
