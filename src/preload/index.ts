@@ -38,6 +38,7 @@ const methods = [
   'refreshInbox',
   'getPull',
   'getStack',
+  'getStackComments',
   'getLocalState',
   'saveDrafts',
   'setViewed',

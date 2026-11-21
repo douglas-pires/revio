@@ -67,3 +67,12 @@ export interface Inbox {
   fetchedAt: string
   error?: string
 }
+/** Your part in one stacked PR's review threads, for marking the stack bar. */
+export interface StackPrComments {
+  repo: string
+  number: number
+  /** Threads you commented in. */
+  yourThreads: number
+  /** Of those, open ones where someone replied after you: waiting on your answer. */
+  awaitingYou: number
+}
