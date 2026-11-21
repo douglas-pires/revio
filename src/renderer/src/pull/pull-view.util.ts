@@ -40,8 +40,16 @@ export function replyIdOf(target: ScrollTarget | undefined): number | null {
   return target.commentId ?? null
 }
 
-/** The review summary with one more bullet. */
-export function withSummaryLine(body: string, line: string) {
+/** Whether the review summary already has `line` as a bullet. */
+export function hasSummaryLine(body: string, line: string) {
+  return body.split('\n').includes(`- ${line}`)
+}
+
+/** The review summary with one more bullet; unchanged when that bullet is already there. */
+export function appendSummaryLine(body: string, line: string) {
+  if (hasSummaryLine(body, line)) {
+    return body
+  }
   if (!body) {
     return `- ${line}`
   }
