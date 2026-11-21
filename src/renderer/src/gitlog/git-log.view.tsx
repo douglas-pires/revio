@@ -5,9 +5,7 @@ import { BranchPanel } from './branch-panel.component.tsx'
 import { CommitDetailPanel } from './commit-detail.component.tsx'
 import { CommitFileDiff } from './commit-file-diff.component.tsx'
 import { CommitList } from './commit-list.component.tsx'
-import { useGitLog } from './use-git-log.hook.ts'
-
-type GitLogState = ReturnType<typeof useGitLog>
+import { type GitLogState, useGitLog } from './use-git-log.hook.ts'
 
 /** A file opened in one commit; it counts as open only while that commit stays picked. */
 interface OpenedFile {
@@ -88,20 +86,25 @@ function MiddlePane(props: { gitLog: GitLogState; openFile: string | null; onClo
   )
 }
 
-/** Branches, the log (or a file's diff) and the picked commit, side by side. Checkout and cherry-pick reload the log. */
-function GitLogPanes({ gitLog }: { gitLog: GitLogState }) {
+/**
+ * Branches, the log (or a file's diff) and the picked commit, side by side. Checkout and cherry-pick reload the log.
+ * Without `showBranches` (a PR's log panel, which has less room) the branch filter above the log picks the branch.
+ */
+export function GitLogPanes({ gitLog, showBranches = true }: { gitLog: GitLogState; showBranches?: boolean }) {
   const [openFile, setOpenFile] = useOpenFile(gitLog.commit.selected)
   return (
     <div className="flex min-h-0 flex-1">
-      <BranchPanel
-        branches={gitLog.branches}
-        picked={gitLog.filters.branch}
-        onPick={(branch) => gitLog.setFilters({ ...gitLog.filters, branch })}
-        onCheckout={async (branch) => {
-          await globalThis.revio.checkoutBranch(gitLog.repo, branch)
-          gitLog.reload()
-        }}
-      />
+      {Boolean(showBranches) && (
+        <BranchPanel
+          branches={gitLog.branches}
+          picked={gitLog.filters.branch}
+          onPick={(branch) => gitLog.setFilters({ ...gitLog.filters, branch })}
+          onCheckout={async (branch) => {
+            await globalThis.revio.checkoutBranch(gitLog.repo, branch)
+            gitLog.reload()
+          }}
+        />
+      )}
       <MiddlePane gitLog={gitLog} openFile={openFile} onCloseFile={() => setOpenFile(null)} />
       <CommitDetailPanel
         repo={gitLog.repo}

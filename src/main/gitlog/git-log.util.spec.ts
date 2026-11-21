@@ -40,6 +40,10 @@ describe('buildLogArgs', () => {
     expect(args.slice(-4)).toEqual(['--end-of-options', 'main', '--', 'src/app.ts'])
   })
 
+  it('rewrites parents, so a path filter keeps the graph connected', () => {
+    expect(buildLogArgs({ ...ALL, path: 'src/app.ts' }, 10)).toContain('--parents')
+  })
+
   it('does not grep for a hash: that is matched against the commits', () => {
     expect(buildLogArgs({ ...ALL, text: 'a1b2c3d' }, 10).some((argument) => argument.startsWith('--grep'))).toBe(false)
     expect(looksLikeHash('a1b2c3d')).toBe(true)

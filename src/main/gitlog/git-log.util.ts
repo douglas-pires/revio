@@ -158,11 +158,16 @@ export function looksLikeHash(text: string): boolean {
   return HASH_PREFIX.test(text.trim())
 }
 
-/** Arguments for `git log` from a query; `pageSize + 1` commits are asked for, to tell whether more follow. */
+/**
+ * Arguments for `git log` from a query; `pageSize + 1` commits are asked for, to tell whether more follow.
+ * `--parents` rewrites each commit's parents to the nearest ones shown, so a path's history still draws as
+ * connected lines rather than one lane per commit.
+ */
 export function buildLogArgs(query: LogQuery, pageSize: number): string[] {
   return [
     'log',
     `--format=${LOG_FORMAT}`,
+    '--parents',
     '--date-order',
     `--max-count=${pageSize + 1}`,
     `--skip=${query.skip}`,

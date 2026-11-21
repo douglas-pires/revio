@@ -34,8 +34,21 @@ function appendPage(loaded: Commit[], page: LogPage, skip: number) {
   return [...loaded, ...page.commits]
 }
 
-/** The repositories with a clone here, and the one picked (remembered between visits). */
-function useRepoChoice() {
+/**
+ * The repository to open: `fixedRepo` when it has a clone here (none when it has not), else the one picked last
+ * time, else the first.
+ */
+function pickInitialRepo(localRepos: readonly LocalRepo[], fixedRepo: string | undefined) {
+  if (fixedRepo !== undefined) {
+    const wanted = fixedRepo.toLowerCase()
+    return localRepos.find((localRepo) => localRepo.repo === wanted)?.repo ?? ''
+  }
+  const storedRepo = readStoredRepo()
+  return localRepos.find((localRepo) => localRepo.repo === storedRepo)?.repo ?? localRepos[0]?.repo ?? ''
+}
+
+/** The repositories with a clone here, and the one picked (remembered between visits unless it is fixed). */
+function useRepoChoice(fixedRepo: string | undefined) {
   const [repos, setRepos] = useState<LocalRepo[] | null>(null)
   const [repo, setRepoState] = useState('')
   const [error, setError] = useState<string | null>(null)
@@ -44,11 +57,10 @@ function useRepoChoice() {
       .listLocalRepos()
       .then((localRepos) => {
         setRepos(localRepos)
-        const storedRepo = readStoredRepo()
-        setRepoState(localRepos.find((localRepo) => localRepo.repo === storedRepo)?.repo ?? localRepos[0]?.repo ?? '')
+        setRepoState(pickInitialRepo(localRepos, fixedRepo))
       })
       .catch((failure) => setError(readErrorMessage(failure)))
-  }, [])
+  }, [fixedRepo])
   const setRepo = useCallback((next: string) => {
     storeRepo(next)
     setRepoState(next)
@@ -187,9 +199,12 @@ function useLogPages(repo: string, applied: LogFilters) {
   return { commits, more, loading, error, load }
 }
 
-/** Everything the git log screen shows: repositories, branches, the log with its filters, CI and the open commit. */
-function useGitLog() {
-  const choice = useRepoChoice()
+/**
+ * Everything the git log shows: repositories, branches, the log with its filters, CI and the open commit.
+ * `fixedRepo` keeps it on one repository (a PR's), which is never remembered as the log screen's choice.
+ */
+function useGitLog(fixedRepo?: string) {
+  const choice = useRepoChoice(fixedRepo)
   const { repo } = choice
   const { filters, setFilters, applied } = useDebouncedFilters()
   const branches = useBranches(repo)
@@ -226,4 +241,5 @@ function useGitLog() {
 }
 
 export type { LogFilters }
+export type GitLogState = ReturnType<typeof useGitLog>
 export { NO_FILTERS, useGitLog }

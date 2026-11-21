@@ -3,6 +3,7 @@ import { ErrorBanner } from '../common/error-banner.component.tsx'
 import type { OpenPull, PullTarget } from '../common/navigation.types.ts'
 import { Screen, ScreenBody, ScreenHeader } from '../common/screen.component.tsx'
 import { FileTree } from './file-tree.component.tsx'
+import { GitLogPanel } from './git-log-panel.component.tsx'
 import { PullHeader } from './pull-header.component.tsx'
 import { PullLoading } from './pull-loading.component.tsx'
 import { PullSidePanels } from './pull-side-panels.component.tsx'
@@ -23,6 +24,14 @@ interface PullViewProps {
   onReviewed: () => void
   onEditGuidelines: (repo: string, path?: string) => void
   onOpenPull: OpenPull
+}
+
+/** The file the git log follows: the one open in Files changed, none on the other tabs. */
+function readOpenPath(view: PullViewState) {
+  if (view.tab !== 'files') {
+    return null
+  }
+  return view.nav.current
 }
 
 /** The header, with the review popover that submits your review and its pending comments. */
@@ -111,6 +120,7 @@ export function PullView(props: PullViewProps) {
                 <PullTabs view={view} pr={pr} onEditGuidelines={props.onEditGuidelines} />
                 <PullSidePanels view={view} pr={pr} />
               </div>
+              <GitLogPanel repo={view.pull.repo} headRef={pr.headRef} openPath={readOpenPath(view)} />
             </div>
           </ThreadFoldContext>
         </UnsentScopeContext>
