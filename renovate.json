@@ -1,0 +1,58 @@
+{
+  "$schema": "https://docs.renovatebot.com/renovate-schema.json",
+  "description": "Weekly dependency updates, grouped by what moves together, each release at least 3 days old.",
+  "extends": ["config:recommended", ":semanticCommits", "helpers:pinGitHubActionDigests"],
+  "schedule": ["before 6am on monday"],
+  "minimumReleaseAge": "3 days",
+  "prConcurrentLimit": 5,
+  "rangeStrategy": "bump",
+  "labels": ["dependencies"],
+  "osvVulnerabilityAlerts": true,
+  "vulnerabilityAlerts": {
+    "schedule": ["at any time"],
+    "minimumReleaseAge": null,
+    "labels": ["dependencies", "security"]
+  },
+  "lockFileMaintenance": {
+    "enabled": true,
+    "schedule": ["before 6am on the first day of the month"]
+  },
+  "packageRules": [
+    {
+      "description": "React and its types move together.",
+      "groupName": "react",
+      "matchPackageNames": ["react", "react-dom", "@types/react", "@types/react-dom"]
+    },
+    {
+      "description": "The Markdown pipeline (unified collective) is released in step.",
+      "groupName": "markdown",
+      "matchPackageNames": ["react-markdown", "/^remark-/", "/^rehype-/"]
+    },
+    {
+      "description": "Tailwind and its plugins.",
+      "groupName": "tailwind",
+      "matchPackageNames": ["tailwindcss", "/^@tailwindcss//"]
+    },
+    {
+      "description": "Vite, its React plugin and Vitest.",
+      "groupName": "vite",
+      "matchPackageNames": ["vite", "vitest", "/^@vitejs//"]
+    },
+    {
+      "description": "Electron's own minors and patches with the build tools; Electron majors stay on their own PR (they change Chromium and Node).",
+      "groupName": "electron toolchain",
+      "matchPackageNames": ["electron", "electron-builder", "electron-vite"],
+      "matchUpdateTypes": ["minor", "patch"]
+    },
+    {
+      "description": "Lint and type tooling, including the Node types.",
+      "groupName": "tooling",
+      "matchPackageNames": ["@biomejs/biome", "typescript", "@types/node"]
+    },
+    {
+      "description": "GitHub Actions updates in one PR.",
+      "groupName": "github actions",
+      "matchManagers": ["github-actions"]
+    }
+  ]
+}
