@@ -65,6 +65,11 @@ export function PullSidePanels({ v, pr }: { v: PullViewState; pr: PullDetail }) 
   return (
     <CommentsPanel
       threads={v.commentThreads}
+      conversation={v.pr?.conversation ?? []}
+      onOpenConversation={(comment) => {
+        v.setQuoted({ quote: comment, openedFrom: 'comments-panel' })
+        v.setTab('overview')
+      }}
       drafts={v.local.drafts}
       current={v.nav.current}
       reviewed={reviewedBy}
