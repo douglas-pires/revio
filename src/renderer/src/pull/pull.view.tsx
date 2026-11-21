@@ -120,7 +120,12 @@ export function PullView(props: PullViewProps) {
                 <PullTabs view={view} pr={pr} onEditGuidelines={props.onEditGuidelines} />
                 <PullSidePanels view={view} pr={pr} />
               </div>
-              <GitLogPanel repo={view.pull.repo} headRef={pr.headRef} openPath={readOpenPath(view)} />
+              <GitLogPanel
+                repo={view.pull.repo}
+                headSha={pr.headSha}
+                headRef={pr.headRef}
+                openPath={readOpenPath(view)}
+              />
             </div>
           </ThreadFoldContext>
         </UnsentScopeContext>

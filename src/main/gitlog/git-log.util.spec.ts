@@ -1,134 +1,106 @@
-import type { LogQuery } from '@shared/git-log.types.ts'
 import { describe, expect, it } from 'vitest'
 import {
-  buildLogArgs,
-  extractFilePatch,
+  assertCommitHash,
+  buildCommitFilters,
+  buildSinceDate,
+  convertCommit,
+  convertCommitDetail,
+  filterByMessage,
+  type GithubCommit,
   looksLikeHash,
-  parseBranches,
   parseCommitChecks,
-  parseCommitDetail,
-  parseLog,
-  parseNameStatus,
   readCiState,
 } from './git-log.util.ts'
 
-const ALL: LogQuery = { branch: '', text: '', author: '', sinceDays: 0, path: '', skip: 0 }
+const githubCommit = (over: Partial<GithubCommit> = {}): GithubCommit => ({
+  sha: 'c1',
+  parents: [{ sha: 'b1' }, { sha: 'f1' }],
+  author: { login: 'ana' },
+  commit: {
+    message: 'Fix login\n\nThe token expired too early.',
+    author: { name: 'Ana Lima', email: 'ana@example.com', date: '2026-01-02T03:04:05Z' },
+    committer: { name: 'GitHub', date: '2026-01-02T03:05:00Z' },
+  },
+  ...over,
+})
 
-describe('buildLogArgs', () => {
-  it('reads every branch by default, one page plus one to tell whether more follow', () => {
-    const args = buildLogArgs(ALL, 100)
-    expect(args).toContain('--max-count=101')
-    expect(args).toContain('--skip=0')
-    expect(args.at(-1)).toBe('--all')
+describe('convertCommit', () => {
+  it('reads the hash, parents, GitHub login, email, date and subject', () => {
+    expect(convertCommit(githubCommit())).toEqual({
+      hash: 'c1',
+      parents: ['b1', 'f1'],
+      author: 'ana',
+      authorEmail: 'ana@example.com',
+      date: '2026-01-02T03:04:05Z',
+      subject: 'Fix login',
+      refs: [],
+    })
   })
 
-  it('adds the filters, with the path after "--" and the branch after --end-of-options', () => {
-    const args = buildLogArgs(
-      { branch: 'main', text: 'fix login', author: 'Ana', sinceDays: 7, path: 'src/app.ts', skip: 100 },
-      50,
+  it('falls back to the name in the commit when GitHub links no account', () => {
+    expect(convertCommit(githubCommit({ author: null })).author).toBe('Ana Lima')
+  })
+})
+
+describe('convertCommitDetail', () => {
+  it('keeps the whole message and maps GitHub file statuses to change letters', () => {
+    const detail = convertCommitDetail(
+      githubCommit({
+        files: [
+          { filename: 'a.ts', status: 'added' },
+          { filename: 'b.ts', status: 'modified' },
+          { filename: 'c.ts', status: 'removed' },
+          { filename: 'd.ts', status: 'renamed', previous_filename: 'old-d.ts' },
+        ],
+      }),
     )
-    expect(args).toEqual(
-      expect.arrayContaining([
-        '--grep=fix login',
-        '--author=Ana',
-        '--since=7.days.ago',
-        '--regexp-ignore-case',
-        '--fixed-strings',
-        '--skip=100',
-      ]),
-    )
-    expect(args.slice(-4)).toEqual(['--end-of-options', 'main', '--', 'src/app.ts'])
+    expect(detail.message).toBe('Fix login\n\nThe token expired too early.')
+    expect(detail.committer).toBe('GitHub')
+    expect(detail.files).toEqual([
+      { status: 'A', path: 'a.ts', from: undefined },
+      { status: 'M', path: 'b.ts', from: undefined },
+      { status: 'D', path: 'c.ts', from: undefined },
+      { status: 'R', path: 'd.ts', from: 'old-d.ts' },
+    ])
   })
+})
 
-  it('rewrites parents, so a path filter keeps the graph connected', () => {
-    expect(buildLogArgs({ ...ALL, path: 'src/app.ts' }, 10)).toContain('--parents')
+describe('filterByMessage', () => {
+  it('matches anywhere in the message, ignoring case; no text keeps all', () => {
+    const commits = [githubCommit(), githubCommit({ sha: 'c2', commit: { ...githubCommit().commit, message: 'Docs' } })]
+    expect(filterByMessage(commits, 'TOKEN').map((commit) => commit.sha)).toEqual(['c1'])
+    expect(filterByMessage(commits, '  ')).toHaveLength(2)
   })
+})
 
-  it('does not grep for a hash: that is matched against the commits', () => {
-    expect(buildLogArgs({ ...ALL, text: 'a1b2c3d' }, 10).some((argument) => argument.startsWith('--grep'))).toBe(false)
+describe('buildSinceDate', () => {
+  it('is the date that many days back, or none for any time', () => {
+    const now = new Date('2026-01-08T00:00:00Z')
+    expect(buildSinceDate(7, now)).toBe('2026-01-01T00:00:00.000Z')
+    expect(buildSinceDate(0, now)).toBeUndefined()
+  })
+})
+
+describe('buildCommitFilters', () => {
+  it('passes only the filters that are set', () => {
+    const now = new Date('2026-01-08T00:00:00Z')
+    expect(buildCommitFilters({ path: ' src/a.ts ', author: '', sinceDays: 0 }, now)).toEqual({ path: 'src/a.ts' })
+    expect(buildCommitFilters({ path: '', author: 'ana', sinceDays: 7 }, now)).toEqual({
+      author: 'ana',
+      since: '2026-01-01T00:00:00.000Z',
+    })
+  })
+})
+
+describe('commit hashes', () => {
+  it('tells a hash from message text', () => {
     expect(looksLikeHash('a1b2c3d')).toBe(true)
     expect(looksLikeHash('fix it')).toBe(false)
   })
-})
 
-describe('parseLog', () => {
-  it('reads each field and the refs, without HEAD', () => {
-    const output = [
-      [
-        'h2',
-        'h1 h0',
-        'Ana',
-        'ana@x.dev',
-        '2026-11-20T10:00:00+01:00',
-        'Merge: tidy',
-        'HEAD -> main, origin/main, tag: v1',
-      ],
-      ['h1', '', 'Bo', 'bo@x.dev', '2026-11-19T10:00:00+01:00', 'First', ''],
-    ]
-      .map((fields) => `${fields.join('\u001f')}\u001e`)
-      .join('\n')
-    expect(parseLog(output)).toEqual([
-      {
-        hash: 'h2',
-        parents: ['h1', 'h0'],
-        author: 'Ana',
-        authorEmail: 'ana@x.dev',
-        date: '2026-11-20T10:00:00+01:00',
-        subject: 'Merge: tidy',
-        refs: ['main', 'origin/main', 'tag: v1'],
-      },
-      {
-        hash: 'h1',
-        parents: [],
-        author: 'Bo',
-        authorEmail: 'bo@x.dev',
-        date: '2026-11-19T10:00:00+01:00',
-        subject: 'First',
-        refs: [],
-      },
-    ])
-  })
-})
-
-describe('parseBranches', () => {
-  it('reads local branches with tracking and remote ones, skipping origin/HEAD', () => {
-    const output = [
-      'refs/heads/main\t*\t[ahead 2, behind 1]',
-      'refs/heads/feat/x\t \t',
-      'refs/remotes/origin/HEAD\t \t',
-      'refs/remotes/origin/main\t \t',
-    ].join('\n')
-    expect(parseBranches(output)).toEqual([
-      { name: 'main', kind: 'local', current: true, ahead: 2, behind: 1 },
-      { name: 'feat/x', kind: 'local', current: false, ahead: 0, behind: 0 },
-      { name: 'origin/main', kind: 'remote', current: false, ahead: 0, behind: 0 },
-    ])
-  })
-})
-
-describe('parseNameStatus', () => {
-  it('reads changes, with the old path of renames', () => {
-    expect(parseNameStatus(['M\tsrc/a.ts', 'R087\told.ts\tnew.ts', 'A\tb.ts', ''])).toEqual([
-      { status: 'M', path: 'src/a.ts' },
-      { status: 'R', path: 'new.ts', from: 'old.ts' },
-      { status: 'A', path: 'b.ts' },
-    ])
-  })
-})
-
-describe('parseCommitDetail', () => {
-  it('reads the header fields, the whole message and the changed files', () => {
-    const header = ['Ana', 'ana@x.dev', '2026-11-20T10:00:00+01:00', 'GitHub', 'Fix login\n\nLonger text\n']
-    const output = [header.join('\u001f'), '\nM\tsrc/a.ts\n'].join('\u001e')
-    expect(parseCommitDetail('abc123', output)).toEqual({
-      hash: 'abc123',
-      message: 'Fix login\n\nLonger text',
-      author: 'Ana',
-      authorEmail: 'ana@x.dev',
-      date: '2026-11-20T10:00:00+01:00',
-      committer: 'GitHub',
-      files: [{ status: 'M', path: 'src/a.ts' }],
-    })
+  it('refuses anything that is not a hash before it reaches a GitHub query', () => {
+    expect(() => assertCommitHash('a1b2c3d')).not.toThrow()
+    expect(() => assertCommitHash('") { evil }')).toThrow()
   })
 })
 
@@ -138,17 +110,6 @@ describe('readCiState', () => {
     expect(readCiState('ERROR')).toBe('failure')
     expect(readCiState('EXPECTED')).toBe('pending')
     expect(readCiState(null)).toBe('none')
-  })
-})
-
-describe('extractFilePatch', () => {
-  it('keeps the patch from its first hunk, dropping the diff header', () => {
-    const output = 'diff --git a/x.ts b/x.ts\nindex 1..2 100644\n--- a/x.ts\n+++ b/x.ts\n@@ -1 +1 @@\n-old\n+new\n'
-    expect(extractFilePatch(output)).toBe('@@ -1 +1 @@\n-old\n+new')
-  })
-
-  it('is empty for a binary file, which has no hunks', () => {
-    expect(extractFilePatch('diff --git a/i.png b/i.png\nBinary files differ\n')).toBe('')
   })
 })
 

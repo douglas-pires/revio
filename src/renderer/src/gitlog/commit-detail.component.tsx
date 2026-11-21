@@ -2,7 +2,6 @@ import type { CiState, CommitDetail, FileChange, FileChangeStatus } from '@share
 import { CopyButton } from '../common/copy-button.component.tsx'
 import { countOf, joinClassNames } from '../common/format.util.ts'
 import { groupBy } from '../common/group.util.ts'
-import { ConfirmAction } from './confirm-action.component.tsx'
 import { useCommitChecks } from './use-commit-extras.hook.ts'
 
 const STATUS_LOOK: Record<FileChangeStatus, { className: string; title: string }> = {
@@ -175,9 +174,6 @@ export function CommitDetailPanel(props: {
   error: string | null
   openFile: string | null
   onOpenFile: (path: string) => void
-  /** The branch checked out, which a cherry-pick applies the commit onto; null on a detached HEAD. */
-  head: string | null
-  onCherryPick: (hash: string) => Promise<void>
 }) {
   if (!props.hash) {
     return (
@@ -197,15 +193,6 @@ export function CommitDetailPanel(props: {
             <ChangedFiles files={detail.files} openFile={props.openFile} onOpenFile={props.onOpenFile} />
           </div>
           <CommitSummary repo={props.repo} detail={detail} ci={props.ci} />
-          {props.head !== null && (
-            <div className="border-t border-line p-3">
-              <ConfirmAction
-                label={`Cherry-pick onto ${props.head}`}
-                question={`Apply ${detail.hash.slice(0, 10)} on top of ${props.head}, in your local clone? On a conflict it is cancelled and nothing changes.`}
-                onConfirm={() => props.onCherryPick(detail.hash)}
-              />
-            </div>
-          )}
         </>
       )}
     </aside>

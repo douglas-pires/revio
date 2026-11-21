@@ -1,138 +1,26 @@
 import type {
-  Branch,
   CiState,
   Commit,
   CommitCheck,
   CommitDetail,
   FileChange,
   FileChangeStatus,
-  LogQuery,
+  PullLogQuery,
   RawCheckContext,
 } from '@shared/git-log.types.ts'
 
-/** Field and record separators in `git log` output: characters a commit message never holds. */
-const FIELD_SEPARATOR = '\u001f'
-const RECORD_SEPARATOR = '\u001e'
 const HASH_PREFIX = /^[0-9a-f]{7,40}$/iu
-const TRACKING_COUNT = /(?<direction>ahead|behind) (?<count>\d+)/gu
-const CHANGE_STATUSES = new Set<string>(['A', 'M', 'D', 'R', 'C', 'T'])
-const HEAD_ARROW = /^HEAD -> /u
-const LEADING_NEWLINE = /^\n/u
-const FIRST_HUNK = /^@@ /mu
+const COMMIT_HASH = /^[0-9a-f]{4,40}$/iu
 const PASSED_CONCLUSIONS = new Set(['SUCCESS', 'NEUTRAL', 'SKIPPED'])
-const LOCAL_BRANCH_PREFIX = 'refs/heads/'
-const REMOTE_BRANCH_PREFIX = 'refs/remotes/'
+const DAY_MS = 86_400_000
 
-/** Decorations as `git log` prints them: "HEAD -> main, origin/main, tag: v1". */
-function parseRefs(decoration: string): string[] {
-  return decoration
-    .split(', ')
-    .map((ref) => ref.replace(HEAD_ARROW, '').trim())
-    .filter((ref) => ref !== '' && ref !== 'HEAD')
-}
-
-/** "[ahead 2, behind 1]" as numbers. */
-function parseTrackingCounts(tracking: string) {
-  const counts = { ahead: 0, behind: 0 }
-  for (const match of tracking.matchAll(TRACKING_COUNT)) {
-    const count = Number(match.groups?.count ?? 0)
-    if (match.groups?.direction === 'ahead') {
-      counts.ahead = count
-    } else {
-      counts.behind = count
-    }
-  }
-  return counts
-}
-
-/** The change letter of a `--name-status` code ("R087" is a rename); anything unknown reads as modified. */
-function readChangeStatus(code: string): FileChangeStatus {
-  const letter = code.charAt(0)
-  if (CHANGE_STATUSES.has(letter)) {
-    return letter as FileChangeStatus
-  }
-  return 'M'
-}
-
-/** Whether the search text is a message search rather than a commit hash. */
-function isMessageSearch(text: string) {
-  return text !== '' && !HASH_PREFIX.test(text)
-}
-
-/** The message, author and date filters, as `git log` options. */
-function buildFilterArgs(query: LogQuery): string[] {
-  const text = query.text.trim()
-  const author = query.author.trim()
-  const args: string[] = []
-  if (isMessageSearch(text) || author) {
-    args.push('--regexp-ignore-case', '--fixed-strings')
-  }
-  if (isMessageSearch(text)) {
-    args.push(`--grep=${text}`)
-  }
-  if (author) {
-    args.push(`--author=${author}`)
-  }
-  if (query.sinceDays > 0) {
-    args.push(`--since=${query.sinceDays}.days.ago`)
-  }
-  return args
-}
-
-/** One branch, or every branch when none is picked. */
-function buildBranchArgs(branch: string): string[] {
-  if (branch) {
-    // `--end-of-options` keeps a branch named like an option from being read as one.
-    return ['--end-of-options', branch]
-  }
-  return ['--all']
-}
-
-/** Which history to read: one branch or all of them, and only a path's commits when one is given. */
-function buildRangeArgs(query: LogQuery): string[] {
-  const range = buildBranchArgs(query.branch)
-  const path = query.path.trim()
-  if (path) {
-    return [...range, '--', path]
-  }
-  return range
-}
-
-function parseCommitRecord(record: string): Commit {
-  const [hash = '', parents = '', author = '', authorEmail = '', date = '', subject = '', refs = ''] =
-    record.split(FIELD_SEPARATOR)
-  return {
-    hash,
-    parents: parents.split(' ').filter(Boolean),
-    author,
-    authorEmail,
-    date,
-    subject,
-    refs: parseRefs(refs),
-  }
-}
-
-/** One `for-each-ref` line: a local branch with its tracking counts, a remote branch, or nothing (origin/HEAD). */
-function parseBranchLine(line: string): Branch[] {
-  const [ref = '', headMarker = '', tracking = ''] = line.split('\t')
-  if (ref.startsWith(LOCAL_BRANCH_PREFIX)) {
-    const name = ref.slice(LOCAL_BRANCH_PREFIX.length)
-    return [{ name, kind: 'local', current: headMarker === '*', ...parseTrackingCounts(tracking) }]
-  }
-  if (ref.startsWith(REMOTE_BRANCH_PREFIX) && !ref.endsWith('/HEAD')) {
-    return [{ name: ref.slice(REMOTE_BRANCH_PREFIX.length), kind: 'remote', current: false, ahead: 0, behind: 0 }]
-  }
-  return []
-}
-
-/** One `--name-status` line: "M\tpath", or "R087\told\tnew" for a rename. */
-function parseChangeLine(line: string): FileChange {
-  const [code = '', firstPath = '', secondPath] = line.split('\t')
-  const status = readChangeStatus(code)
-  if (secondPath !== undefined && (status === 'R' || status === 'C')) {
-    return { status, path: secondPath, from: firstPath }
-  }
-  return { status, path: firstPath }
+/** GitHub's file statuses as the change letters the log shows. */
+const CHANGE_STATUSES: Record<string, FileChangeStatus> = {
+  added: 'A',
+  removed: 'D',
+  renamed: 'R',
+  copied: 'C',
+  changed: 'T',
 }
 
 /** A check run's result: running until completed, then passed (success, neutral, skipped) or failed. */
@@ -146,72 +34,103 @@ function readCheckRunState(status: string, conclusion: string | null): CiState {
   return 'failure'
 }
 
-/** The `--format` that `parseLog` reads: hash, parents, author, email, date, subject, refs. */
-export const LOG_FORMAT = `${['%H', '%P', '%an', '%ae', '%aI', '%s', '%D'].join('%x1f')}%x1e`
+/** Who wrote the commit: their GitHub login when GitHub links one, else the name in the commit. */
+function readAuthor(commit: GithubCommit) {
+  return commit.author?.login ?? commit.commit.author?.name ?? 'unknown'
+}
 
-/** The `--format` that `parseBranches` reads, for `git for-each-ref`. */
-// biome-ignore lint/security/noSecrets: a git format string, not a secret.
-export const BRANCH_FORMAT = '%(refname)%09%(HEAD)%09%(upstream:track)'
+/** A GitHub file status as a change letter; "modified" and anything unknown read as modified. */
+function readChangeStatus(status: string | undefined): FileChangeStatus {
+  return CHANGE_STATUSES[status ?? ''] ?? 'M'
+}
+
+function convertFileChange(file: NonNullable<GithubCommit['files']>[number]): FileChange {
+  return { status: readChangeStatus(file.status), path: file.filename, from: file.previous_filename }
+}
+
+/** The parts of a commit GitHub's REST API returns (`repos.listCommits`, `repos.getCommit`) that the log reads. */
+export interface GithubCommit {
+  sha: string
+  parents: { sha: string }[]
+  author: { login: string } | null
+  commit: {
+    message: string
+    author: { name?: string; email?: string; date?: string } | null
+    committer: { name?: string; date?: string } | null
+  }
+  files?: { filename: string; status?: string; previous_filename?: string }[]
+}
 
 /** Whether the search text could be a commit hash. */
 export function looksLikeHash(text: string): boolean {
   return HASH_PREFIX.test(text.trim())
 }
 
-/**
- * Arguments for `git log` from a query; `pageSize + 1` commits are asked for, to tell whether more follow.
- * `--parents` rewrites each commit's parents to the nearest ones shown, so a path's history still draws as
- * connected lines rather than one lane per commit.
- */
-export function buildLogArgs(query: LogQuery, pageSize: number): string[] {
-  return [
-    'log',
-    `--format=${LOG_FORMAT}`,
-    '--parents',
-    '--date-order',
-    `--max-count=${pageSize + 1}`,
-    `--skip=${query.skip}`,
-    ...buildFilterArgs(query),
-    ...buildRangeArgs(query),
-  ]
+/** The date `days` days before `now`, for GitHub's `since`; undefined for any time (0). */
+export function buildSinceDate(days: number, now: Date): string | undefined {
+  if (days <= 0) {
+    return
+  }
+  return new Date(now.getTime() - days * DAY_MS).toISOString()
 }
 
-export function parseLog(output: string): Commit[] {
-  return output
-    .split(RECORD_SEPARATOR)
-    .map((record) => record.replace(LEADING_NEWLINE, ''))
-    .filter((record) => record.trim() !== '')
-    .map(parseCommitRecord)
+/** The path, author and date filters as GitHub's `listCommits` takes them, leaving out the empty ones. */
+export function buildCommitFilters(
+  query: Pick<PullLogQuery, 'path' | 'author' | 'sinceDays'>,
+  now: Date,
+): { path?: string; author?: string; since?: string } {
+  const filters: { path?: string; author?: string; since?: string } = {}
+  const path = query.path.trim()
+  const author = query.author.trim()
+  const since = buildSinceDate(query.sinceDays, now)
+  if (path) {
+    filters.path = path
+  }
+  if (author) {
+    filters.author = author
+  }
+  if (since) {
+    filters.since = since
+  }
+  return filters
 }
 
-/** Local and remote branches from `git for-each-ref refs/heads refs/remotes`, skipping `origin/HEAD`. */
-export function parseBranches(output: string): Branch[] {
-  return output
-    .split('\n')
-    .filter((line) => line.trim() !== '')
-    .flatMap(parseBranchLine)
-}
-
-/** `git show --name-status` lines: "M\tpath", "R087\told\tnew". */
-export function parseNameStatus(lines: readonly string[]): FileChange[] {
-  return lines.filter((line) => line.includes('\t')).map(parseChangeLine)
-}
-
-/** The `--format` that `parseCommitDetail` reads, for `git show`: author, email, date, committer, message. */
-export const SHOW_FORMAT = `${['%an', '%ae', '%aI', '%cn', '%B'].join('%x1f')}%x1e`
-
-/** A commit's details from `git show --format=SHOW_FORMAT --name-status`. */
-export function parseCommitDetail(hash: string, output: string): CommitDetail {
-  const [header = '', changes = ''] = output.split(RECORD_SEPARATOR)
-  const [author = '', authorEmail = '', date = '', committer = '', message = ''] = header.split(FIELD_SEPARATOR)
+/** A commit from GitHub as a row of the log. */
+export function convertCommit(commit: GithubCommit): Commit {
   return {
-    hash,
-    message: message.trim(),
-    author,
-    authorEmail,
-    date,
-    committer,
-    files: parseNameStatus(changes.split('\n')),
+    hash: commit.sha,
+    parents: commit.parents.map((parent) => parent.sha),
+    author: readAuthor(commit),
+    authorEmail: commit.commit.author?.email ?? '',
+    date: commit.commit.author?.date ?? commit.commit.committer?.date ?? '',
+    subject: commit.commit.message.split('\n')[0] ?? '',
+    refs: [],
+  }
+}
+
+/** A commit from GitHub, with its files, as the log's commit pane shows it. */
+export function convertCommitDetail(commit: GithubCommit): CommitDetail {
+  return {
+    hash: commit.sha,
+    message: commit.commit.message.trim(),
+    author: readAuthor(commit),
+    authorEmail: commit.commit.author?.email ?? '',
+    date: commit.commit.author?.date ?? '',
+    committer: commit.commit.committer?.name ?? '',
+    files: (commit.files ?? []).map(convertFileChange),
+  }
+}
+
+/** The commits whose message holds `text`, ignoring case; all of them for no text. */
+export function filterByMessage<T extends GithubCommit>(commits: readonly T[], text: string): T[] {
+  const needle = text.trim().toLowerCase()
+  return commits.filter((commit) => commit.commit.message.toLowerCase().includes(needle))
+}
+
+/** Fails unless `hash` looks like a commit hash, before it goes into a GitHub query. */
+export function assertCommitHash(hash: string) {
+  if (!COMMIT_HASH.test(hash)) {
+    throw new Error(`Not a commit hash: ${hash}`)
   }
 }
 
@@ -227,15 +146,6 @@ export function readCiState(rollup: string | null | undefined): CiState {
     return 'pending'
   }
   return 'none'
-}
-
-/** A file's patch from `git show --format= <hash> -- <path>`, from its first hunk on; '' when there is none (binary). */
-export function extractFilePatch(output: string): string {
-  const firstHunk = output.search(FIRST_HUNK)
-  if (firstHunk < 0) {
-    return ''
-  }
-  return output.slice(firstHunk).trimEnd()
 }
 
 /** The commit's checks as Revio shows them, failing ones first, then running, then passed, each by name. */

@@ -1,79 +1,145 @@
-import { useCallback, useEffect, useRef, useState } from 'react'
-import { useGitLog } from '../gitlog/use-git-log.hook.ts'
-import { clampPanelHeight, DEFAULT_PANEL_HEIGHT_PX, pickPullBranch } from './pull-git-log.util.ts'
+import type { CiState, Commit, CommitDetail, LogPage } from '@shared/git-log.types.ts'
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
+import { readErrorMessage } from '../common/format.util.ts'
+import { type LogFilters, NO_FILTERS } from '../gitlog/log-filters.types.ts'
+import { prepareLogCommits, skipsCommits } from './pull-git-log.util.ts'
 
-const PANEL_KEY = 'revio.pullGitLog'
+/** Typing in a filter waits this long before asking GitHub again. */
+const FILTER_DELAY_MS = 400
 
-interface PanelLayout {
-  open: boolean
-  height: number
-}
-
-function readStoredLayout(): PanelLayout {
-  try {
-    const stored = JSON.parse(localStorage.getItem(PANEL_KEY) ?? '{}') as Partial<PanelLayout>
-    return { open: stored.open === true, height: stored.height ?? DEFAULT_PANEL_HEIGHT_PX }
-  } catch {
-    return { open: false, height: DEFAULT_PANEL_HEIGHT_PX }
+/** The log so far with a new page: the first page replaces it, later ones add to it. */
+function appendPage(loaded: Commit[], page: LogPage, pageNumber: number) {
+  if (pageNumber === 1) {
+    return page.commits
   }
+  return [...loaded, ...page.commits]
 }
 
-function storeLayout(layout: PanelLayout) {
-  try {
-    localStorage.setItem(PANEL_KEY, JSON.stringify(layout))
-  } catch {
-    // A convenience only: the panel opens closed, at its default height, next time.
-  }
+/** The filters as typed, and the same filters once typing has paused (the ones GitHub is asked with). */
+function useDebouncedFilters() {
+  const [filters, setFilters] = useState<LogFilters>(NO_FILTERS)
+  const [applied, setApplied] = useState<LogFilters>(NO_FILTERS)
+  useEffect(() => {
+    const timer = setTimeout(() => setApplied(filters), FILTER_DELAY_MS)
+    return () => clearTimeout(timer)
+  }, [filters])
+  return { filters, setFilters, applied }
 }
 
-/** Whether the panel is open and how tall, kept between PRs; Ctrl+` opens and closes it, as a terminal does. */
-export function usePanelLayout() {
-  const [layout, setLayoutState] = useState(readStoredLayout)
-  const setLayout = useCallback((update: (current: PanelLayout) => PanelLayout) => {
-    setLayoutState((current) => {
-      const next = update(current)
-      storeLayout(next)
-      return next
-    })
-  }, [])
-  const toggle = useCallback(() => setLayout((current) => ({ ...current, open: !current.open })), [setLayout])
-  const resize = useCallback(
-    (height: number) => setLayout((current) => ({ ...current, height: clampPanelHeight(height, window.innerHeight) })),
-    [setLayout],
+/** Pages of the PR's history for the applied filters. Each load is numbered, so a slow older answer never wins. */
+function useLogPages(source: PullLogSource, applied: LogFilters) {
+  const [commits, setCommits] = useState<Commit[]>([])
+  const [loadedPages, setLoadedPages] = useState(0)
+  const [more, setMore] = useState(false)
+  const [loading, setLoading] = useState(false)
+  const [error, setError] = useState<string | null>(null)
+  const latestLoad = useRef(0)
+  const { repo, headSha } = source
+  const load = useCallback(
+    async (pageNumber: number) => {
+      latestLoad.current += 1
+      const loadId = latestLoad.current
+      setLoading(true)
+      setError(null)
+      try {
+        const page = await globalThis.revio.getPullLog(repo, { ...applied, sha: headSha, page: pageNumber })
+        if (latestLoad.current === loadId) {
+          setCommits((loaded) => appendPage(loaded, page, pageNumber))
+          setLoadedPages(pageNumber)
+          setMore(page.more)
+        }
+      } catch (failure) {
+        if (latestLoad.current === loadId) {
+          setError(readErrorMessage(failure))
+          setCommits([])
+          setMore(false)
+        }
+      } finally {
+        if (latestLoad.current === loadId) {
+          setLoading(false)
+        }
+      }
+    },
+    [repo, headSha, applied],
   )
   useEffect(() => {
-    const toggleOnShortcut = (event: KeyboardEvent) => {
-      if (event.ctrlKey && event.code === 'Backquote') {
-        event.preventDefault()
-        toggle()
-      }
+    load(1)
+  }, [load])
+  return { commits, more, loading, error, loadMore: () => load(loadedPages + 1) }
+}
+
+/** CI states for commits as they load, asked once per commit. */
+function useCiStates(repo: string, commits: readonly Commit[]) {
+  const [ci, setCi] = useState<Record<string, CiState>>({})
+  const askedHashes = useRef(new Set<string>())
+  useEffect(() => {
+    const unaskedHashes = commits.map((commit) => commit.hash).filter((hash) => !askedHashes.current.has(hash))
+    if (unaskedHashes.length === 0) {
+      return
     }
-    globalThis.addEventListener('keydown', toggleOnShortcut)
-    return () => globalThis.removeEventListener('keydown', toggleOnShortcut)
-  }, [toggle])
-  return { ...layout, toggle, resize }
+    for (const hash of unaskedHashes) {
+      askedHashes.current.add(hash)
+    }
+    globalThis.revio
+      .getCommitCi(repo, unaskedHashes)
+      .then((states) => setCi((known) => ({ ...known, ...states })))
+      .catch(() => {
+        // No CI marks for these; the log works without them.
+      })
+  }, [repo, commits])
+  return ci
+}
+
+/** The commit picked in the log and its details from GitHub. */
+function useSelectedCommit(repo: string) {
+  const [selected, setSelected] = useState<string | null>(null)
+  const [detail, setDetail] = useState<CommitDetail | null>(null)
+  const [error, setError] = useState<string | null>(null)
+  useEffect(() => {
+    setDetail(null)
+    setError(null)
+    if (!selected) {
+      return
+    }
+    let stillSelected = true
+    globalThis.revio
+      .getCommitDetail(repo, selected)
+      .then((commitDetail) => stillSelected && setDetail(commitDetail))
+      .catch((failure) => stillSelected && setError(readErrorMessage(failure)))
+    return () => {
+      stillSelected = false
+    }
+  }, [repo, selected])
+  return { selected, setSelected, detail, error }
+}
+
+/** Which PR's history the log reads: its repository, and its head commit and branch. */
+export interface PullLogSource {
+  repo: string
+  headSha: string
+  headRef: string
 }
 
 /**
- * The git log of the PR's repository: it starts on the PR's branch once the branches load, and while `followPath` is
- * on, its path filter follows the file open in Files changed (none on the other tabs).
+ * The PR's git log, read from GitHub: the history from the PR's head, with its filters, CI and the picked commit.
+ * While `followPath` is on, the path filter follows the file open in Files changed (none on the other tabs).
  */
-export function usePullGitLog(repo: string, headRef: string, openPath: string | null, followPath: boolean) {
-  const gitLog = useGitLog(repo)
-  const { branches, repo: cloneRepo, setFilters } = gitLog
-  const branchPickedFor = useRef('')
+export function usePullGitLog(source: PullLogSource, openPath: string | null, followPath: boolean) {
+  const { filters, setFilters, applied } = useDebouncedFilters()
+  const pages = useLogPages(source, applied)
+  const ci = useCiStates(source.repo, pages.commits)
+  const commit = useSelectedCommit(source.repo)
   useEffect(() => {
-    if (!branches || branchPickedFor.current === cloneRepo) {
-      return
+    if (followPath) {
+      setFilters((current) => ({ ...current, path: openPath ?? '' }))
     }
-    branchPickedFor.current = cloneRepo
-    const branch = pickPullBranch(branches.branches, headRef)
-    setFilters((filters) => ({ ...filters, branch }))
-  }, [branches, cloneRepo, headRef, setFilters])
-  useEffect(() => {
-    if (cloneRepo && followPath) {
-      setFilters((filters) => ({ ...filters, path: openPath ?? '' }))
-    }
-  }, [cloneRepo, openPath, followPath, setFilters])
-  return gitLog
+  }, [openPath, followPath, setFilters])
+  const { headSha, headRef } = source
+  const commits = useMemo(
+    () => prepareLogCommits(pages.commits, { skipsCommits: skipsCommits(applied), headSha, headRef }),
+    [pages.commits, applied, headSha, headRef],
+  )
+  return { ...pages, commits, filters, setFilters, ci, commit }
 }
+
+export type PullGitLogState = ReturnType<typeof usePullGitLog>

@@ -22,7 +22,6 @@ const Guidelines = lazy(() =>
 )
 
 const MyPulls = lazy(() => import('./my-pulls/my-pulls.view.tsx').then((module) => ({ default: module.MyPulls })))
-const GitLog = lazy(() => import('./gitlog/git-log.view.tsx').then((module) => ({ default: module.GitLog })))
 
 const Mentions = lazy(() => import('./mentions/mentions.view.tsx').then((module) => ({ default: module.Mentions })))
 
@@ -148,9 +147,6 @@ function NavRail({
       >
         <path d="M16 12a4 4 0 1 1-8 0 4 4 0 0 1 8 0zM16 12v1.5a2.5 2.5 0 0 0 5 0V12a9 9 0 1 0-3.6 7.2" />
       </NavButton>
-      <NavButton active={route.view === 'log'} label="Log" onClick={() => setRoute({ view: 'log' })}>
-        <path d="M7 4v16M7 8a2 2 0 1 0 0-4 2 2 0 0 0 0 4zM7 20a2 2 0 1 0 0-4 2 2 0 0 0 0 4zM17 14a2 2 0 1 0 0-4 2 2 0 0 0 0 4zM17 10V8a2 2 0 0 0-2-2H9" />
-      </NavButton>
       <NavButton active={route.view === 'guidelines'} label="Guides" onClick={() => setRoute({ view: 'guidelines' })}>
         <path d="M5 4h11l3 3v13H5zM9 9h6M9 13h6M9 17h4" />
       </NavButton>
@@ -202,7 +198,6 @@ function Screen({
       )}
       {route.view === 'guidelines' && <Guidelines initialRepo={route.repo} initialPath={route.path} />}
       {route.view === 'my-pulls' && <MyPulls inbox={inbox} onOpen={openPull} />}
-      {route.view === 'log' && <GitLog />}
       {route.view === 'mentions' && <Mentions mentions={mentions} onOpen={openPull} />}
       {route.view === 'settings' && <Settings />}
     </Suspense>

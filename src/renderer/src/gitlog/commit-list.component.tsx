@@ -1,10 +1,10 @@
 import { type GraphRow, layoutGraph } from '@shared/commit-graph.util.ts'
-import type { Branches, CiState, Commit } from '@shared/git-log.types.ts'
+import type { CiState, Commit } from '@shared/git-log.types.ts'
 import { useMemo } from 'react'
 import { formatAge, joinClassNames } from '../common/format.util.ts'
 import { GraphCell } from './commit-graph.component.tsx'
 import { measureGraphWidth, ROW_PX } from './graph-geometry.util.ts'
-import type { LogFilters } from './use-git-log.hook.ts'
+import type { LogFilters } from './log-filters.types.ts'
 
 const DATE_CHOICES = [
   { days: 0, label: 'Any date' },
@@ -22,8 +22,8 @@ const CI_LOOK: Record<CiState, { className: string; mark: string; title: string 
   none: { className: 'text-transparent', mark: '·', title: '' },
 }
 
-/** Text, branch, author, date and path filters above the log, as in an IDE's log toolbar. */
-function FilterBar(props: { filters: LogFilters; branches: Branches | null; onChange: (filters: LogFilters) => void }) {
+/** Text, author, date and path filters above the log, as in an IDE's log toolbar. */
+function FilterBar(props: { filters: LogFilters; onChange: (filters: LogFilters) => void }) {
   const { filters } = props
   const updateFilters = (patch: Partial<LogFilters>) => props.onChange({ ...filters, ...patch })
   return (
@@ -36,24 +36,11 @@ function FilterBar(props: { filters: LogFilters; branches: Branches | null; onCh
         value={filters.text}
         onChange={(event) => updateFilters({ text: event.target.value })}
       />
-      <select
-        className="input w-auto max-w-48 py-1 text-[12px]"
-        aria-label="Branch"
-        value={filters.branch}
-        onChange={(event) => updateFilters({ branch: event.target.value })}
-      >
-        <option value="">All branches</option>
-        {props.branches?.branches.map((branch) => (
-          <option key={`${branch.kind}:${branch.name}`} value={branch.name}>
-            {branch.name}
-          </option>
-        ))}
-      </select>
       <input
         type="search"
-        className="input w-36 py-1 text-[12px]"
-        placeholder="User"
-        aria-label="Author name or email"
+        className="input w-44 py-1 text-[12px]"
+        placeholder="GitHub login or email"
+        aria-label="Author's GitHub login or email"
         value={filters.author}
         onChange={(event) => updateFilters({ author: event.target.value })}
       />
@@ -84,19 +71,8 @@ function FilterBar(props: { filters: LogFilters; branches: Branches | null; onCh
 /** Labels shown on a row before the rest fold into "+N" (all of them are in the tooltip). */
 const MAX_REF_CHIPS = 2
 
-/** Tags in amber, local branches in the accent colour, remote branches muted. */
-function pickChipClass(ref: string, localBranches: ReadonlySet<string>) {
-  if (ref.startsWith('tag: ')) {
-    return 'bg-warn/15 text-warn'
-  }
-  if (localBranches.has(ref)) {
-    return 'bg-accent/15 text-accent'
-  }
-  return 'bg-panel-2 text-muted'
-}
-
-/** Branch and tag labels on a commit, local ones stronger than remote ones; never wider than the subject. */
-function RefChips({ refs, localBranches }: { refs: readonly string[]; localBranches: ReadonlySet<string> }) {
+/** Labels on a commit, such as the PR's branch on its head; never wider than the subject. */
+function RefChips({ refs }: { refs: readonly string[] }) {
   if (refs.length === 0) {
     return null
   }
@@ -105,13 +81,7 @@ function RefChips({ refs, localBranches }: { refs: readonly string[]; localBranc
   return (
     <span className="flex max-w-[40%] min-w-0 shrink items-center gap-1 overflow-hidden" title={refs.join('\n')}>
       {shownRefs.map((ref) => (
-        <span
-          key={ref}
-          className={joinClassNames(
-            'chip min-w-0 shrink truncate py-0 font-mono text-[10.5px]',
-            pickChipClass(ref, localBranches),
-          )}
-        >
+        <span key={ref} className="chip min-w-0 shrink truncate bg-accent/15 py-0 font-mono text-[10.5px] text-accent">
           {ref}
         </span>
       ))}
@@ -136,7 +106,6 @@ function CommitRow(props: {
   commit: Commit
   row: GraphRow | undefined
   graphWidth: number
-  localBranches: ReadonlySet<string>
   ci: CiState | undefined
   selected: boolean
   onSelect: (hash: string) => void
@@ -160,7 +129,7 @@ function CommitRow(props: {
       <span className={joinClassNames('min-w-[30%] flex-1 truncate', isMerge && 'text-muted')} title={commit.subject}>
         {commit.subject}
       </span>
-      <RefChips refs={commit.refs} localBranches={props.localBranches} />
+      <RefChips refs={commit.refs} />
       <span className="w-36 shrink-0 truncate text-muted" title={commit.authorEmail}>
         {commit.author}
       </span>
@@ -175,7 +144,6 @@ function CommitRow(props: {
 /** Middle pane: filters, then the commits with their graph, labels, author, date and CI result. */
 export function CommitList(props: {
   commits: readonly Commit[]
-  branches: Branches | null
   filters: LogFilters
   onFilters: (filters: LogFilters) => void
   ci: Record<string, CiState>
@@ -187,13 +155,9 @@ export function CommitList(props: {
 }) {
   const rows = useMemo(() => layoutGraph(props.commits), [props.commits])
   const graphWidth = measureGraphWidth(Math.max(0, ...rows.map((row) => row.width)))
-  const localBranches = useMemo(
-    () => new Set(props.branches?.branches.filter((branch) => branch.kind === 'local').map((branch) => branch.name)),
-    [props.branches],
-  )
   return (
     <section className="flex min-w-0 flex-1 flex-col">
-      <FilterBar filters={props.filters} branches={props.branches} onChange={props.onFilters} />
+      <FilterBar filters={props.filters} onChange={props.onFilters} />
       <div className="min-h-0 flex-1 overflow-auto">
         {props.commits.length === 0 && !props.loading && (
           <div className="px-4 py-10 text-center text-muted">No commits match these filters.</div>
@@ -205,7 +169,6 @@ export function CommitList(props: {
                 commit={commit}
                 row={rows[index]}
                 graphWidth={graphWidth}
-                localBranches={localBranches}
                 ci={props.ci[commit.hash]}
                 selected={commit.hash === props.selected}
                 onSelect={props.onSelect}
@@ -213,7 +176,9 @@ export function CommitList(props: {
             </li>
           ))}
         </ul>
-        {Boolean(props.loading) && <div className="px-4 py-3 text-[12px] text-muted">Reading the log…</div>}
+        {Boolean(props.loading) && (
+          <div className="px-4 py-3 text-[12px] text-muted">Reading the history from GitHub…</div>
+        )}
         {props.more && !props.loading && (
           <div className="px-4 py-3">
             <button type="button" className="btn" onClick={props.onLoadMore}>

@@ -63,14 +63,6 @@ export class EditorService {
     this.#settings = settings
   }
 
-  /** Every clone in your code folders and home folder (rescanned each call), by repository name. */
-  listClones(): { repo: string; path: string }[] {
-    this.#clones = findClones(this.#listSearchRoots())
-    return [...this.#clones]
-      .map(([repo, path]) => ({ repo, path }))
-      .sort((left, right) => left.repo.localeCompare(right.repo))
-  }
-
   /** Your code folders (with "~" expanded) and your home folder: where clones are looked for. */
   #listSearchRoots() {
     return [...this.#settings().codeFolders.map((folder) => folder.replace(HOME_PREFIX, homedir())), homedir()]

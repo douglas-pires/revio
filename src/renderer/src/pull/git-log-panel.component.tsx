@@ -1,16 +1,36 @@
 import { type PointerEvent, useEffect, useRef, useState } from 'react'
 import { ErrorBanner } from '../common/error-banner.component.tsx'
 import { joinClassNames } from '../common/format.util.ts'
-import { GitLogPanes } from '../gitlog/git-log.view.tsx'
-import { usePanelLayout, usePullGitLog } from './use-pull-git-log.hook.ts'
+import { CommitDetailPanel } from '../gitlog/commit-detail.component.tsx'
+import { CommitFileDiff } from '../gitlog/commit-file-diff.component.tsx'
+import { CommitList } from '../gitlog/commit-list.component.tsx'
+import { usePanelLayout } from './use-panel-layout.hook.ts'
+import { type PullGitLogState, type PullLogSource, usePullGitLog } from './use-pull-git-log.hook.ts'
 
-interface PullGitLogProps {
-  /** The PR's repository, `owner/name`. */
-  repo: string
-  /** The PR's branch, which the log starts on. */
-  headRef: string
+interface PullGitLogProps extends PullLogSource {
   /** The file open in Files changed, or null on the other tabs. */
   openPath: string | null
+}
+
+/** A file opened in one commit; it counts as open only while that commit stays picked. */
+interface OpenedFile {
+  hash: string | null
+  path: string | null
+}
+
+/** The open file's path, or null once another commit is picked. */
+function readOpenFile(opened: OpenedFile, selectedHash: string | null) {
+  if (opened.hash !== selectedHash) {
+    return null
+  }
+  return opened.path
+}
+
+/** The file whose diff is open; picking another commit closes it. */
+function useOpenFile(selectedHash: string | null) {
+  const [opened, setOpened] = useState<OpenedFile>({ hash: null, path: null })
+  const openFile = (path: string | null) => setOpened({ hash: selectedHash, path })
+  return [readOpenFile(opened, selectedHash), openFile] as const
 }
 
 /** The top edge of the open panel: drag it to make the panel taller or shorter. */
@@ -81,29 +101,61 @@ function PanelBar(props: {
   )
 }
 
-/** The log itself: the commits with their filters, and the picked commit, for the PR's repository. */
-function PullGitLogBody(props: PullGitLogProps & { followPath: boolean }) {
-  const gitLog = usePullGitLog(props.repo, props.headRef, props.openPath, props.followPath)
-  if (gitLog.repos !== null && !gitLog.repo) {
+/** The left pane: the open file's diff in the picked commit, else the commits. */
+function LogPane(props: { repo: string; gitLog: PullGitLogState; openFile: string | null; onCloseFile: () => void }) {
+  const { gitLog } = props
+  if (props.openFile !== null && gitLog.commit.selected !== null) {
     return (
-      <div className="p-6 text-center text-[12.5px] text-muted">
-        No local clone of <span className="font-mono text-fg">{props.repo}</span> found. Add the folder that holds it
-        under Settings → Editor to see its git log here.
-      </div>
+      <CommitFileDiff
+        repo={props.repo}
+        hash={gitLog.commit.selected}
+        path={props.openFile}
+        onClose={props.onCloseFile}
+      />
     )
   }
   return (
+    <CommitList
+      commits={gitLog.commits}
+      filters={gitLog.filters}
+      onFilters={gitLog.setFilters}
+      ci={gitLog.ci}
+      selected={gitLog.commit.selected}
+      onSelect={gitLog.commit.setSelected}
+      loading={gitLog.loading}
+      more={gitLog.more}
+      onLoadMore={gitLog.loadMore}
+    />
+  )
+}
+
+/** The log itself, from GitHub: the commits (or a file's diff) and the picked commit, side by side. */
+function PullGitLogBody(props: PullGitLogProps & { followPath: boolean }) {
+  const gitLog = usePullGitLog(props, props.openPath, props.followPath)
+  const [openFile, setOpenFile] = useOpenFile(gitLog.commit.selected)
+  return (
     <>
       {Boolean(gitLog.error) && <ErrorBanner className="m-3">{gitLog.error}</ErrorBanner>}
-      {Boolean(gitLog.repo) && <GitLogPanes gitLog={gitLog} showBranches={false} />}
+      <div className="flex min-h-0 flex-1">
+        <LogPane repo={props.repo} gitLog={gitLog} openFile={openFile} onCloseFile={() => setOpenFile(null)} />
+        <CommitDetailPanel
+          repo={props.repo}
+          hash={gitLog.commit.selected}
+          detail={gitLog.commit.detail}
+          ci={gitLog.ci[gitLog.commit.selected ?? '']}
+          error={gitLog.commit.error}
+          openFile={openFile}
+          onOpenFile={setOpenFile}
+        />
+      </div>
     </>
   )
 }
 
 /**
- * The PR's git log, docked along the bottom of every tab like an IDE's terminal: closed, it is a bar; open, the log
- * of the PR's repository from its branch, following the file open in Files changed. It reads the log only once
- * first opened, then keeps its place while closed.
+ * The PR's git log, docked along the bottom of every tab like an IDE's terminal: closed, it is a bar; open, the
+ * history GitHub has from the PR's head, following the file open in Files changed. It asks GitHub only once first
+ * opened, then keeps its place while closed.
  */
 export function GitLogPanel(props: PullGitLogProps) {
   const layout = usePanelLayout()

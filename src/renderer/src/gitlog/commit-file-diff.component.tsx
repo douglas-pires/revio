@@ -3,7 +3,7 @@ import { parsePatch } from '../pull/diff.util.ts'
 import { StaticDiff } from '../pull/static-diff.component.tsx'
 import { useFilePatch } from './use-commit-extras.hook.ts'
 
-/** What shows while the patch is loading, failed, or is empty (a binary file, or a mode change only). */
+/** What shows while the patch is loading, failed, or is empty (binary, too large for GitHub to show, or a mode change only). */
 function DiffStatus({ patch, error }: { patch: string | null; error: string | null }) {
   if (error) {
     return <div className="p-4 text-[12px] text-danger">{error}</div>
@@ -14,7 +14,7 @@ function DiffStatus({ patch, error }: { patch: string | null; error: string | nu
   if (patch === '') {
     return (
       <div className="p-4 text-[12px] text-muted">
-        No text changes to show (a binary file, or only its mode changed).
+        No text changes to show: a binary file, a diff too large for GitHub to show, or only its mode changed.
       </div>
     )
   }
