@@ -310,7 +310,7 @@ export const CommentsPanel = memo(function CommentsPanelView(props: {
       <PanelHeader
         title="Comments"
         detail={
-          <span>
+          <span className="whitespace-nowrap">
             {props.threads.length - resolvedCount} open
             {newCount > 0 && (
               <span className="text-accent" title="Comments by others since your last review">
