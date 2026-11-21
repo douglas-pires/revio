@@ -9,7 +9,6 @@ import type {
   RawCheckContext,
 } from '@shared/git-log.types.ts'
 
-const HASH_PREFIX = /^[0-9a-f]{7,40}$/iu
 const COMMIT_HASH = /^[0-9a-f]{4,40}$/iu
 const PASSED_CONCLUSIONS = new Set(['SUCCESS', 'NEUTRAL', 'SKIPPED'])
 const DAY_MS = 86_400_000
@@ -59,11 +58,6 @@ export interface GithubCommit {
     committer: { name?: string; date?: string } | null
   }
   files?: { filename: string; status?: string; previous_filename?: string }[]
-}
-
-/** Whether the search text could be a commit hash. */
-export function looksLikeHash(text: string): boolean {
-  return HASH_PREFIX.test(text.trim())
 }
 
 /** The date `days` days before `now`, for GitHub's `since`; undefined for any time (0). */
@@ -119,12 +113,6 @@ export function convertCommitDetail(commit: GithubCommit): CommitDetail {
     committer: commit.commit.committer?.name ?? '',
     files: (commit.files ?? []).map(convertFileChange),
   }
-}
-
-/** The commits whose message holds `text`, ignoring case; all of them for no text. */
-export function filterByMessage<T extends GithubCommit>(commits: readonly T[], text: string): T[] {
-  const needle = text.trim().toLowerCase()
-  return commits.filter((commit) => commit.commit.message.toLowerCase().includes(needle))
 }
 
 /** Fails unless `hash` looks like a commit hash, before it goes into a GitHub query. */

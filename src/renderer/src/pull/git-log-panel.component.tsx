@@ -1,13 +1,16 @@
-import { type PointerEvent, useEffect, useRef, useState } from 'react'
+import { type PointerEvent, useEffect, useMemo, useRef, useState } from 'react'
 import { ErrorBanner } from '../common/error-banner.component.tsx'
 import { joinClassNames } from '../common/format.util.ts'
 import { CommitDetailPanel } from '../gitlog/commit-detail.component.tsx'
 import { CommitFileDiff } from '../gitlog/commit-file-diff.component.tsx'
 import { CommitList } from '../gitlog/commit-list.component.tsx'
+import { listPathSuggestions } from './pull-git-log.util.ts'
 import { usePanelLayout } from './use-panel-layout.hook.ts'
 import { type CommitPick, type PullGitLogState, type PullLogSource, usePullGitLog } from './use-pull-git-log.hook.ts'
 
 interface PullGitLogProps extends PullLogSource {
+  /** The PR's changed files, suggested in the path filter. */
+  files: readonly { path: string }[]
   /** The file open in Files changed, or null on the other tabs. */
   openPath: string | null
   /** The commit last opened on the Commits tab, which the log picks. */
@@ -78,7 +81,7 @@ function PanelBar(props: {
         type="button"
         className="flex items-center gap-1.5 rounded px-1.5 py-0.5 font-semibold text-fg hover:bg-hover"
         aria-expanded={props.open}
-        title="Show or hide the git log (Ctrl+`)"
+        title="Show or hide the git log (Ctrl+G)"
         onClick={props.onToggle}
       >
         <span className={joinClassNames('text-[10px] transition', !props.open && 'rotate-180')}>▾</span>
@@ -98,13 +101,19 @@ function PanelBar(props: {
         />
         Follow open file
       </label>
-      <span className="kbd">⌃`</span>
+      <span className="kbd">⌃G</span>
     </div>
   )
 }
 
 /** The left pane: the open file's diff in the picked commit, else the commits. */
-function LogPane(props: { repo: string; gitLog: PullGitLogState; openFile: string | null; onCloseFile: () => void }) {
+function LogPane(props: {
+  repo: string
+  gitLog: PullGitLogState
+  pathSuggestions: readonly string[]
+  openFile: string | null
+  onCloseFile: () => void
+}) {
   const { gitLog } = props
   if (props.openFile !== null && gitLog.commit.selected !== null) {
     return (
@@ -119,7 +128,9 @@ function LogPane(props: { repo: string; gitLog: PullGitLogState; openFile: strin
   return (
     <CommitList
       commits={gitLog.commits}
+      messageQuery={gitLog.messageQuery}
       filters={gitLog.filters}
+      suggestions={{ authors: gitLog.authors, paths: props.pathSuggestions }}
       onFilters={gitLog.setFilters}
       ci={gitLog.ci}
       selected={gitLog.commit.selected}
@@ -135,6 +146,7 @@ function LogPane(props: { repo: string; gitLog: PullGitLogState; openFile: strin
 function PullGitLogBody(props: PullGitLogProps & { followPath: boolean }) {
   const gitLog = usePullGitLog(props, props.openPath, props.followPath)
   const [openFile, setOpenFile] = useOpenFile(gitLog.commit.selected)
+  const pathSuggestions = useMemo(() => listPathSuggestions(props.files.map((file) => file.path)), [props.files])
   const { setSelected } = gitLog.commit
   useEffect(() => {
     if (props.commitPick) {
@@ -145,7 +157,13 @@ function PullGitLogBody(props: PullGitLogProps & { followPath: boolean }) {
     <>
       {Boolean(gitLog.error) && <ErrorBanner className="m-3">{gitLog.error}</ErrorBanner>}
       <div className="flex min-h-0 flex-1">
-        <LogPane repo={props.repo} gitLog={gitLog} openFile={openFile} onCloseFile={() => setOpenFile(null)} />
+        <LogPane
+          repo={props.repo}
+          gitLog={gitLog}
+          pathSuggestions={pathSuggestions}
+          openFile={openFile}
+          onCloseFile={() => setOpenFile(null)}
+        />
         <CommitDetailPanel
           repo={props.repo}
           hash={gitLog.commit.selected}

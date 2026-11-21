@@ -1,4 +1,6 @@
+import { looksLikeHash } from '@shared/commit-hash.util.ts'
 import type { Commit } from '@shared/git-log.types.ts'
+import { matchFuzzy } from '../common/fuzzy-match.util.ts'
 import type { LogFilters } from '../gitlog/log-filters.types.ts'
 
 /** The most of the window the panel may take, so the review above stays usable. */
@@ -7,6 +9,41 @@ const MAX_PANEL_SHARE = 0.75
 /** The log panel's height until you drag it, and the least it can be. */
 export const DEFAULT_PANEL_HEIGHT_PX = 320
 export const MIN_PANEL_HEIGHT_PX = 160
+
+/** The message search, unless it is a hash (which GitHub looks up instead): '' for none. */
+export function readMessageQuery(text: string): string {
+  if (looksLikeHash(text)) {
+    return ''
+  }
+  return text.trim()
+}
+
+/** The hash to look up on GitHub, when the search is one: '' otherwise. */
+export function readHashQuery(text: string): string {
+  if (looksLikeHash(text)) {
+    return text.trim()
+  }
+  return ''
+}
+
+/** The commits whose subject fuzzily matches the message search, in log order; all of them for none. */
+export function filterByMessage(commits: readonly Commit[], messageQuery: string): Commit[] {
+  if (!messageQuery) {
+    return [...commits]
+  }
+  return commits.filter((commit) => matchFuzzy(messageQuery, commit.subject) !== null)
+}
+
+/** Paths to suggest for the path filter: the PR's files, then the folders that hold them. */
+export function listPathSuggestions(paths: readonly string[]): string[] {
+  const folders = new Set<string>()
+  for (const path of paths) {
+    for (let end = path.indexOf('/'); end > 0; end = path.indexOf('/', end + 1)) {
+      folders.add(path.slice(0, end))
+    }
+  }
+  return [...new Set(paths), ...[...folders].sort((left, right) => left.localeCompare(right))]
+}
 
 /** A dragged height kept between the minimum and three quarters of the window. */
 export function clampPanelHeight(height: number, windowHeight: number): number {

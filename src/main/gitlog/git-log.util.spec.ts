@@ -5,9 +5,7 @@ import {
   buildSinceDate,
   convertCommit,
   convertCommitDetail,
-  filterByMessage,
   type GithubCommit,
-  looksLikeHash,
   parseCommitChecks,
   readCiState,
 } from './git-log.util.ts'
@@ -65,14 +63,6 @@ describe('convertCommitDetail', () => {
   })
 })
 
-describe('filterByMessage', () => {
-  it('matches anywhere in the message, ignoring case; no text keeps all', () => {
-    const commits = [githubCommit(), githubCommit({ sha: 'c2', commit: { ...githubCommit().commit, message: 'Docs' } })]
-    expect(filterByMessage(commits, 'TOKEN').map((commit) => commit.sha)).toEqual(['c1'])
-    expect(filterByMessage(commits, '  ')).toHaveLength(2)
-  })
-})
-
 describe('buildSinceDate', () => {
   it('is the date that many days back, or none for any time', () => {
     const now = new Date('2026-01-08T00:00:00Z')
@@ -93,11 +83,6 @@ describe('buildCommitFilters', () => {
 })
 
 describe('commit hashes', () => {
-  it('tells a hash from message text', () => {
-    expect(looksLikeHash('a1b2c3d')).toBe(true)
-    expect(looksLikeHash('fix it')).toBe(false)
-  })
-
   it('refuses anything that is not a hash before it reaches a GitHub query', () => {
     expect(() => assertCommitHash('a1b2c3d')).not.toThrow()
     expect(() => assertCommitHash('") { evil }')).toThrow()

@@ -25,7 +25,7 @@ function storeLayout(layout: PanelLayout) {
   }
 }
 
-/** Whether the panel is open and how tall, kept between PRs; Ctrl+` opens and closes it, as a terminal does. */
+/** Whether the panel is open and how tall, kept between PRs; Ctrl+G opens and closes it. */
 export function usePanelLayout() {
   const [layout, setLayoutState] = useState(readStoredLayout)
   const setLayout = useCallback((update: (current: PanelLayout) => PanelLayout) => {
@@ -42,7 +42,7 @@ export function usePanelLayout() {
   )
   useEffect(() => {
     const toggleOnShortcut = (event: KeyboardEvent) => {
-      if (event.ctrlKey && event.code === 'Backquote') {
+      if (event.ctrlKey && event.code === 'KeyG' && !(event.metaKey || event.altKey || event.shiftKey)) {
         event.preventDefault()
         toggle()
       }

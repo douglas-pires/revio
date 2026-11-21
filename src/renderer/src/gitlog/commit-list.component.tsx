@@ -2,6 +2,9 @@ import { type GraphRow, layoutGraph } from '@shared/commit-graph.util.ts'
 import type { CiState, Commit } from '@shared/git-log.types.ts'
 import { useEffect, useMemo, useRef } from 'react'
 import { formatAge, joinClassNames } from '../common/format.util.ts'
+import { FuzzyInput } from '../common/fuzzy-input.component.tsx'
+import { matchFuzzy } from '../common/fuzzy-match.util.ts'
+import { FuzzyText } from '../common/fuzzy-text.component.tsx'
 import { GraphCell } from './commit-graph.component.tsx'
 import { measureGraphWidth, ROW_PX } from './graph-geometry.util.ts'
 import type { LogFilters } from './log-filters.types.ts'
@@ -22,8 +25,21 @@ const CI_LOOK: Record<CiState, { className: string; mark: string; title: string 
   none: { className: 'text-transparent', mark: '·', title: '' },
 }
 
-/** Text, author, date and path filters above the log, as in an IDE's log toolbar. */
-function FilterBar(props: { filters: LogFilters; onChange: (filters: LogFilters) => void }) {
+/** What the filter bar suggests: authors of the commits loaded, and the PR's files and folders. */
+interface FilterSuggestions {
+  authors: readonly string[]
+  paths: readonly string[]
+}
+
+/**
+ * Text, author, date and path filters above the log, as in an IDE's log toolbar. The text filters messages as you
+ * type (fuzzily); author and path suggest values fuzzily and apply once picked.
+ */
+function FilterBar(props: {
+  filters: LogFilters
+  suggestions: FilterSuggestions
+  onChange: (filters: LogFilters) => void
+}) {
   const { filters } = props
   const updateFilters = (patch: Partial<LogFilters>) => props.onChange({ ...filters, ...patch })
   return (
@@ -31,18 +47,18 @@ function FilterBar(props: { filters: LogFilters; onChange: (filters: LogFilters)
       <input
         type="search"
         className="input w-56 py-1 text-[12px]"
-        placeholder="Text or hash"
-        aria-label="Search commit messages or a hash"
+        placeholder="Message or hash"
+        aria-label="Search commit messages (fuzzy) or a hash"
         value={filters.text}
         onChange={(event) => updateFilters({ text: event.target.value })}
       />
-      <input
-        type="search"
-        className="input w-44 py-1 text-[12px]"
+      <FuzzyInput
+        className="w-44"
         placeholder="GitHub login or email"
-        aria-label="Author's GitHub login or email"
+        label="Author's GitHub login or email"
         value={filters.author}
-        onChange={(event) => updateFilters({ author: event.target.value })}
+        suggestions={props.suggestions.authors}
+        onCommit={(author) => updateFilters({ author })}
       />
       <select
         className="input w-auto py-1 text-[12px]"
@@ -56,16 +72,22 @@ function FilterBar(props: { filters: LogFilters; onChange: (filters: LogFilters)
           </option>
         ))}
       </select>
-      <input
-        type="search"
-        className="input w-44 py-1 font-mono text-[12px]"
+      <FuzzyInput
+        className="w-72 font-mono"
         placeholder="Path"
-        aria-label="Only commits touching this path"
+        label="Only commits touching this path"
         value={filters.path}
-        onChange={(event) => updateFilters({ path: event.target.value })}
+        suggestions={props.suggestions.paths}
+        onCommit={(path) => updateFilters({ path })}
       />
     </div>
   )
+}
+
+/** The subject, with the letters the message search matched marked. */
+function Subject({ subject, messageQuery }: { subject: string; messageQuery: string }) {
+  const match = useMemo(() => matchFuzzy(messageQuery, subject), [messageQuery, subject])
+  return <FuzzyText text={subject} positions={match?.positions ?? []} />
 }
 
 /** Labels shown on a row before the rest fold into "+N" (all of them are in the tooltip). */
@@ -106,6 +128,7 @@ function CommitRow(props: {
   commit: Commit
   row: GraphRow | undefined
   graphWidth: number
+  messageQuery: string
   ci: CiState | undefined
   selected: boolean
   onSelect: (hash: string) => void
@@ -128,7 +151,7 @@ function CommitRow(props: {
     >
       {props.row !== undefined && <GraphCell row={props.row} width={props.graphWidth} merge={isMerge} />}
       <span className={joinClassNames('min-w-[30%] flex-1 truncate', isMerge && 'text-muted')} title={commit.subject}>
-        {commit.subject}
+        <Subject subject={commit.subject} messageQuery={props.messageQuery} />
       </span>
       <RefChips refs={commit.refs} />
       <span className="w-36 shrink-0 truncate text-muted" title={commit.authorEmail}>
@@ -145,7 +168,10 @@ function CommitRow(props: {
 /** Middle pane: filters, then the commits with their graph, labels, author, date and CI result. */
 export function CommitList(props: {
   commits: readonly Commit[]
+  /** The message search, for marking what it matched. */
+  messageQuery: string
   filters: LogFilters
+  suggestions: FilterSuggestions
   onFilters: (filters: LogFilters) => void
   ci: Record<string, CiState>
   selected: string | null
@@ -165,7 +191,7 @@ export function CommitList(props: {
   const graphWidth = measureGraphWidth(Math.max(0, ...rows.map((row) => row.width)))
   return (
     <section className="flex min-w-0 flex-1 flex-col">
-      <FilterBar filters={props.filters} onChange={props.onFilters} />
+      <FilterBar filters={props.filters} suggestions={props.suggestions} onChange={props.onFilters} />
       <div ref={scroller} className="min-h-0 flex-1 overflow-auto">
         {props.commits.length === 0 && !props.loading && (
           <div className="px-4 py-10 text-center text-muted">No commits match these filters.</div>
@@ -177,6 +203,7 @@ export function CommitList(props: {
                 commit={commit}
                 row={rows[index]}
                 graphWidth={graphWidth}
+                messageQuery={props.messageQuery}
                 ci={props.ci[commit.hash]}
                 selected={commit.hash === props.selected}
                 onSelect={props.onSelect}

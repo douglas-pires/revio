@@ -1,8 +1,17 @@
-import type { CiState, Commit, CommitDetail, LogPage } from '@shared/git-log.types.ts'
+import type { CiState, Commit, CommitDetail, LogPage, PullLogQuery } from '@shared/git-log.types.ts'
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import { readErrorMessage } from '../common/format.util.ts'
 import { type LogFilters, NO_FILTERS } from '../gitlog/log-filters.types.ts'
-import { prepareLogCommits, skipsCommits } from './pull-git-log.util.ts'
+import {
+  filterByMessage,
+  prepareLogCommits,
+  readHashQuery,
+  readMessageQuery,
+  skipsCommits,
+} from './pull-git-log.util.ts'
+
+/** What GitHub is asked for, apart from the PR's head and the page. */
+type GithubFilters = Omit<PullLogQuery, 'sha' | 'page'>
 
 /** Typing in a filter waits this long before asking GitHub again. */
 const FILTER_DELAY_MS = 400
@@ -26,8 +35,18 @@ function useDebouncedFilters() {
   return { filters, setFilters, applied }
 }
 
+/**
+ * The filters GitHub is asked with, kept as the same object while they stay the same, so typing a message search
+ * (matched in Revio) never reloads the history.
+ */
+function useGithubFilters(applied: LogFilters): GithubFilters {
+  const hash = readHashQuery(applied.text)
+  const { author, sinceDays, path } = applied
+  return useMemo(() => ({ hash, author, sinceDays, path }), [hash, author, sinceDays, path])
+}
+
 /** Pages of the PR's history for the applied filters. Each load is numbered, so a slow older answer never wins. */
-function useLogPages(source: PullLogSource, applied: LogFilters) {
+function useLogPages(source: PullLogSource, githubFilters: GithubFilters) {
   const [commits, setCommits] = useState<Commit[]>([])
   const [loadedPages, setLoadedPages] = useState(0)
   const [more, setMore] = useState(false)
@@ -42,7 +61,7 @@ function useLogPages(source: PullLogSource, applied: LogFilters) {
       setLoading(true)
       setError(null)
       try {
-        const page = await globalThis.revio.getPullLog(repo, { ...applied, sha: headSha, page: pageNumber })
+        const page = await globalThis.revio.getPullLog(repo, { ...githubFilters, sha: headSha, page: pageNumber })
         if (latestLoad.current === loadId) {
           setCommits((loaded) => appendPage(loaded, page, pageNumber))
           setLoadedPages(pageNumber)
@@ -60,7 +79,7 @@ function useLogPages(source: PullLogSource, applied: LogFilters) {
         }
       }
     },
-    [repo, headSha, applied],
+    [repo, headSha, githubFilters],
   )
   useEffect(() => {
     load(1)
@@ -131,7 +150,7 @@ export interface PullLogSource {
  */
 export function usePullGitLog(source: PullLogSource, openPath: string | null, followPath: boolean) {
   const { filters, setFilters, applied } = useDebouncedFilters()
-  const pages = useLogPages(source, applied)
+  const pages = useLogPages(source, useGithubFilters(applied))
   const ci = useCiStates(source.repo, pages.commits)
   const commit = useSelectedCommit(source.repo)
   useEffect(() => {
@@ -140,11 +159,19 @@ export function usePullGitLog(source: PullLogSource, openPath: string | null, fo
     }
   }, [openPath, followPath, setFilters])
   const { headSha, headRef } = source
+  // The message search is matched as you type, on the commits loaded; the other filters wait for GitHub.
+  const messageQuery = readMessageQuery(filters.text)
   const commits = useMemo(
-    () => prepareLogCommits(pages.commits, { skipsCommits: skipsCommits(applied), headSha, headRef }),
-    [pages.commits, applied, headSha, headRef],
+    () =>
+      prepareLogCommits(filterByMessage(pages.commits, messageQuery), {
+        skipsCommits: skipsCommits({ ...applied, text: messageQuery }),
+        headSha,
+        headRef,
+      }),
+    [pages.commits, messageQuery, applied, headSha, headRef],
   )
-  return { ...pages, commits, filters, setFilters, ci, commit }
+  const authors = useMemo(() => [...new Set(pages.commits.map((loaded) => loaded.author))], [pages.commits])
+  return { ...pages, commits, messageQuery, authors, filters, setFilters, ci, commit }
 }
 
 export type PullGitLogState = ReturnType<typeof usePullGitLog>

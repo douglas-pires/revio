@@ -132,6 +132,7 @@ export function PullView(props: PullViewProps) {
                 repo={view.pull.repo}
                 headSha={pr.headSha}
                 headRef={pr.headRef}
+                files={view.orderedFiles}
                 openPath={readOpenPath(view)}
                 commitPick={commitPick}
               />

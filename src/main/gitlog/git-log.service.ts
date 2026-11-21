@@ -1,4 +1,5 @@
 import type { Octokit } from '@octokit/rest'
+import { looksLikeHash } from '@shared/commit-hash.util.ts'
 import { readErrorMessage } from '@shared/error.util.ts'
 import type {
   CiState,
@@ -15,9 +16,7 @@ import {
   buildCommitFilters,
   convertCommit,
   convertCommitDetail,
-  filterByMessage,
   type GithubCommit,
-  looksLikeHash,
   parseCommitChecks,
   readCiState,
 } from './git-log.util.ts'
@@ -63,14 +62,11 @@ async function fetchCiBatch(octokit: Octokit, repo: string, hashes: readonly str
   return hashes.map((hash, index) => [hash, readCiState(response.repository?.[`c${index}`]?.statusCheckRollup?.state)])
 }
 
-/**
- * A page of the history GitHub has from `query.sha`, filtered by path, author and date on GitHub. GitHub cannot
- * search messages, so text filters the page it returns; a search for a hash finds that one commit.
- */
+/** A page of the history GitHub has from `query.sha`, filtered by path, author and date; or the one commit a hash names. */
 export async function fetchPullLog(octokit: Octokit, repo: string, query: PullLogQuery): Promise<LogPage> {
-  const text = query.text.trim()
-  if (looksLikeHash(text)) {
-    return findCommitByHash(octokit, repo, text)
+  const hash = query.hash.trim()
+  if (looksLikeHash(hash)) {
+    return findCommitByHash(octokit, repo, hash)
   }
   const { owner, repo: name } = splitRepo(repo)
   const { data } = await octokit.repos.listCommits({
@@ -81,8 +77,7 @@ export async function fetchPullLog(octokit: Octokit, repo: string, query: PullLo
     per_page: PAGE_SIZE,
     page: query.page,
   })
-  const commits = filterByMessage(data as GithubCommit[], text).map(convertCommit)
-  return { commits, more: data.length === PAGE_SIZE }
+  return { commits: (data as GithubCommit[]).map(convertCommit), more: data.length === PAGE_SIZE }
 }
 
 /** A commit's message, author and changed files, from GitHub. */

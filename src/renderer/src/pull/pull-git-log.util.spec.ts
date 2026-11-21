@@ -1,7 +1,16 @@
 import type { Commit } from '@shared/git-log.types.ts'
 import { describe, expect, it } from 'vitest'
 import { NO_FILTERS } from '../gitlog/log-filters.types.ts'
-import { clampPanelHeight, MIN_PANEL_HEIGHT_PX, prepareLogCommits, skipsCommits } from './pull-git-log.util.ts'
+import {
+  clampPanelHeight,
+  filterByMessage,
+  listPathSuggestions,
+  MIN_PANEL_HEIGHT_PX,
+  prepareLogCommits,
+  readHashQuery,
+  readMessageQuery,
+  skipsCommits,
+} from './pull-git-log.util.ts'
 
 const commit = (hash: string, ...parents: string[]): Commit => ({
   hash,
@@ -52,5 +61,35 @@ describe('prepareLogCommits', () => {
       headRef: 'feat/x',
     })
     expect(prepared.map((row) => row.parents)).toEqual([['b'], ['a'], []])
+  })
+})
+
+describe('message and hash searches', () => {
+  it('sends a hash to GitHub and matches anything else against the messages', () => {
+    expect(readHashQuery('a1b2c3d')).toBe('a1b2c3d')
+    expect(readMessageQuery('a1b2c3d')).toBe('')
+    expect(readHashQuery('fix login')).toBe('')
+    expect(readMessageQuery(' fix login ')).toBe('fix login')
+  })
+
+  it('keeps the commits whose subject fuzzily matches, in log order', () => {
+    const commits = [commit('c'), commit('b'), commit('a')].map((row, index) => ({
+      ...row,
+      subject: ['Fix login redirect', 'Docs', 'feat: fix the login form'][index] ?? '',
+    }))
+    expect(filterByMessage(commits, 'fixlogin').map((row) => row.hash)).toEqual(['c', 'a'])
+    expect(filterByMessage(commits, '')).toHaveLength(3)
+  })
+})
+
+describe('listPathSuggestions', () => {
+  it('lists the files, then each folder that holds them once', () => {
+    expect(listPathSuggestions(['src/main/a.ts', 'src/main/b.ts', 'README.md'])).toEqual([
+      'src/main/a.ts',
+      'src/main/b.ts',
+      'README.md',
+      'src',
+      'src/main',
+    ])
   })
 })

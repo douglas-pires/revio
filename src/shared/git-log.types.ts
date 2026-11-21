@@ -2,8 +2,8 @@
 export interface PullLogQuery {
   /** The commit the history starts from: the PR's head. */
   sha: string
-  /** Text in the commit message, or the start of a commit hash. */
-  text: string
+  /** A commit hash (or its start) to find; '' to list the history. Messages are matched in Revio, not on GitHub. */
+  hash: string
   /** GitHub login or email of the author; '' for anyone. */
   author: string
   /** Only commits after this many days ago; 0 for any time. */
