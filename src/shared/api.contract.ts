@@ -3,7 +3,7 @@ import type { EditorInfo, EditorTarget } from './editor.types.ts'
 import type { MainEvent } from './event.types.ts'
 import type { Guideline, ResolvedGuideline } from './guideline.types.ts'
 import type { BlameRange, CommitFile, CommitRef, FileAtCommit, FileHistoryEntry, PullCommit } from './history.types.ts'
-import type { Inbox, Stack } from './inbox.types.ts'
+import type { Inbox, Stack, StackPrComments } from './inbox.types.ts'
 import type { MentionsInbox } from './mention.types.ts'
 import type { DraftComment, PullDetail, PullLocalState, PullRef, SubmitReviewInput } from './pull.types.ts'
 import type { ReactionContent, ReactionSummary } from './reaction.types.ts'
@@ -41,6 +41,8 @@ export interface RevioApi {
   getPull: (ref: PullRef, maxAgeMs?: number) => Promise<PullDetail>
   /** The stack this PR belongs to, or null. */
   getStack: (ref: PullRef) => Promise<Stack | null>
+  /** Where you commented across a stack's PRs. Empty when GitHub would not say. */
+  getStackComments: (stack: Stack) => Promise<StackPrComments[]>
   getLocalState: (ref: PullRef) => Promise<PullLocalState>
   saveDrafts: (ref: PullRef, drafts: DraftComment[]) => Promise<void>
   setViewed: (ref: PullRef, path: string, sha: string | null) => Promise<void>
@@ -84,6 +86,9 @@ export interface RevioApi {
   getUpdateStatus: () => Promise<UpdateStatus>
   /** Checks GitHub for a newer release now. */
   checkForUpdates: () => Promise<UpdateStatus>
+
+  /** Shows a sample notification; false when macOS refused it (notifications off for Revio). */
+  testNotification: () => Promise<boolean>
 
   openExternal: (url: string) => Promise<void>
   onEvent: (listener: (event: MainEvent) => void) => () => void

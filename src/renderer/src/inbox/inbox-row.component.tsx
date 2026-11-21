@@ -13,6 +13,9 @@ const SIZE_LIMITS = { XS: 50, S: 200, M: 600, L: 1500 } as const
 
 const AVATAR_PX = 28
 
+/** The time at the end of a row: how long a review request has waited, or when the PR last changed. */
+type RowTime = 'waiting' | 'updated'
+
 function requestedTitle(requestedAt: string | null) {
   if (!requestedAt) {
     return 'request time unknown'
@@ -36,7 +39,9 @@ function StackChip({ stack, onStack }: { stack: NonNullable<PullSummary['stack']
   )
 }
 
-function RowStats({ pr, muted }: { pr: PullSummary; muted: boolean }) {
+/** Size, then a time: how long the request has waited, or when the PR last changed. */
+function RowStats({ pr, time }: { pr: PullSummary; time: RowTime }) {
+  const updated = time === 'updated'
   return (
     <div className="flex shrink-0 items-center gap-3 font-mono text-[11.5px]">
       <span className="text-muted" title={`${pr.changedFiles} files`}>
@@ -46,7 +51,7 @@ function RowStats({ pr, muted }: { pr: PullSummary; muted: boolean }) {
         <span className="text-ok">+{pr.additions}</span> <span className="text-danger">−{pr.deletions}</span>
       </span>
       <span className="chip w-7 justify-center bg-panel-2 text-muted">{sizeLabelOf(pr.additions + pr.deletions)}</span>
-      {!muted && (
+      {!updated && (
         <span
           className={cx('w-12 text-right', pr.stale && 'font-semibold text-danger', !pr.stale && 'text-muted')}
           title={requestedTitle(pr.requestedAt)}
@@ -54,9 +59,21 @@ function RowStats({ pr, muted }: { pr: PullSummary; muted: boolean }) {
           {duration(pr.waitingHours)}
         </span>
       )}
-      {Boolean(muted) && <span className="w-12 text-right text-muted">{ago(pr.updatedAt)}</span>}
+      {Boolean(updated) && (
+        <span className="w-12 text-right text-muted" title={`updated ${new Date(pr.updatedAt).toLocaleString()}`}>
+          {ago(pr.updatedAt)}
+        </span>
+      )}
     </div>
   )
+}
+
+/** The time a row shows unless told otherwise: muted rows (already reviewed) show when the PR last changed. */
+function defaultRowTime(muted: boolean): RowTime {
+  if (muted) {
+    return 'updated'
+  }
+  return 'waiting'
 }
 
 /** A T-shirt size for a PR from how many lines it changes. */
@@ -70,11 +87,14 @@ export function InboxRow({
   onOpen,
   onStack,
   muted = false,
+  time = defaultRowTime(muted),
 }: {
   pr: PullSummary
   onOpen: OpenPull
   onStack: (id: string) => void
   muted?: boolean | undefined
+  /** How long a request has waited, or when the PR last changed. */
+  time?: RowTime | undefined
 }) {
   const prefetch = usePrefetchOnHover()
   const open = () => onOpen(pr)
@@ -111,7 +131,7 @@ export function InboxRow({
             {pr.repo}#{pr.number} · {pr.author} · {pr.headRef} → {pr.baseRef}
           </div>
         </div>
-        <RowStats pr={pr} muted={muted} />
+        <RowStats pr={pr} time={time} />
       </div>
     </li>
   )

@@ -2,6 +2,7 @@ import { type ApiMethod, IPC, type RevioApi } from '@shared/api.contract.ts'
 import type { AskActivity } from '@shared/claude.types.ts'
 import { type PullRef, pullKey } from '@shared/pull.types.ts'
 import { ipcMain, shell } from 'electron'
+import { sendTestNotification } from '../alerts/notification.service.ts'
 import { ask } from '../claude/ask.service.ts'
 import { generateBriefing } from '../claude/briefing.service.ts'
 import { isWebUrl } from '../common/web-url.util.ts'
@@ -16,6 +17,7 @@ import type { MentionWatcher } from '../mentions/mentions.watcher.ts'
 import type { PullCache } from '../pulls/pull.cache.ts'
 import { commentOnPull, fetchFileAt, replyToComment, submitReview } from '../pulls/pull.service.ts'
 import { setReaction } from '../reactions/reactions.service.ts'
+import { fetchStackComments } from '../stacks/stack-comments.service.ts'
 import { fetchStack } from '../stacks/stacks.service.ts'
 import type { store as appStore } from '../store/store.service.ts'
 import type { IcloudSync } from '../sync/icloud-sync.service.ts'
@@ -97,6 +99,7 @@ function inboxHandlers({ poller, mentions, threads }: ApiDeps): Pick<ApiHandlers
 type PullMethods =
   | 'getPull'
   | 'getStack'
+  | 'getStackComments'
   | 'getLocalState'
   | 'saveDrafts'
   | 'setViewed'
@@ -110,6 +113,7 @@ function pullHandlers({ store, poller, pulls }: ApiDeps): Pick<ApiHandlers, Pull
   return {
     getPull: (ref, maxAgeMs = 0) => pulls.get(ref, maxAgeMs),
     getStack: (ref) => fetchStack(ref, poller.latest),
+    getStackComments: (stack) => fetchStackComments(stack),
     getLocalState: (ref) => store.pull(pullKey(ref)),
     saveDrafts: (ref, drafts) =>
       store.updatePull(pullKey(ref), (s) => {
@@ -255,6 +259,7 @@ export function registerApi(deps: ApiDeps) {
     ...historyHandlers(deps),
     getUpdateStatus: () => deps.updates.status,
     checkForUpdates: () => deps.updates.check(),
+    testNotification: () => sendTestNotification(() => deps.window.show()),
     ...guidelineHandlers(deps),
     ...claudeHandlers(deps),
     listEditors: () => installedEditors(),

@@ -38,6 +38,7 @@ const methods = [
   'refreshInbox',
   'getPull',
   'getStack',
+  'getStackComments',
   'getLocalState',
   'saveDrafts',
   'setViewed',
@@ -63,6 +64,7 @@ const methods = [
   'saveAsks',
   'getUpdateStatus',
   'checkForUpdates',
+  'testNotification',
   'openExternal',
   'onEvent',
 ] as const satisfies readonly (keyof RevioApi)[]

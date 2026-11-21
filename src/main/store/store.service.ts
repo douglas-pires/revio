@@ -3,6 +3,7 @@ import { join } from 'node:path'
 import type { Guideline } from '@shared/guideline.types.ts'
 import type { PullLocalState } from '@shared/pull.types.ts'
 import type { Settings } from '@shared/settings.types.ts'
+import { DEFAULT_OPEN_IN_EDITOR_SHORTCUT } from '@shared/shortcut.util.ts'
 import { app, safeStorage } from 'electron'
 import type { AlertState } from '../alerts/alerts.util.ts'
 import { pruneStalePulls } from '../pulls/pull-state.util.ts'
@@ -47,6 +48,7 @@ const DEFAULT_SETTINGS: StoredSettings = {
   claudeBackend: 'auto',
   claudeModel: 'claude-opus-5-5',
   editor: '',
+  openInEditorShortcut: DEFAULT_OPEN_IN_EDITOR_SHORTCUT,
   codeFolders: [],
   syncViaIcloud: false,
 }
@@ -86,7 +88,7 @@ function load(): Db {
     settings: { ...DEFAULT_SETTINGS },
     guidelines: DEFAULT_GUIDELINES,
     pulls: {},
-    alerts: { requested: {}, staleAlertedAt: {}, seeded: false, mentionsAlerted: {}, mentionsSeeded: false },
+    alerts: { requested: {}, staleAlertedAt: {}, seeded: false, seenMentions: {}, seenMentionsRecorded: false },
     sync: { settingsUpdatedAt: {}, deletedGuidelines: {} },
   }
   try {

@@ -64,12 +64,50 @@ function visibleThreads(threads: readonly CommentThread[], query: string, showRe
   return threads.filter((t) => !isSettled(t, reviewed))
 }
 
-/** The comment a thread previews: the search match, else the newest one since your review, else the first. */
-function previewedComment(t: CommentThread, query: string, fresh: readonly ReviewComment[]) {
+/**
+ * The comment a thread previews: the search match, else the first one. The thread always reads as the comment
+ * that opened it, so your own comments stay findable once someone replies; new replies show beneath it.
+ */
+function pickPreviewedComment(thread: CommentThread, query: string) {
   if (query.trim()) {
-    return matchingComment(t, query)
+    return matchingComment(thread, query)
   }
-  return fresh.at(-1) ?? t.comments[0] ?? null
+  return thread.comments[0] ?? null
+}
+
+/** The newest reply since your last review, shown under the thread's first comment. Null when searching. */
+function findNewestReplyToShow(newSinceReview: readonly ReviewComment[], previewed: ReviewComment, query: string) {
+  const newestReply = newSinceReview.at(-1)
+  if (query.trim() || !newestReply || newestReply.id === previewed.id) {
+    return null
+  }
+  return newestReply
+}
+
+/** A new reply quoted under the thread's first comment: its author and the start of its text. */
+function NewestReply({ reply }: { reply: ReviewComment | null }) {
+  if (!reply) {
+    return null
+  }
+  return (
+    <div className="mt-1 border-l-2 border-accent/40 pl-1.5 text-[11.5px]">
+      <span className="font-medium">{reply.author}</span>{' '}
+      <span className="line-clamp-2 text-muted">{excerptAround(reply.body, '', EXCERPT_CHARS)}</span>
+    </div>
+  )
+}
+
+/** Whether you commented in the thread. */
+function hasYourComment(thread: CommentThread, viewer: string) {
+  return thread.comments.some((comment) => comment.author === viewer)
+}
+
+/** Only your threads when `onlyYours` is on; every thread otherwise. */
+function keepYourThreads(threads: readonly CommentThread[], onlyYours: boolean, viewer: string) {
+  if (!onlyYours) {
+    return threads
+  }
+  return threads.filter((thread) => hasYourComment(thread, viewer))
 }
 
 /** How many matched, shown only while searching. */
@@ -80,7 +118,10 @@ function matchCount(searching: boolean, count: number) {
   return count
 }
 
-function emptyText(query: string, threadCount: number) {
+function describeEmptyList(query: string, threadCount: number, onlyYours: boolean) {
+  if (onlyYours && !query.trim()) {
+    return 'You have no comments on this PR yet.'
+  }
   if (query.trim()) {
     return `No comment mentions “${query.trim()}”.`
   }
@@ -170,7 +211,8 @@ function ThreadItem({
   }
   const last = replies.at(-1) ?? root
   const fresh = newComments(t, reviewed)
-  const shown = previewedComment(t, query, fresh) ?? root
+  const shown = pickPreviewedComment(t, query) ?? root
+  const newestReply = findNewestReplyToShow(fresh, shown, query)
   return (
     <button
       type="button"
@@ -178,7 +220,7 @@ function ThreadItem({
         'flex w-full gap-2 rounded px-1.5 py-1.5 text-left hover:bg-hover',
         t.resolved && fresh.length === 0 && 'opacity-60',
       )}
-      onClick={() => onJump(t.path, jumpLineOf(t), shown.id)}
+      onClick={() => onJump(t.path, jumpLineOf(t), newestReply?.id ?? shown.id)}
       title={threadTitle(t)}
     >
       <img
@@ -205,6 +247,7 @@ function ThreadItem({
         <div className="line-clamp-2 text-muted">
           <MatchText text={excerptAround(shown.body, query.trim(), EXCERPT_CHARS)} query={query} />
         </div>
+        <NewestReply reply={newestReply} />
         {replies.length > 0 && (
           <div className="mt-0.5 truncate text-[11px] text-muted">
             {countOf(replies.length, 'reply', 'replies')} · last by <span className="text-fg">{last.author}</span>
@@ -281,11 +324,18 @@ export const CommentsPanel = memo(function CommentsPanelView(props: {
   const { reviewed } = props
   const [showResolved, setShowResolved] = useState(false)
   const [query, setQuery] = useState('')
+  const [onlyYours, setOnlyYours] = useState(false)
+  const yourThreadCount = props.threads.filter((thread) => hasYourComment(thread, reviewed.viewer)).length
   const searching = query.trim() !== ''
   const resolvedCount = props.threads.filter((t) => t.resolved).length
   const settledCount = props.threads.filter((t) => isSettled(t, reviewed)).length
   const newCount = props.threads.reduce((n, t) => n + newComments(t, reviewed).length, 0)
-  const visible = visibleThreads(props.threads, query, showResolved, reviewed)
+  const visible = visibleThreads(
+    keepYourThreads(props.threads, onlyYours, reviewed.viewer),
+    query,
+    showResolved,
+    reviewed,
+  )
   const drafts = searchDrafts(props.drafts, query)
   const conversation = searchConversation(props.conversation, query)
   const shownCount = visible.length + drafts.length + conversation.length
@@ -296,7 +346,7 @@ export const CommentsPanel = memo(function CommentsPanelView(props: {
       <PanelHeader
         title="Comments"
         detail={
-          <span>
+          <span className="whitespace-nowrap">
             {props.threads.length - resolvedCount} open
             {newCount > 0 && (
               <span className="text-accent" title="Comments by others since your last review">
@@ -306,23 +356,33 @@ export const CommentsPanel = memo(function CommentsPanelView(props: {
             )}
           </span>
         }
-        actions={
-          settledCount > 0 && (
-            <ToggleButton on={showResolved} onToggle={() => setShowResolved(!showResolved)}>
-              {Boolean(showResolved) && 'Hide'}
-              {!showResolved && 'Show'} {settledCount} resolved
-            </ToggleButton>
-          )
-        }
         onClose={props.onClose}
         closeLabel="Hide comments"
       />
       <CommentSearch query={query} onChange={setQuery} matches={matchCount(searching, shownCount)} />
+      {(yourThreadCount > 0 || settledCount > 0) && (
+        // The filters get their own row: beside the title and counts they overflow the panel's width.
+        <div className="flex flex-wrap gap-1 px-2 pb-2">
+          {yourThreadCount > 0 && (
+            <ToggleButton on={onlyYours} onToggle={() => setOnlyYours(!onlyYours)}>
+              Mine {yourThreadCount}
+            </ToggleButton>
+          )}
+          {settledCount > 0 && (
+            <ToggleButton on={showResolved} onToggle={() => setShowResolved(!showResolved)}>
+              {Boolean(showResolved) && 'Hide'}
+              {!showResolved && 'Show'} {settledCount} resolved
+            </ToggleButton>
+          )}
+        </div>
+      )}
       <div className="min-h-0 flex-1 overflow-y-auto px-1.5 pb-3">
         {drafts.length > 0 && <Drafts drafts={drafts} query={query} onJump={props.onJump} />}
         <ConversationList comments={conversation} query={query} onOpen={props.onOpenConversation} />
         {shownCount === 0 && (
-          <div className="px-3 py-8 text-center text-[12px] text-muted">{emptyText(query, props.threads.length)}</div>
+          <div className="px-3 py-8 text-center text-[12px] text-muted">
+            {describeEmptyList(query, props.threads.length, onlyYours)}
+          </div>
         )}
         {[...byFile].map(([path, threads]) => (
           <div key={path} className="mb-2">

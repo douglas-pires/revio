@@ -3,6 +3,7 @@ import { useCallback, useEffect, useState } from 'react'
 import { errorMessage } from '../common/format.util.ts'
 import { Screen, ScreenBody, ScreenHeader } from '../common/screen.component.tsx'
 import { SectionHeading } from '../common/section-heading.component.tsx'
+import { useAsyncAction } from '../common/use-async-action.hook.ts'
 import { UpdateSettings } from '../updates/update-settings.component.tsx'
 import { EditorSettings } from './editor-settings.component.tsx'
 import { GithubTokenSettings } from './github-token-settings.component.tsx'
@@ -77,6 +78,39 @@ function apiKeyHint(hasKey: boolean) {
   return 'Optional. Falls back to ANTHROPIC_API_KEY or an `ant auth login` profile.'
 }
 
+/** What the test notification did, as a hint under the button; nothing before the first test. */
+function describeTestResult(wasShown: boolean | null) {
+  if (wasShown === null) {
+    return null
+  }
+  if (wasShown) {
+    return 'Sent. If nothing appeared, check System Settings → Notifications → Revio.'
+  }
+  return 'macOS did not show it. Turn on notifications for Revio in System Settings → Notifications.'
+}
+
+/** Sends a sample notification, which also makes macOS ask for (and list) Revio's notification permission. */
+function TestNotification() {
+  const sending = useAsyncAction()
+  const [wasShown, setWasShown] = useState<boolean | null>(null)
+  const resultText = describeTestResult(wasShown)
+  const sendTestNotification = () =>
+    sending.run(async () => {
+      setWasShown(await globalThis.revio.testNotification())
+    })
+  return (
+    <div className="flex flex-col gap-1">
+      <div>
+        <button type="button" className="btn" disabled={sending.busy} onClick={sendTestNotification}>
+          Send a test notification
+        </button>
+      </div>
+      {resultText !== null && <p className="text-[12px] text-muted">{resultText}</p>}
+      {Boolean(sending.error) && <p className="text-[12px] text-danger">{sending.error}</p>}
+    </div>
+  )
+}
+
 /** Which notifications to show, how often to poll, and when a review turns stale. */
 function AlertsGroup({ s, update }: { s: S; update: Update }) {
   return (
@@ -101,6 +135,7 @@ function AlertsGroup({ s, update }: { s: S; update: Update }) {
         checked={s.notifyOnMention}
         onChange={(v) => update({ notifyOnMention: v })}
       />
+      <TestNotification />
       <Num
         label="Check GitHub every"
         unit="minutes"
