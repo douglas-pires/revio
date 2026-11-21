@@ -2,12 +2,41 @@
 const EARLY_MATCH_SHARE = 0.6
 const LEAD_IN_SHARE = 0.3
 
+const NAMED_ENTITIES: Record<string, string> = { nbsp: ' ', amp: '&', lt: '<', gt: '>', quot: '"', apos: "'" }
+const ENTITY = /&(?:#(?<decimal>\d+)|#x(?<hex>[\da-f]+)|(?<name>[a-z]+));/giu
+const MARKDOWN_IMAGE = /!\[(?<alt>[^\]]*)\]\([^)]*\)/gu
+/** Blockquote (`>`) and heading (`#`) markers at the start of a line; elsewhere `>` and `#` are text (`a > b`, `#12`). */
+const LINE_MARKERS = /^[ \t]*(?:>+|#{1,6})[ \t]*/gmu
+const MARKDOWN_LINK = /\[(?<label>[^\]]*)\]\([^)]*\)/gu
+
+/** `&nbsp;`, `&amp;`, `&#39;` and `&#x1F600;` as the characters they stand for; unknown names stay as written. */
+function decodeHtmlEntities(text: string) {
+  return text.replace(ENTITY, (entity, ...rest) => {
+    const { decimal, hex, name } = rest.at(-1) as Record<string, string | undefined>
+    if (decimal) {
+      return String.fromCodePoint(Number(decimal))
+    }
+    if (hex) {
+      return String.fromCodePoint(Number.parseInt(hex, 16))
+    }
+    return NAMED_ENTITIES[name?.toLowerCase() ?? ''] ?? entity
+  })
+}
+
+/**
+ * A comment as one plain line: code named, HTML tags dropped and entities decoded (tags first, so an encoded `&lt;b&gt;`
+ * never becomes markup), links reduced to their text, images to their alt text, quote and heading markers and emphasis removed.
+ */
 function toPlainText(body: string) {
-  return body
+  const withoutMarkup = body
     .replace(/```suggestion[\s\S]*?```/gu, '[suggested change]')
     .replace(/```[\s\S]*?```/gu, '[code]')
     .replace(/<[^>]+>/gu, ' ')
-    .replace(/[*_`>#]/gu, '')
+  return decodeHtmlEntities(withoutMarkup)
+    .replace(MARKDOWN_IMAGE, '$<alt>')
+    .replace(MARKDOWN_LINK, '$<label>')
+    .replace(LINE_MARKERS, '')
+    .replace(/[*_`]/gu, '')
     .replace(/\s+/gu, ' ')
     .trim()
 }

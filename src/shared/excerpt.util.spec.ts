@@ -9,6 +9,28 @@ describe('summarizeComment', () => {
   })
 })
 
+describe('summarizeComment with HTML and links', () => {
+  it('decodes entities after dropping tags, so encoded markup stays text', () => {
+    expect(summarizeComment('✅&nbsp;&nbsp;Linked to Story &amp; <b>done</b> &lt;b&gt; &#39;ok&#39; &#x1F600;')).toBe(
+      "✅ Linked to Story & done <b> 'ok' 😀",
+    )
+  })
+
+  it('drops quote and heading markers only at the start of a line', () => {
+    expect(summarizeComment('> quoted\n## Title\nkeep a > b and #12')).toBe('quoted Title keep a > b and #12')
+  })
+
+  it('keeps unknown entity names as written', () => {
+    expect(summarizeComment('a &bogus; b')).toBe('a &bogus; b')
+  })
+
+  it('shows links as their text and images as their alt text', () => {
+    expect(summarizeComment('See [the spike](https://x.dev/spike) ![risk: high](https://img/badge.svg)')).toBe(
+      'See the spike risk: high',
+    )
+  })
+})
+
 describe('summarizeAround', () => {
   it('starts at the beginning when the mention is early', () => {
     expect(summarizeAround('@me look at this', 'me', 50)).toBe('@me look at this')
