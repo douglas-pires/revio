@@ -14,9 +14,9 @@ export type PullTab = 'overview' | 'files' | 'commits'
 
 /** Overview, Files changed and Commits (with its count, once known). */
 export function pullTabs(commitCount: number | undefined) {
-  return (['overview', 'files', 'commits'] as const).map((t) => ({
-    value: t,
-    label: LABELS[t],
-    count: commitCountOf(t, commitCount),
+  return (['overview', 'files', 'commits'] as const).map((tab) => ({
+    value: tab,
+    label: LABELS[tab],
+    count: commitCountOf(tab, commitCount),
   }))
 }

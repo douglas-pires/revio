@@ -92,11 +92,11 @@ export function EditorSettings({
     <>
       <div className="px-4 py-3">
         <div className="mb-1.5 font-medium">Editor</div>
-        <select className="input" value={settings.editor} onChange={(e) => update({ editor: e.target.value })}>
+        <select className="input" value={settings.editor} onChange={(event) => update({ editor: event.target.value })}>
           <option value="">{automaticLabel(editors?.[0]?.name)}</option>
-          {editors?.map((e) => (
-            <option key={e.id} value={e.id}>
-              {e.name}
+          {editors?.map((editor) => (
+            <option key={editor.id} value={editor.id}>
+              {editor.name}
             </option>
           ))}
         </select>
@@ -121,10 +121,10 @@ export function EditorSettings({
           className="input min-h-16 resize-y font-mono"
           placeholder="~/code\n~/work"
           defaultValue={settings.codeFolders.join('\n')}
-          onBlur={(e) => {
-            const folders = e.target.value
+          onBlur={(event) => {
+            const folders = event.target.value
               .split('\n')
-              .map((f) => f.trim())
+              .map((folder) => folder.trim())
               .filter(Boolean)
             if (folders.join('\n') !== settings.codeFolders.join('\n')) {
               update({ codeFolders: folders })

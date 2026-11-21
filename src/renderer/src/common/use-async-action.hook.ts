@@ -11,8 +11,8 @@ export function useAsyncAction() {
     try {
       await action()
       return true
-    } catch (e) {
-      setError(errorMessage(e))
+    } catch (failure) {
+      setError(errorMessage(failure))
       return false
     } finally {
       setBusy(false)

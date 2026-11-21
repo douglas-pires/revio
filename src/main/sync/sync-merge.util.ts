@@ -39,11 +39,11 @@ const FileSchema = z.object({
 
 /** Milliseconds since the epoch; 0 for never or a date that cannot be read. */
 function timeOf(iso: string | null | undefined) {
-  const t = Date.parse(iso ?? '')
-  if (Number.isNaN(t)) {
+  const time = Date.parse(iso ?? '')
+  if (Number.isNaN(time)) {
     return 0
   }
-  return t
+  return time
 }
 
 /**
@@ -59,15 +59,15 @@ function newer<T>(local: T, remote: T, at: (x: T) => string | null) {
 
 function mergeSettings(local: StampedSettings, remote: StampedSettings): StampedSettings {
   const out: Record<string, Stamped<unknown>> = {}
-  const l = local as Record<string, Stamped<unknown> | undefined>
-  const r = remote as Record<string, Stamped<unknown> | undefined>
+  const localByKey = local as Record<string, Stamped<unknown> | undefined>
+  const remoteByKey = remote as Record<string, Stamped<unknown> | undefined>
   for (const key of SYNCED_SETTING_KEYS) {
-    const a = l[key]
-    const b = r[key]
-    if (a && b) {
-      out[key] = newer(a, b, (s) => s.updatedAt)
-    } else if (a ?? b) {
-      out[key] = (a ?? b) as Stamped<unknown>
+    const localValue = localByKey[key]
+    const remoteValue = remoteByKey[key]
+    if (localValue && remoteValue) {
+      out[key] = newer(localValue, remoteValue, (stamped) => stamped.updatedAt)
+    } else if (localValue ?? remoteValue) {
+      out[key] = (localValue ?? remoteValue) as Stamped<unknown>
     }
   }
   return out as StampedSettings
@@ -88,31 +88,34 @@ function mergeDeletions(local: Record<string, string>, remote: Record<string, st
 /** Every guide from both sides, the latest edit of each, minus the ones deleted after their last edit. */
 function mergeGuidelines(local: Guideline[], remote: Guideline[], deleted: Record<string, string>) {
   const byId = new Map<string, Guideline>()
-  for (const g of local) {
-    byId.set(g.id, g)
+  for (const guideline of local) {
+    byId.set(guideline.id, guideline)
   }
-  for (const g of remote) {
-    const mine = byId.get(g.id)
+  for (const guideline of remote) {
+    const mine = byId.get(guideline.id)
     if (mine) {
       byId.set(
-        g.id,
-        newer(mine, g, (x) => x.updatedAt),
+        guideline.id,
+        newer(mine, guideline, (version) => version.updatedAt),
       )
     } else {
-      byId.set(g.id, g)
+      byId.set(guideline.id, guideline)
     }
   }
-  return [...byId.values()].filter((g) => !(g.id in deleted && timeOf(deleted[g.id]) >= timeOf(g.updatedAt)))
+  return [...byId.values()].filter(
+    (guideline) => !(guideline.id in deleted && timeOf(deleted[guideline.id]) >= timeOf(guideline.updatedAt)),
+  )
 }
 
-const sortedEntries = (o: object) => Object.entries(o).sort(([a], [b]) => a.localeCompare(b))
+const sortedEntries = (record: object) =>
+  Object.entries(record).sort(([leftKey], [rightKey]) => leftKey.localeCompare(rightKey))
 
 /** The snapshot in one fixed order, so two that hold the same things compare equal. */
-function canonical(s: SyncSnapshot) {
+function canonical(snapshot: SyncSnapshot) {
   return JSON.stringify([
-    sortedEntries(s.settings),
-    [...s.guidelines].sort((a, b) => a.id.localeCompare(b.id)).map(sortedEntries),
-    sortedEntries(s.deletedGuidelines),
+    sortedEntries(snapshot.settings),
+    [...snapshot.guidelines].sort((left, right) => left.id.localeCompare(right.id)).map(sortedEntries),
+    sortedEntries(snapshot.deletedGuidelines),
   ])
 }
 
@@ -150,7 +153,7 @@ export function mergeSnapshots(local: SyncSnapshot, remote: SyncSnapshot, now = 
   }
 }
 
-export const sameSnapshot = (a: SyncSnapshot, b: SyncSnapshot) => canonical(a) === canonical(b)
+export const sameSnapshot = (left: SyncSnapshot, right: SyncSnapshot) => canonical(left) === canonical(right)
 
 /** Reads a sync file's JSON, keeping every valid part of it. */
 export function parseSyncFile(text: string): ParsedSyncFile {
@@ -171,8 +174,8 @@ export function parseSyncFile(text: string): ParsedSyncFile {
       replaceable: false,
     }
   }
-  const guidelines = file.data.guidelines.flatMap((g) => {
-    const parsed = GuidelineSchema.safeParse(g)
+  const guidelines = file.data.guidelines.flatMap((guideline) => {
+    const parsed = GuidelineSchema.safeParse(guideline)
     if (parsed.success) {
       return [parsed.data]
     }

@@ -98,7 +98,7 @@ async function viaApi(prompt: string, model: string): Promise<Briefing> {
   return response.parsed_output
 }
 
-async function viaCli(prompt: string, model: string, onProgress: (m: string) => void): Promise<Briefing> {
+async function viaCli(prompt: string, model: string, onProgress: (message: string) => void): Promise<Briefing> {
   // The CLI's validator does not know the draft-2020 meta-schema tag Zod emits.
   const { $schema: _ignored, ...jsonSchema } = z.toJSONSchema(BriefingSchema, { target: 'draft-7' })
   const schema = JSON.stringify(jsonSchema)
@@ -122,7 +122,7 @@ async function viaCli(prompt: string, model: string, onProgress: (m: string) => 
     {
       cwd: app.getPath('temp'),
       timeoutMs: CLI_TIMEOUT_MS,
-      onStderr: (l) => onProgress(l.trim().slice(0, MAX_PROGRESS_CHARS)),
+      onStderr: (line) => onProgress(line.trim().slice(0, MAX_PROGRESS_CHARS)),
     },
   )
   const result = JSON.parse(out) as { is_error?: boolean; result?: string; structured_output?: unknown }
@@ -152,13 +152,13 @@ function budgetDiffs(pr: PullDetail, budget: number) {
   const omitted: string[] = []
   const included = new Set<string>()
   let used = 0
-  for (const f of [...pr.files].sort((a, b) => (a.patch?.length ?? 0) - (b.patch?.length ?? 0))) {
-    const size = f.patch?.length ?? 0
-    if (f.patch && used + size <= budget) {
+  for (const file of [...pr.files].sort((left, right) => (left.patch?.length ?? 0) - (right.patch?.length ?? 0))) {
+    const size = file.patch?.length ?? 0
+    if (file.patch && used + size <= budget) {
       used += size
-      included.add(f.path)
+      included.add(file.path)
     } else {
-      omitted.push(f.path)
+      omitted.push(file.path)
     }
   }
   return { included, omitted }
@@ -169,24 +169,27 @@ function guidelinesText(guidelines: ResolvedGuideline[]) {
     return '(none configured)'
   }
   return guidelines
-    .map((g) => `<guideline title="${g.title}" scope="${scopeLabel(g)}">\n${g.body}\n</guideline>`)
+    .map(
+      (guideline) =>
+        `<guideline title="${guideline.title}" scope="${scopeLabel(guideline)}">\n${guideline.body}\n</guideline>`,
+    )
     .join('\n\n')
 }
 
-function describeFile(f: PullDetail['files'][number]) {
+function describeFile(file: PullDetail['files'][number]) {
   let renamed = ''
-  if (f.previousPath) {
-    renamed = ` (from ${f.previousPath})`
+  if (file.previousPath) {
+    renamed = ` (from ${file.previousPath})`
   }
-  return `- ${f.status} ${f.path}${renamed} +${f.additions}/-${f.deletions}`
+  return `- ${file.status} ${file.path}${renamed} +${file.additions}/-${file.deletions}`
 }
 
-function describeComment(c: PullDetail['comments'][number]) {
+function describeComment(comment: PullDetail['comments'][number]) {
   let line = ''
-  if (c.line) {
-    line = `:${c.line}`
+  if (comment.line) {
+    line = `:${comment.line}`
   }
-  return `- ${c.author} on ${c.path}${line}: ${c.body.slice(0, COMMENT_CHARS)}`
+  return `- ${comment.author} on ${comment.path}${line}: ${comment.body.slice(0, COMMENT_CHARS)}`
 }
 
 /** An XML-ish section of the prompt, or nothing when it would be empty. */
@@ -202,8 +205,8 @@ export function prContext(pr: PullDetail, guidelines: ResolvedGuideline[], budge
   const { included, omitted } = budgetDiffs(pr, budget)
   const fileList = pr.files.map(describeFile).join('\n')
   const diffs = pr.files
-    .filter((f) => included.has(f.path))
-    .map((f) => `<file path="${f.path}" status="${f.status}">\n${f.patch}\n</file>`)
+    .filter((file) => included.has(file.path))
+    .map((file) => `<file path="${file.path}" status="${file.status}">\n${file.patch}\n</file>`)
     .join('\n\n')
   const discussion = pr.comments.slice(-RECENT_COMMENTS).map(describeComment).join('\n')
   const omittedSection = optionalSection(
@@ -231,9 +234,9 @@ ${diffs}
 }
 
 export function pickBackend(): 'api' | 'cli' {
-  const s = store.settings()
-  if (s.claudeBackend !== 'auto') {
-    return s.claudeBackend
+  const settings = store.settings()
+  if (settings.claudeBackend !== 'auto') {
+    return settings.claudeBackend
   }
   if (store.anthropicKey() || env.ANTHROPIC_API_KEY) {
     return 'api'
@@ -244,7 +247,7 @@ export function pickBackend(): 'api' | 'cli' {
 export async function generateBriefing(
   pr: PullDetail,
   guidelines: ResolvedGuideline[],
-  onProgress: (m: string) => void,
+  onProgress: (message: string) => void,
 ): Promise<BriefingRecord> {
   const { prompt, omitted } = buildPrompt(pr, guidelines)
   const backend = pickBackend()

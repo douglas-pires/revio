@@ -31,12 +31,15 @@ const DIFF_VIEWS: readonly DiffView[] = ['unified', 'split']
 
 /** Lookups over the PR and its local state that several parts of the view share. */
 function usePullIndexes(pr: ReturnType<typeof usePullDetail>['pr'], local: PullLocalStateApi['local']) {
-  const focusByPath = useMemo(() => groupBy(local.briefing?.briefing.focus ?? [], (f) => f.path), [local.briefing])
-  const ignoreByPath = useMemo(
-    () => new Map(local.briefing?.briefing.ignore.map((i) => [i.path, i.reason])),
+  const focusByPath = useMemo(
+    () => groupBy(local.briefing?.briefing.focus ?? [], (focusItem) => focusItem.path),
     [local.briefing],
   )
-  const draftsByPath = useMemo(() => groupBy(local.drafts, (d) => d.path), [local.drafts])
+  const ignoreByPath = useMemo(
+    () => new Map(local.briefing?.briefing.ignore.map((skipped) => [skipped.path, skipped.reason])),
+    [local.briefing],
+  )
+  const draftsByPath = useMemo(() => groupBy(local.drafts, (draft) => draft.path), [local.drafts])
   /** Folder-grouped order, shared by the sidebar, the diff list and j/k. */
   const orderedFiles = useMemo(() => groupByDir(pr?.files ?? []).flatMap(([, fs]) => fs), [pr])
   return {
@@ -46,19 +49,19 @@ function usePullIndexes(pr: ReturnType<typeof usePullDetail>['pr'], local: PullL
     ignorePaths: useMemo(() => new Set(ignoreByPath.keys()), [ignoreByPath]),
     draftsByPath,
     draftCounts: useMemo(() => new Map([...draftsByPath].map(([path, ds]) => [path, ds.length])), [draftsByPath]),
-    commentsByPath: useMemo(() => groupBy(pr?.comments ?? [], (c) => c.path), [pr]),
+    commentsByPath: useMemo(() => groupBy(pr?.comments ?? [], (comment) => comment.path), [pr]),
     orderedFiles,
     commentThreads: useMemo(
       () =>
         groupCommentThreads(
           pr?.comments ?? [],
           pr?.threads ?? [],
-          orderedFiles.map((f) => f.path),
+          orderedFiles.map((file) => file.path),
         ),
       [pr, orderedFiles],
     ),
     rightLines: useMemo(() => newSideLinesByPath(pr), [pr]),
-    patchOf: useCallback((path: string) => pr?.files.find((f) => f.path === path)?.patch, [pr]),
+    patchOf: useCallback((path: string) => pr?.files.find((file) => file.path === path)?.patch, [pr]),
   }
 }
 
@@ -109,7 +112,7 @@ function useAskState() {
   }, [])
   /** Adds lines to the open chat, for the next question. */
   const addContext = useCallback((sel: AskSelection) => {
-    setThread((t) => t && { ...t, pendingContext: [...(t.pendingContext ?? []), sel] })
+    setThread((current) => current && { ...current, pendingContext: [...(current.pendingContext ?? []), sel] })
   }, [])
   return { thread, setThread, start, addContext }
 }
@@ -174,9 +177,9 @@ export function usePullView(pullRef: PullRef, initialTarget: PullTarget | undefi
   const onFilesTab = choices.tab === 'files'
 
   // The callback runs after an await, by which time `nav` below is defined.
-  const detail = usePullDetail(pull, (p, l) => {
-    local.replaceLocal(l)
-    nav.replaceCollapsed(initialCollapsed(p, l))
+  const detail = usePullDetail(pull, (loadedPull, loadedLocal) => {
+    local.replaceLocal(loadedLocal)
+    nav.replaceCollapsed(initialCollapsed(loadedPull, loadedLocal))
   })
   const threadFold = useThreadFoldState()
   const nav = useFileNavigation({
@@ -188,7 +191,7 @@ export function usePullView(pullRef: PullRef, initialTarget: PullTarget | undefi
   })
   const briefing = useBriefing(pull, (record) => {
     local.setBriefingRecord(record)
-    nav.collapseFiles(record.briefing.ignore.map((i) => i.path))
+    nav.collapseFiles(record.briefing.ignore.map((skipped) => skipped.path))
   })
   const indexes = usePullIndexes(detail.pr, local.local)
   const find = useDiffFind({ files: indexes.orderedFiles, jump: nav.jump, onFilesTab, showFiles: choices.showFiles })

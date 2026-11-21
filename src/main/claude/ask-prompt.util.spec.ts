@@ -15,9 +15,9 @@ describe('ask prompt', () => {
   })
 
   it('puts lines added for a question before the question', () => {
-    const q = questionText({ role: 'user', content: 'Same bug here?', context: [{ ...sel, path: 'src/b.ts' }] })
-    expect(q.startsWith('<added_selection path="src/b.ts"')).toBe(true)
-    expect(q.endsWith('\n\nSame bug here?')).toBe(true)
+    const question = questionText({ role: 'user', content: 'Same bug here?', context: [{ ...sel, path: 'src/b.ts' }] })
+    expect(question.startsWith('<added_selection path="src/b.ts"')).toBe(true)
+    expect(question.endsWith('\n\nSame bug here?')).toBe(true)
   })
 
   it('leaves questions without added lines and answers as they are', () => {

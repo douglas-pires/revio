@@ -34,8 +34,8 @@ export function SyncSettings({
     setProblem(null)
     try {
       await globalThis.revio.syncNow()
-    } catch (e) {
-      setProblem(errorMessage(e))
+    } catch (failure) {
+      setProblem(errorMessage(failure))
     }
   }
   return (
@@ -52,7 +52,7 @@ export function SyncSettings({
             type="checkbox"
             className="size-4 shrink-0 accent-[var(--color-accent)]"
             checked={settings.syncViaIcloud}
-            onChange={(e) => update({ syncViaIcloud: e.target.checked })}
+            onChange={(event) => update({ syncViaIcloud: event.target.checked })}
           />
         </label>
         {Boolean(settings.syncViaIcloud) && (

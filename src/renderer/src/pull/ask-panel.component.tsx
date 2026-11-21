@@ -85,7 +85,7 @@ function SelectionSnippet({ thread, onJump }: { thread: AskThread; onJump: (path
       <div className="group/snippet selectable relative max-h-56 overflow-auto rounded-md border border-line bg-bg">
         <StaticDiff path={thread.path} rows={rows} sourceLength={thread.snippet.length} />
         <CopyButton
-          text={rows.map((r) => r.text).join('\n')}
+          text={rows.map((row) => row.text).join('\n')}
           title="Copy code"
           className="btn btn-ghost absolute top-1 right-1 bg-bg py-0 text-[11px] opacity-0 transition group-hover/snippet:opacity-100 focus:opacity-100"
         >
@@ -140,9 +140,9 @@ function AskConversation({
       {chat.error !== null && <p className="selectable text-danger">{chat.error}</p>}
       {thread.messages.length === 0 && chat.pending === null && (
         <div className="flex flex-wrap gap-1.5">
-          {QUICK.map((q) => (
-            <button type="button" key={q} className="btn text-left" onClick={() => chat.send(q)}>
-              {q}
+          {QUICK.map((question) => (
+            <button type="button" key={question} className="btn text-left" onClick={() => chat.send(question)}>
+              {question}
             </button>
           ))}
         </div>
@@ -172,13 +172,13 @@ function QuestionBox({
         placeholder={placeholderFor(thread)}
         value={chat.question}
         disabled={chat.pending !== null}
-        onChange={(e) => chat.setQuestion(e.target.value)}
-        onKeyDown={(e) => {
-          if (e.key === 'Enter' && !e.shiftKey) {
-            e.preventDefault()
+        onChange={(event) => chat.setQuestion(event.target.value)}
+        onKeyDown={(event) => {
+          if (event.key === 'Enter' && !event.shiftKey) {
+            event.preventDefault()
             chat.send(chat.question)
           }
-          if (e.key === 'Escape') {
+          if (event.key === 'Escape') {
             onClose()
           }
         }}
@@ -284,8 +284,11 @@ export function AskPanel(props: AskPanelProps) {
       {!listing && (
         <PendingContext
           context={thread.pendingContext ?? []}
-          onRemove={(i) =>
-            props.onChange({ ...thread, pendingContext: (thread.pendingContext ?? []).filter((_, j) => j !== i) })
+          onRemove={(position) =>
+            props.onChange({
+              ...thread,
+              pendingContext: (thread.pendingContext ?? []).filter((_, index) => index !== position),
+            })
           }
         />
       )}

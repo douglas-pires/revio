@@ -29,8 +29,8 @@ function StackChip({ stack, onStack }: { stack: NonNullable<PullSummary['stack']
       type="button"
       className="chip bg-accent/15 text-accent hover:bg-accent/25"
       title={`Stacked PR: ${stack.position} of ${stack.size} from the bottom. Click to see the stack.`}
-      onClick={(e) => {
-        e.stopPropagation()
+      onClick={(event) => {
+        event.stopPropagation()
         onStack(stack.id)
       }}
     >

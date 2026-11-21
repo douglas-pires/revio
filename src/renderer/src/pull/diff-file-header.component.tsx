@@ -74,7 +74,7 @@ export function DiffFileHeader(props: {
       {props.focus.length > 0 && (
         <span
           className="chip shrink-0 bg-focus/15 whitespace-nowrap text-focus"
-          title={props.focus.map((f) => f.reason).join('\n')}
+          title={props.focus.map((focusItem) => focusItem.reason).join('\n')}
         >
           ● focus
         </span>
@@ -111,7 +111,11 @@ export function DiffFileHeader(props: {
         + File comment
       </button>
       <label className="flex shrink-0 cursor-pointer items-center gap-1.5 text-[12px] text-muted">
-        <input type="checkbox" checked={props.viewed} onChange={(e) => props.onToggleViewed(e.target.checked)} />
+        <input
+          type="checkbox"
+          checked={props.viewed}
+          onChange={(event) => props.onToggleViewed(event.target.checked)}
+        />
         Viewed
       </label>
     </div>

@@ -19,8 +19,8 @@ function mac(folder: string, initial: Partial<SyncSnapshot> = {}) {
     drive: folder,
     enabled: () => state.enabled,
     local: () => state.snapshot,
-    apply: (s) => {
-      state.snapshot = s
+    apply: (snapshot) => {
+      state.snapshot = snapshot
       state.applied += 1
     },
     onStatus: () => undefined,
@@ -43,39 +43,39 @@ const syncFile = () => join(drive, 'Revio', 'settings-sync.json')
 
 describe('IcloudSync', () => {
   it('brings one Mac’s settings and guides to another, and changes nothing once they agree', () => {
-    const a = mac(drive, {
+    const firstMac = mac(drive, {
       settings: { claudeModel: { value: 'from-a', updatedAt: '2026-11-20T00:00:00Z' } },
       guidelines: [{ ...makeGuideline('g', '*'), updatedAt: '2026-11-20T00:00:00Z' }],
     })
-    const b = mac(drive)
-    expect(a.sync.syncNow().state).toBe('synced')
-    b.sync.syncNow()
-    expect(b.state.snapshot.settings.claudeModel?.value).toBe('from-a')
-    expect(b.state.snapshot.guidelines.map((g) => g.id)).toEqual(['g'])
+    const secondMac = mac(drive)
+    expect(firstMac.sync.syncNow().state).toBe('synced')
+    secondMac.sync.syncNow()
+    expect(secondMac.state.snapshot.settings.claudeModel?.value).toBe('from-a')
+    expect(secondMac.state.snapshot.guidelines.map((guideline) => guideline.id)).toEqual(['g'])
 
     const written = readFileSync(syncFile(), 'utf8')
-    a.sync.syncNow()
-    b.sync.syncNow()
-    expect(a.state.applied).toBe(0)
-    expect(b.state.applied).toBe(1)
+    firstMac.sync.syncNow()
+    secondMac.sync.syncNow()
+    expect(firstMac.state.applied).toBe(0)
+    expect(secondMac.state.applied).toBe(1)
     expect(readFileSync(syncFile(), 'utf8')).toBe(written)
   })
 
   it('never writes a secret, even one the local snapshot happens to carry', () => {
-    const a = mac(drive, {
+    const firstMac = mac(drive, {
       settings: { githubTokenEnc: { value: 'secret', updatedAt: null } } as SyncSnapshot['settings'],
     })
-    a.sync.syncNow()
-    const b = mac(drive)
-    b.sync.syncNow()
-    expect(b.state.snapshot.settings).toEqual({})
+    firstMac.sync.syncNow()
+    const secondMac = mac(drive)
+    secondMac.sync.syncNow()
+    expect(secondMac.state.snapshot.settings).toEqual({})
   })
 })
 
 describe('IcloudSync: files iCloud left', () => {
   it('folds in conflict copies iCloud made and removes them', () => {
-    const a = mac(drive)
-    a.sync.syncNow()
+    const thisMac = mac(drive)
+    thisMac.sync.syncNow()
     const copy = {
       format: SYNC_FORMAT,
       settings: { ignoreDrafts: { value: false, updatedAt: '2026-11-20T00:00:00Z' } },
@@ -83,8 +83,8 @@ describe('IcloudSync: files iCloud left', () => {
       deletedGuidelines: {},
     }
     writeFileSync(join(drive, 'Revio', 'settings-sync 2.json'), JSON.stringify(copy))
-    a.sync.syncNow()
-    expect(a.state.snapshot.settings.ignoreDrafts?.value).toBe(false)
+    thisMac.sync.syncNow()
+    expect(thisMac.state.snapshot.settings.ignoreDrafts?.value).toBe(false)
     expect(readdirSync(join(drive, 'Revio'))).toEqual(['settings-sync.json'])
   })
 
@@ -92,17 +92,17 @@ describe('IcloudSync: files iCloud left', () => {
     mkdirSync(join(drive, 'Revio'))
     const newer = JSON.stringify({ format: SYNC_FORMAT + 1 })
     writeFileSync(syncFile(), newer)
-    const a = mac(drive)
-    expect(a.sync.syncNow().state).toBe('error')
+    const thisMac = mac(drive)
+    expect(thisMac.sync.syncNow().state).toBe('error')
     expect(readFileSync(syncFile(), 'utf8')).toBe(newer)
   })
 
   it('asks iCloud to download a file it only has a placeholder for', () => {
     mkdirSync(join(drive, 'Revio'))
     writeFileSync(join(drive, 'Revio', '.settings-sync.json.icloud'), '')
-    const a = mac(drive)
-    expect(a.sync.syncNow().state).toBe('downloading')
-    expect(a.download).toHaveBeenCalledWith(syncFile())
+    const thisMac = mac(drive)
+    expect(thisMac.sync.syncNow().state).toBe('downloading')
+    expect(thisMac.download).toHaveBeenCalledWith(syncFile())
   })
 
   it('reports iCloud Drive as unavailable when its folder is missing, and does nothing when off', () => {

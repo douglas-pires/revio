@@ -8,7 +8,8 @@ export type ConversationQuote = Pick<MentionSnippet, 'kind' | 'author' | 'author
 /** Where to land in a PR: a file, line or review comment in the diff, or a comment from the conversation. */
 export type PullTarget = ScrollTarget | { conversation: ConversationQuote }
 
-export const isConversationTarget = (t: PullTarget): t is { conversation: ConversationQuote } => 'conversation' in t
+export const isConversationTarget = (target: PullTarget): target is { conversation: ConversationQuote } =>
+  'conversation' in target
 
 /** Opens a PR, optionally at a target. */
 export type OpenPull = (pull: PullRef, target?: PullTarget) => void

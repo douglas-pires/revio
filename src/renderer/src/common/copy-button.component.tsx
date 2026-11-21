@@ -19,8 +19,8 @@ export function CopyButton(props: { text: string; title: string; className?: str
     if (state === 'idle') {
       return
     }
-    const t = setTimeout(() => setState('idle'), CONFIRM_MS)
-    return () => clearTimeout(t)
+    const timer = setTimeout(() => setState('idle'), CONFIRM_MS)
+    return () => clearTimeout(timer)
   }, [state])
   return (
     <button

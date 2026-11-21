@@ -62,7 +62,7 @@ export function searchDiffs(
 ): DiffMatch[] {
   const matches: DiffMatch[] = []
   for (const { path, rows } of files) {
-    for (const row of rows.filter((r): r is LineRow => r.kind !== 'hunk')) {
+    for (const row of rows.filter((candidate): candidate is LineRow => candidate.kind !== 'hunk')) {
       matches.push(...matchesInRow(path, row, query, options))
       if (matches.length >= MAX_MATCHES) {
         return matches.slice(0, MAX_MATCHES)

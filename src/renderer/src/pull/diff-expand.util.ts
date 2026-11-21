@@ -21,8 +21,8 @@ function hunksOf(rows: readonly DiffRow[]): HunkSpan[] {
     }
   }
   return hunks.map(({ header, body }) => {
-    const olds = body.map((r) => r.oldNo).filter(isPresent)
-    const news = body.map((r) => r.newNo).filter(isPresent)
+    const olds = body.map((row) => row.oldNo).filter(isPresent)
+    const news = body.map((row) => row.newNo).filter(isPresent)
     const oldBefore = lineBefore(olds, header.oldStart)
     const newBefore = lineBefore(news, header.newStart)
     return { header, body, oldBefore, newBefore, oldEnd: olds.at(-1) ?? oldBefore, newEnd: news.at(-1) ?? newBefore }
@@ -56,8 +56,8 @@ const contextRow = (lines: readonly string[], gap: Gap, newNo: number): LineRow 
 /** Rows for new-side lines first..last of a gap, read from the file. */
 function contextRows(lines: readonly string[], gap: Gap, first: number, last: number): LineRow[] {
   const rows: LineRow[] = []
-  for (let n = first; n <= last; n += 1) {
-    rows.push(contextRow(lines, gap, n))
+  for (let lineNumber = first; lineNumber <= last; lineNumber += 1) {
+    rows.push(contextRow(lines, gap, lineNumber))
   }
   return rows
 }
@@ -128,10 +128,10 @@ export const EXPAND_STEP = 20
 /** Every gap the diff leaves, including empty ones, one per hunk plus one after the last. */
 export function gapsOf(rows: readonly DiffRow[], totalLines: number | null): Gap[] {
   const hunks = hunksOf(rows)
-  const gaps: Gap[] = hunks.map((h, i) => {
+  const gaps: Gap[] = hunks.map((hunk, index) => {
     // The first gap starts at line 1; the others right after the previous hunk.
-    const start = (hunks[i - 1]?.newEnd ?? 0) + 1
-    return { index: i, start, end: h.newBefore, offset: h.oldBefore - h.newBefore }
+    const start = (hunks[index - 1]?.newEnd ?? 0) + 1
+    return { index, start, end: hunk.newBefore, offset: hunk.oldBefore - hunk.newBefore }
   })
   const last = hunks.at(-1)
   if (last) {

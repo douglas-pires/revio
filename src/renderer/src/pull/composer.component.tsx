@@ -49,16 +49,16 @@ function openingBody(props: ComposerProps) {
 }
 
 /** Pasting a link over selected words writes `[words](link)`, as on GitHub. */
-function pasteAsLink(e: React.ClipboardEvent<HTMLTextAreaElement>) {
-  const box = e.currentTarget
+function pasteAsLink(event: React.ClipboardEvent<HTMLTextAreaElement>) {
+  const box = event.currentTarget
   const link = markdownLinkFor(
     box.value.slice(box.selectionStart, box.selectionEnd),
-    e.clipboardData.getData('text/plain'),
+    event.clipboardData.getData('text/plain'),
   )
   if (link === null) {
     return
   }
-  e.preventDefault()
+  event.preventDefault()
   // Inserted through the browser's own editing, so ⌘Z undoes it in one step and React sees the change.
   document.execCommand('insertText', false, link)
 }
@@ -126,7 +126,7 @@ function ComposerToolbar({
           type="button"
           className="btn btn-ghost py-0"
           title="Insert a GitHub suggestion block with the selected lines"
-          onClick={() => setBody((b) => withSuggestion(b, props.suggestion))}
+          onClick={() => setBody((body) => withSuggestion(body, props.suggestion))}
         >
           ± Suggest change
         </button>
@@ -236,13 +236,13 @@ export function Composer(props: ComposerProps) {
           className="input max-h-[60vh] min-h-20 resize-y font-sans [field-sizing:content]"
           placeholder={`Leave a comment (markdown). ⌘↵ to ${submitVerb(Boolean(props.onSubmit))}, Esc to close and keep it`}
           value={body}
-          onChange={(e) => setBody(e.target.value)}
+          onChange={(event) => setBody(event.target.value)}
           onPaste={pasteAsLink}
-          onKeyDown={(e) => {
-            if (e.key === 'Enter' && e.metaKey) {
+          onKeyDown={(event) => {
+            if (event.key === 'Enter' && event.metaKey) {
               submit()
             }
-            if (e.key === 'Escape') {
+            if (event.key === 'Escape') {
               props.onCancel()
             }
           }}

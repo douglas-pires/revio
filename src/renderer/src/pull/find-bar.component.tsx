@@ -35,15 +35,15 @@ function findStatus(query: string, count: number, index: number | null) {
 }
 
 /** Enter steps forward, ⇧Enter back, Escape closes. */
-function onFindKey(e: React.KeyboardEvent, find: DiffFind) {
-  if (e.key === 'Enter') {
-    e.preventDefault()
-    if (e.shiftKey) {
+function onFindKey(event: React.KeyboardEvent, find: DiffFind) {
+  if (event.key === 'Enter') {
+    event.preventDefault()
+    if (event.shiftKey) {
       find.previous()
     } else {
       find.next()
     }
-  } else if (e.key === 'Escape') {
+  } else if (event.key === 'Escape') {
     find.close()
   }
 }
@@ -104,8 +104,8 @@ export function FindBar({ find }: { find: DiffFind }) {
         placeholder="Find in changed files"
         aria-label="Find in changed files"
         value={find.query}
-        onChange={(e) => find.setQuery(e.target.value)}
-        onKeyDown={(e) => onFindKey(e, find)}
+        onChange={(event) => find.setQuery(event.target.value)}
+        onKeyDown={(event) => onFindKey(event, find)}
       />
       <button
         type="button"

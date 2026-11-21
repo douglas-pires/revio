@@ -14,8 +14,8 @@ export function useBlame(at: FileAtCommit, wanted: boolean) {
     let live = true
     globalThis.revio
       .getBlame({ repo, sha, path })
-      .then((r) => live && setRanges(r))
-      .catch((e) => live && setError(errorMessage(e)))
+      .then((loadedRanges) => live && setRanges(loadedRanges))
+      .catch((failure) => live && setError(errorMessage(failure)))
     return () => {
       live = false
     }

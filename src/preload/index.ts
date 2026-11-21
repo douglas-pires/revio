@@ -10,8 +10,8 @@ const invoke =
 const api = new Proxy({} as RevioApi, {
   get(_t, prop: string) {
     if (prop === 'onEvent') {
-      return (listener: (e: MainEvent) => void) => {
-        const wrapped = (_: unknown, e: MainEvent) => listener(e)
+      return (listener: (event: MainEvent) => void) => {
+        const wrapped = (_: unknown, event: MainEvent) => listener(event)
         ipcRenderer.on(IPC.event, wrapped)
         return () => ipcRenderer.removeListener(IPC.event, wrapped)
       }
@@ -74,4 +74,4 @@ const methods = [
   'onEvent',
 ] as const satisfies readonly (keyof RevioApi)[]
 
-contextBridge.exposeInMainWorld('revio', Object.fromEntries(methods.map((m) => [m, api[m]])))
+contextBridge.exposeInMainWorld('revio', Object.fromEntries(methods.map((method) => [method, api[method]])))

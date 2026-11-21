@@ -148,7 +148,7 @@ function decrypt(value: string | undefined): string | undefined {
   }
 }
 
-const sameValue = (a: unknown, b: unknown) => JSON.stringify(a) === JSON.stringify(b)
+const sameValue = (left: unknown, right: unknown) => JSON.stringify(left) === JSON.stringify(right)
 
 let onSyncedChange: (() => void) | null = null
 
@@ -158,13 +158,13 @@ function syncedChanged() {
 }
 
 /** Notes when each synced setting in the patch changed; true when any did. */
-function stampSettings(d: Db, patch: Record<string, unknown>) {
+function stampSettings(database: Db, patch: Record<string, unknown>) {
   const now = new Date().toISOString()
-  const current = d.settings as unknown as Record<string, unknown>
+  const current = database.settings as unknown as Record<string, unknown>
   let changed = false
   for (const [key, value] of Object.entries(patch)) {
     if (isSyncedSetting(key) && value !== undefined && !sameValue(current[key], value)) {
-      d.sync.settingsUpdatedAt[key] = now
+      database.sync.settingsUpdatedAt[key] = now
       changed = true
     }
   }
@@ -187,15 +187,15 @@ export const store = {
     return { ...rest, hasGithubToken: Boolean(githubTokenEnc), hasAnthropicKey: Boolean(anthropicKeyEnc) }
   },
   updateSettings(patch: Partial<StoredSettings> & { githubToken?: string | null; anthropicApiKey?: string | null }) {
-    const s = load().settings
+    const { settings } = load()
     const { githubToken, anthropicApiKey, ...rest } = patch
     const synced = stampSettings(load(), rest)
-    Object.assign(s, rest)
+    Object.assign(settings, rest)
     if (githubToken !== undefined) {
-      s.githubTokenEnc = encryptOrClear(githubToken)
+      settings.githubTokenEnc = encryptOrClear(githubToken)
     }
     if (anthropicApiKey !== undefined) {
-      s.anthropicKeyEnc = encryptOrClear(anthropicApiKey)
+      settings.anthropicKeyEnc = encryptOrClear(anthropicApiKey)
     }
     save()
     if (synced) {
@@ -208,15 +208,15 @@ export const store = {
   guidelines: () => load().guidelines,
   /** Replaces the guides, remembering the ones removed so syncing deletes them on your other Macs too. */
   setGuidelines(list: Guideline[]) {
-    const d = load()
-    const kept = new Set(list.map((g) => g.id))
+    const database = load()
+    const kept = new Set(list.map((guideline) => guideline.id))
     const now = new Date().toISOString()
-    for (const g of d.guidelines) {
-      if (!kept.has(g.id)) {
-        d.sync.deletedGuidelines[g.id] = now
+    for (const guideline of database.guidelines) {
+      if (!kept.has(guideline.id)) {
+        database.sync.deletedGuidelines[guideline.id] = now
       }
     }
-    d.guidelines = list
+    database.guidelines = list
     save()
     syncedChanged()
   },
@@ -227,25 +227,25 @@ export const store = {
   },
   /** The synced settings and the guides, as syncing merges them. */
   syncSnapshot(): SyncSnapshot {
-    const d = load()
-    const current = d.settings as unknown as Record<string, unknown>
+    const database = load()
+    const current = database.settings as unknown as Record<string, unknown>
     const settings = Object.fromEntries(
       SYNCED_SETTING_KEYS.map((key) => [
         key,
-        { value: current[key], updatedAt: d.sync.settingsUpdatedAt[key] ?? null },
+        { value: current[key], updatedAt: database.sync.settingsUpdatedAt[key] ?? null },
       ]),
     )
     return {
       format: SYNC_FORMAT,
       settings,
-      guidelines: d.guidelines,
-      deletedGuidelines: { ...d.sync.deletedGuidelines },
+      guidelines: database.guidelines,
+      deletedGuidelines: { ...database.sync.deletedGuidelines },
     }
   },
   /** Takes in a merged snapshot without counting it as a change made here; says which settings and whether guides changed. */
   applySyncSnapshot(snapshot: SyncSnapshot): { settings: SyncedSettingKey[]; guidelines: boolean } {
-    const d = load()
-    const current = d.settings as unknown as Record<string, unknown>
+    const database = load()
+    const current = database.settings as unknown as Record<string, unknown>
     const stamped = snapshot.settings as Record<string, { value: unknown; updatedAt: string | null } | undefined>
     const changed: SyncedSettingKey[] = []
     for (const key of SYNCED_SETTING_KEYS) {
@@ -255,12 +255,12 @@ export const store = {
         changed.push(key)
       }
       if (entry?.updatedAt) {
-        d.sync.settingsUpdatedAt[key] = entry.updatedAt
+        database.sync.settingsUpdatedAt[key] = entry.updatedAt
       }
     }
-    const guidelines = !sameValue(d.guidelines, snapshot.guidelines)
-    d.guidelines = snapshot.guidelines
-    d.sync.deletedGuidelines = { ...snapshot.deletedGuidelines }
+    const guidelines = !sameValue(database.guidelines, snapshot.guidelines)
+    database.guidelines = snapshot.guidelines
+    database.sync.deletedGuidelines = { ...snapshot.deletedGuidelines }
     save()
     return { settings: changed, guidelines }
   },
@@ -268,7 +268,7 @@ export const store = {
   pull(key: string): PullLocalState {
     return load().pulls[key] ?? { drafts: [], viewed: {} }
   },
-  updatePull(key: string, fn: (s: PullLocalState) => void) {
+  updatePull(key: string, fn: (pullState: PullLocalState) => void) {
     const { pulls } = load()
     const state = pulls[key] ?? { drafts: [], viewed: {} }
     fn(state)

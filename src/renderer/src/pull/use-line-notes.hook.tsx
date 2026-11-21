@@ -59,8 +59,8 @@ export function useLineNotes(input: LineNotesInput) {
     return spec
   }
   return (keys: string[], anchor: Anchor | null) => {
-    const threads = keys.flatMap((k) => index.threadsByLine.get(k) ?? [])
-    const drafts = keys.flatMap((k) => index.draftsByLine.get(k) ?? [])
+    const threads = keys.flatMap((key) => index.threadsByLine.get(key) ?? [])
+    const drafts = keys.flatMap((key) => index.draftsByLine.get(key) ?? [])
     const composer = composerFor(anchor)
     if (threads.length === 0 && drafts.length === 0 && composer === null) {
       return null

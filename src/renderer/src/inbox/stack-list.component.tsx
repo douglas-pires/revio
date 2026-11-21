@@ -89,7 +89,7 @@ function StackMember({ pr, depth, order, onOpen }: { pr: StackPr; depth: number;
 }
 
 function StackCard({ stack, focused, onOpen }: { stack: Stack; focused: boolean; onOpen: OpenPull }) {
-  const waiting = stack.nodes.filter((n) => n.pr.inbox === 'requested').length
+  const waiting = stack.nodes.filter((node) => node.pr.inbox === 'requested').length
   return (
     <section
       id={`stack-${stack.id}`}
@@ -108,8 +108,8 @@ function StackCard({ stack, focused, onOpen }: { stack: Stack; focused: boolean;
         {waiting > 0 && <span className="chip bg-accent/15 text-accent">{waiting} waiting on you</span>}
       </header>
       <ol>
-        {stack.nodes.map(({ pr, depth }, i) => (
-          <StackMember key={pr.id} pr={pr} depth={depth} order={i + 1} onOpen={onOpen} />
+        {stack.nodes.map(({ pr, depth }, index) => (
+          <StackMember key={pr.id} pr={pr} depth={depth} order={index + 1} onOpen={onOpen} />
         ))}
       </ol>
     </section>

@@ -106,23 +106,23 @@ export function usePullDetail(pull: PullRef, onLoaded: (pr: PullDetail, local: P
     async (maxAgeMs = 0) => {
       setError(null)
       try {
-        const [p, l] = await Promise.all([
+        const [loadedPull, loadedLocal] = await Promise.all([
           globalThis.revio.getPull(pull, maxAgeMs),
           globalThis.revio.getLocalState(pull),
         ])
-        setPr(p)
-        loaded.current(p, l)
+        setPr(loadedPull)
+        loaded.current(loadedPull, loadedLocal)
         setGuides(
           await globalThis.revio.resolveGuidelines(
             pull.repo,
-            p.files.map((f) => f.path),
+            loadedPull.files.map((file) => file.path),
           ),
         )
-        if (Date.now() - new Date(p.fetchedAt).getTime() > FRESH_ENOUGH_MS) {
+        if (Date.now() - new Date(loadedPull.fetchedAt).getTime() > FRESH_ENOUGH_MS) {
           refreshInBackground(pull, showPr)
         }
-      } catch (e) {
-        setError(errorMessage(e))
+      } catch (failure) {
+        setError(errorMessage(failure))
       }
     },
     [pull, showPr],

@@ -14,7 +14,7 @@ const octokit = {
 }
 vi.mock('../github/github.client', () => ({
   gh: async () => octokit,
-  smallAvatar: (u: string) => u,
+  smallAvatar: (url: string) => url,
   viewerLogin: async () => 'me',
 }))
 const { submitReview } = await import('./pull.service.ts')

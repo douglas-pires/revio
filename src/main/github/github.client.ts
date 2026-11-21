@@ -48,7 +48,7 @@ export function smallAvatar(url: string | undefined) {
   if (!url) {
     return ''
   }
-  const u = new URL(url)
-  u.searchParams.set('s', '64')
-  return u.toString()
+  const avatarUrl = new URL(url)
+  avatarUrl.searchParams.set('s', '64')
+  return avatarUrl.toString()
 }

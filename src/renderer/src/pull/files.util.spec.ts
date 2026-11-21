@@ -79,10 +79,10 @@ describe('newSideLinesByPath', () => {
 describe('isGenerated', () => {
   it.each(['yarn.lock', 'apps/web/pnpm-lock.yaml', 'x/__snapshots__/a.test.ts.snap', 'dist/index.js', 'a.min.js'])(
     'flags %s',
-    (p) => expect(isGenerated(p)).toBe(true),
+    (path) => expect(isGenerated(path)).toBe(true),
   )
-  it.each(['src/build.ts', 'lockfile.ts', 'distance/a.ts'])('leaves %s alone', (p) =>
-    expect(isGenerated(p)).toBe(false),
+  it.each(['src/build.ts', 'lockfile.ts', 'distance/a.ts'])('leaves %s alone', (path) =>
+    expect(isGenerated(path)).toBe(false),
   )
 })
 
@@ -93,21 +93,21 @@ describe('duration', () => {
     [5.4, '5h'],
     [47, '47h'],
     [72, '3d'],
-  ])('%d hours → %s', (h, s) => expect(duration(h)).toBe(s))
+  ])('%d hours → %s', (hours, expected) => expect(duration(hours)).toBe(expected))
 })
 
 describe('groupBy', () => {
   it('keeps insertion order', () => {
-    const g = groupBy(
+    const groups = groupBy(
       [
         { k: 'b', v: 1 },
         { k: 'a', v: 2 },
         { k: 'b', v: 3 },
       ],
-      (x) => x.k,
+      (entry) => entry.k,
     )
-    expect([...g.keys()]).toEqual(['b', 'a'])
-    expect(g.get('b')?.map((x) => x.v)).toEqual([1, 3])
+    expect([...groups.keys()]).toEqual(['b', 'a'])
+    expect(groups.get('b')?.map((entry) => entry.v)).toEqual([1, 3])
   })
 
   it('shares one frozen empty array', () => {

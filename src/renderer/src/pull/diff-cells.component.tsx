@@ -41,12 +41,12 @@ export function Gutter(props: {
     // biome-ignore lint/a11y/noNoninteractiveElementInteractions: picking lines is a pointer gesture (press and drag across rows) on the line numbers.
     <td
       title={gutterTitle(commentable)}
-      onMouseDown={(e) => {
-        if (e.button !== 0) {
+      onMouseDown={(event) => {
+        if (event.button !== 0) {
           return
         }
-        e.preventDefault() // no text selection while dragging over lines
-        props.onDown(e.shiftKey)
+        event.preventDefault() // no text selection while dragging over lines
+        props.onDown(event.shiftKey)
       }}
       onMouseEnter={props.onEnter}
       className={cx(

@@ -31,11 +31,11 @@ const MINI = `id number title url isDraft headRefName baseRefName reviewDecision
 /** Changes whenever a PR joins or leaves the inbox, moves branches, or changes review decision. */
 const signInbox = (prs: PullSummary[]) =>
   prs
-    .map((p) => `${p.id}:${p.headRef}:${p.baseRef}:${p.reviewDecision}`)
-    .sort((a, b) => a.localeCompare(b))
+    .map((pr) => `${pr.id}:${pr.headRef}:${pr.baseRef}:${pr.reviewDecision}`)
+    .sort((left, right) => left.localeCompare(right))
     .join('|')
 
-const collectStaleIds = (prs: PullSummary[]) => new Set(prs.filter((p) => p.stale).map((p) => p.id))
+const collectStaleIds = (prs: PullSummary[]) => new Set(prs.filter((pr) => pr.stale).map((pr) => pr.id))
 
 async function fetchMiniPr(octokit: Octokit, { repo: repoFull, number }: PullRef) {
   const { owner, repo } = splitRepo(repoFull)
@@ -49,20 +49,20 @@ async function fetchMiniPr(octokit: Octokit, { repo: repoFull, number }: PullRef
 /** Stacks containing at least one seed PR. */
 async function findStacks(octokit: Octokit, seeds: MiniPr[], tag: InboxTag, staleIds: Set<string>): Promise<Stack[]> {
   const prs = await collectLinkedPrs(octokit, seeds)
-  return buildStacks(prs.values(), new Set(seeds.map((s) => s.id)), tag, staleIds)
+  return buildStacks(prs.values(), new Set(seeds.map((seed) => seed.id)), tag, staleIds)
 }
 
 /** Follows branch links up (the PR my base branch belongs to) and down (PRs based on my head branch). */
 async function collectLinkedPrs(octokit: Octokit, seeds: MiniPr[]): Promise<Map<string, MiniPr>> {
-  const prs = new Map(seeds.map((n) => [n.id, n]))
+  const prs = new Map(seeds.map((seed) => [seed.id, seed]))
   const asked = new Set<string>()
   let frontier = seeds
   for (let round = 0; round < MAX_ROUNDS && frontier.length > 0; round += 1) {
     // biome-ignore lint/performance/noAwaitInLoops: each round looks up the PRs the previous round found.
     const found = await runLookups(octokit, planLookups(frontier, asked))
-    frontier = found.filter((n) => !prs.has(n.id))
-    for (const n of frontier) {
-      prs.set(n.id, n)
+    frontier = found.filter((foundPull) => !prs.has(foundPull.id))
+    for (const pull of frontier) {
+      prs.set(pull.id, pull)
     }
   }
   return prs
@@ -86,14 +86,14 @@ function planLookups(frontier: MiniPr[], asked: Set<string>): Lookup[] {
     asked.add(key)
     lookups.push(lookup)
   }
-  for (const n of frontier) {
-    const repo = n.repository.nameWithOwner
-    const defaultBranch = n.repository.defaultBranchRef?.name
-    if (n.baseRefName !== defaultBranch) {
-      add({ repo, field: 'headRefName', ref: n.baseRefName, first: 1 })
+  for (const pull of frontier) {
+    const repo = pull.repository.nameWithOwner
+    const defaultBranch = pull.repository.defaultBranchRef?.name
+    if (pull.baseRefName !== defaultBranch) {
+      add({ repo, field: 'headRefName', ref: pull.baseRefName, first: 1 })
     }
-    if (n.headRefName !== defaultBranch) {
-      add({ repo, field: 'baseRefName', ref: n.headRefName, first: 10 })
+    if (pull.headRefName !== defaultBranch) {
+      add({ repo, field: 'baseRefName', ref: pull.headRefName, first: 10 })
     }
   }
   return lookups
@@ -101,16 +101,16 @@ function planLookups(frontier: MiniPr[], asked: Set<string>): Lookup[] {
 
 async function runLookups(octokit: Octokit, lookups: Lookup[]): Promise<MiniPr[]> {
   const found: MiniPr[] = []
-  for (let i = 0; i < lookups.length; i += LOOKUPS_PER_QUERY) {
-    const chunk = lookups.slice(i, i + LOOKUPS_PER_QUERY)
+  for (let start = 0; start < lookups.length; start += LOOKUPS_PER_QUERY) {
+    const chunk = lookups.slice(start, start + LOOKUPS_PER_QUERY)
     // biome-ignore lint/performance/noAwaitInLoops: chunks run one after another to stay under GitHub's rate limits.
     const data = await octokit.graphql<Record<string, { pullRequests: { nodes: (MiniPr | null)[] } } | null>>(
       buildLookupQuery(chunk),
     )
-    chunk.forEach((_, k) => {
-      for (const n of data[`l${k}`]?.pullRequests.nodes ?? []) {
-        if (n) {
-          found.push(n)
+    chunk.forEach((_, index) => {
+      for (const pull of data[`l${index}`]?.pullRequests.nodes ?? []) {
+        if (pull) {
+          found.push(pull)
         }
       }
     })
@@ -119,10 +119,10 @@ async function runLookups(octokit: Octokit, lookups: Lookup[]): Promise<MiniPr[]
 }
 
 function buildLookupQuery(chunk: Lookup[]) {
-  const parts = chunk.map((l, k) => {
-    const { owner, repo } = splitRepo(l.repo)
-    return `l${k}: repository(owner: ${JSON.stringify(owner)}, name: ${JSON.stringify(repo)}) {
-      pullRequests(${l.field}: ${JSON.stringify(l.ref)}, states: OPEN, first: ${l.first}) { nodes { ${MINI} } } }`
+  const parts = chunk.map((lookup, index) => {
+    const { owner, repo } = splitRepo(lookup.repo)
+    return `l${index}: repository(owner: ${JSON.stringify(owner)}, name: ${JSON.stringify(repo)}) {
+      pullRequests(${lookup.field}: ${JSON.stringify(lookup.ref)}, states: OPEN, first: ${lookup.first}) { nodes { ${MINI} } } }`
   })
   return `query {\n${parts.join('\n')}\n}`
 }
@@ -162,7 +162,9 @@ export class StackFinder {
 
 /** The stack a single PR belongs to (it may be outside your inbox), or null when it is not stacked. */
 export async function fetchStack(ref: PullRef, inbox: Inbox | null): Promise<Stack | null> {
-  const cached = inbox?.stacks.find((st) => st.nodes.some((n) => n.pr.repo === ref.repo && n.pr.number === ref.number))
+  const cached = inbox?.stacks.find((st) =>
+    st.nodes.some((node) => node.pr.repo === ref.repo && node.pr.number === ref.number),
+  )
   if (cached) {
     return cached
   }

@@ -16,7 +16,7 @@ export function FileComments(props: {
 }) {
   const { actions } = props
   const scope = useUnsentScope()
-  const fileDrafts = props.drafts.filter((d) => d.line === null && !d.inReplyTo)
+  const fileDrafts = props.drafts.filter((draft) => draft.line === null && !draft.inReplyTo)
   if (!(props.threads.length > 0 || fileDrafts.length > 0 || props.composing)) {
     return null
   }
@@ -32,8 +32,8 @@ export function FileComments(props: {
           actions={actions}
         />
       ))}
-      {fileDrafts.map((d) => (
-        <DraftView key={d.id} d={d} onUpdate={actions.onUpdateDraft} onDelete={actions.onDeleteDraft} />
+      {fileDrafts.map((draft) => (
+        <DraftView key={draft.id} draft={draft} onUpdate={actions.onUpdateDraft} onDelete={actions.onDeleteDraft} />
       ))}
       {Boolean(props.composing) && (
         <Composer

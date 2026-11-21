@@ -26,9 +26,9 @@ export function TabPane({ active, children }: { active: boolean; children: React
     <div
       ref={scroller}
       data-scroll-root={true}
-      onScroll={(e) => {
+      onScroll={(event) => {
         if (active) {
-          scrollTop.current = e.currentTarget.scrollTop
+          scrollTop.current = event.currentTarget.scrollTop
         }
       }}
       className={cx('min-h-0 flex-1 overflow-x-hidden overflow-y-auto', !active && 'hidden')}

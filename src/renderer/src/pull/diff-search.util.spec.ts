@@ -14,11 +14,11 @@ describe('occurrences', () => {
 })
 
 describe('searchDiffs', () => {
-  const a = { path: 'a.ts', rows: parsePatch('@@ -1,3 +1,3 @@ const x\n const x = 1\n-x = 2\n+x = x + 3') }
-  const b = { path: 'b.ts', rows: parsePatch('@@ -5,1 +5,1 @@\n-nothing\n+here x') }
+  const firstFile = { path: 'a.ts', rows: parsePatch('@@ -1,3 +1,3 @@ const x\n const x = 1\n-x = 2\n+x = x + 3') }
+  const secondFile = { path: 'b.ts', rows: parsePatch('@@ -5,1 +5,1 @@\n-nothing\n+here x') }
 
   it('lists matches in file and line order, by new line for kept and added lines and old line for removed ones', () => {
-    expect(searchDiffs([a, b], 'x', insensitive)).toEqual([
+    expect(searchDiffs([firstFile, secondFile], 'x', insensitive)).toEqual([
       { path: 'a.ts', side: 'RIGHT', line: 1, nth: 0 },
       { path: 'a.ts', side: 'LEFT', line: 2, nth: 0 },
       { path: 'a.ts', side: 'RIGHT', line: 2, nth: 0 },
@@ -28,7 +28,7 @@ describe('searchDiffs', () => {
   })
 
   it('skips hunk headers and stops at the cap', () => {
-    expect(searchDiffs([a], 'const', insensitive)).toHaveLength(1)
+    expect(searchDiffs([firstFile], 'const', insensitive)).toHaveLength(1)
     const big = { path: 'big', rows: parsePatch(`@@ -1,1 +1,1 @@\n+${'x'.repeat(MAX_MATCHES + 5)}`) }
     expect(searchDiffs([big], 'x', insensitive)).toHaveLength(MAX_MATCHES)
   })

@@ -19,9 +19,9 @@ export function AskClaudeButton({ at, onAsk }: { at: FloatingAsk; onAsk: () => v
       className="btn btn-primary fixed z-50 shadow-lg"
       // biome-ignore lint/style/noInlineStyles: the button sits where the text selection ended.
       style={{ left: at.x + OFFSET_X_PX, top: at.y + OFFSET_Y_PX }}
-      onMouseDown={(e) => {
-        e.preventDefault()
-        e.stopPropagation()
+      onMouseDown={(event) => {
+        event.preventDefault()
+        event.stopPropagation()
         onAsk()
       }}
     >

@@ -13,7 +13,7 @@ let configuredTheme: string | null = null
 
 /** Mermaid is large, so it is loaded the first time a diagram is on screen. */
 async function mermaidFor(theme: MermaidTheme) {
-  loader ??= import('mermaid').then((m) => m.default)
+  loader ??= import('mermaid').then((module) => module.default)
   const mermaid = await loader
   if (configuredTheme !== theme) {
     // strict: no click handlers or HTML labels from the diagram source; output SVG is sanitized. Links in the
@@ -60,13 +60,13 @@ function useMermaidSvg(code: string) {
     }
     setError(null)
     mermaidFor(theme)
-      .then((m) => m.render(`${id}-${theme}`, code))
+      .then((mermaid) => mermaid.render(`${id}-${theme}`, code))
       .then((drawn) => live && setSvg(drawn.svg))
-      .catch((e: unknown) => {
+      .catch((failure: unknown) => {
         // Mermaid renders into a temporary element in <body> (`d` + the render id); drop it if a failure left it there.
         document.querySelector(`#d${CSS.escape(`${id}-${theme}`)}`)?.remove()
         if (live) {
-          setError(errorMessage(e))
+          setError(errorMessage(failure))
         }
       })
     return () => {
@@ -130,9 +130,9 @@ function Diagram({ svg }: { svg: string }) {
       role="button"
       tabIndex={0}
       title={title}
-      onClick={(e) => {
-        if (openDiagramLink(e.target)) {
-          e.preventDefault()
+      onClick={(event) => {
+        if (openDiagramLink(event.target)) {
+          event.preventDefault()
           return
         }
         toggleZoom()

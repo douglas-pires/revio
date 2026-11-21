@@ -10,7 +10,8 @@ const DEFAULT_RADIUS = 3
 /** The marker a diff line starts with, by kind. */
 const SIGNS: Record<LineRow['kind'], string> = { add: '+', del: '-', ctx: ' ' }
 
-const inRange = (n: number | null, start: number, end: number) => n !== null && n >= start && n <= end
+const inRange = (lineNumber: number | null, start: number, end: number) =>
+  lineNumber !== null && lineNumber >= start && lineNumber <= end
 
 /** A row's line number on one side; null where the row has no line there (added rows on the old side, and so on). */
 function lineOnSide(row: LineRow, side: DiffSide) {
@@ -50,16 +51,16 @@ class LineCounter {
   }
 }
 
-function splitRowOf(row: HunkHeader | LineRow, i: number): SplitRow {
+function splitRowOf(row: HunkHeader | LineRow, position: number): SplitRow {
   if (row.kind === 'hunk') {
-    return { kind: 'hunk', idx: i }
+    return { kind: 'hunk', idx: position }
   }
-  return { kind: 'pair', left: i, right: i }
+  return { kind: 'pair', left: position, right: position }
 }
 
 /** A selection of only removed lines is on the old side; anything else is on the new side. */
 function sideOfSelection(rows: readonly LineRow[]): DiffSide {
-  if (rows.length > 0 && rows.every((r) => r.kind === 'del')) {
+  if (rows.length > 0 && rows.every((row) => row.kind === 'del')) {
     return 'LEFT'
   }
   return 'RIGHT'
@@ -140,9 +141,9 @@ export function parseRange(lines: string): [number, number] | null {
   if (!groups) {
     return null
   }
-  const a = Number(groups.from)
-  const b = Number(groups.to ?? groups.from)
-  return [Math.min(a, b), Math.max(a, b)]
+  const firstLine = Number(groups.from)
+  const lastLine = Number(groups.to ?? groups.from)
+  return [Math.min(firstLine, lastLine), Math.max(firstLine, lastLine)]
 }
 
 /** Thread/draft lookup keys a row owns. Context lines can carry comments on either side. */
@@ -181,23 +182,23 @@ export function toSplit(rows: DiffRow[]): SplitRow[] {
   let dels: number[] = []
   let adds: number[] = []
   const flush = () => {
-    for (let k = 0; k < Math.max(dels.length, adds.length); k += 1) {
-      out.push({ kind: 'pair', left: dels[k] ?? null, right: adds[k] ?? null })
+    for (let pairIndex = 0; pairIndex < Math.max(dels.length, adds.length); pairIndex += 1) {
+      out.push({ kind: 'pair', left: dels[pairIndex] ?? null, right: adds[pairIndex] ?? null })
     }
     dels = []
     adds = []
   }
-  for (const [i, r] of rows.entries()) {
-    if (r.kind === 'del' && adds.length > 0) {
+  for (const [position, row] of rows.entries()) {
+    if (row.kind === 'del' && adds.length > 0) {
       flush()
     }
-    if (r.kind === 'del') {
-      dels.push(i)
-    } else if (r.kind === 'add') {
-      adds.push(i)
+    if (row.kind === 'del') {
+      dels.push(position)
+    } else if (row.kind === 'add') {
+      adds.push(position)
     } else {
       flush()
-      out.push(splitRowOf(r, i))
+      out.push(splitRowOf(row, position))
     }
   }
   flush()
@@ -206,11 +207,11 @@ export function toSplit(rows: DiffRow[]): SplitRow[] {
 
 /** Up to `radius` diff rows on each side of a new-side line, without leaving its hunk. Empty when the line is not in the diff. */
 export function sliceAroundLine(rows: readonly DiffRow[], line: number, radius = DEFAULT_RADIUS): LineRow[] {
-  const at = rows.findIndex((r) => r.kind !== 'hunk' && r.newNo === line)
+  const at = rows.findIndex((row) => row.kind !== 'hunk' && row.newNo === line)
   if (at < 0) {
     return []
   }
-  const inHunk = (i: number) => i >= 0 && i < rows.length && rows[i]?.kind !== 'hunk'
+  const inHunk = (position: number) => position >= 0 && position < rows.length && rows[position]?.kind !== 'hunk'
   let start = at
   let end = at
   while (at - start < radius && inHunk(start - 1)) {
@@ -225,8 +226,8 @@ export function sliceAroundLine(rows: readonly DiffRow[], line: number, radius =
 /** Diff rows covering (side, start..end) with +/- markers, as shown to Claude. Old-side snippets leave out added rows. */
 export function diffSnippet(rows: readonly DiffRow[], side: DiffSide, start: number, end: number): string {
   const hits = [...rows.entries()]
-    .filter(([, r]) => r.kind !== 'hunk' && inRange(lineOnSide(r, side), start, end))
-    .map(([i]) => i)
+    .filter(([, row]) => row.kind !== 'hunk' && inRange(lineOnSide(row, side), start, end))
+    .map(([position]) => position)
   const [first] = hits
   const last = hits.at(-1)
   if (first === undefined || last === undefined) {
@@ -234,8 +235,8 @@ export function diffSnippet(rows: readonly DiffRow[], side: DiffSide, start: num
   }
   return rows
     .slice(first, last + 1)
-    .filter((r): r is LineRow => r.kind !== 'hunk' && !(side === 'LEFT' && r.kind === 'add'))
-    .map((r) => `${SIGNS[r.kind]}${r.text}`)
+    .filter((row): row is LineRow => row.kind !== 'hunk' && !(side === 'LEFT' && row.kind === 'add'))
+    .map((row) => `${SIGNS[row.kind]}${row.text}`)
     .join('\n')
 }
 
@@ -264,8 +265,8 @@ export function snippetRows(snippet: string, side: DiffSide, startLine: number):
 /** The new-side text of lines start..end, used to prefill a suggestion. */
 export function newSideText(rows: readonly DiffRow[], start: number, end: number): string {
   return rows
-    .filter((r): r is LineRow => r.kind !== 'hunk' && inRange(r.newNo, start, end))
-    .map((r) => r.text)
+    .filter((row): row is LineRow => row.kind !== 'hunk' && inRange(row.newNo, start, end))
+    .map((row) => row.text)
     .join('\n')
 }
 
@@ -279,9 +280,11 @@ export function lineRangeOfRows(
   i1: number,
   half?: DiffSide,
 ): { side: DiffSide; start: number; end: number } | null {
-  const slice = rows.slice(Math.min(i0, i1), Math.max(i0, i1) + 1).filter((r): r is LineRow => r.kind !== 'hunk')
+  const slice = rows.slice(Math.min(i0, i1), Math.max(i0, i1) + 1).filter((row): row is LineRow => row.kind !== 'hunk')
   const side = half ?? sideOfSelection(slice)
-  const nums = slice.map((r) => lineOnSide(r, side)).filter((n): n is number => n !== null)
+  const nums = slice
+    .map((row) => lineOnSide(row, side))
+    .filter((lineNumber): lineNumber is number => lineNumber !== null)
   if (nums.length === 0) {
     return null
   }

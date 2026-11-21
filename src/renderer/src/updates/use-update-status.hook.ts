@@ -6,7 +6,7 @@ export function useUpdateStatus() {
   const [status, setStatus] = useState<UpdateStatus | null>(null)
   useEffect(() => {
     globalThis.revio.getUpdateStatus().then(setStatus)
-    return globalThis.revio.onEvent((e) => e.type === 'update' && setStatus(e.status))
+    return globalThis.revio.onEvent((event) => event.type === 'update' && setStatus(event.status))
   }, [])
   return status
 }

@@ -36,7 +36,7 @@ describe('groupCommentThreads', () => {
     const [thread, ...rest] = groupCommentThreads(comments, [{ id: 'T1', rootCommentId: 1, resolved: true }], ['b.ts'])
     expect(rest).toEqual([])
     expect(thread).toMatchObject({ rootId: 1, threadId: 'T1', resolved: true })
-    expect(thread?.comments.map((c) => c.id)).toEqual([1, 2, 3])
+    expect(thread?.comments.map((comment) => comment.id)).toEqual([1, 2, 3])
   })
 
   it('orders threads like the file list, then by line, outdated last', () => {
@@ -45,7 +45,7 @@ describe('groupCommentThreads', () => {
       makeComment(2, { path: 'a.ts', line: null, outdated: true }),
       makeComment(3, { path: 'a.ts', line: 7 }),
     ]
-    expect(groupCommentThreads(comments, [], ['a.ts', 'b.ts']).map((t) => t.rootId)).toEqual([3, 2, 1])
+    expect(groupCommentThreads(comments, [], ['a.ts', 'b.ts']).map((thread) => thread.rootId)).toEqual([3, 2, 1])
   })
 
   it('marks comments on the whole file, which have no line and are not outdated', () => {
@@ -78,9 +78,11 @@ describe('indexFileComments', () => {
       makeComment(5, { line: null, outdated: true, inReplyTo: 4 }),
     ]
     const index = indexFileComments('b.ts', comments, [])
-    expect(index.threadsByLine.get('RIGHT:10')?.map((t) => t.map((c) => c.id))).toEqual([[1, 2]])
-    expect(index.fileThreads.map((t) => t[0]?.id)).toEqual([3])
-    expect(index.outdatedThreads.map((t) => t.map((c) => c.id))).toEqual([[4, 5]])
+    expect(
+      index.threadsByLine.get('RIGHT:10')?.map((threadComments) => threadComments.map((comment) => comment.id)),
+    ).toEqual([[1, 2]])
+    expect(index.fileThreads.map((thread) => thread[0]?.id)).toEqual([3])
+    expect(index.outdatedThreads.map((thread) => thread.map((comment) => comment.id))).toEqual([[4, 5]])
   })
 
   it('keys new line drafts and leaves out replies and file drafts', () => {
@@ -89,7 +91,7 @@ describe('indexFileComments', () => {
       [],
       [draft('a'), draft('b', { side: 'LEFT', line: 3 }), draft('r', { inReplyTo: 1 }), draft('f', { line: null })],
     )
-    expect([...index.draftsByLine].map(([k, ds]) => [k, ds.map((d) => d.id)])).toEqual([
+    expect([...index.draftsByLine].map(([anchor, ds]) => [anchor, ds.map((draftAtLine) => draftAtLine.id)])).toEqual([
       ['RIGHT:10', ['a']],
       ['LEFT:3', ['b']],
     ])
@@ -108,9 +110,9 @@ describe('searching comments', () => {
   )
 
   it('matches comment text, authors and paths, ignoring case', () => {
-    expect(searchThreads(threads, 'retry').map((t) => t.rootId)).toEqual([1])
-    expect(searchThreads(threads, 'CY').map((t) => t.rootId)).toEqual([1])
-    expect(searchThreads(threads, 'a.ts').map((t) => t.rootId)).toEqual([3])
+    expect(searchThreads(threads, 'retry').map((thread) => thread.rootId)).toEqual([1])
+    expect(searchThreads(threads, 'CY').map((thread) => thread.rootId)).toEqual([1])
+    expect(searchThreads(threads, 'a.ts').map((thread) => thread.rootId)).toEqual([3])
     expect(searchThreads(threads, '  ')).toHaveLength(2)
     expect(searchThreads(threads, 'nothing')).toEqual([])
   })
@@ -143,12 +145,12 @@ describe('newComments', () => {
 
   it("lists others' comments after your last review", () => {
     const fresh = newComments(thread, { viewer: 'me', since: '2026-11-03T00:00:00Z' })
-    expect(fresh.map((c) => c.id)).toEqual([5])
+    expect(fresh.map((comment) => comment.id)).toEqual([5])
   })
 
   it('leaves out your own comments', () => {
     const fresh = newComments(thread, { viewer: 'me', since: '2026-11-01T12:00:00Z' })
-    expect(fresh.map((c) => c.id)).toEqual([2, 5])
+    expect(fresh.map((comment) => comment.id)).toEqual([2, 5])
   })
 
   it('is empty before your first review', () => {

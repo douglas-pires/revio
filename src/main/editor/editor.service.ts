@@ -35,7 +35,7 @@ function missingEditorMessage(chosen: string) {
   if (!chosen) {
     return 'No supported editor found. Pick one in Settings.'
   }
-  const name = EDITORS.find((e) => e.id === chosen)?.name ?? chosen
+  const name = EDITORS.find((editor) => editor.id === chosen)?.name ?? chosen
   return `${name} is not installed. Pick another editor in Settings.`
 }
 
@@ -49,7 +49,7 @@ function validLine(line: number | undefined): number | null {
 
 /** The known editors installed on this Mac. */
 export function installedEditors(): EditorInfo[] {
-  return EDITORS.filter((e) => appPathOf(e)).map(({ id, name }) => ({ id, name }))
+  return EDITORS.filter((editor) => appPathOf(editor)).map(({ id, name }) => ({ id, name }))
 }
 
 /** Finds and remembers where your clones of GitHub repositories live, and opens their files in your editor. */
@@ -91,7 +91,7 @@ export class EditorService {
     const chosen = this.#settings().editor
     let order = EDITORS
     if (chosen) {
-      order = EDITORS.filter((e) => e.id === chosen)
+      order = EDITORS.filter((editor) => editor.id === chosen)
     }
     for (const spec of order) {
       const appPath = appPathOf(spec)

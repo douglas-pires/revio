@@ -26,7 +26,7 @@ describe('prContext', () => {
       ],
     })
     const { context, omitted } = prContext(pr, [], 50)
-    expect(omitted.toSorted((a, b) => a.localeCompare(b))).toEqual(['big.ts', 'image.png'])
+    expect(omitted.toSorted((left, right) => left.localeCompare(right))).toEqual(['big.ts', 'image.png'])
     expect(context).toContain('<file path="small.ts"')
     expect(context).toContain('<file path="mid.ts"')
     expect(context).not.toContain('<file path="big.ts"')

@@ -6,17 +6,17 @@ import type { OpenPull } from '../common/navigation.types.ts'
 import { rememberStackScroll, stackScrollOf } from './stack-memory.util.ts'
 
 /** The dot by each PR: waiting on you (red when stale), approved, changes requested, or neither. */
-function dotOf(p: StackPr) {
-  if (p.inbox === 'requested' && p.stale) {
+function dotOf(pr: StackPr) {
+  if (pr.inbox === 'requested' && pr.stale) {
     return 'bg-danger'
   }
-  if (p.inbox === 'requested') {
+  if (pr.inbox === 'requested') {
     return 'bg-accent'
   }
-  if (p.reviewDecision === 'APPROVED') {
+  if (pr.reviewDecision === 'APPROVED') {
     return 'bg-ok'
   }
-  if (p.reviewDecision === 'CHANGES_REQUESTED') {
+  if (pr.reviewDecision === 'CHANGES_REQUESTED') {
     return 'bg-danger/60'
   }
   return 'bg-muted/50'
@@ -147,14 +147,16 @@ function StackChain({ stack, index, onOpen }: { stack: Stack; index: number; onO
   return (
     <div
       ref={scroller}
-      onScroll={(e) => rememberStackScroll(stack, e.currentTarget.scrollLeft)}
+      onScroll={(event) => rememberStackScroll(stack, event.currentTarget.scrollLeft)}
       className="flex min-w-0 flex-1 items-center gap-1 overflow-x-auto"
     >
-      {stack.nodes.map(({ pr, depth }, i) => {
-        const current = i === index
+      {stack.nodes.map(({ pr, depth }, position) => {
+        const current = position === index
         return (
           <span key={pr.id} className="flex shrink-0 items-center gap-1">
-            {i > 0 && <span className="text-muted">{separatorOf(depth, stack.nodes[i - 1]?.depth ?? depth)}</span>}
+            {position > 0 && (
+              <span className="text-muted">{separatorOf(depth, stack.nodes[position - 1]?.depth ?? depth)}</span>
+            )}
             <button
               type="button"
               onClick={() => !current && onOpen(pr)}
@@ -180,9 +182,9 @@ function StackChain({ stack, index, onOpen }: { stack: Stack; index: number; onO
 
 /** The stack this PR belongs to: its place, the chain to jump along, and a warning when its base is unapproved. */
 export function StackBar({ stack, pull, onOpen }: { stack: Stack; pull: PullRef; onOpen: OpenPull }) {
-  const idx = stack.nodes.findIndex((n) => isSamePull(n.pr, pull))
+  const idx = stack.nodes.findIndex((node) => isSamePull(node.pr, pull))
   const me = stack.nodes[idx]?.pr
-  const parent = me && stack.nodes.find((n) => n.pr.headRef === me.baseRef)?.pr
+  const parent = me && stack.nodes.find((node) => node.pr.headRef === me.baseRef)?.pr
   return (
     <div className="flex shrink-0 items-center gap-2 border-b border-line bg-panel-2/60 px-4 py-1.5 text-[12px]">
       <span

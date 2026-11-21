@@ -19,8 +19,8 @@ function failedAnswer(req: HighlightRequest): HighlightResponse {
   return { id: req.id, kind: 'rows', tokens: null }
 }
 
-globalThis.onmessage = async (e: MessageEvent<HighlightRequest>) => {
-  const req = e.data
+globalThis.onmessage = async (event: MessageEvent<HighlightRequest>) => {
+  const req = event.data
   globalThis.postMessage(await answer(req).catch(() => failedAnswer(req)))
 }
 

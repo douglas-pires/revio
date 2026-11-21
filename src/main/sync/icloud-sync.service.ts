@@ -160,11 +160,11 @@ export class IcloudSync {
       ;(this.#deps.download ?? downloadWithBrctl)(join(dir, FILE))
       return this.#set({ ...this.#status, state: 'downloading', message: null }, false)
     }
-    const copies = names.filter((n) => CONFLICT_COPY.test(n))
+    const copies = names.filter((name) => CONFLICT_COPY.test(name))
     const local = this.#deps.local()
     const read = mergeFiles(
       dir,
-      [FILE, ...copies].filter((n) => names.includes(n)),
+      [FILE, ...copies].filter((fileName) => names.includes(fileName)),
       local,
     )
     if ('error' in read) {

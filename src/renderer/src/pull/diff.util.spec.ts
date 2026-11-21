@@ -109,7 +109,8 @@ describe('sliceAroundLine', () => {
   const rows = parsePatch(
     ['@@ -1,6 +1,6 @@', ' a', ' b', '-c', '+C', ' d', ' e', '@@ -40,2 +40,2 @@', ' x', ' y'].join('\n'),
   )
-  const newLines = (slice: ReturnType<typeof sliceAroundLine>) => slice.map((r) => `${r.kind}:${r.newNo ?? r.oldNo}`)
+  const newLines = (slice: ReturnType<typeof sliceAroundLine>) =>
+    slice.map((row) => `${row.kind}:${row.newNo ?? row.oldNo}`)
 
   it('takes rows around the line, deleted rows included', () => {
     expect(newLines(sliceAroundLine(rows, 3, 1))).toEqual(['del:3', 'add:3', 'ctx:4'])
@@ -169,7 +170,9 @@ describe('snippetRows', () => {
   const rows = parsePatch(PATCH)
 
   it('reads back a new-side snippet, numbering new-side lines', () => {
-    expect(snippetRows(diffSnippet(rows, 'RIGHT', 10, 11), 'RIGHT', 10).map((r) => [r.kind, r.text, r.newNo])).toEqual([
+    expect(
+      snippetRows(diffSnippet(rows, 'RIGHT', 10, 11), 'RIGHT', 10).map((row) => [row.kind, row.text, row.newNo]),
+    ).toEqual([
       ['ctx', 'keep', 10],
       ['del', 'old', null],
       ['add', 'new', 11],
@@ -177,7 +180,7 @@ describe('snippetRows', () => {
   })
 
   it('numbers old-side lines for an old-side snippet', () => {
-    expect(snippetRows(diffSnippet(rows, 'LEFT', 11, 12), 'LEFT', 11).map((r) => [r.kind, r.oldNo])).toEqual([
+    expect(snippetRows(diffSnippet(rows, 'LEFT', 11, 12), 'LEFT', 11).map((row) => [row.kind, row.oldNo])).toEqual([
       ['del', 11],
       ['ctx', 12],
     ])

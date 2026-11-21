@@ -16,7 +16,7 @@ export const FileTree = memo(function FileTreeView(props: {
   draftCounts: ReadonlyMap<string, number>
   onSelect: (path: string) => void
 }) {
-  const viewedCount = props.files.filter((f) => props.viewed[f.path] === f.sha).length
+  const viewedCount = props.files.filter((file) => props.viewed[file.path] === file.sha).length
   return (
     <aside className="flex w-72 shrink-0 flex-col border-r border-line bg-panel">
       <PanelHeader
@@ -46,31 +46,31 @@ export const FileTree = memo(function FileTreeView(props: {
                 {dir}
               </div>
             )}
-            {files.map((f) => {
-              const viewed = props.viewed[f.path] === f.sha
-              const drafts = props.draftCounts.get(f.path) ?? 0
+            {files.map((file) => {
+              const viewed = props.viewed[file.path] === file.sha
+              const drafts = props.draftCounts.get(file.path) ?? 0
               return (
                 <button
                   type="button"
-                  key={f.path}
-                  onClick={() => props.onSelect(f.path)}
-                  title={f.path}
+                  key={file.path}
+                  onClick={() => props.onSelect(file.path)}
+                  title={file.path}
                   className={cx(
                     'flex w-full items-center gap-1.5 rounded px-1.5 py-0.5 pl-3 text-left hover:bg-hover',
-                    (viewed || props.ignorePaths.has(f.path)) && 'opacity-55',
-                    props.current === f.path && 'bg-hover ring-1 ring-accent/60',
+                    (viewed || props.ignorePaths.has(file.path)) && 'opacity-55',
+                    props.current === file.path && 'bg-hover ring-1 ring-accent/60',
                   )}
                 >
                   <span
                     className={cx(
                       'size-1.5 shrink-0 rounded-full',
-                      props.focusPaths.has(f.path) && 'bg-focus',
-                      !props.focusPaths.has(f.path) && 'bg-transparent',
+                      props.focusPaths.has(file.path) && 'bg-focus',
+                      !props.focusPaths.has(file.path) && 'bg-transparent',
                     )}
                   />
-                  <span className="min-w-0 flex-1 truncate font-mono text-[11.5px]">{f.path.slice(dir.length)}</span>
+                  <span className="min-w-0 flex-1 truncate font-mono text-[11.5px]">{file.path.slice(dir.length)}</span>
                   {drafts > 0 && <span className="chip bg-warn/20 text-warn">{drafts}</span>}
-                  <span className="font-mono text-[10.5px] text-muted">{f.additions + f.deletions}</span>
+                  <span className="font-mono text-[10.5px] text-muted">{file.additions + file.deletions}</span>
                   {Boolean(viewed) && <span className="text-ok">✓</span>}
                 </button>
               )

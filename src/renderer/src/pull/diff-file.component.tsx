@@ -156,7 +156,7 @@ export interface DiffFileProps {
   collapsed: boolean
   onToggleCollapsed: (path: string, collapsed: boolean) => void
   onToggleViewed: (path: string, sha: string, viewed: boolean) => void
-  onAddDraft: (d: Omit<DraftComment, 'id'>) => void
+  onAddDraft: (draft: Omit<DraftComment, 'id'>) => void
   onUpdateDraft: (id: string, body: string) => void
   onDeleteDraft: (id: string) => void
   onReplyNow: (commentId: number, body: string) => Promise<void>
@@ -191,7 +191,10 @@ export const DiffFile = memo(function DiffFileView(props: DiffFileProps) {
     props.blame && open && file.status !== 'removed',
   )
   const actions = useCommentActions(props)
-  const focusRanges = useMemo(() => props.focus.map((f) => parseRange(f.lines)).filter(isPresent), [props.focus])
+  const focusRanges = useMemo(
+    () => props.focus.map((focusItem) => parseRange(focusItem.lines)).filter(isPresent),
+    [props.focus],
+  )
   const index = useMemo(
     () => indexFileComments(file.path, props.comments, props.drafts),
     [file.path, props.comments, props.drafts],
@@ -226,7 +229,7 @@ export const DiffFile = memo(function DiffFileView(props: DiffFileProps) {
     tokens,
     selection,
     inFocus: (row) => isInFocus(row, focusRanges),
-    commented: (a) => a !== null && commented.has(anchorKey(a.side, a.line)),
+    commented: (anchor) => anchor !== null && commented.has(anchorKey(anchor.side, anchor.line)),
     notesFor,
     onMouseUp: textAsk.onMouseUp,
   }
@@ -245,7 +248,7 @@ export const DiffFile = memo(function DiffFileView(props: DiffFileProps) {
     <div
       ref={container}
       onFocus={() => setFocusWithin(true)}
-      onBlur={(e) => !e.currentTarget.contains(e.relatedTarget as Node | null) && setFocusWithin(false)}
+      onBlur={(event) => !event.currentTarget.contains(event.relatedTarget as Node | null) && setFocusWithin(false)}
       id={`file-${file.path}`}
       // overflow-clip, not overflow-hidden: it rounds the corners without becoming a scroll box, so the header stays sticky.
       className={cx(

@@ -94,7 +94,7 @@ export function raiseAlerts(inbox: Inbox, { settings, state, notify, now = Date.
       alertRequest(pr, change, { settings, state, notify, now })
     }
   }
-  forgetLeftQueue(state, new Set(inbox.requested.map((p) => p.id)))
+  forgetLeftQueue(state, new Set(inbox.requested.map((pull) => pull.id)))
   state.seeded = true
 }
 
@@ -145,14 +145,14 @@ export function forgetLeftQueue(state: AlertState, live: Set<string>) {
   }
 }
 
-export function formatHours(h: number) {
-  if (h < 1) {
-    return `${Math.max(1, Math.round(h * 60))}m`
+export function formatHours(hours: number) {
+  if (hours < 1) {
+    return `${Math.max(1, Math.round(hours * 60))}m`
   }
-  if (h < MAX_HOURS_SHOWN) {
-    return `${Math.round(h)}h`
+  if (hours < MAX_HOURS_SHOWN) {
+    return `${Math.round(hours)}h`
   }
-  return `${Math.round(h / 24)}d`
+  return `${Math.round(hours / 24)}d`
 }
 
 /**

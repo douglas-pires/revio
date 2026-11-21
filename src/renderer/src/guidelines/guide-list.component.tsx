@@ -19,7 +19,7 @@ export function GuideList({
   selectedId: string | undefined
   /** Unsaved edits by guide id (`new` for a guide not saved yet), marked in the list. */
   drafts: GuideDrafts
-  onSelect: (g: Draft) => void
+  onSelect: (draft: Draft) => void
 }) {
   const newGuide = drafts.new
   return (
@@ -42,21 +42,21 @@ export function GuideList({
         {groupGuides(list).map(([repo, items]) => (
           <div key={repo} className="mb-3">
             <SectionHeading title={repo} count={items.length} className="mb-1 px-2" />
-            {items.map((g) => (
+            {items.map((guideline) => (
               <button
                 type="button"
-                key={g.id}
-                onClick={() => onSelect(g)}
+                key={guideline.id}
+                onClick={() => onSelect(guideline)}
                 className={cx(
                   'flex w-full items-center gap-2 rounded-md px-2 py-1.5 text-left',
-                  selectedId === g.id && 'bg-hover',
-                  selectedId !== g.id && 'hover:bg-hover/60',
-                  !g.enabled && 'opacity-50',
+                  selectedId === guideline.id && 'bg-hover',
+                  selectedId !== guideline.id && 'hover:bg-hover/60',
+                  !guideline.enabled && 'opacity-50',
                 )}
               >
-                <span className="font-mono text-[11px] text-muted">{g.path || '/'}</span>
-                <span className="truncate">{g.title}</span>
-                {drafts[g.id] !== undefined && <DraftChip />}
+                <span className="font-mono text-[11px] text-muted">{guideline.path || '/'}</span>
+                <span className="truncate">{guideline.title}</span>
+                {drafts[guideline.id] !== undefined && <DraftChip />}
               </button>
             ))}
           </div>

@@ -13,7 +13,7 @@ describe('rangeLabel', () => {
 
 describe('isInFocus', () => {
   it('checks the new-side line against the ranges', () => {
-    expect(ROWS.map((r) => isInFocus(r, [[11, 11]]))).toEqual([false, false, false, true])
+    expect(ROWS.map((row) => isInFocus(row, [[11, 11]]))).toEqual([false, false, false, true])
   })
 })
 

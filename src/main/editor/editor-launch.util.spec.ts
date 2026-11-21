@@ -2,7 +2,7 @@ import { describe, expect, it } from 'vitest'
 import { EDITORS, launchFor } from './editor-launch.util.ts'
 
 const editor = (id: string) => {
-  const found = EDITORS.find((e) => e.id === id)
+  const found = EDITORS.find((candidate) => candidate.id === id)
   if (!found) {
     throw new Error(`No editor ${id}`)
   }

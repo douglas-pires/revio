@@ -24,9 +24,9 @@ export class WorkerHighlighter implements Highlighter {
       return this.#worker
     }
     const worker = new Worker(new URL('./highlight.worker.ts', import.meta.url), { type: 'module' })
-    worker.onmessage = (e: MessageEvent<HighlightResponse>) => {
-      this.#pending.get(e.data.id)?.(e.data)
-      this.#pending.delete(e.data.id)
+    worker.onmessage = (event: MessageEvent<HighlightResponse>) => {
+      this.#pending.get(event.data.id)?.(event.data)
+      this.#pending.delete(event.data.id)
     }
     worker.onerror = () => {
       for (const resolve of this.#pending.values()) {
@@ -52,7 +52,7 @@ export class WorkerHighlighter implements Highlighter {
       kind: 'rows',
       path,
       patchLength,
-      rows: rows.map((r) => ({ kind: r.kind, text: r.text })),
+      rows: rows.map((row) => ({ kind: row.kind, text: row.text })),
     })
     if (res?.kind !== 'rows' || !res.tokens) {
       return null

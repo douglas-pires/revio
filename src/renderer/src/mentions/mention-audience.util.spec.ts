@@ -32,22 +32,28 @@ const mentions = [
 
 describe('matchesAudience', () => {
   it('keeps everything for All', () => {
-    expect(mentions.filter((m) => matchesAudience(m, { kind: 'all' })).map((m) => m.number)).toEqual([1, 2, 3, 4])
+    expect(
+      mentions.filter((candidate) => matchesAudience(candidate, { kind: 'all' })).map((candidate) => candidate.number),
+    ).toEqual([1, 2, 3, 4])
   })
 
   it('keeps PRs that name you directly for Me', () => {
-    expect(mentions.filter((m) => matchesAudience(m, { kind: 'me' })).map((m) => m.number)).toEqual([1, 3])
+    expect(
+      mentions.filter((candidate) => matchesAudience(candidate, { kind: 'me' })).map((candidate) => candidate.number),
+    ).toEqual([1, 3])
   })
 
   it('keeps PRs that name the team', () => {
     const team = { kind: 'team', team: 'acme/frontend' } as const
-    expect(mentions.filter((m) => matchesAudience(m, team)).map((m) => m.number)).toEqual([2, 3])
+    expect(
+      mentions.filter((candidate) => matchesAudience(candidate, team)).map((candidate) => candidate.number),
+    ).toEqual([2, 3])
   })
 })
 
 describe('audienceCounts', () => {
   it('counts All, Me, then teams by how often they were mentioned', () => {
-    expect(audienceCounts(mentions).map((c) => [audienceLabel(c.audience), c.count])).toEqual([
+    expect(audienceCounts(mentions).map((count) => [audienceLabel(count.audience), count.count])).toEqual([
       ['All', 4],
       ['Me', 2],
       ['@acme/frontend', 2],

@@ -69,8 +69,10 @@ describe('small helpers', () => {
 
   it('lists an unsaved conversation first', () => {
     const saved = [thread({ id: 's' })]
-    expect(askHistory(thread(), saved).map((t) => t.id)).toEqual(['t', 's'])
-    expect(askHistory(thread({ messages: [{ role: 'user', content: 'q' }] }), saved).map((t) => t.id)).toEqual(['s'])
+    expect(askHistory(thread(), saved).map((savedThread) => savedThread.id)).toEqual(['t', 's'])
+    expect(
+      askHistory(thread({ messages: [{ role: 'user', content: 'q' }] }), saved).map((savedThread) => savedThread.id),
+    ).toEqual(['s'])
   })
 
   it('toggles between two states', () => {

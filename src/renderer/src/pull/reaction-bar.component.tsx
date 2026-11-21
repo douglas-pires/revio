@@ -4,7 +4,7 @@ import { useEffect, useRef, useState } from 'react'
 import { cx, errorMessage } from '../common/format.util.ts'
 import { useSetReaction } from './use-reactions.hook.ts'
 
-const EMOJI = new Map<string, string>(REACTIONS.map((r) => [r.content, r.emoji]))
+const EMOJI = new Map<string, string>(REACTIONS.map((reaction) => [reaction.content, reaction.emoji]))
 
 function ReactionPicker({
   reacted,
@@ -19,13 +19,13 @@ function ReactionPicker({
     if (!open) {
       return
     }
-    const close = (e: MouseEvent) => {
-      if (!ref.current?.contains(e.target as Node)) {
+    const close = (event: MouseEvent) => {
+      if (!ref.current?.contains(event.target as Node)) {
         setOpen(false)
       }
     }
-    const closeOnEscape = (e: KeyboardEvent) => {
-      if (e.key === 'Escape') {
+    const closeOnEscape = (event: KeyboardEvent) => {
+      if (event.key === 'Escape') {
         setOpen(false)
       }
     }
@@ -53,21 +53,24 @@ function ReactionPicker({
           role="menu"
           className="absolute bottom-full left-0 z-20 mb-1 flex gap-0.5 rounded-lg border border-line bg-panel p-1 shadow-lg"
         >
-          {REACTIONS.map((r) => (
+          {REACTIONS.map((reaction) => (
             <button
               type="button"
-              key={r.content}
+              key={reaction.content}
               role="menuitemcheckbox"
-              aria-checked={reacted.has(r.content)}
-              title={r.label}
-              aria-label={r.label}
+              aria-checked={reacted.has(reaction.content)}
+              title={reaction.label}
+              aria-label={reaction.label}
               onClick={() => {
-                onPick(r.content, !reacted.has(r.content))
+                onPick(reaction.content, !reacted.has(reaction.content))
                 setOpen(false)
               }}
-              className={cx('size-7 rounded text-[15px] hover:bg-hover', reacted.has(r.content) && 'bg-accent/15')}
+              className={cx(
+                'size-7 rounded text-[15px] hover:bg-hover',
+                reacted.has(reaction.content) && 'bg-accent/15',
+              )}
             >
-              {r.emoji}
+              {reaction.emoji}
             </button>
           ))}
         </div>
@@ -99,9 +102,9 @@ export function ReactionBar({ subjectId, reactions }: { subjectId: string; react
     setError(null)
     try {
       setShown(await setReaction(subjectId, content, on))
-    } catch (e) {
+    } catch (failure) {
       setShown(before)
-      setError(errorMessage(e))
+      setError(errorMessage(failure))
     }
   }
 
@@ -110,28 +113,28 @@ export function ReactionBar({ subjectId, reactions }: { subjectId: string; react
   }
   return (
     <div className="mt-1 flex flex-wrap items-center gap-1" data-reactions={true}>
-      {shown.map((r) => (
+      {shown.map((reaction) => (
         <button
           type="button"
-          key={r.content}
+          key={reaction.content}
           disabled={!setReaction}
-          title={reactionTitle(r.viewerHasReacted)}
-          aria-pressed={r.viewerHasReacted}
-          onClick={() => toggle(r.content, !r.viewerHasReacted)}
+          title={reactionTitle(reaction.viewerHasReacted)}
+          aria-pressed={reaction.viewerHasReacted}
+          onClick={() => toggle(reaction.content, !reaction.viewerHasReacted)}
           className={cx(
             'flex h-6 items-center gap-1 rounded-full border px-2 text-[12px] leading-none',
-            r.viewerHasReacted && 'border-accent/60 bg-accent/15 text-fg',
-            !r.viewerHasReacted && 'border-line text-muted hover:border-muted',
+            reaction.viewerHasReacted && 'border-accent/60 bg-accent/15 text-fg',
+            !reaction.viewerHasReacted && 'border-line text-muted hover:border-muted',
           )}
         >
-          <span>{EMOJI.get(r.content)}</span>
-          <span>{r.count}</span>
+          <span>{EMOJI.get(reaction.content)}</span>
+          <span>{reaction.count}</span>
         </button>
       ))}
       {Boolean(setReaction) && (
         <ReactionPicker
-          reacted={new Set(shown.filter((r) => r.viewerHasReacted).map((r) => r.content))}
-          onPick={(c, on) => toggle(c, on)}
+          reacted={new Set(shown.filter((reaction) => reaction.viewerHasReacted).map((reaction) => reaction.content))}
+          onPick={(content, on) => toggle(content, on)}
         />
       )}
       {Boolean(error) && <span className="text-[11.5px] text-danger">{error}</span>}

@@ -99,8 +99,8 @@ export function QuotedComment({
                 setError(null)
                 try {
                   setSentUrl((await onReply(body)).url)
-                } catch (e) {
-                  setError(errorMessage(e))
+                } catch (failure) {
+                  setError(errorMessage(failure))
                 }
               }}
             />

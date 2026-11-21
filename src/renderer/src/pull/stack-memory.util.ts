@@ -17,7 +17,7 @@ interface StackMemory {
 
 let memory: StackMemory | null = null
 
-const holds = (stack: Stack, pull: PullRef) => stack.nodes.some((n) => isSamePull(n.pr, pull))
+const holds = (stack: Stack, pull: PullRef) => stack.nodes.some((node) => isSamePull(node.pr, pull))
 
 /** The remembered memory when `pull` belongs to its stack. */
 function memoryFor(pull: PullRef): StackMemory | null {
@@ -34,7 +34,7 @@ export function knownStackOf(pull: PullRef): Stack | null {
 
 /** The PR at `pull` in its remembered stack (title, author, branches), for showing it before its details load. */
 export function knownStackPr(pull: PullRef) {
-  return memoryFor(pull)?.stack.nodes.find((n) => isSamePull(n.pr, pull))?.pr ?? null
+  return memoryFor(pull)?.stack.nodes.find((node) => isSamePull(node.pr, pull))?.pr ?? null
 }
 
 /** Remembers a stack the view found; the scroll and tab carry over when it is the same stack as before. */

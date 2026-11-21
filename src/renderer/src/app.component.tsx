@@ -14,16 +14,18 @@ import { UpdateBanner } from './updates/update-banner.component.tsx'
 import { useUpdateStatus } from './updates/use-update-status.hook.ts'
 
 // The inbox is the first screen; everything else (markdown, diff, highlighting) loads when first opened.
-const PullView = lazy(() => import('./pull/pull.view.tsx').then((m) => ({ default: m.PullView })))
+const PullView = lazy(() => import('./pull/pull.view.tsx').then((module) => ({ default: module.PullView })))
 
-const Guidelines = lazy(() => import('./guidelines/guidelines.view.tsx').then((m) => ({ default: m.Guidelines })))
+const Guidelines = lazy(() =>
+  import('./guidelines/guidelines.view.tsx').then((module) => ({ default: module.Guidelines })),
+)
 
-const MyPulls = lazy(() => import('./my-pulls/my-pulls.view.tsx').then((m) => ({ default: m.MyPulls })))
-const GitLog = lazy(() => import('./gitlog/git-log.view.tsx').then((m) => ({ default: m.GitLog })))
+const MyPulls = lazy(() => import('./my-pulls/my-pulls.view.tsx').then((module) => ({ default: module.MyPulls })))
+const GitLog = lazy(() => import('./gitlog/git-log.view.tsx').then((module) => ({ default: module.GitLog })))
 
-const Mentions = lazy(() => import('./mentions/mentions.view.tsx').then((m) => ({ default: m.Mentions })))
+const Mentions = lazy(() => import('./mentions/mentions.view.tsx').then((module) => ({ default: module.Mentions })))
 
-const Settings = lazy(() => import('./settings/settings.view.tsx').then((m) => ({ default: m.Settings })))
+const Settings = lazy(() => import('./settings/settings.view.tsx').then((module) => ({ default: module.Settings })))
 
 function NavButton(props: {
   active: boolean
@@ -81,17 +83,17 @@ function useLiveData(setRoute: RouteHistory['go']) {
   const [inbox, setInbox] = useState<InboxData | null>(null)
   const [mentions, setMentions] = useState<MentionsInbox | null>(null)
   useEffect(() => {
-    globalThis.revio.getInbox().then((i) => i && setInbox(i))
+    globalThis.revio.getInbox().then((latestInbox) => latestInbox && setInbox(latestInbox))
     globalThis.revio.getMentions().then(setMentions)
-    return globalThis.revio.onEvent((e) => {
-      if (e.type === 'inbox') {
-        setInbox(e.inbox)
+    return globalThis.revio.onEvent((event) => {
+      if (event.type === 'inbox') {
+        setInbox(event.inbox)
       }
-      if (e.type === 'mentions') {
-        setMentions(e.mentions)
+      if (event.type === 'mentions') {
+        setMentions(event.mentions)
       }
-      if (e.type === 'open-pull') {
-        setRoute({ view: 'pull', pull: e.ref })
+      if (event.type === 'open-pull') {
+        setRoute({ view: 'pull', pull: event.ref })
       }
     })
   }, [setRoute])
@@ -109,8 +111,9 @@ function NavRail({
   mentions: MentionsInbox | null
 }) {
   const { route, go: setRoute } = history
-  const staleCount = inbox?.requested.filter((p) => p.stale).length ?? 0
-  const newMentions = mentions?.mentions.filter((m) => m.snippets.some((s) => s.isNew)).length ?? 0
+  const staleCount = inbox?.requested.filter((pull) => pull.stale).length ?? 0
+  const newMentions =
+    mentions?.mentions.filter((mention) => mention.snippets.some((snippet) => snippet.isNew)).length ?? 0
   let inboxTone: 'danger' | 'accent' = 'accent'
   if (staleCount > 0) {
     inboxTone = 'danger'

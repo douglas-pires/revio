@@ -59,12 +59,18 @@ async function fetchThreadMeta(octokit: Octokit, ref: PullRef): Promise<ThreadMe
       { owner, repo, number },
     )
     const nodes = (data.repository.pullRequest?.reviewThreads.nodes ?? []).filter(isPresent)
-    const comments = nodes.flatMap((t) => t.comments.nodes.filter(isPresent))
+    const comments = nodes.flatMap((thread) => thread.comments.nodes.filter(isPresent))
     return {
       threads: nodes
-        .map((t) => ({ id: t.id, rootCommentId: t.comments.nodes[0]?.databaseId, resolved: t.isResolved }))
-        .filter((t): t is PullThreadStatus => Boolean(t.rootCommentId)),
-      reactions: new Map(comments.map((c) => [c.databaseId, toReactionSummaries(c.reactionGroups ?? [])])),
+        .map((thread) => ({
+          id: thread.id,
+          rootCommentId: thread.comments.nodes[0]?.databaseId,
+          resolved: thread.isResolved,
+        }))
+        .filter((thread): thread is PullThreadStatus => Boolean(thread.rootCommentId)),
+      reactions: new Map(
+        comments.map((comment) => [comment.databaseId, toReactionSummaries(comment.reactionGroups ?? [])]),
+      ),
     }
   } catch (err) {
     console.error('[revio] thread status lookup failed:', errorMessage(err))
@@ -95,9 +101,9 @@ async function submitWithFileComments(
   const pending = await octokit.pulls.createReview(review)
   const ids = { owner: review.owner, repo: review.repo, pull_number: review.pull_number, review_id: pending.data.id }
   try {
-    for (const f of files) {
+    for (const fileComment of files) {
       // biome-ignore lint/performance/noAwaitInLoops: threads are added one at a time so they keep the order they were drafted in.
-      await addFileThread(octokit, pending.data.node_id, f)
+      await addFileThread(octokit, pending.data.node_id, fileComment)
     }
     const res = await octokit.pulls.submitReview({ ...ids, event, ...(review.body && { body: review.body }) })
     return { url: res.data.html_url }
@@ -147,8 +153,8 @@ type RestComment = Awaited<ReturnType<Octokit['pulls']['listReviewComments']>>['
 
 /** Your most recent decisive review (approve, request changes, dismissed), else your latest comment review. */
 function myReviewOf(reviews: readonly RestReview[], viewer: string, headSha: string): PullDetail['myReview'] {
-  const mine = reviews.filter((r) => r.user?.login === viewer && r.state !== 'PENDING')
-  const latest = mine.filter((r) => DECISIVE_STATES.has(r.state)).at(-1) ?? mine.at(-1)
+  const mine = reviews.filter((review) => review.user?.login === viewer && review.state !== 'PENDING')
+  const latest = mine.filter((review) => DECISIVE_STATES.has(review.state)).at(-1) ?? mine.at(-1)
   if (!latest) {
     return null
   }
@@ -162,21 +168,21 @@ function myReviewOf(reviews: readonly RestReview[], viewer: string, headSha: str
 /** When you last submitted a review, of any kind. */
 function lastReviewedAtOf(reviews: readonly RestReview[], viewer: string): string | null {
   const times = reviews
-    .filter((r) => r.user?.login === viewer && r.state !== 'PENDING' && isPresent(r.submitted_at))
-    .map((r) => r.submitted_at ?? '')
+    .filter((review) => review.user?.login === viewer && review.state !== 'PENDING' && isPresent(review.submitted_at))
+    .map((review) => review.submitted_at ?? '')
     .sort()
   return times.at(-1) ?? null
 }
 
-function toPullFile(f: RestFile): PullFile {
+function toPullFile(file: RestFile): PullFile {
   return {
-    path: f.filename,
-    sha: f.sha ?? '',
-    previousPath: f.previous_filename,
-    status: f.status,
-    additions: f.additions,
-    deletions: f.deletions,
-    patch: f.patch,
+    path: file.filename,
+    sha: file.sha ?? '',
+    previousPath: file.previous_filename,
+    status: file.status,
+    additions: file.additions,
+    deletions: file.deletions,
+    patch: file.patch,
   }
 }
 
@@ -187,25 +193,25 @@ function subjectTypeOf(onFile: boolean): ReviewComment['subjectType'] {
   return 'line'
 }
 
-function toReviewComment(c: RestComment, reactions: ThreadMeta['reactions']): ReviewComment {
-  const onFile = c.subject_type === 'file'
+function toReviewComment(comment: RestComment, reactions: ThreadMeta['reactions']): ReviewComment {
+  const onFile = comment.subject_type === 'file'
   return {
-    id: c.id,
-    nodeId: c.node_id,
-    inReplyTo: c.in_reply_to_id,
-    path: c.path,
-    line: c.line ?? null,
-    startLine: c.start_line ?? null,
-    side: (c.side as ReviewComment['side']) ?? 'RIGHT',
-    body: c.body,
-    author: c.user?.login ?? 'ghost',
-    authorAvatar: smallAvatar(c.user?.avatar_url),
-    createdAt: c.created_at,
-    url: c.html_url,
+    id: comment.id,
+    nodeId: comment.node_id,
+    inReplyTo: comment.in_reply_to_id,
+    path: comment.path,
+    line: comment.line ?? null,
+    startLine: comment.start_line ?? null,
+    side: (comment.side as ReviewComment['side']) ?? 'RIGHT',
+    body: comment.body,
+    author: comment.user?.login ?? 'ghost',
+    authorAvatar: smallAvatar(comment.user?.avatar_url),
+    createdAt: comment.created_at,
+    url: comment.html_url,
     // A line comment loses its line once the code it was on changes; a file comment never had one.
-    outdated: !(onFile || isPresent(c.line)),
+    outdated: !(onFile || isPresent(comment.line)),
     subjectType: subjectTypeOf(onFile),
-    reactions: reactions.get(c.id) ?? [],
+    reactions: reactions.get(comment.id) ?? [],
   }
 }
 
@@ -223,30 +229,30 @@ export async function fetchPull(ref: PullRef): Promise<PullDetail> {
     viewerLogin(),
     fetchThreadMeta(octokit, ref),
   ])
-  const p = pr.data
+  const pullData = pr.data
   return {
     fetchedAt: new Date().toISOString(),
     repo: repoFull,
     number,
-    title: p.title,
-    body: p.body ?? '',
-    url: p.html_url,
-    author: p.user?.login ?? 'ghost',
-    authorAvatar: smallAvatar(p.user?.avatar_url),
-    headRef: p.head.ref,
-    baseRef: p.base.ref,
-    headSha: p.head.sha,
-    baseSha: p.base.sha,
+    title: pullData.title,
+    body: pullData.body ?? '',
+    url: pullData.html_url,
+    author: pullData.user?.login ?? 'ghost',
+    authorAvatar: smallAvatar(pullData.user?.avatar_url),
+    headRef: pullData.head.ref,
+    baseRef: pullData.base.ref,
+    headSha: pullData.head.sha,
+    baseSha: pullData.base.sha,
     viewer,
-    myReview: myReviewOf(reviews, viewer, p.head.sha),
+    myReview: myReviewOf(reviews, viewer, pullData.head.sha),
     lastReviewedAt: lastReviewedAtOf(reviews, viewer),
-    isDraft: Boolean(p.draft),
-    additions: p.additions,
-    deletions: p.deletions,
-    commitCount: p.commits,
+    isDraft: Boolean(pullData.draft),
+    additions: pullData.additions,
+    deletions: pullData.deletions,
+    commitCount: pullData.commits,
     files: files.map(toPullFile),
     threads: meta.threads,
-    comments: comments.map((c) => toReviewComment(c, meta.reactions)),
+    comments: comments.map((comment) => toReviewComment(comment, meta.reactions)),
     conversation: buildConversation(conversationComments, reviews, smallAvatar),
   }
 }

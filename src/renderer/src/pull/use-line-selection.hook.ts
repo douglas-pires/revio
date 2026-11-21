@@ -26,28 +26,33 @@ export function useLineSelection() {
     return () => globalThis.removeEventListener('mouseup', up)
   }, [dragging])
 
-  const press = (a: Anchor | null, shift: boolean) => {
-    if (!a) {
+  const press = (anchor: Anchor | null, shift: boolean) => {
+    if (!anchor) {
       return
     }
-    if (shift && sel && sel.side === a.side) {
-      setSel({ side: a.side, start: Math.min(sel.start, a.line), end: Math.max(sel.end, a.line) })
+    if (shift && sel && sel.side === anchor.side) {
+      setSel({ side: anchor.side, start: Math.min(sel.start, anchor.line), end: Math.max(sel.end, anchor.line) })
       return
     }
-    setSel({ side: a.side, start: a.line, end: a.line })
-    setDragging({ side: a.side, origin: a.line })
+    setSel({ side: anchor.side, start: anchor.line, end: anchor.line })
+    setDragging({ side: anchor.side, origin: anchor.line })
   }
 
-  const over = (a: Anchor | null) => {
-    if (!(dragging && a) || a.side !== dragging.side) {
+  const over = (anchor: Anchor | null) => {
+    if (!(dragging && anchor) || anchor.side !== dragging.side) {
       return
     }
-    setSel({ side: a.side, start: Math.min(dragging.origin, a.line), end: Math.max(dragging.origin, a.line) })
+    setSel({
+      side: anchor.side,
+      start: Math.min(dragging.origin, anchor.line),
+      end: Math.max(dragging.origin, anchor.line),
+    })
   }
 
-  const contains = (a: Anchor | null) =>
-    Boolean(a && sel && a.side === sel.side && a.line >= sel.start && a.line <= sel.end)
-  const composerAt = (a: Anchor | null) => Boolean(!dragging && a && sel && sel.side === a.side && sel.end === a.line)
+  const contains = (anchor: Anchor | null) =>
+    Boolean(anchor && sel && anchor.side === sel.side && anchor.line >= sel.start && anchor.line <= sel.end)
+  const composerAt = (anchor: Anchor | null) =>
+    Boolean(!dragging && anchor && sel && sel.side === anchor.side && sel.end === anchor.line)
 
   return { sel, clear: () => setSel(null), press, over, contains, composerAt }
 }

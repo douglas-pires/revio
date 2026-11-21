@@ -3,15 +3,15 @@ import type { DiffRow } from './diff.util.ts'
 import type { LineSelection } from './use-line-selection.hook.ts'
 
 /** "Line 12", "Lines 12–14", or "Old line…" for the removed side. */
-export function rangeLabel(s: LineSelection) {
+export function rangeLabel(selection: LineSelection) {
   let label = 'Line'
-  if (s.side === 'LEFT') {
+  if (selection.side === 'LEFT') {
     label = 'Old line'
   }
-  if (s.start === s.end) {
-    return `${label} ${s.end}`
+  if (selection.start === selection.end) {
+    return `${label} ${selection.end}`
   }
-  return `${label}s ${s.start}–${s.end}`
+  return `${label}s ${selection.start}–${selection.end}`
 }
 
 /** Whether a row's new-side line falls in one of the briefing's focus ranges. */
@@ -20,7 +20,7 @@ export function isInFocus(row: DiffRow, ranges: readonly [number, number][]) {
     return false
   }
   const line = row.newNo
-  return ranges.some(([a, b]) => line >= a && line <= b)
+  return ranges.some(([start, end]) => line >= start && line <= end)
 }
 
 /** A draft comment on the selected lines; one line has no start, as GitHub expects. */
@@ -38,7 +38,7 @@ export function editorLineOf(sel: LineSelection | null, patchRows: readonly Diff
     return sel.start
   }
   const changed =
-    patchRows.find((r) => r.kind === 'add') ?? patchRows.find((r) => r.kind !== 'hunk' && r.newNo !== null)
+    patchRows.find((row) => row.kind === 'add') ?? patchRows.find((row) => row.kind !== 'hunk' && row.newNo !== null)
   if (!changed || changed.kind === 'hunk') {
     return undefined
   }

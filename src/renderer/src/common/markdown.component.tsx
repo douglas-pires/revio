@@ -60,8 +60,8 @@ function Img({
     return (
       <a
         href={src}
-        onClick={(e) => {
-          e.preventDefault()
+        onClick={(event) => {
+          event.preventDefault()
           open(src)
         }}
         className="inline-flex items-center gap-1 rounded border border-line px-1.5 py-0.5 text-[12px] no-underline"
@@ -129,8 +129,8 @@ export const Markdown = memo(function MarkdownView({
           a: ({ href, children: label }) => (
             <a
               href={href}
-              onClick={(e) => {
-                e.preventDefault()
+              onClick={(event) => {
+                event.preventDefault()
                 open(href)
               }}
             >

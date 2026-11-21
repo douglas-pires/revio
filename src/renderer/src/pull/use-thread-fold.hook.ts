@@ -54,10 +54,13 @@ export function useThreadFoldState(): ThreadFold {
   const [state, setState] = useState<FoldState>({ all: false, flipped: EMPTY_SET, revealed: EMPTY_SET })
   const setAll = useCallback((all: boolean) => setState({ all, flipped: EMPTY_SET, revealed: EMPTY_SET }), [])
   const setFolded = useCallback(
-    (ids: readonly number[], folded: boolean) => setState((s) => withThreadFolded(s, ids, folded)),
+    (ids: readonly number[], folded: boolean) => setState((current) => withThreadFolded(current, ids, folded)),
     [],
   )
-  const reveal = useCallback((id: number) => setState((s) => ({ ...s, revealed: withAdded(s.revealed, id) })), [])
+  const reveal = useCallback(
+    (id: number) => setState((current) => ({ ...current, revealed: withAdded(current.revealed, id) })),
+    [],
+  )
   return useMemo(
     () => ({ all: state.all, setAll, isFolded: (ids) => threadFolded(state, ids), setFolded, reveal }),
     [state, setAll, setFolded, reveal],

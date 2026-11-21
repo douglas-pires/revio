@@ -9,8 +9,8 @@ export interface NavHistory<T> {
 
 export const startHistory = <T>(first: T): NavHistory<T> => ({ entries: [first], index: 0 })
 
-export function currentEntry<T>(h: NavHistory<T>): T {
-  const entry = h.entries[h.index]
+export function currentEntry<T>(history: NavHistory<T>): T {
+  const entry = history.entries[history.index]
   // startHistory, visit and step keep the index on an entry; this only guards that promise.
   if (entry === undefined) {
     throw new Error('Navigation history lost its current screen')
@@ -18,24 +18,24 @@ export function currentEntry<T>(h: NavHistory<T>): T {
   return entry
 }
 
-export const canGoBack = <T>(h: NavHistory<T>) => h.index > 0
+export const canGoBack = <T>(history: NavHistory<T>) => history.index > 0
 
-export const canGoForward = <T>(h: NavHistory<T>) => h.index < h.entries.length - 1
+export const canGoForward = <T>(history: NavHistory<T>) => history.index < history.entries.length - 1
 
 /** Adds a screen after the current one; visiting the screen you are on changes nothing. */
-export function visit<T>(h: NavHistory<T>, entry: T, same: (a: T, b: T) => boolean): NavHistory<T> {
-  if (same(currentEntry(h), entry)) {
-    return h
+export function visit<T>(history: NavHistory<T>, entry: T, same: (left: T, right: T) => boolean): NavHistory<T> {
+  if (same(currentEntry(history), entry)) {
+    return history
   }
-  const entries = [...h.entries.slice(0, h.index + 1), entry].slice(-MAX_ENTRIES)
+  const entries = [...history.entries.slice(0, history.index + 1), entry].slice(-MAX_ENTRIES)
   return { entries, index: entries.length - 1 }
 }
 
 /** Moves back (-1) or forward (+1) when there is somewhere to go. */
-export function step<T>(h: NavHistory<T>, delta: -1 | 1): NavHistory<T> {
-  const index = h.index + delta
-  if (index < 0 || index >= h.entries.length) {
-    return h
+export function step<T>(history: NavHistory<T>, delta: -1 | 1): NavHistory<T> {
+  const index = history.index + delta
+  if (index < 0 || index >= history.entries.length) {
+    return history
   }
-  return { ...h, index }
+  return { ...history, index }
 }

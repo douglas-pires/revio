@@ -41,11 +41,11 @@ interface BriefingPanelProps {
 }
 
 /** The diff of the file a concern names; none when it names no file. */
-function patchOfConcern(c: Concern, patchOf: (path: string) => string | undefined) {
-  if (!c.path) {
+function patchOfConcern(concern: Concern, patchOf: (path: string) => string | undefined) {
+  if (!concern.path) {
     return
   }
-  return patchOf(c.path)
+  return patchOf(concern.path)
 }
 
 /** The first line of a focus range like "42-80", or null for the whole file. */
@@ -74,7 +74,7 @@ function GenerateStatus({ loading, progress, error }: Pick<BriefingPanelProps, '
 
 /** One possible issue: what and why, a link to where, and a shortcut to draft a comment there. */
 function ConcernItem({
-  concern: c,
+  concern,
   patch,
   canDraft,
   onJump,
@@ -86,27 +86,31 @@ function ConcernItem({
   onJump: Jump
   onDraft: (path: string, line: number, body: string) => void
 }) {
-  const { line } = c
+  const { line } = concern
   return (
     <li>
-      <div className="font-medium">{c.title}</div>
-      <Markdown className="text-muted">{c.detail}</Markdown>
+      <div className="font-medium">{concern.title}</div>
+      <Markdown className="text-muted">{concern.detail}</Markdown>
       {patch !== undefined && line !== null && (
-        <CodeSnippet path={c.path} patch={patch} line={line} onOpen={() => onJump(c.path, line)} />
+        <CodeSnippet path={concern.path} patch={patch} line={line} onOpen={() => onJump(concern.path, line)} />
       )}
       <div className="mt-1 flex gap-2">
-        {Boolean(c.path) && (
+        {Boolean(concern.path) && (
           <button
             type="button"
             className="btn btn-ghost py-0 font-mono text-[11.5px]"
-            onClick={() => onJump(c.path, line)}
+            onClick={() => onJump(concern.path, line)}
           >
-            {c.path}
+            {concern.path}
             {line !== null && `:${line}`}
           </button>
         )}
         {canDraft === true && line !== null && (
-          <button type="button" className="btn py-0" onClick={() => onDraft(c.path, line, `${c.title}\n\n${c.detail}`)}>
+          <button
+            type="button"
+            className="btn py-0"
+            onClick={() => onDraft(concern.path, line, `${concern.title}\n\n${concern.detail}`)}
+          >
             + Draft comment
           </button>
         )}
@@ -119,19 +123,19 @@ function FocusCard({ focus, onJump }: { focus: readonly FocusItem[]; onJump: Jum
   return (
     <Card title="Review these" tone="focus">
       <ul className="space-y-1.5">
-        {focus.map((f) => (
-          <li key={`${f.path}:${f.lines}`} className="flex gap-2">
-            <span className={cx('mt-1.5 size-1.5 shrink-0 rounded-full', PRIORITY_DOTS[f.priority])} />
+        {focus.map((focusItem) => (
+          <li key={`${focusItem.path}:${focusItem.lines}`} className="flex gap-2">
+            <span className={cx('mt-1.5 size-1.5 shrink-0 rounded-full', PRIORITY_DOTS[focusItem.priority])} />
             <div className="min-w-0">
               <button
                 type="button"
                 className="font-mono text-[12px] text-accent hover:underline"
-                onClick={() => onJump(f.path, firstLineOf(f.lines))}
+                onClick={() => onJump(focusItem.path, firstLineOf(focusItem.lines))}
               >
-                {f.path}
-                {Boolean(f.lines) && `:${f.lines}`}
+                {focusItem.path}
+                {Boolean(focusItem.lines) && `:${focusItem.lines}`}
               </button>
-              <div className="text-muted">{f.reason}</div>
+              <div className="text-muted">{focusItem.reason}</div>
             </div>
           </li>
         ))}
@@ -148,12 +152,12 @@ function ConcernsCard(
   return (
     <Card title="Possible issues" tone="danger">
       <ul className="space-y-3">
-        {props.concerns.map((c) => (
+        {props.concerns.map((concern) => (
           <ConcernItem
-            key={`${c.path}:${c.line}:${c.title}`}
-            concern={c}
-            patch={patchOfConcern(c, props.patchOf)}
-            canDraft={Boolean(c.path) && c.line !== null && props.validLine(c.path, c.line)}
+            key={`${concern.path}:${concern.line}:${concern.title}`}
+            concern={concern}
+            patch={patchOfConcern(concern, props.patchOf)}
+            canDraft={Boolean(concern.path) && concern.line !== null && props.validLine(concern.path, concern.line)}
             onJump={props.onJump}
             onDraft={props.onDraft}
           />
@@ -212,11 +216,11 @@ function GuidesCard({ checks }: { checks: readonly GuidelineCheck[] }) {
   return (
     <Card title="Against your guides">
       <ul className="space-y-1.5">
-        {checks.map((g) => (
-          <li key={g.guideline} className="flex gap-2">
-            <span className={CHECK_LOOK[g.status].className}>{CHECK_LOOK[g.status].mark}</span>
+        {checks.map((check) => (
+          <li key={check.guideline} className="flex gap-2">
+            <span className={CHECK_LOOK[check.status].className}>{CHECK_LOOK[check.status].mark}</span>
             <span>
-              <span className="font-medium">{g.guideline}</span> <span className="text-muted">— {g.note}</span>
+              <span className="font-medium">{check.guideline}</span> <span className="text-muted">— {check.note}</span>
             </span>
           </li>
         ))}
@@ -229,10 +233,10 @@ function SkimCard({ ignore }: { ignore: Briefing['ignore'] }) {
   return (
     <Card title="Safe to skim">
       <ul className="space-y-1">
-        {ignore.map((f) => (
-          <li key={f.path} className="flex gap-2 text-muted">
-            <span className="font-mono text-[12px]">{f.path}</span>
-            <span>— {f.reason}</span>
+        {ignore.map((skipped) => (
+          <li key={skipped.path} className="flex gap-2 text-muted">
+            <span className="font-mono text-[12px]">{skipped.path}</span>
+            <span>— {skipped.reason}</span>
           </li>
         ))}
       </ul>
@@ -285,21 +289,21 @@ export function BriefingPanel(props: BriefingPanelProps) {
   if (!record) {
     return <BriefingInvite {...props} />
   }
-  const b = record.briefing
+  const { briefing } = record
   return (
     <div className="space-y-4">
       <BriefingHeader {...props} record={record} />
       <Card title="Gist">
-        <p className="mb-2 text-muted italic">{b.intent}</p>
-        <Markdown>{b.gist}</Markdown>
+        <p className="mb-2 text-muted italic">{briefing.intent}</p>
+        <Markdown>{briefing.gist}</Markdown>
       </Card>
-      {b.focus.length > 0 && <FocusCard focus={b.focus} onJump={props.onJump} />}
-      {b.concerns.length > 0 && <ConcernsCard {...props} concerns={b.concerns} />}
-      {b.questions.length > 0 && (
-        <QuestionsCard questions={b.questions} summary={props.summary} onAdd={props.onAddToSummary} />
+      {briefing.focus.length > 0 && <FocusCard focus={briefing.focus} onJump={props.onJump} />}
+      {briefing.concerns.length > 0 && <ConcernsCard {...props} concerns={briefing.concerns} />}
+      {briefing.questions.length > 0 && (
+        <QuestionsCard questions={briefing.questions} summary={props.summary} onAdd={props.onAddToSummary} />
       )}
-      {b.guidelineChecks.length > 0 && <GuidesCard checks={b.guidelineChecks} />}
-      {b.ignore.length > 0 && <SkimCard ignore={b.ignore} />}
+      {briefing.guidelineChecks.length > 0 && <GuidesCard checks={briefing.guidelineChecks} />}
+      {briefing.ignore.length > 0 && <SkimCard ignore={briefing.ignore} />}
       {record.omittedFiles.length > 0 && (
         <p className="text-[12px] text-muted">
           Not sent to Claude (binary or too large): {record.omittedFiles.join(', ')}

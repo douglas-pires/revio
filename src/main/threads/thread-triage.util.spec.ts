@@ -42,8 +42,8 @@ function makePr(author: string, threads: RawThread[]): RawThreadPr {
 
 describe('triageThread', () => {
   it('on your PR, a reviewer comment waits on you', () => {
-    const t = makeThread([comment(user('bo'), 't1')])
-    expect(triageThread(t, makePr('me', [t]), 'me')).toMatchObject({
+    const thread = makeThread([comment(user('bo'), 't1')])
+    expect(triageThread(thread, makePr('me', [thread]), 'me')).toMatchObject({
       waitingOn: 'you',
       lastActivityAt: 't1',
       prAuthor: 'me',
@@ -53,13 +53,13 @@ describe('triageThread', () => {
   })
 
   it('your comment with no answer waits on others', () => {
-    const t = makeThread([comment(user('bo'), 't1'), comment(user('me'), 't2')])
-    expect(triageThread(t, makePr('bo', [t]), 'me')?.waitingOn).toBe('others')
+    const thread = makeThread([comment(user('bo'), 't1'), comment(user('me'), 't2')])
+    expect(triageThread(thread, makePr('bo', [thread]), 'me')?.waitingOn).toBe('others')
   })
 
   it('an answer to your comment on someone else’s PR waits on you', () => {
-    const t = makeThread([comment(user('me'), 't1'), comment(user('bo'), 't2')])
-    expect(triageThread(t, makePr('bo', [t]), 'me')?.waitingOn).toBe('you')
+    const thread = makeThread([comment(user('me'), 't1'), comment(user('bo'), 't2')])
+    expect(triageThread(thread, makePr('bo', [thread]), 'me')?.waitingOn).toBe('you')
   })
 
   it('skips resolved threads and threads you are not part of', () => {
@@ -70,15 +70,15 @@ describe('triageThread', () => {
   })
 
   it('flags bots and drops the line of outdated threads', () => {
-    const t = makeThread([comment(bot('coderabbitai'), 't1')], { isOutdated: true })
-    const out = triageThread(t, makePr('me', [t]), 'me')
+    const thread = makeThread([comment(bot('coderabbitai'), 't1')], { isOutdated: true })
+    const out = triageThread(thread, makePr('me', [thread]), 'me')
     expect(out?.comments[0]?.bot).toBe(true)
     expect(out).toMatchObject({ outdated: true, line: null })
   })
 
   it('treats deleted accounts as someone else', () => {
-    const t = makeThread([comment(user('me'), 't1'), comment(null, 't2')])
-    expect(triageThread(t, makePr('bo', [t]), 'me')).toMatchObject({
+    const thread = makeThread([comment(user('me'), 't1'), comment(null, 't2')])
+    expect(triageThread(thread, makePr('bo', [thread]), 'me')).toMatchObject({
       waitingOn: 'you',
       comments: [{ author: 'me' }, { author: 'ghost' }],
     })
@@ -89,9 +89,8 @@ describe('triageThreads', () => {
   it('lists threads across PRs, longest waiting first', () => {
     const recent = makeThread([comment(user('bo'), '2026-11-15')], { id: 'recent' })
     const old = makeThread([comment(user('bo'), '2026-11-01')], { id: 'old' })
-    expect(triageThreads([makePr('me', [recent, null as never]), makePr('me', [old])], 'me').map((t) => t.id)).toEqual([
-      'old',
-      'recent',
-    ])
+    expect(
+      triageThreads([makePr('me', [recent, null as never]), makePr('me', [old])], 'me').map((thread) => thread.id),
+    ).toEqual(['old', 'recent'])
   })
 })

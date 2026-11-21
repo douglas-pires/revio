@@ -77,7 +77,7 @@ const THEMES = { dark: 'github-dark-default', light: 'github-light-default' } as
 function tokenLines(core: HighlighterCore, code: string, lang: string): Tok[][] {
   return core
     .codeToTokens(code, { lang, themes: THEMES, defaultColor: false })
-    .tokens.map((line) => line.map((t) => ({ text: t.content, style: t.htmlStyle })))
+    .tokens.map((line) => line.map((token) => ({ text: token.content, style: token.htmlStyle })))
 }
 
 /** Owns one Shiki instance and the languages loaded into it. */
@@ -193,18 +193,18 @@ export class TokenHighlighter {
 
     const out = new Map<number, Tok[]>()
     const tokenize = (indices: number[], keep: (row: TokenRow) => boolean) => {
-      const kept = (i: number) => {
-        const row = rows[i]
+      const kept = (rowIndex: number) => {
+        const row = rows[rowIndex]
         return row !== undefined && keep(row)
       }
       if (!indices.some(kept)) {
         return
       }
       try {
-        const lines = tokenLines(core, indices.map((i) => rows[i]?.text).join('\n'), lang)
-        for (const [n, rowIdx] of indices.entries()) {
+        const lines = tokenLines(core, indices.map((index) => rows[index]?.text).join('\n'), lang)
+        for (const [position, rowIdx] of indices.entries()) {
           if (kept(rowIdx)) {
-            out.set(rowIdx, lines[n] ?? [])
+            out.set(rowIdx, lines[position] ?? [])
           }
         }
       } catch {
@@ -215,20 +215,20 @@ export class TokenHighlighter {
     let oldSide: number[] = []
     let newSide: number[] = []
     const flush = () => {
-      tokenize(newSide, (r) => r.kind !== 'del')
-      tokenize(oldSide, (r) => r.kind === 'del')
+      tokenize(newSide, (row) => row.kind !== 'del')
+      tokenize(oldSide, (row) => row.kind === 'del')
       oldSide = []
       newSide = []
     }
-    for (const [i, r] of rows.entries()) {
-      if (r.kind === 'hunk') {
+    for (const [rowIndex, row] of rows.entries()) {
+      if (row.kind === 'hunk') {
         flush()
       }
-      if (r.kind === 'del' || r.kind === 'ctx') {
-        oldSide.push(i)
+      if (row.kind === 'del' || row.kind === 'ctx') {
+        oldSide.push(rowIndex)
       }
-      if (r.kind === 'add' || r.kind === 'ctx') {
-        newSide.push(i)
+      if (row.kind === 'add' || row.kind === 'ctx') {
+        newSide.push(rowIndex)
       }
     }
     flush()

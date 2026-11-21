@@ -14,7 +14,7 @@ describe('matchGuidelines', () => {
 
   it('orders general to specific and skips folders the PR does not touch', () => {
     const out = matchGuidelines(all, 'acme/web', ['apps/web/src/a.ts', 'apps/web/b.ts', 'README.md'])
-    expect(out.map((x) => [x.id, x.matchedFiles])).toEqual([
+    expect(out.map((match) => [match.id, match.matchedFiles])).toEqual([
       ['global', 3],
       ['web', 3],
       ['web-app', 2],
@@ -27,7 +27,7 @@ describe('matchGuidelines', () => {
   })
 
   it('ignores other repositories', () => {
-    expect(matchGuidelines(all, 'acme/api', ['apps/web/a.ts']).map((x) => x.id)).toEqual(['global'])
+    expect(matchGuidelines(all, 'acme/api', ['apps/web/a.ts']).map((match) => match.id)).toEqual(['global'])
   })
 })
 

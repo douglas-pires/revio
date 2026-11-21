@@ -44,7 +44,7 @@ function submitLabel(event: ReviewEvent, busy: boolean) {
   if (busy) {
     return 'Submitting…'
   }
-  return EVENTS.find((e) => e.value === event)?.submit ?? 'Submit review'
+  return EVENTS.find((choice) => choice.value === event)?.submit ?? 'Submit review'
 }
 
 /** Authors can only comment on their own pull request; others start from the event they picked. */
@@ -74,11 +74,11 @@ function EventChoices({
 }) {
   return (
     <div className="space-y-1">
-      {EVENTS.map((o) => {
-        const blocked = isAuthor && o.value !== 'COMMENT'
+      {EVENTS.map((choice) => {
+        const blocked = isAuthor && choice.value !== 'COMMENT'
         return (
           <label
-            key={o.value}
+            key={choice.value}
             className={cx(
               'flex gap-2 rounded px-1 py-1',
               blocked && 'cursor-not-allowed opacity-50',
@@ -88,15 +88,15 @@ function EventChoices({
             <input
               type="radio"
               name="event"
-              checked={event === o.value}
+              checked={event === choice.value}
               disabled={blocked}
-              onChange={() => onChange(o.value)}
+              onChange={() => onChange(choice.value)}
             />
             <span>
-              <span className={cx('font-medium', o.tone)}>{o.label}</span>
+              <span className={cx('font-medium', choice.tone)}>{choice.label}</span>
               <span className="block text-[12px] text-muted">
                 {Boolean(blocked) && "You can't approve or block your own pull request."}
-                {!blocked && o.hint}
+                {!blocked && choice.hint}
               </span>
             </span>
           </label>
@@ -115,8 +115,8 @@ function useSubmitReview(onSubmit: (event: ReviewEvent) => Promise<string>) {
     setError(null)
     try {
       await onSubmit(event)
-    } catch (e) {
-      setError(errorMessage(e))
+    } catch (failure) {
+      setError(errorMessage(failure))
     } finally {
       setBusy(false)
     }
@@ -138,7 +138,7 @@ export function ReviewPopover(props: {
   initialEvent: ReviewEvent
   isAuthor: boolean
   body: string
-  setBody: (b: string) => void
+  setBody: (body: string) => void
   draftCount: number
   onClose: () => void
   onSubmit: (event: ReviewEvent) => Promise<string>
@@ -161,12 +161,12 @@ export function ReviewPopover(props: {
         className="input mb-2 min-h-28 resize-y"
         placeholder={placeholderFor(event)}
         value={props.body}
-        onChange={(e) => props.setBody(e.target.value)}
-        onKeyDown={(e) => {
-          if (e.key === 'Enter' && e.metaKey) {
+        onChange={(changeEvent) => props.setBody(changeEvent.target.value)}
+        onKeyDown={(keyEvent) => {
+          if (keyEvent.key === 'Enter' && keyEvent.metaKey) {
             submitIfReady()
           }
-          if (e.key === 'Escape') {
+          if (keyEvent.key === 'Escape') {
             props.onClose()
           }
         }}

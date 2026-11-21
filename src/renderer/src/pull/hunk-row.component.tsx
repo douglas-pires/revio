@@ -2,17 +2,17 @@ import type { GapMarker, HunkHeader } from './diff.util.ts'
 
 import { EXPAND_STEP, type ExpandDirection } from './diff-expand.util.ts'
 
-function hiddenLines(n: number | null) {
-  if (n === 1) {
+function hiddenLines(count: number | null) {
+  if (count === 1) {
     return 'the hidden line'
   }
-  return `all ${n} hidden lines`
+  return `all ${count} hidden lines`
 }
 
-const ARROWS: Record<ExpandDirection, { icon: string; title: (n: number | null) => string }> = {
+const ARROWS: Record<ExpandDirection, { icon: string; title: (hiddenCount: number | null) => string }> = {
   up: { icon: '↑', title: () => `Show ${EXPAND_STEP} more lines above` },
   down: { icon: '↓', title: () => `Show ${EXPAND_STEP} more lines below` },
-  all: { icon: '↕', title: (n) => `Show ${hiddenLines(n)}` },
+  all: { icon: '↕', title: (count) => `Show ${hiddenLines(count)}` },
 }
 
 /** Which buttons a separator offers: one when little is hidden, else the directions that make sense where it sits. */
@@ -52,16 +52,16 @@ function ExpandButtons({
 }) {
   return (
     <span className="flex shrink-0 flex-col border-r border-line select-none">
-      {directionsFor(gap).map((d) => (
+      {directionsFor(gap).map((direction) => (
         <button
           type="button"
-          key={d}
+          key={direction}
           className="flex-1 px-3 leading-[18px] hover:bg-accent/20 hover:text-fg"
-          title={ARROWS[d].title(gap.hidden)}
-          aria-label={ARROWS[d].title(gap.hidden)}
-          onClick={() => onExpand(gap.index, d)}
+          title={ARROWS[direction].title(gap.hidden)}
+          aria-label={ARROWS[direction].title(gap.hidden)}
+          onClick={() => onExpand(gap.index, direction)}
         >
-          {ARROWS[d].icon}
+          {ARROWS[direction].icon}
         </button>
       ))}
     </span>

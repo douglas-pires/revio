@@ -64,7 +64,7 @@ describe('mergeSnapshots: guides', () => {
       guidelines: [guide('a', '2026-11-19T10:00:00Z', 'theirs'), guide('c', '2026-11-02T00:00:00Z')],
     })
     const out = mergeSnapshots(local, remote, NOW)
-    expect(out.guidelines.map((g) => [g.id, g.title])).toEqual([
+    expect(out.guidelines.map((guideline) => [guideline.id, guideline.title])).toEqual([
       ['a', 'mine'],
       ['b', 'b'],
       ['c', 'c'],
@@ -83,7 +83,7 @@ describe('mergeSnapshots: guides', () => {
   it('keeps a guide edited after another Mac deleted it', () => {
     const local = snapshot({ guidelines: [guide('a', '2026-11-16T00:00:00Z')] })
     const remote = snapshot({ deletedGuidelines: { a: '2026-11-15T00:00:00Z' } })
-    expect(mergeSnapshots(local, remote, NOW).guidelines.map((g) => g.id)).toEqual(['a'])
+    expect(mergeSnapshots(local, remote, NOW).guidelines.map((guideline) => guideline.id)).toEqual(['a'])
   })
 
   it('keeps the latest time of a deletion and forgets deletions older than 90 days', () => {
@@ -95,24 +95,29 @@ describe('mergeSnapshots: guides', () => {
 
 describe('mergeSnapshots: convergence', () => {
   it('gives the same result whichever Mac merges first', () => {
-    const a = snapshot({
+    const localSnapshot = snapshot({
       settings: { claudeModel: { value: 'a', updatedAt: '2026-11-20T01:00:00Z' } },
       guidelines: [guide('x', '2026-11-20T01:00:00Z', 'a')],
     })
-    const b = snapshot({
+    const remoteSnapshot = snapshot({
       settings: { claudeModel: { value: 'b', updatedAt: '2026-11-20T02:00:00Z' } },
       guidelines: [guide('x', '2026-11-20T00:00:00Z', 'b'), guide('y', '2026-11-20T00:00:00Z')],
       deletedGuidelines: { z: '2026-11-19T00:00:00Z' },
     })
-    expect(sameSnapshot(mergeSnapshots(a, b, NOW), mergeSnapshots(b, a, NOW))).toBe(true)
+    expect(
+      sameSnapshot(
+        mergeSnapshots(localSnapshot, remoteSnapshot, NOW),
+        mergeSnapshots(remoteSnapshot, localSnapshot, NOW),
+      ),
+    ).toBe(true)
   })
 
   it('changes nothing when merging a snapshot with itself', () => {
-    const a = snapshot({
+    const localSnapshot = snapshot({
       guidelines: [guide('x', '2026-11-20T01:00:00Z')],
       deletedGuidelines: { y: '2026-11-19T00:00:00Z' },
     })
-    expect(sameSnapshot(mergeSnapshots(a, a, NOW), a)).toBe(true)
+    expect(sameSnapshot(mergeSnapshots(localSnapshot, localSnapshot, NOW), localSnapshot)).toBe(true)
   })
 })
 
@@ -144,7 +149,7 @@ describe('parseSyncFile', () => {
     }
     const read = parsed.snapshot
     expect(Object.keys(read.settings)).toEqual(['pollIntervalMinutes'])
-    expect(read.guidelines.map((g) => g.id)).toEqual(['a'])
+    expect(read.guidelines.map((guideline) => guideline.id)).toEqual(['a'])
     expect(read.deletedGuidelines).toEqual({ b: '2026-11-19T00:00:00Z' })
   })
 

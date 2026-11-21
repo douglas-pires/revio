@@ -15,15 +15,15 @@ export function selectionBlock(sel: AskContext, tag = 'selection') {
 }
 
 /** A question as sent: the lines added for it first, then the question. */
-export function questionText(m: AskMessage) {
-  const added = (m.context ?? []).map((c) => selectionBlock(c, 'added_selection'))
-  return [...added, m.content].join('\n\n')
+export function questionText(message: AskMessage) {
+  const added = (message.context ?? []).map((selection) => selectionBlock(selection, 'added_selection'))
+  return [...added, message.content].join('\n\n')
 }
 
 /** A message as sent: questions with their added lines, answers as they were. */
-export function messageText(m: AskMessage) {
-  if (m.role === 'user') {
-    return questionText(m)
+export function messageText(message: AskMessage) {
+  if (message.role === 'user') {
+    return questionText(message)
   }
-  return m.content
+  return message.content
 }

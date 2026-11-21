@@ -6,30 +6,30 @@ const MIN_STACK_SIZE = 2
 const toBranchKey = (pr: MiniPr, branch: string) => `${pr.repository.nameWithOwner}|${branch}`
 
 function findParent(nodes: MiniPr[]) {
-  const byHead = new Map(nodes.map((n) => [toBranchKey(n, n.headRefName), n]))
-  return (n: MiniPr) => {
+  const byHead = new Map(nodes.map((node) => [toBranchKey(node, node.headRefName), node]))
+  return (pull: MiniPr) => {
     // A PR on the default branch is a stack bottom, even when a fork PR's head branch is also called "main".
-    if (n.baseRefName === n.repository.defaultBranchRef?.name) {
+    if (pull.baseRefName === pull.repository.defaultBranchRef?.name) {
       return
     }
-    const parent = byHead.get(toBranchKey(n, n.baseRefName))
-    if (parent?.id === n.id) {
+    const parent = byHead.get(toBranchKey(pull, pull.baseRefName))
+    if (parent?.id === pull.id) {
       return
     }
     return parent
   }
 }
 
-function groupChildren(nodes: MiniPr[], parentOf: (n: MiniPr) => MiniPr | undefined) {
+function groupChildren(nodes: MiniPr[], parentOf: (pull: MiniPr) => MiniPr | undefined) {
   const children = new Map<string, MiniPr[]>()
-  for (const n of nodes) {
-    const parent = parentOf(n)
+  for (const node of nodes) {
+    const parent = parentOf(node)
     if (parent) {
-      children.set(parent.id, [...(children.get(parent.id) ?? []), n])
+      children.set(parent.id, [...(children.get(parent.id) ?? []), node])
     }
   }
   for (const list of children.values()) {
-    list.sort((a, b) => a.number - b.number)
+    list.sort((left, right) => left.number - right.number)
   }
   return children
 }
@@ -51,21 +51,21 @@ function walkDown(root: MiniPr, children: Map<string, MiniPr[]>, seen: Set<strin
   return out
 }
 
-function toStackPr(n: MiniPr, tag: InboxTag, staleIds: Set<string>): StackPr {
+function toStackPr(pull: MiniPr, tag: InboxTag, staleIds: Set<string>): StackPr {
   return {
-    id: n.id,
-    number: n.number,
-    title: n.title,
-    url: n.url,
-    repo: n.repository.nameWithOwner,
-    author: n.author?.login ?? 'ghost',
-    authorAvatar: n.author?.avatarUrl ?? '',
-    headRef: n.headRefName,
-    baseRef: n.baseRefName,
-    isDraft: n.isDraft,
-    reviewDecision: n.reviewDecision,
-    inbox: tag(n.id),
-    stale: staleIds.has(n.id),
+    id: pull.id,
+    number: pull.number,
+    title: pull.title,
+    url: pull.url,
+    repo: pull.repository.nameWithOwner,
+    author: pull.author?.login ?? 'ghost',
+    authorAvatar: pull.author?.avatarUrl ?? '',
+    headRef: pull.headRefName,
+    baseRef: pull.baseRefName,
+    isDraft: pull.isDraft,
+    reviewDecision: pull.reviewDecision,
+    inbox: tag(pull.id),
+    stale: staleIds.has(pull.id),
   }
 }
 
@@ -86,24 +86,24 @@ export interface MiniPr {
 /** Says where a PR sits in your inbox. */
 export type InboxTag = (id: string) => StackPr['inbox']
 
-export function summaryToMini(p: PullSummary): MiniPr {
+export function summaryToMini(summary: PullSummary): MiniPr {
   return {
-    id: p.id,
-    number: p.number,
-    title: p.title,
-    url: p.url,
-    isDraft: p.isDraft,
-    headRefName: p.headRef,
-    baseRefName: p.baseRef,
-    reviewDecision: p.reviewDecision,
-    author: { login: p.author, avatarUrl: p.authorAvatar },
-    repository: { nameWithOwner: p.repo, defaultBranchRef: { name: p.defaultBranch } },
+    id: summary.id,
+    number: summary.number,
+    title: summary.title,
+    url: summary.url,
+    isDraft: summary.isDraft,
+    headRefName: summary.headRef,
+    baseRefName: summary.baseRef,
+    reviewDecision: summary.reviewDecision,
+    author: { login: summary.author, avatarUrl: summary.authorAvatar },
+    repository: { nameWithOwner: summary.repo, defaultBranchRef: { name: summary.defaultBranch } },
   }
 }
 
 export function tagInbox(requested: readonly { id: string }[], reviewed: readonly { id: string }[]): InboxTag {
-  const req = new Set(requested.map((p) => p.id))
-  const rev = new Set(reviewed.map((p) => p.id))
+  const req = new Set(requested.map((pull) => pull.id))
+  const rev = new Set(reviewed.map((pull) => pull.id))
   return (id) => {
     if (req.has(id)) {
       return 'requested'
@@ -130,7 +130,7 @@ export function buildStacks(
   const children = groupChildren(nodes, parentOf)
   const seen = new Set<string>()
   const stacks: Stack[] = []
-  for (const root of nodes.filter((n) => !(parentOf(n) || seen.has(n.id)))) {
+  for (const root of nodes.filter((node) => !(parentOf(node) || seen.has(node.id)))) {
     const members = walkDown(root, children, seen)
     if (members.length >= MIN_STACK_SIZE && members.some(({ pr }) => seedIds.has(pr.id))) {
       stacks.push({
@@ -147,10 +147,13 @@ export function buildStacks(
 /** Refreshes inbox tags and staleness on stacks found earlier, and re-marks positions on the summaries. */
 export function withInboxTags(stacks: Stack[], requested: PullSummary[], reviewed: PullSummary[]): Stack[] {
   const tag = tagInbox(requested, reviewed)
-  const stale = new Set(requested.filter((p) => p.stale).map((p) => p.id))
+  const stale = new Set(requested.filter((pull) => pull.stale).map((pull) => pull.id))
   const fresh = stacks.map((st) => ({
     ...st,
-    nodes: st.nodes.map((n) => ({ ...n, pr: { ...n.pr, inbox: tag(n.pr.id), stale: stale.has(n.pr.id) } })),
+    nodes: st.nodes.map((node) => ({
+      ...node,
+      pr: { ...node.pr, inbox: tag(node.pr.id), stale: stale.has(node.pr.id) },
+    })),
   }))
   markStackPositions(fresh, [...requested, ...reviewed])
   return fresh
@@ -159,11 +162,11 @@ export function withInboxTags(stacks: Stack[], requested: PullSummary[], reviewe
 /** Sets `stack` (1-based position from the bottom) on each summary that belongs to a stack. Mutates `prs`. */
 export function markStackPositions(stacks: Stack[], prs: PullSummary[]) {
   for (const st of stacks) {
-    const order = st.nodes.map((n) => n.pr.id)
-    for (const p of prs) {
-      const i = order.indexOf(p.id)
-      if (i >= 0) {
-        p.stack = { id: st.id, position: i + 1, size: order.length }
+    const order = st.nodes.map((node) => node.pr.id)
+    for (const pull of prs) {
+      const position = order.indexOf(pull.id)
+      if (position >= 0) {
+        pull.stack = { id: st.id, position: position + 1, size: order.length }
       }
     }
   }

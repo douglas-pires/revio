@@ -45,8 +45,8 @@ function gitConfigOf(dir: string): string {
 function subfoldersOf(dir: string): string[] {
   try {
     return readdirSync(dir, { withFileTypes: true })
-      .filter((d) => d.isDirectory() && !d.name.startsWith('.') && !SKIP.has(d.name))
-      .map((d) => join(dir, d.name))
+      .filter((entry) => entry.isDirectory() && !entry.name.startsWith('.') && !SKIP.has(entry.name))
+      .map((entry) => join(dir, entry.name))
   } catch {
     return []
   }

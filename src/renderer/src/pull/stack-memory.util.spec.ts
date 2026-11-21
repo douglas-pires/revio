@@ -33,7 +33,7 @@ const stack = (id: string, ...numbers: number[]): Stack => ({
   id,
   repo: 'acme/web',
   base: 'main',
-  nodes: numbers.map((n) => ({ pr: pr(n), depth: 0 })),
+  nodes: numbers.map((number) => ({ pr: pr(number), depth: 0 })),
 })
 
 const ref = (number: number) => ({ repo: 'acme/web', number })

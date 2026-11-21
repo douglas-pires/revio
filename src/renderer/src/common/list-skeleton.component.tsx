@@ -15,9 +15,9 @@ export function ListSkeleton({
 }) {
   return (
     <div role="status" aria-label="Loading" className="space-y-2">
-      {ROW_KEYS.slice(0, rows).map((k) => (
+      {ROW_KEYS.slice(0, rows).map((rowKey) => (
         <div
-          key={k}
+          key={rowKey}
           className={cx('animate-pulse rounded-lg', rowHeight, onPanel && 'bg-panel-2', !onPanel && 'bg-panel')}
         />
       ))}

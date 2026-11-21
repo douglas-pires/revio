@@ -3,11 +3,11 @@ import { useEffect, useState } from 'react'
 import { type DiffRow, lineRangeOfRows } from './diff.util.ts'
 
 /** The node itself when it is an element, else the element holding it (a text node's parent). */
-function elementOf(n: Node | null) {
-  if (n instanceof Element) {
-    return n
+function elementOf(node: Node | null) {
+  if (node instanceof Element) {
+    return node
   }
-  return n?.parentElement
+  return node?.parentElement
 }
 
 export interface FloatingAsk {
@@ -30,25 +30,25 @@ export function useTextSelectionAsk(rows: readonly DiffRow[]) {
     return () => document.removeEventListener('mousedown', hide)
   }, [floating])
 
-  const onMouseUp = (e: React.MouseEvent) => {
-    const s = globalThis.getSelection()
-    if (!s || s.isCollapsed) {
+  const onMouseUp = (event: React.MouseEvent) => {
+    const selection = globalThis.getSelection()
+    if (!selection || selection.isCollapsed) {
       return
     }
-    const cellOf = (n: Node | null) => elementOf(n)?.closest<HTMLElement>('td[data-row]')
-    const a = cellOf(s.anchorNode)
-    const b = cellOf(s.focusNode)
-    if (!(a && b)) {
+    const cellOf = (node: Node | null) => elementOf(node)?.closest<HTMLElement>('td[data-row]')
+    const anchorCell = cellOf(selection.anchorNode)
+    const focusCell = cellOf(selection.focusNode)
+    if (!(anchorCell && focusCell)) {
       return
     }
     const range = lineRangeOfRows(
       rows,
-      Number(a.dataset.row),
-      Number(b.dataset.row),
-      a.dataset.half as DiffSide | undefined,
+      Number(anchorCell.dataset.row),
+      Number(focusCell.dataset.row),
+      anchorCell.dataset.half as DiffSide | undefined,
     )
     if (range) {
-      setFloating({ x: e.clientX, y: e.clientY, ...range })
+      setFloating({ x: event.clientX, y: event.clientY, ...range })
     }
   }
 

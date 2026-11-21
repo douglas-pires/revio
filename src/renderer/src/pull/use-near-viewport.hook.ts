@@ -18,11 +18,11 @@ export function useNearViewport(ref: RefObject<HTMLElement | null>, keepAlive: b
       return
     }
     const root = el.closest<HTMLElement>('[data-scroll-root]')
-    const enter = new IntersectionObserver(([e]) => e?.isIntersecting && setNear(true), {
+    const enter = new IntersectionObserver(([entry]) => entry?.isIntersecting && setNear(true), {
       root,
       rootMargin: ENTER_MARGIN,
     })
-    const leave = new IntersectionObserver(([e]) => e && !e.isIntersecting && setNear(false), {
+    const leave = new IntersectionObserver(([entry]) => entry && !entry.isIntersecting && setNear(false), {
       root,
       rootMargin: LEAVE_MARGIN,
     })

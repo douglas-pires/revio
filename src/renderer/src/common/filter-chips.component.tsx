@@ -14,20 +14,20 @@ export function FilterChips({ label, chips }: { label: string; chips: readonly F
   return (
     <div className="mb-4 flex flex-wrap items-center gap-1.5 text-[12px]">
       <span className="mr-1 text-muted">{label}</span>
-      {chips.map((c) => (
+      {chips.map((chip) => (
         <button
           type="button"
-          key={c.key}
-          title={c.title}
-          aria-pressed={c.active}
-          onClick={c.onPick}
+          key={chip.key}
+          title={chip.title}
+          aria-pressed={chip.active}
+          onClick={chip.onPick}
           className={cx(
             'rounded-full border px-2.5 py-0.5 whitespace-nowrap',
-            c.active && 'border-accent bg-accent/15 text-accent',
-            !c.active && 'border-line text-muted hover:text-fg',
+            chip.active && 'border-accent bg-accent/15 text-accent',
+            !chip.active && 'border-line text-muted hover:text-fg',
           )}
         >
-          {c.label} <span className="font-mono text-[11px] opacity-80">{c.count}</span>
+          {chip.label} <span className="font-mono text-[11px] opacity-80">{chip.count}</span>
         </button>
       ))}
     </div>

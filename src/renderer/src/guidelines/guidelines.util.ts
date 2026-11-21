@@ -4,22 +4,22 @@ const TRAILING_SLASH = /\/$/u
 
 const ALL_REPOSITORIES = 'All repositories'
 
-const groupNameOf = (g: Guideline) => {
-  if (g.repo === '*') {
+const groupNameOf = (guideline: Guideline) => {
+  if (guideline.repo === '*') {
     return ALL_REPOSITORIES
   }
-  return g.repo
+  return guideline.repo
 }
 
 /** "All repositories" first, then repositories by name. */
-function byGroupName(a: string, b: string) {
-  if (a === ALL_REPOSITORIES) {
+function byGroupName(left: string, right: string) {
+  if (left === ALL_REPOSITORIES) {
     return -1
   }
-  if (b === ALL_REPOSITORIES) {
+  if (right === ALL_REPOSITORIES) {
     return 1
   }
-  return a.localeCompare(b)
+  return left.localeCompare(right)
 }
 
 /** A guide being edited: a saved one, or a new one without an id yet. */
@@ -44,22 +44,22 @@ export function newDraft(repo: string, path = ''): Draft {
 }
 
 /** The title a guide gets when left blank: Global, its folder, or its repository's name. */
-export function defaultTitle(d: Draft) {
-  if (d.repo === '*') {
+export function defaultTitle(draft: Draft) {
+  if (draft.repo === '*') {
     return 'Global'
   }
-  if (d.path) {
-    return d.path.replace(TRAILING_SLASH, '')
+  if (draft.path) {
+    return draft.path.replace(TRAILING_SLASH, '')
   }
-  return d.repo.split('/')[1] || 'Guide'
+  return draft.repo.split('/')[1] || 'Guide'
 }
 
 /** Guides grouped by repository for the list, each group sorted by folder. */
 export function groupGuides(list: readonly Guideline[]): [string, Guideline[]][] {
   const groups = new Map<string, Guideline[]>()
-  for (const g of [...list].sort((a, b) => a.path.localeCompare(b.path))) {
-    const name = groupNameOf(g)
-    groups.set(name, [...(groups.get(name) ?? []), g])
+  for (const guideline of [...list].sort((left, right) => left.path.localeCompare(right.path))) {
+    const name = groupNameOf(guideline)
+    groups.set(name, [...(groups.get(name) ?? []), guideline])
   }
-  return [...groups.entries()].sort(([a], [b]) => byGroupName(a, b))
+  return [...groups.entries()].sort(([leftName], [rightName]) => byGroupName(leftName, rightName))
 }

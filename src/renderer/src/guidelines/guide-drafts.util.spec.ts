@@ -34,8 +34,8 @@ describe('guide drafts', () => {
   })
 
   it('keys a guide not saved yet as new', () => {
-    const d = { ...newDraft('acme/payments'), title: 'Retries' }
-    expect(Object.keys(withDraft({}, d, undefined))).toEqual(['new'])
+    const draft = { ...newDraft('acme/payments'), title: 'Retries' }
+    expect(Object.keys(withDraft({}, draft, undefined))).toEqual(['new'])
   })
 
   it('reads stored drafts, skipping anything malformed', () => {

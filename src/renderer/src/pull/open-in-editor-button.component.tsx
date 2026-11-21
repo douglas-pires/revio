@@ -70,7 +70,7 @@ export function OpenInEditorButton({ onOpen }: { onOpen: () => Promise<void> }) 
           setState({ kind: 'busy' })
           onOpen().then(
             () => setState({ kind: 'idle' }),
-            (e) => setState({ kind: 'failed', reason: errorMessage(e) }),
+            (failure) => setState({ kind: 'failed', reason: errorMessage(failure) }),
           )
         }}
       >

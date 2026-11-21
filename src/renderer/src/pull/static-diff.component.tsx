@@ -15,7 +15,7 @@ function useStaticTokens(path: string, rows: readonly DiffRow[], sourceLength: n
     let live = true
     highlighter
       .highlightRows(path, rows, sourceLength)
-      .then((t) => live && setTokens(t))
+      .then((loadedTokens) => live && setTokens(loadedTokens))
       .catch(() => {
         // Unhighlighted rows are still readable; nothing to report.
       })
@@ -42,7 +42,7 @@ export function StaticDiff({
   return (
     <table className="w-full border-collapse font-mono text-[11.5px] leading-[18px]">
       <tbody>
-        {rows.map((row, i) => {
+        {rows.map((row, index) => {
           if (row.kind === 'hunk') {
             return (
               <tr key={rowKey(row)} className="bg-hunk text-muted">
@@ -63,7 +63,7 @@ export function StaticDiff({
               </td>
               <td className="w-4 text-muted select-none">{DIFF_SIGNS[row.kind]}</td>
               <td className="pr-3 break-all whitespace-pre-wrap">
-                <TokenText tokens={tokens?.get(i)} text={row.text} />
+                <TokenText tokens={tokens?.get(index)} text={row.text} />
               </td>
             </tr>
           )

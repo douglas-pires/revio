@@ -117,22 +117,22 @@ function pullHandlers({ store, poller, pulls }: ApiDeps): Pick<ApiHandlers, Pull
     getStackComments: (stack) => fetchStackComments(stack),
     getLocalState: (ref) => store.pull(pullKey(ref)),
     saveDrafts: (ref, drafts) =>
-      store.updatePull(pullKey(ref), (s) => {
-        s.drafts = drafts
+      store.updatePull(pullKey(ref), (pullState) => {
+        pullState.drafts = drafts
       }),
     setViewed: (ref, path, sha) =>
-      store.updatePull(pullKey(ref), (s) => {
+      store.updatePull(pullKey(ref), (pullState) => {
         if (sha) {
-          s.viewed[path] = sha
+          pullState.viewed[path] = sha
         } else {
-          delete s.viewed[path]
+          delete pullState.viewed[path]
         }
       }),
     submitReview: async (input) => {
       const key = pullKey(input)
       const result = await submitReview(input, store.pull(key).drafts)
-      store.updatePull(key, (s) => {
-        s.drafts = []
+      store.updatePull(key, (pullState) => {
+        pullState.drafts = []
       })
       // The review changed the PR; the next open should fetch it fresh.
       pulls.forget(input)
@@ -147,8 +147,8 @@ function pullHandlers({ store, poller, pulls }: ApiDeps): Pick<ApiHandlers, Pull
       return reactions
     },
     saveAsks: (ref, asks) =>
-      store.updatePull(pullKey(ref), (s) => {
-        s.asks = asks
+      store.updatePull(pullKey(ref), (pullState) => {
+        pullState.asks = asks
       }),
   }
 }
@@ -181,7 +181,7 @@ function guidelineHandlers({
 > {
   return {
     listGuidelines: () => store.guidelines(),
-    saveGuideline: (g) => saveGuideline(g),
+    saveGuideline: (guideline) => saveGuideline(guideline),
     deleteGuideline: (id) => deleteGuideline(id),
     resolveGuidelines: (repo, paths) => resolveGuidelines(repo, paths),
     knownRepos: () => {
@@ -189,13 +189,13 @@ function guidelineHandlers({
       const repos = new Set(
         store
           .guidelines()
-          .map((g) => g.repo)
-          .filter((r) => r !== '*'),
+          .map((guideline) => guideline.repo)
+          .filter((repo) => repo !== '*'),
       )
-      for (const p of [...(inbox?.requested ?? []), ...(inbox?.reviewed ?? [])]) {
-        repos.add(p.repo)
+      for (const pull of [...(inbox?.requested ?? []), ...(inbox?.reviewed ?? [])]) {
+        repos.add(pull.repo)
       }
-      return [...repos].sort((a, b) => a.localeCompare(b))
+      return [...repos].sort((left, right) => left.localeCompare(right))
     },
   }
 }
@@ -208,7 +208,7 @@ function claudeHandlers({ store, pulls, window }: ApiDeps): Pick<ApiHandlers, 'g
       pr,
       guidelines: resolveGuidelines(
         ref.repo,
-        pr.files.map((f) => f.path),
+        pr.files.map((file) => file.path),
       ),
     }
   }
@@ -219,8 +219,8 @@ function claudeHandlers({ store, pulls, window }: ApiDeps): Pick<ApiHandlers, 'g
       const record = await generateBriefing(pr, guidelines, (message) =>
         window.send({ type: 'briefing-progress', key, message }),
       )
-      store.updatePull(key, (s) => {
-        s.briefing = record
+      store.updatePull(key, (pullState) => {
+        pullState.briefing = record
       })
       return record
     },
@@ -272,9 +272,9 @@ export function registerApi(deps: ApiDeps) {
       }
     },
   }
-  ipcMain.handle(IPC.invoke, (e, method: ApiMethod, args: unknown[]) => {
+  ipcMain.handle(IPC.invoke, (_event, method: ApiMethod, args: unknown[]) => {
     // Calls act with the user's GitHub token, so only the app's own page may make them.
-    if (!deps.window.isAppPage(e.senderFrame?.url)) {
+    if (!deps.window.isAppPage(_event.senderFrame?.url)) {
       throw new Error('Revio only answers calls from its own window.')
     }
     // Own keys only, so a name like "constructor" cannot reach Object.prototype.

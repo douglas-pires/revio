@@ -17,7 +17,7 @@ function makeFakeGithub(open: MiniPr[]) {
       const { alias = '', owner, name, field = '', ref = '""' } = groups ?? {}
       const branch = JSON.parse(ref) as string
       const nodes = open.filter(
-        (p) => p.repository.nameWithOwner === `${owner}/${name}` && p[field as 'headRefName'] === branch,
+        (pull) => pull.repository.nameWithOwner === `${owner}/${name}` && pull[field as 'headRefName'] === branch,
       )
       data[alias] = { pullRequests: { nodes } }
     }
@@ -26,20 +26,20 @@ function makeFakeGithub(open: MiniPr[]) {
   return { octokit: { graphql } as unknown as Octokit, graphql }
 }
 
-const a = makeSummary({ id: 'PR_1', number: 1, headRef: 'a', baseRef: 'main' })
-const b = makeSummary({ id: 'PR_2', number: 2, headRef: 'b', baseRef: 'a' })
+const bottom = makeSummary({ id: 'PR_1', number: 1, headRef: 'a', baseRef: 'main' })
+const top = makeSummary({ id: 'PR_2', number: 2, headRef: 'b', baseRef: 'a' })
 
 describe('StackFinder', () => {
   it('walks up and down from a PR in the middle, through PRs outside the inbox', async () => {
     const { octokit } = makeFakeGithub([
-      summaryToMini(a),
-      summaryToMini(b),
+      summaryToMini(bottom),
+      summaryToMini(top),
       makeMiniPr(3, 'c', 'b'),
       makeMiniPr(4, 'd', 'c'),
     ])
-    const requested = [{ ...b }]
+    const requested = [{ ...top }]
     const [stack] = await new StackFinder().stacksForInbox(octokit, requested, [])
-    expect(stack?.nodes.map((n) => [n.pr.number, n.pr.inbox])).toEqual([
+    expect(stack?.nodes.map((node) => [node.pr.number, node.pr.inbox])).toEqual([
       [1, null],
       [2, 'requested'],
       [3, null],
@@ -49,35 +49,35 @@ describe('StackFinder', () => {
   })
 
   it('batches many lookups into queries of at most 40', async () => {
-    const seeds = Array.from({ length: 30 }, (_, i) =>
-      makeSummary({ id: `PR_${i + 10}`, number: i + 10, headRef: `h${i}`, baseRef: `b${i}` }),
+    const seeds = Array.from({ length: 30 }, (_, index) =>
+      makeSummary({ id: `PR_${index + 10}`, number: index + 10, headRef: `h${index}`, baseRef: `b${index}` }),
     )
     const { octokit, graphql } = makeFakeGithub([])
     await new StackFinder().stacksForInbox(octokit, seeds, [])
     expect(graphql).toHaveBeenCalledTimes(2)
-    expect(graphql.mock.calls.map(([q]) => q.match(/pullRequests\(/gu)?.length)).toEqual([40, 20])
+    expect(graphql.mock.calls.map(([query]) => query.match(/pullRequests\(/gu)?.length)).toEqual([40, 20])
   })
 
   it('reuses the last walk while the inbox branches are unchanged, but refreshes tags', async () => {
-    const { octokit, graphql } = makeFakeGithub([summaryToMini(a), summaryToMini(b)])
+    const { octokit, graphql } = makeFakeGithub([summaryToMini(bottom), summaryToMini(top)])
     const finder = new StackFinder()
-    await finder.stacksForInbox(octokit, [{ ...b }], [{ ...a }])
+    await finder.stacksForInbox(octokit, [{ ...top }], [{ ...bottom }])
     const calls = graphql.mock.calls.length
-    const stacks = await finder.stacksForInbox(octokit, [{ ...b, stale: true }], [{ ...a }])
+    const stacks = await finder.stacksForInbox(octokit, [{ ...top, stale: true }], [{ ...bottom }])
     expect(graphql.mock.calls.length).toBe(calls)
     expect(stacks[0]?.nodes[1]?.pr.stale).toBe(true)
 
-    await finder.stacksForInbox(octokit, [{ ...b, baseRef: 'main' }], [{ ...a }])
+    await finder.stacksForInbox(octokit, [{ ...top, baseRef: 'main' }], [{ ...bottom }])
     expect(graphql.mock.calls.length).toBeGreaterThan(calls)
   })
 
   it('falls back to the cached stacks when GitHub fails', async () => {
-    const { octokit, graphql } = makeFakeGithub([summaryToMini(a), summaryToMini(b)])
+    const { octokit, graphql } = makeFakeGithub([summaryToMini(bottom), summaryToMini(top)])
     const finder = new StackFinder()
-    await finder.stacksForInbox(octokit, [{ ...b }], [{ ...a }])
+    await finder.stacksForInbox(octokit, [{ ...top }], [{ ...bottom }])
     graphql.mockRejectedValue(new Error('rate limited'))
     vi.spyOn(console, 'error').mockImplementation(() => undefined)
-    const stacks = await finder.stacksForInbox(octokit, [{ ...b, reviewDecision: 'APPROVED' }], [{ ...a }])
+    const stacks = await finder.stacksForInbox(octokit, [{ ...top, reviewDecision: 'APPROVED' }], [{ ...bottom }])
     expect(stacks).toHaveLength(1)
   })
 })

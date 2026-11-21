@@ -23,36 +23,36 @@ export function UnifiedDiff({
     // biome-ignore lint/a11y/noNoninteractiveElementInteractions: mouseup reads the text selection to offer Ask Claude; it is not a control.
     <table onMouseUp={onMouseUp} className="w-full border-collapse font-mono text-[12px] leading-[20px]">
       <tbody>
-        {rows.map((row, i) => {
+        {rows.map((row, index) => {
           if (row.kind === 'hunk') {
             return <HunkRow key={rowKey(row)} row={row} span={COLUMNS} onExpand={onExpand} />
           }
-          const a = anchorFor(row)
-          const notes = notesFor(keysOf(row), a)
+          const anchor = anchorFor(row)
+          const notes = notesFor(keysOf(row), anchor)
           return (
             <RowGroup key={rowKey(row)}>
               <tr
-                onMouseEnter={() => selection.over(a)}
+                onMouseEnter={() => selection.over(anchor)}
                 data-new-line={row.newNo ?? undefined}
                 data-old-line={row.oldNo ?? undefined}
                 className={cx(
                   'group',
                   rowBg(row.kind),
-                  commented(a) && 'commented-line',
-                  selection.contains(a) && '!bg-accent/20',
+                  commented(anchor) && 'commented-line',
+                  selection.contains(anchor) && '!bg-accent/20',
                 )}
               >
                 <Gutter
                   kind={row.kind}
                   focus={inFocus(row)}
-                  commentable={Boolean(a)}
-                  onDown={(shift) => selection.press(a, shift)}
+                  commentable={Boolean(anchor)}
+                  onDown={(shift) => selection.press(anchor, shift)}
                 >
                   <span className="inline-block w-8">{row.oldNo ?? ''}</span>
                   <span className="inline-block w-8">{row.newNo ?? ''}</span>
                 </Gutter>
                 <Sign kind={row.kind} />
-                <Code row={row} idx={i} tokens={tokens?.get(i)} note={noteFor?.(row)} />
+                <Code row={row} idx={index} tokens={tokens?.get(index)} note={noteFor?.(row)} />
               </tr>
               {Boolean(notes) && (
                 <tr>

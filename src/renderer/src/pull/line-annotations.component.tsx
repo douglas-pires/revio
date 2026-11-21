@@ -24,11 +24,22 @@ export function LineAnnotations(props: {
 }) {
   return (
     <div className="max-w-3xl space-y-2">
-      {props.threads.map((t) => (
-        <ReviewThread key={t[0]?.id} path={props.path} thread={t} allDrafts={props.allDrafts} actions={props.actions} />
+      {props.threads.map((thread) => (
+        <ReviewThread
+          key={thread[0]?.id}
+          path={props.path}
+          thread={thread}
+          allDrafts={props.allDrafts}
+          actions={props.actions}
+        />
       ))}
-      {props.drafts.map((d) => (
-        <DraftView key={d.id} d={d} onUpdate={props.actions.onUpdateDraft} onDelete={props.actions.onDeleteDraft} />
+      {props.drafts.map((draft) => (
+        <DraftView
+          key={draft.id}
+          draft={draft}
+          onUpdate={props.actions.onUpdateDraft}
+          onDelete={props.actions.onDeleteDraft}
+        />
       ))}
       {props.composer !== null && <Composer {...props.composer} codePath={props.path} />}
     </div>

@@ -7,7 +7,7 @@ import type {
 } from '@shared/pull.types.ts'
 import { anchorKey } from './diff.util.ts'
 
-const includesFolded = (text: string, q: string) => text.toLowerCase().includes(q)
+const includesFolded = (text: string, needle: string) => text.toLowerCase().includes(needle)
 
 interface LineSpan {
   side: DiffSide
@@ -21,7 +21,7 @@ function linesOf({ side, line, startLine }: LineSpan): string[] {
     return []
   }
   const first = Math.min(startLine ?? line, line)
-  return Array.from({ length: line - first + 1 }, (_, i) => anchorKey(side, first + i))
+  return Array.from({ length: line - first + 1 }, (_, offset) => anchorKey(side, first + offset))
 }
 
 /** A review thread on this PR: its first comment, the replies, and whether it is resolved. */
@@ -45,24 +45,24 @@ export function groupCommentThreads(
   statuses: readonly PullThreadStatus[],
   fileOrder: readonly string[],
 ): CommentThread[] {
-  const status = new Map(statuses.map((s) => [s.rootCommentId, s]))
-  const ids = new Set(comments.map((c) => c.id))
-  const parentOf = (c: ReviewComment) => {
-    if (c.inReplyTo && ids.has(c.inReplyTo)) {
-      return c.inReplyTo
+  const status = new Map(statuses.map((threadStatus) => [threadStatus.rootCommentId, threadStatus]))
+  const ids = new Set(comments.map((comment) => comment.id))
+  const parentOf = (comment: ReviewComment) => {
+    if (comment.inReplyTo && ids.has(comment.inReplyTo)) {
+      return comment.inReplyTo
     }
     return null
   }
-  const isRoot = (c: ReviewComment) => parentOf(c) === null
+  const isRoot = (comment: ReviewComment) => parentOf(comment) === null
   const replies = new Map<number, ReviewComment[]>()
-  for (const c of comments) {
-    const parent = parentOf(c)
+  for (const comment of comments) {
+    const parent = parentOf(comment)
     if (parent !== null) {
-      replies.set(parent, [...(replies.get(parent) ?? []), c])
+      replies.set(parent, [...(replies.get(parent) ?? []), comment])
     }
   }
 
-  const fileRank = new Map(fileOrder.map((p, i) => [p, i]))
+  const fileRank = new Map(fileOrder.map((path, index) => [path, index]))
   return comments
     .filter(isRoot)
     .map((root) => ({
@@ -74,12 +74,16 @@ export function groupCommentThreads(
       outdated: root.outdated,
       onFile: root.subjectType === 'file',
       resolved: status.get(root.id)?.resolved ?? false,
-      comments: [root, ...(replies.get(root.id) ?? []).sort((a, b) => a.createdAt.localeCompare(b.createdAt))],
+      comments: [
+        root,
+        ...(replies.get(root.id) ?? []).sort((left, right) => left.createdAt.localeCompare(right.createdAt)),
+      ],
     }))
     .sort(
-      (a, b) =>
-        (fileRank.get(a.path) ?? Number.POSITIVE_INFINITY) - (fileRank.get(b.path) ?? Number.POSITIVE_INFINITY) ||
-        (a.line ?? Number.POSITIVE_INFINITY) - (b.line ?? Number.POSITIVE_INFINITY),
+      (left, right) =>
+        (fileRank.get(left.path) ?? Number.POSITIVE_INFINITY) -
+          (fileRank.get(right.path) ?? Number.POSITIVE_INFINITY) ||
+        (left.line ?? Number.POSITIVE_INFINITY) - (right.line ?? Number.POSITIVE_INFINITY),
     )
 }
 
@@ -98,25 +102,26 @@ export function indexFileComments(
   comments: readonly ReviewComment[],
   drafts: readonly DraftComment[],
 ): FileCommentIndex {
-  const push = <T>(m: Map<string, T[]>, k: string, v: T) => m.set(k, [...(m.get(k) ?? []), v])
+  const push = <T>(groups: Map<string, T[]>, key: string, entry: T) =>
+    groups.set(key, [...(groups.get(key) ?? []), entry])
   const index: FileCommentIndex = {
     threadsByLine: new Map(),
     fileThreads: [],
     outdatedThreads: [],
     draftsByLine: new Map(),
   }
-  for (const t of groupCommentThreads(comments, [], [path])) {
-    if (t.onFile) {
-      index.fileThreads.push(t.comments)
-    } else if (t.outdated || t.line === null) {
-      index.outdatedThreads.push(t.comments)
+  for (const thread of groupCommentThreads(comments, [], [path])) {
+    if (thread.onFile) {
+      index.fileThreads.push(thread.comments)
+    } else if (thread.outdated || thread.line === null) {
+      index.outdatedThreads.push(thread.comments)
     } else {
-      push(index.threadsByLine, anchorKey(t.side, t.line), t.comments)
+      push(index.threadsByLine, anchorKey(thread.side, thread.line), thread.comments)
     }
   }
-  for (const d of drafts) {
-    if (!d.inReplyTo && d.line !== null) {
-      push(index.draftsByLine, anchorKey(d.side, d.line), d)
+  for (const draft of drafts) {
+    if (!draft.inReplyTo && draft.line !== null) {
+      push(index.draftsByLine, anchorKey(draft.side, draft.line), draft)
     }
   }
   return index
@@ -127,24 +132,26 @@ export function indexFileComments(
  * (replies sit on their thread's lines already). So the diff can keep those lines marked after the selection is gone.
  */
 export function commentedLines(comments: readonly ReviewComment[], drafts: readonly DraftComment[]): Set<string> {
-  const onLines = comments.filter((c) => !c.outdated && c.subjectType === 'line')
-  const newDrafts = drafts.filter((d) => !d.inReplyTo)
+  const onLines = comments.filter((comment) => !comment.outdated && comment.subjectType === 'line')
+  const newDrafts = drafts.filter((draft) => !draft.inReplyTo)
   return new Set([...onLines, ...newDrafts].flatMap(linesOf))
 }
 
 /** The thread's comment that matches `query` (text or author), or null. The file path matching counts as the first comment. */
-export function matchingComment(t: CommentThread, query: string): ReviewComment | null {
-  const q = query.trim().toLowerCase()
-  if (!q) {
-    return t.comments[0] ?? null
+export function matchingComment(thread: CommentThread, query: string): ReviewComment | null {
+  const needle = query.trim().toLowerCase()
+  if (!needle) {
+    return thread.comments[0] ?? null
   }
-  const byText = t.comments.find((c) => includesFolded(c.body, q) || includesFolded(c.author, q))
+  const byText = thread.comments.find(
+    (comment) => includesFolded(comment.body, needle) || includesFolded(comment.author, needle),
+  )
   if (byText) {
     return byText
   }
   // A match on the file path counts as the first comment.
-  if (includesFolded(t.path, q)) {
-    return t.comments[0] ?? null
+  if (includesFolded(thread.path, needle)) {
+    return thread.comments[0] ?? null
   }
   return null
 }
@@ -157,25 +164,25 @@ export interface ReviewedBy {
 }
 
 /** The thread's comments by others since your last review, oldest first. */
-export function newComments(t: CommentThread, { viewer, since }: ReviewedBy): ReviewComment[] {
+export function newComments(thread: CommentThread, { viewer, since }: ReviewedBy): ReviewComment[] {
   if (since === null) {
     return []
   }
-  return t.comments.filter((c) => c.author !== viewer && c.createdAt > since)
+  return thread.comments.filter((comment) => comment.author !== viewer && comment.createdAt > since)
 }
 
 /** Threads with a comment, author or file path matching `query`, resolved ones included. */
 export function searchThreads(threads: readonly CommentThread[], query: string): CommentThread[] {
-  return threads.filter((t) => matchingComment(t, query))
+  return threads.filter((thread) => matchingComment(thread, query))
 }
 
 /** Your pending comments whose text or file path matches `query`. */
 export function searchDrafts(drafts: readonly DraftComment[], query: string): DraftComment[] {
-  const q = query.trim().toLowerCase()
-  if (!q) {
+  const needle = query.trim().toLowerCase()
+  if (!needle) {
     return [...drafts]
   }
-  return drafts.filter((d) => includesFolded(d.body, q) || includesFolded(d.path, q))
+  return drafts.filter((draft) => includesFolded(draft.body, needle) || includesFolded(draft.path, needle))
 }
 
 /** Conversation comments whose text or author matches `query`; all of them for an empty query. */

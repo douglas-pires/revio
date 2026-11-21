@@ -53,8 +53,8 @@ export function useExpandedContext(at: FileAtCommit, rows: DiffRow[], enabled: b
             new Map(prev).set(index, expandGap(prev.get(index), direction, hiddenIn(gap, prev.get(index)))),
           )
         }
-      } catch (e) {
-        setError(errorMessage(e))
+      } catch (failure) {
+        setError(errorMessage(failure))
       } finally {
         setLoading(false)
       }

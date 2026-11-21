@@ -32,7 +32,9 @@ describe('blameAt', () => {
 
 describe('markPrCommits', () => {
   it('flags only the PR commits, keeping the order', () => {
-    expect(markPrCommits([commit('x'), commit('y')], new Set(['y'])).map((c) => [c.sha, c.inThisPr])).toEqual([
+    expect(
+      markPrCommits([commit('x'), commit('y')], new Set(['y'])).map((marked) => [marked.sha, marked.inThisPr]),
+    ).toEqual([
       ['x', false],
       ['y', true],
     ])

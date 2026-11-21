@@ -8,10 +8,10 @@ export function TokenText({ tokens, text }: { tokens?: readonly Tok[] | undefine
   }
   return (
     <>
-      {withOffsets(tokens).map((t) => (
+      {withOffsets(tokens).map((token) => (
         // biome-ignore lint/style/noInlineStyles: each token carries its theme colors as CSS variables (see styles.css .tok).
-        <span key={t.offset} className="tok" style={t.style}>
-          {t.text}
+        <span key={token.offset} className="tok" style={token.style}>
+          {token.text}
         </span>
       ))}
     </>

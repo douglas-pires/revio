@@ -18,9 +18,9 @@ export function useBriefing(pull: PullRef, onRecord: (record: BriefingRecord) =>
 
   useEffect(
     () =>
-      globalThis.revio.onEvent((e) => {
-        if (e.type === 'briefing-progress' && e.key === key) {
-          setStatus((s) => ({ ...s, progress: e.message }))
+      globalThis.revio.onEvent((event) => {
+        if (event.type === 'briefing-progress' && event.key === key) {
+          setStatus((current) => ({ ...current, progress: event.message }))
         }
       }),
     [key],
@@ -31,8 +31,8 @@ export function useBriefing(pull: PullRef, onRecord: (record: BriefingRecord) =>
     try {
       onRecord(await globalThis.revio.generateBriefing(pull))
       setStatus(IDLE)
-    } catch (e) {
-      setStatus({ ...IDLE, error: errorMessage(e) })
+    } catch (failure) {
+      setStatus({ ...IDLE, error: errorMessage(failure) })
     }
   }
 

@@ -73,14 +73,14 @@ interface RawPr {
 
 function readReviewRequest(pr: RawPr, viewer: string): ReviewRequest {
   return classifyRequest(
-    pr.reviewRequests.nodes.map((n) => n?.requestedReviewer ?? null),
-    pr.timelineItems.nodes.filter((n): n is RequestEvent => Boolean(n?.createdAt)),
+    pr.reviewRequests.nodes.map((node) => node?.requestedReviewer ?? null),
+    pr.timelineItems.nodes.filter((node): node is RequestEvent => Boolean(node?.createdAt)),
     viewer,
   )
 }
 
 const findLastReviewAt = (pr: RawPr, viewer: string) =>
-  pr.latestReviews.nodes.find((r) => r?.author?.login === viewer)?.submittedAt ?? null
+  pr.latestReviews.nodes.find((review) => review?.author?.login === viewer)?.submittedAt ?? null
 
 /** `request` is set for PRs waiting on your review, null for ones you already reviewed. */
 function toSummary(pr: RawPr, staleAfterHours: number, request: ReviewRequest | null, viewer: string): PullSummary {
@@ -173,16 +173,16 @@ function sortInbox(data: InboxSearch, viewer: string, staleAfterHours: number) {
       reviewedSinceRequest.push(toSummary(pr, staleAfterHours, null, viewer))
     }
   }
-  requested.sort((a, b) => b.waitingHours - a.waitingHours)
-  const listed = new Set([...requested, ...reviewedSinceRequest].map((p) => p.id))
-  const otherReviewed = data.reviewed.nodes.filter((n): n is RawPr => isPr(n) && !listed.has(n.id))
+  requested.sort((left, right) => right.waitingHours - left.waitingHours)
+  const listed = new Set([...requested, ...reviewedSinceRequest].map((pull) => pull.id))
+  const otherReviewed = data.reviewed.nodes.filter((node): node is RawPr => isPr(node) && !listed.has(node.id))
   return {
     requested,
     reviewed: [...reviewedSinceRequest, ...otherReviewed.map((pr) => toSummary(pr, staleAfterHours, null, viewer))],
   }
 }
 
-const isPr = (n: RawPr | null): n is RawPr => Boolean(n?.id)
+const isPr = (node: RawPr | null): node is RawPr => Boolean(node?.id)
 
 export async function fetchInbox(stackFinder: StackFinder): Promise<Inbox> {
   const settings = store.settings()

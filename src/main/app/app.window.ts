@@ -66,13 +66,13 @@ export class AppWindow {
     })
     // The window only ever shows the app. A link that would load another page here (one inside a Mermaid diagram,
     // say) opens in the browser instead, so no other page gets the preload's API.
-    win.webContents.on('will-frame-navigate', (e) => {
-      if (this.isAppPage(e.url)) {
+    win.webContents.on('will-frame-navigate', (event) => {
+      if (this.isAppPage(event.url)) {
         return
       }
-      e.preventDefault()
-      if (e.isMainFrame) {
-        openInBrowser(e.url)
+      event.preventDefault()
+      if (event.isMainFrame) {
+        openInBrowser(event.url)
       }
     })
     if (this.#page.devUrl) {

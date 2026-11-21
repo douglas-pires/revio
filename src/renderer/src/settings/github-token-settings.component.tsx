@@ -35,9 +35,9 @@ function SecretInput(props: {
         spellCheck={false}
         autoComplete="off"
         value={props.value}
-        onChange={(e) => props.onChange(e.target.value)}
-        onKeyDown={(e) => {
-          if (e.key === 'Enter') {
+        onChange={(event) => props.onChange(event.target.value)}
+        onKeyDown={(event) => {
+          if (event.key === 'Enter') {
             props.onEnter()
           }
         }}
@@ -55,8 +55,8 @@ function SecretInput(props: {
 }
 
 function TokenHelp() {
-  const openNewToken = (e: React.MouseEvent) => {
-    e.preventDefault()
+  const openNewToken = (event: React.MouseEvent) => {
+    event.preventDefault()
     globalThis.revio.openExternal(NEW_TOKEN_URL)
   }
   return (
@@ -128,9 +128,9 @@ function Scopes({ scopes }: { scopes: string[] | null }) {
   return (
     <>
       Scopes:{' '}
-      {scopes.map((s) => (
-        <code key={s} className={cx('mr-1', ORG_SCOPE.test(s) && 'text-ok')}>
-          {s}
+      {scopes.map((scope) => (
+        <code key={scope} className={cx('mr-1', ORG_SCOPE.test(scope) && 'text-ok')}>
+          {scope}
         </code>
       ))}
       {scopes.length === 0 && 'none'}

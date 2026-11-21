@@ -39,16 +39,16 @@ function publishEntriesOf(publish: unknown): unknown[] {
   return []
 }
 
-const parts = (v: string) =>
-  v
+const parts = (version: string) =>
+  version
     .trim()
     .replace(VERSION_PREFIX, '')
     .split('-')[0]
     ?.split('.')
-    .map((n) => Number.parseInt(n, 10) || 0) ?? []
+    .map((part) => Number.parseInt(part, 10) || 0) ?? []
 
 /** A pre-release version, like a build of `main` (0.2.0-dev.43). */
-const isPreRelease = (v: string) => v.trim().includes('-')
+const isPreRelease = (version: string) => version.trim().includes('-')
 
 /** Where releases are published (GitHub only). */
 export interface ReleaseSource {
@@ -66,8 +66,8 @@ export function releaseSourceOf(packageJson: unknown): ReleaseSource | null {
   const publish = pkg?.build?.publish
   const entries = publishEntriesOf(publish)
   const github = entries.find(
-    (p): p is { provider: string; owner: string; repo: string } =>
-      Boolean(p) && typeof p === 'object' && (p as { provider?: string }).provider === 'github',
+    (entry): entry is { provider: string; owner: string; repo: string } =>
+      Boolean(entry) && typeof entry === 'object' && (entry as { provider?: string }).provider === 'github',
   )
   if (github?.owner && github.repo) {
     return { owner: github.owner, repo: github.repo }
@@ -80,12 +80,12 @@ export function releaseSourceOf(packageJson: unknown): ReleaseSource | null {
  * release is newer than a pre-release of it (0.2.0 is newer than 0.2.0-dev.43), as in semver. "v" is ignored.
  */
 export function isNewerVersion(candidate: string, current: string): boolean {
-  const a = parts(candidate)
-  const b = parts(current)
-  for (let i = 0; i < Math.max(a.length, b.length); i += 1) {
-    const d = (a[i] ?? 0) - (b[i] ?? 0)
-    if (d) {
-      return d > 0
+  const candidateParts = parts(candidate)
+  const currentParts = parts(current)
+  for (let position = 0; position < Math.max(candidateParts.length, currentParts.length); position += 1) {
+    const difference = (candidateParts[position] ?? 0) - (currentParts[position] ?? 0)
+    if (difference) {
+      return difference > 0
     }
   }
   return isPreRelease(current) && !isPreRelease(candidate)
@@ -93,6 +93,6 @@ export function isNewerVersion(candidate: string, current: string): boolean {
 
 /** The release asset to install on this Mac: the dmg for its architecture, else any dmg. */
 export function pickInstaller<T extends { name: string }>(assets: readonly T[], arch: string): T | undefined {
-  const dmgs = assets.filter((a) => a.name.endsWith('.dmg'))
-  return dmgs.find((a) => a.name.includes(arch)) ?? dmgs[0]
+  const dmgs = assets.filter((asset) => asset.name.endsWith('.dmg'))
+  return dmgs.find((dmg) => dmg.name.includes(arch)) ?? dmgs[0]
 }

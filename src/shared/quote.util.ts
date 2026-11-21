@@ -9,7 +9,7 @@ export function quoteReply(body: string, author: string, maxChars = 400): string
   }
   const quoted = clipped
     .split('\n')
-    .map((l) => `> ${l}`.trimEnd())
+    .map((line) => `> ${line}`.trimEnd())
     .join('\n')
   return `${quoted}\n\n@${author} `
 }

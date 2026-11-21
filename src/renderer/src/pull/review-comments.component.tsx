@@ -34,7 +34,7 @@ function Thread(props: {
 }) {
   const [replying, setReplying] = useState(false)
   const openReply = useCallback(() => setReplying(true), [])
-  const ids = props.thread.map((c) => c.id)
+  const ids = props.thread.map((comment) => comment.id)
   useOpenReplyIfTarget(ids, openReply)
   const fold = useThreadFold()
   if (fold?.isFolded(ids)) {
@@ -62,8 +62,8 @@ function Thread(props: {
       {props.thread.map((comment) => (
         <CommentView key={comment.id} comment={comment} />
       ))}
-      {props.drafts.map((d) => (
-        <DraftView key={d.id} d={d} onUpdate={props.onUpdateDraft} onDelete={props.onDeleteDraft} />
+      {props.drafts.map((draft) => (
+        <DraftView key={draft.id} draft={draft} onUpdate={props.onUpdateDraft} onDelete={props.onDeleteDraft} />
       ))}
       {Boolean(replying) && (
         <Composer
@@ -147,8 +147,8 @@ export function CommentView({ comment }: { comment: ReviewComment }) {
           <a
             className="text-muted hover:underline"
             href={comment.url}
-            onClick={(e) => {
-              e.preventDefault()
+            onClick={(event) => {
+              event.preventDefault()
               globalThis.revio.openExternal(comment.url)
             }}
           >
@@ -173,7 +173,7 @@ export function CommentView({ comment }: { comment: ReviewComment }) {
 
 /** What a reviewer can do with comments on a file: draft, edit and delete pending comments, or reply right away. */
 export interface CommentActions {
-  onAddDraft: (d: Omit<DraftComment, 'id'>) => void
+  onAddDraft: (draft: Omit<DraftComment, 'id'>) => void
   onUpdateDraft: (id: string, body: string) => void
   onDeleteDraft: (id: string) => void
   onReplyNow: (commentId: number, body: string) => Promise<void>
@@ -202,7 +202,7 @@ export function ReviewThread({
   return (
     <Thread
       thread={thread}
-      drafts={allDrafts.filter((d) => d.inReplyTo === root.id)}
+      drafts={allDrafts.filter((draft) => draft.inReplyTo === root.id)}
       onReplyNow={(body) => actions.onReplyNow(root.id, body)}
       onReplyLater={(body) => actions.onAddDraft({ path, side: root.side, line, body, inReplyTo: root.id })}
       onUpdateDraft={actions.onUpdateDraft}
@@ -212,11 +212,11 @@ export function ReviewThread({
 }
 
 export function DraftView({
-  d,
+  draft,
   onUpdate,
   onDelete,
 }: {
-  d: DraftComment
+  draft: DraftComment
   onUpdate: (id: string, body: string) => void
   onDelete: (id: string) => void
 }) {
@@ -225,12 +225,12 @@ export function DraftView({
     return (
       <Composer
         label="Edit draft"
-        codePath={d.path}
-        unsentKey={`draft:${d.id}`}
-        initial={d.body}
+        codePath={draft.path}
+        unsentKey={`draft:${draft.id}`}
+        initial={draft.body}
         onCancel={() => setEditing(false)}
         onSubmit={(body) => {
-          onUpdate(d.id, body)
+          onUpdate(draft.id, body)
           setEditing(false)
         }}
       />
@@ -240,21 +240,21 @@ export function DraftView({
     <div className="rounded-md border border-warn/40 bg-warn/5 p-3">
       <div className="mb-1 flex items-center gap-2 text-[11.5px]">
         <span className="chip bg-warn/20 text-warn">Pending</span>
-        {Boolean(d.startLine) && (
+        {Boolean(draft.startLine) && (
           <span className="text-muted">
-            lines {d.startLine}–{d.line}
+            lines {draft.startLine}–{draft.line}
           </span>
         )}
         <div className="flex-1" />
         <button type="button" className="btn btn-ghost py-0" onClick={() => setEditing(true)}>
           Edit
         </button>
-        <button type="button" className="btn btn-ghost py-0 text-danger" onClick={() => onDelete(d.id)}>
+        <button type="button" className="btn btn-ghost py-0 text-danger" onClick={() => onDelete(draft.id)}>
           Delete
         </button>
       </div>
-      <Markdown className="text-[12.5px]" codePath={d.path}>
-        {d.body}
+      <Markdown className="text-[12.5px]" codePath={draft.path}>
+        {draft.body}
       </Markdown>
     </div>
   )

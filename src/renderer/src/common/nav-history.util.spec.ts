@@ -1,41 +1,41 @@
 import { describe, expect, it } from 'vitest'
 import { canGoBack, canGoForward, currentEntry, startHistory, step, visit } from './nav-history.util.ts'
 
-const same = (a: string, b: string) => a === b
+const same = (left: string, right: string) => left === right
 
 describe('nav history', () => {
   it('goes back and forward through visited screens', () => {
-    let h = visit(visit(startHistory('inbox'), 'pr', same), 'settings', same)
-    h = step(h, -1)
-    expect(currentEntry(h)).toBe('pr')
-    expect(canGoForward(h)).toBe(true)
-    h = step(h, 1)
-    expect(currentEntry(h)).toBe('settings')
-    expect(canGoForward(h)).toBe(false)
+    let history = visit(visit(startHistory('inbox'), 'pr', same), 'settings', same)
+    history = step(history, -1)
+    expect(currentEntry(history)).toBe('pr')
+    expect(canGoForward(history)).toBe(true)
+    history = step(history, 1)
+    expect(currentEntry(history)).toBe('settings')
+    expect(canGoForward(history)).toBe(false)
   })
 
   it('drops the forward screens when visiting from the middle', () => {
-    let h = visit(visit(startHistory('a'), 'b', same), 'c', same)
-    h = visit(step(step(h, -1), -1), 'd', same)
-    expect(h.entries).toEqual(['a', 'd'])
-    expect(canGoForward(h)).toBe(false)
+    let history = visit(visit(startHistory('a'), 'b', same), 'c', same)
+    history = visit(step(step(history, -1), -1), 'd', same)
+    expect(history.entries).toEqual(['a', 'd'])
+    expect(canGoForward(history)).toBe(false)
   })
 
   it('ignores a visit to the current screen and steps past either end', () => {
-    const h = startHistory('a')
-    expect(visit(h, 'a', same)).toBe(h)
-    expect(step(h, -1)).toBe(h)
-    expect(step(h, 1)).toBe(h)
-    expect(canGoBack(h)).toBe(false)
+    const history = startHistory('a')
+    expect(visit(history, 'a', same)).toBe(history)
+    expect(step(history, -1)).toBe(history)
+    expect(step(history, 1)).toBe(history)
+    expect(canGoBack(history)).toBe(false)
   })
 
   it('keeps the last 50 screens', () => {
-    let h = startHistory('0')
-    for (let i = 1; i <= 60; i += 1) {
-      h = visit(h, String(i), same)
+    let history = startHistory('0')
+    for (let visitNumber = 1; visitNumber <= 60; visitNumber += 1) {
+      history = visit(history, String(visitNumber), same)
     }
-    expect(h.entries).toHaveLength(50)
-    expect(h.entries[0]).toBe('11')
-    expect(currentEntry(h)).toBe('60')
+    expect(history.entries).toHaveLength(50)
+    expect(history.entries[0]).toBe('11')
+    expect(currentEntry(history)).toBe('60')
   })
 })

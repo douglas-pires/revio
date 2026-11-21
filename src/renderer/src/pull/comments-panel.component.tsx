@@ -31,23 +31,23 @@ function newSideLine(side: DraftComment['side'], line: number | null) {
   return line
 }
 
-function jumpLineOf(t: CommentThread) {
-  if (t.outdated) {
+function jumpLineOf(thread: CommentThread) {
+  if (thread.outdated) {
     return null
   }
-  return newSideLine(t.side, t.line)
+  return newSideLine(thread.side, thread.line)
 }
 
-function threadTitle(t: CommentThread) {
-  if (t.outdated) {
+function threadTitle(thread: CommentThread) {
+  if (thread.outdated) {
     return 'The code this thread was on has changed since'
   }
-  return `Go to line ${t.line}`
+  return `Go to line ${thread.line}`
 }
 
 /** Resolved, with nothing new since your last review: hidden until you ask for resolved threads. */
-function isSettled(t: CommentThread, reviewed: ReviewedBy) {
-  return t.resolved && newComments(t, reviewed).length === 0
+function isSettled(thread: CommentThread, reviewed: ReviewedBy) {
+  return thread.resolved && newComments(thread, reviewed).length === 0
 }
 
 /**
@@ -61,7 +61,7 @@ function visibleThreads(threads: readonly CommentThread[], query: string, showRe
   if (showResolved) {
     return threads
   }
-  return threads.filter((t) => !isSettled(t, reviewed))
+  return threads.filter((thread) => !isSettled(thread, reviewed))
 }
 
 /**
@@ -157,16 +157,16 @@ function CommentSearch({
   matches,
 }: {
   query: string
-  onChange: (q: string) => void
+  onChange: (query: string) => void
   matches: number | null
 }) {
   const input = useRef<HTMLInputElement>(null)
   useEffect(() => {
-    const onKey = (e: KeyboardEvent) => {
-      if (e.key !== '/' || e.metaKey || e.ctrlKey || isTyping(e.target)) {
+    const onKey = (event: KeyboardEvent) => {
+      if (event.key !== '/' || event.metaKey || event.ctrlKey || isTyping(event.target)) {
         return
       }
-      e.preventDefault()
+      event.preventDefault()
       input.current?.focus()
     }
     globalThis.addEventListener('keydown', onKey)
@@ -181,11 +181,11 @@ function CommentSearch({
         placeholder="Search comments  /"
         className="input py-1 text-[12px]"
         value={query}
-        onChange={(e) => onChange(e.target.value)}
-        onKeyDown={(e) => {
-          if (e.key === 'Escape') {
+        onChange={(event) => onChange(event.target.value)}
+        onKeyDown={(event) => {
+          if (event.key === 'Escape') {
             onChange('')
-            e.currentTarget.blur()
+            event.currentTarget.blur()
           }
         }}
       />
@@ -195,7 +195,7 @@ function CommentSearch({
 }
 
 function ThreadItem({
-  thread: t,
+  thread,
   query,
   reviewed,
   onJump,
@@ -205,23 +205,23 @@ function ThreadItem({
   reviewed: ReviewedBy
   onJump: JumpTo
 }) {
-  const [root, ...replies] = t.comments
+  const [root, ...replies] = thread.comments
   if (!root) {
     return null
   }
   const last = replies.at(-1) ?? root
-  const fresh = newComments(t, reviewed)
-  const shown = pickPreviewedComment(t, query) ?? root
+  const fresh = newComments(thread, reviewed)
+  const shown = pickPreviewedComment(thread, query) ?? root
   const newestReply = findNewestReplyToShow(fresh, shown, query)
   return (
     <button
       type="button"
       className={cx(
         'flex w-full gap-2 rounded px-1.5 py-1.5 text-left hover:bg-hover',
-        t.resolved && fresh.length === 0 && 'opacity-60',
+        thread.resolved && fresh.length === 0 && 'opacity-60',
       )}
-      onClick={() => onJump(t.path, jumpLineOf(t), newestReply?.id ?? shown.id)}
-      title={threadTitle(t)}
+      onClick={() => onJump(thread.path, jumpLineOf(thread), newestReply?.id ?? shown.id)}
+      title={threadTitle(thread)}
     >
       <img
         src={shown.authorAvatar}
@@ -235,13 +235,13 @@ function ThreadItem({
           <span className="truncate font-medium">
             <MatchText text={shown.author} query={query} />
           </span>
-          <span className="shrink-0 font-mono text-[10.5px] text-muted">{describeThreadLine(t)}</span>
+          <span className="shrink-0 font-mono text-[10.5px] text-muted">{describeThreadLine(thread)}</span>
           {fresh.length > 0 && (
             <span className="chip bg-accent/15 py-0 text-[10px] text-accent" title="Since your last review">
               {fresh.length} new
             </span>
           )}
-          {Boolean(t.resolved) && <span className="chip bg-ok/15 py-0 text-[10px] text-ok">resolved</span>}
+          {Boolean(thread.resolved) && <span className="chip bg-ok/15 py-0 text-[10px] text-ok">resolved</span>}
           <span className="ml-auto shrink-0 text-[10.5px] text-muted">{ago(last.createdAt)}</span>
         </div>
         <div className="line-clamp-2 text-muted">
@@ -275,21 +275,21 @@ function Drafts({
         tone="accent"
         className="mb-0 px-1.5 pt-1.5 pb-0.5"
       />
-      {drafts.map((d) => (
+      {drafts.map((draft) => (
         <button
           type="button"
-          key={d.id}
+          key={draft.id}
           className="block w-full rounded px-1.5 py-1 text-left text-[12px] hover:bg-hover"
-          onClick={() => onJump(d.path, newSideLine(d.side, d.line))}
+          onClick={() => onJump(draft.path, newSideLine(draft.side, draft.line))}
         >
           <span className="font-mono text-[10.5px] text-muted">
-            {d.path.slice(d.path.lastIndexOf('/') + 1)}
-            {d.line === null && ' · file'}
-            {!(d.line === null) && `:${d.line}`}
-            {Boolean(d.inReplyTo) && ' · reply'}
+            {draft.path.slice(draft.path.lastIndexOf('/') + 1)}
+            {draft.line === null && ' · file'}
+            {!(draft.line === null) && `:${draft.line}`}
+            {Boolean(draft.inReplyTo) && ' · reply'}
           </span>
           <div className="line-clamp-2">
-            <MatchText text={excerptAround(d.body, query.trim(), EXCERPT_CHARS)} query={query} />
+            <MatchText text={excerptAround(draft.body, query.trim(), EXCERPT_CHARS)} query={query} />
           </div>
         </button>
       ))}
@@ -297,14 +297,14 @@ function Drafts({
   )
 }
 
-function describeThreadLine(t: CommentThread) {
-  if (t.onFile) {
+function describeThreadLine(thread: CommentThread) {
+  if (thread.onFile) {
     return 'file'
   }
-  if (t.outdated || t.line === null) {
+  if (thread.outdated || thread.line === null) {
     return 'outdated'
   }
-  return `L${t.line}`
+  return `L${thread.line}`
 }
 
 /**
@@ -327,9 +327,9 @@ export const CommentsPanel = memo(function CommentsPanelView(props: {
   const [onlyYours, setOnlyYours] = useState(false)
   const yourThreadCount = props.threads.filter((thread) => hasYourComment(thread, reviewed.viewer)).length
   const searching = query.trim() !== ''
-  const resolvedCount = props.threads.filter((t) => t.resolved).length
-  const settledCount = props.threads.filter((t) => isSettled(t, reviewed)).length
-  const newCount = props.threads.reduce((n, t) => n + newComments(t, reviewed).length, 0)
+  const resolvedCount = props.threads.filter((thread) => thread.resolved).length
+  const settledCount = props.threads.filter((thread) => isSettled(thread, reviewed)).length
+  const newCount = props.threads.reduce((total, thread) => total + newComments(thread, reviewed).length, 0)
   const visible = visibleThreads(
     keepYourThreads(props.threads, onlyYours, reviewed.viewer),
     query,
@@ -339,7 +339,7 @@ export const CommentsPanel = memo(function CommentsPanelView(props: {
   const drafts = searchDrafts(props.drafts, query)
   const conversation = searchConversation(props.conversation, query)
   const shownCount = visible.length + drafts.length + conversation.length
-  const byFile = groupBy(visible, (t) => t.path)
+  const byFile = groupBy(visible, (thread) => thread.path)
 
   return (
     <aside className="flex w-80 shrink-0 flex-col border-l border-line bg-panel">
@@ -386,8 +386,8 @@ export const CommentsPanel = memo(function CommentsPanelView(props: {
         {[...byFile].map(([path, threads]) => (
           <div key={path} className="mb-2">
             <FileHeading path={path} current={path === props.current} />
-            {threads.map((t) => (
-              <ThreadItem key={t.rootId} thread={t} query={query} reviewed={reviewed} onJump={props.onJump} />
+            {threads.map((thread) => (
+              <ThreadItem key={thread.rootId} thread={thread} query={query} reviewed={reviewed} onJump={props.onJump} />
             ))}
           </div>
         ))}

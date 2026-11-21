@@ -60,17 +60,17 @@ export async function runWithInput(
       child.kill('SIGTERM')
       reject(new Error(`${bin} timed out after ${Math.round(opts.timeoutMs / MS_PER_SECOND)}s`))
     }, opts.timeoutMs)
-    child.stdout.on('data', (d: Buffer) => {
-      out += d.toString()
-      opts.onStdout?.(d.toString())
+    child.stdout.on('data', (buffer: Buffer) => {
+      out += buffer.toString()
+      opts.onStdout?.(buffer.toString())
     })
-    child.stderr.on('data', (d: Buffer) => {
-      err += d.toString()
-      opts.onStderr?.(d.toString())
+    child.stderr.on('data', (buffer: Buffer) => {
+      err += buffer.toString()
+      opts.onStderr?.(buffer.toString())
     })
-    child.on('error', (e) => {
+    child.on('error', (failure) => {
       clearTimeout(timer)
-      reject(e)
+      reject(failure)
     })
     child.on('close', (code) => {
       clearTimeout(timer)

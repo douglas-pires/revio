@@ -44,9 +44,9 @@ function ModeSwitch({
   labels: { stacks: number; waitingOnYou: number }
   onChange: (mode: Mode) => void
 }) {
-  const segments = (['queue', 'stacks', 'threads'] as const).map((m) => ({
-    value: m,
-    label: labelMode(m, labels.stacks, labels.waitingOnYou),
+  const segments = (['queue', 'stacks', 'threads'] as const).map((segmentMode) => ({
+    value: segmentMode,
+    label: labelMode(segmentMode, labels.stacks, labels.waitingOnYou),
   }))
   return <SegmentedControl segments={segments} value={mode} onChange={onChange} />
 }
@@ -63,7 +63,7 @@ function ThreadsMode({
   onOpen: OpenPull
 }) {
   const threads = useMemo(
-    () => (state.threads ?? EMPTY).filter((t) => !filtering || matchesQuery(threadToSearchable(t), query)),
+    () => (state.threads ?? EMPTY).filter((thread) => !filtering || matchesQuery(threadToSearchable(thread), query)),
     [state.threads, query, filtering],
   )
   return (
@@ -130,8 +130,8 @@ function QueueSections(props: {
   onOpen: OpenPull
   onStack: (id: string) => void
 }) {
-  const stale = props.requested.filter((p) => p.stale)
-  const fresh = props.requested.filter((p) => !p.stale)
+  const stale = props.requested.filter((pull) => pull.stale)
+  const fresh = props.requested.filter((pull) => !pull.stale)
   const empty = emptyQueueText(stale.length > 0, props.filtering)
   return (
     <>
@@ -193,12 +193,12 @@ function filterInbox(inbox: InboxData | null, query: InboxQuery) {
   if (isEmptyQuery(query)) {
     return inbox
   }
-  const rows = new Map([...inbox.requested, ...inbox.reviewed].map((p) => [p.id, p]))
+  const rows = new Map([...inbox.requested, ...inbox.reviewed].map((pull) => [pull.id, pull]))
   return {
-    requested: inbox.requested.filter((p) => matchesQuery(summaryToSearchable(p, true), query)),
-    reviewed: inbox.reviewed.filter((p) => matchesQuery(summaryToSearchable(p, false), query)),
+    requested: inbox.requested.filter((pull) => matchesQuery(summaryToSearchable(pull, true), query)),
+    reviewed: inbox.reviewed.filter((pull) => matchesQuery(summaryToSearchable(pull, false), query)),
     stacks: inbox.stacks.filter((st) =>
-      st.nodes.some((n) => matchesQuery(stackPrToSearchable(n.pr, rows.get(n.pr.id)), query)),
+      st.nodes.some((node) => matchesQuery(stackPrToSearchable(node.pr, rows.get(node.pr.id)), query)),
     ),
   }
 }
@@ -221,8 +221,8 @@ function Section(props: {
       <SectionHeading title={props.title} count={props.items.length} hint={props.hint} tone={props.tone} />
       {props.items.length > 0 && (
         <ul className="card">
-          {props.items.map((p) => (
-            <InboxRow key={p.id} pr={p} onOpen={props.onOpen} onStack={props.onStack} muted={props.muted} />
+          {props.items.map((pull) => (
+            <InboxRow key={pull.id} pr={pull} onOpen={props.onOpen} onStack={props.onStack} muted={props.muted} />
           ))}
         </ul>
       )}
@@ -289,7 +289,7 @@ export function Inbox({
             query={query}
             filtering={filtering}
             focusStack={focusStack}
-            onAudience={(a) => onSearch(applyAudience(search, a))}
+            onAudience={(audience) => onSearch(applyAudience(search, audience))}
             onOpen={onOpen}
             onStack={openStack}
           />

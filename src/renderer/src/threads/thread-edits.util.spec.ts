@@ -29,10 +29,14 @@ const makeThread = (id: string, waitingOn: OpenThread['waitingOn']): OpenThread 
 
 describe('applyReply', () => {
   it('appends your reply and moves the thread to waiting on others', () => {
-    const [a, b] = applyReply([makeThread('a', 'you'), makeThread('b', 'you')], 'a', makeComment('me', 't2'))
-    expect(a).toMatchObject({ waitingOn: 'others', totalComments: 2, lastActivityAt: 't2' })
-    expect(a?.comments.map((c) => c.author)).toEqual(['bo', 'me'])
-    expect(b).toMatchObject({ waitingOn: 'you', totalComments: 1 })
+    const [replied, untouched] = applyReply(
+      [makeThread('a', 'you'), makeThread('b', 'you')],
+      'a',
+      makeComment('me', 't2'),
+    )
+    expect(replied).toMatchObject({ waitingOn: 'others', totalComments: 2, lastActivityAt: 't2' })
+    expect(replied?.comments.map((comment) => comment.author)).toEqual(['bo', 'me'])
+    expect(untouched).toMatchObject({ waitingOn: 'you', totalComments: 1 })
   })
 })
 

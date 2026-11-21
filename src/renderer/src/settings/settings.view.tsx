@@ -1,4 +1,4 @@
-import type { Settings as S, SettingsPatch } from '@shared/settings.types.ts'
+import type { Settings as AppSettings, SettingsPatch } from '@shared/settings.types.ts'
 import { useCallback, useEffect, useState } from 'react'
 import { errorMessage } from '../common/format.util.ts'
 import { Screen, ScreenBody, ScreenHeader } from '../common/screen.component.tsx'
@@ -29,7 +29,15 @@ function Row({ label, hint, children }: { label: string; hint?: string; children
   )
 }
 
-function Toggle({ label, checked, onChange }: { label: string; checked: boolean; onChange: (v: boolean) => void }) {
+function Toggle({
+  label,
+  checked,
+  onChange,
+}: {
+  label: string
+  checked: boolean
+  onChange: (checked: boolean) => void
+}) {
   return (
     <label className="flex cursor-pointer items-center justify-between px-4 py-3">
       <span>{label}</span>
@@ -37,13 +45,13 @@ function Toggle({ label, checked, onChange }: { label: string; checked: boolean;
         type="checkbox"
         className="size-4 accent-[var(--color-accent)]"
         checked={checked}
-        onChange={(e) => onChange(e.target.checked)}
+        onChange={(event) => onChange(event.target.checked)}
       />
     </label>
   )
 }
 
-function Num(props: { label: string; unit: string; value: number; min: number; onChange: (v: number) => void }) {
+function Num(props: { label: string; unit: string; value: number; min: number; onChange: (value: number) => void }) {
   return (
     <label className="flex items-center justify-between px-4 py-3">
       <span>{props.label}</span>
@@ -53,10 +61,10 @@ function Num(props: { label: string; unit: string; value: number; min: number; o
           min={props.min}
           className="input w-20 text-right"
           defaultValue={props.value}
-          onBlur={(e) => {
-            const v = Number(e.target.value)
-            if (Number.isFinite(v) && v >= props.min && v !== props.value) {
-              props.onChange(v)
+          onBlur={(event) => {
+            const parsed = Number(event.target.value)
+            if (Number.isFinite(parsed) && parsed >= props.min && parsed !== props.value) {
+              props.onChange(parsed)
             }
           }}
         />
@@ -112,57 +120,57 @@ function TestNotification() {
 }
 
 /** Which notifications to show, how often to poll, and when a review turns stale. */
-function AlertsGroup({ s, update }: { s: S; update: Update }) {
+function AlertsGroup({ settings, update }: { settings: AppSettings; update: Update }) {
   return (
     <Group title="Alerts">
       <Toggle
         label="Notify when a review is requested"
-        checked={s.notifyOnRequest}
-        onChange={(v) => update({ notifyOnRequest: v })}
+        checked={settings.notifyOnRequest}
+        onChange={(checked) => update({ notifyOnRequest: checked })}
       />
       <Toggle
         label="Notify when a review is requested again on a PR you already reviewed"
-        checked={s.notifyOnReRequest}
-        onChange={(v) => update({ notifyOnReRequest: v })}
+        checked={settings.notifyOnReRequest}
+        onChange={(checked) => update({ notifyOnReRequest: checked })}
       />
       <Toggle
         label="Notify when a review goes stale"
-        checked={s.notifyOnStale}
-        onChange={(v) => update({ notifyOnStale: v })}
+        checked={settings.notifyOnStale}
+        onChange={(checked) => update({ notifyOnStale: checked })}
       />
       <Toggle
         label="Notify when you or your team are mentioned on a PR"
-        checked={s.notifyOnMention}
-        onChange={(v) => update({ notifyOnMention: v })}
+        checked={settings.notifyOnMention}
+        onChange={(checked) => update({ notifyOnMention: checked })}
       />
       <TestNotification />
       <Num
         label="Check GitHub every"
         unit="minutes"
-        value={s.pollIntervalMinutes}
+        value={settings.pollIntervalMinutes}
         min={1}
-        onChange={(v) => update({ pollIntervalMinutes: v })}
+        onChange={(minutes) => update({ pollIntervalMinutes: minutes })}
       />
       <Num
         label="Stale after"
         unit="hours"
-        value={s.staleAfterHours}
+        value={settings.staleAfterHours}
         min={1}
-        onChange={(v) => update({ staleAfterHours: v })}
+        onChange={(hours) => update({ staleAfterHours: hours })}
       />
       <Num
         label="Repeat stale alert every"
         unit="hours (0 = once)"
-        value={s.staleRepeatHours}
+        value={settings.staleRepeatHours}
         min={0}
-        onChange={(v) => update({ staleRepeatHours: v })}
+        onChange={(hours) => update({ staleRepeatHours: hours })}
       />
     </Group>
   )
 }
 
 /** How to reach Claude, which model, and the optional API key. */
-function ClaudeGroup({ s, update }: { s: S; update: Update }) {
+function ClaudeGroup({ settings, update }: { settings: AppSettings; update: Update }) {
   const [apiKey, setApiKey] = useState('')
   return (
     <Group title="Claude">
@@ -172,8 +180,8 @@ function ClaudeGroup({ s, update }: { s: S; update: Update }) {
       >
         <select
           className="input"
-          value={s.claudeBackend}
-          onChange={(e) => update({ claudeBackend: e.target.value as S['claudeBackend'] })}
+          value={settings.claudeBackend}
+          onChange={(event) => update({ claudeBackend: event.target.value as AppSettings['claudeBackend'] })}
         >
           <option value="auto">Auto</option>
           <option value="cli">Claude Code CLI (your subscription)</option>
@@ -183,22 +191,22 @@ function ClaudeGroup({ s, update }: { s: S; update: Update }) {
       <Row label="Model">
         <input
           className="input font-mono"
-          defaultValue={s.claudeModel}
-          onBlur={(e) => {
-            if (e.target.value) {
-              update({ claudeModel: e.target.value.trim() })
+          defaultValue={settings.claudeModel}
+          onBlur={(event) => {
+            if (event.target.value) {
+              update({ claudeModel: event.target.value.trim() })
             }
           }}
         />
       </Row>
-      <Row label="Anthropic API key" hint={apiKeyHint(s.hasAnthropicKey)}>
+      <Row label="Anthropic API key" hint={apiKeyHint(settings.hasAnthropicKey)}>
         <div className="flex gap-2">
           <input
             className="input font-mono"
             type="password"
             placeholder="sk-ant-…"
             value={apiKey}
-            onChange={(e) => setApiKey(e.target.value)}
+            onChange={(event) => setApiKey(event.target.value)}
           />
           <button
             type="button"
@@ -208,7 +216,7 @@ function ClaudeGroup({ s, update }: { s: S; update: Update }) {
           >
             Save
           </button>
-          {Boolean(s.hasAnthropicKey) && (
+          {Boolean(settings.hasAnthropicKey) && (
             <button type="button" className="btn btn-ghost" onClick={() => update({ anthropicApiKey: null })}>
               Clear
             </button>
@@ -220,33 +228,33 @@ function ClaudeGroup({ s, update }: { s: S; update: Update }) {
 }
 
 export function Settings() {
-  const [s, setS] = useState<S | null>(null)
+  const [settings, setSettings] = useState<AppSettings | null>(null)
   const [msg, setMsg] = useState<string | null>(null)
   // Bumped when another Mac's settings come in, so the fields that keep their own text show the new values.
   const [revision, setRevision] = useState(0)
   const reload = useCallback(() => {
     globalThis.revio.getSettings().then((next) => {
-      setS(next)
-      setRevision((r) => r + 1)
+      setSettings(next)
+      setRevision((previousRevision) => previousRevision + 1)
     })
   }, [])
   const syncStatus = useSyncStatus(reload)
 
   useEffect(() => {
-    globalThis.revio.getSettings().then(setS)
+    globalThis.revio.getSettings().then(setSettings)
   }, [])
 
   const update = async (patch: SettingsPatch) => {
     try {
-      setS(await globalThis.revio.updateSettings(patch))
+      setSettings(await globalThis.revio.updateSettings(patch))
       setMsg('Saved')
       setTimeout(() => setMsg(null), SAVED_NOTICE_MS)
-    } catch (e) {
-      setMsg(errorMessage(e))
+    } catch (failure) {
+      setMsg(errorMessage(failure))
     }
   }
 
-  if (!s) {
+  if (!settings) {
     return null
   }
 
@@ -267,25 +275,29 @@ export function Settings() {
           </Group>
 
           <Group title="GitHub">
-            <GithubTokenSettings onSaved={() => globalThis.revio.getSettings().then(setS)} />
+            <GithubTokenSettings onSaved={() => globalThis.revio.getSettings().then(setSettings)} />
             <Toggle
               label="Include team review requests"
-              checked={s.includeTeamRequests}
-              onChange={(v) => update({ includeTeamRequests: v })}
+              checked={settings.includeTeamRequests}
+              onChange={(checked) => update({ includeTeamRequests: checked })}
             />
-            <Toggle label="Hide draft PRs" checked={s.ignoreDrafts} onChange={(v) => update({ ignoreDrafts: v })} />
+            <Toggle
+              label="Hide draft PRs"
+              checked={settings.ignoreDrafts}
+              onChange={(checked) => update({ ignoreDrafts: checked })}
+            />
           </Group>
 
           <Group title="Editor">
-            <EditorSettings settings={s} update={update} />
+            <EditorSettings settings={settings} update={update} />
           </Group>
 
-          <AlertsGroup key={`alerts-${revision}`} s={s} update={update} />
+          <AlertsGroup key={`alerts-${revision}`} settings={settings} update={update} />
 
-          <ClaudeGroup key={`claude-${revision}`} s={s} update={update} />
+          <ClaudeGroup key={`claude-${revision}`} settings={settings} update={update} />
 
           <Group title="Sync">
-            <SyncSettings settings={s} status={syncStatus} update={update} />
+            <SyncSettings settings={settings} status={syncStatus} update={update} />
           </Group>
         </div>
       </ScreenBody>

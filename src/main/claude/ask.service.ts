@@ -61,7 +61,7 @@ function numbered(text: string, focus: [number, number]) {
   }
   const body = lines
     .slice(from - 1, to)
-    .map((l, i) => `${String(from + i).padStart(LINE_NUMBER_WIDTH)}| ${l}`)
+    .map((line, index) => `${String(from + index).padStart(LINE_NUMBER_WIDTH)}| ${line}`)
     .join('\n')
   return { body, partial: from > 1 || to < lines.length, from, to, total: lines.length }
 }
@@ -71,7 +71,7 @@ function fileAtSide(pr: PullDetail, thread: AskThread, ref: 'head' | 'base') {
   if (ref === 'head') {
     return { path: thread.path, sha: pr.headSha }
   }
-  const file = pr.files.find((f) => f.path === thread.path)
+  const file = pr.files.find((changedFile) => changedFile.path === thread.path)
   return { path: file?.previousPath ?? thread.path, sha: pr.baseSha }
 }
 
@@ -82,12 +82,12 @@ async function fileBlock(pr: PullDetail, thread: AskThread, ref: 'head' | 'base'
   if (text === null) {
     return `<file path="${path}" ref="${ref}">(not available)</file>`
   }
-  const n = numbered(text, [thread.startLine, thread.endLine])
+  const numberedCode = numbered(text, [thread.startLine, thread.endLine])
   let range = ''
-  if (n.partial) {
-    range = ` lines="${n.from}-${n.to} of ${n.total}"`
+  if (numberedCode.partial) {
+    range = ` lines="${numberedCode.from}-${numberedCode.to} of ${numberedCode.total}"`
   }
-  return `<file path="${path}" ref="${ref}"${range}>\n${n.body}\n</file>`
+  return `<file path="${path}" ref="${ref}"${range}>\n${numberedCode.body}\n</file>`
 }
 
 function briefingGist(briefing: BriefingRecord | undefined) {
@@ -122,7 +122,7 @@ async function askViaApi(context: string, thread: AskThread, model: string, answ
         { type: 'text', text: `${selectionBlock(thread)}\n\n${questionText(first)}` },
       ],
     },
-    ...rest.map((m) => ({ role: m.role, content: messageText(m) })),
+    ...rest.map((message) => ({ role: message.role, content: messageText(message) })),
   ]
   const stream = client.beta.messages.stream({
     model,
@@ -136,25 +136,25 @@ async function askViaApi(context: string, thread: AskThread, model: string, answ
     messages,
   })
   stream.on('thinking', (delta) => answer.thinking(delta))
-  stream.on('text', (t) => answer.text(t))
+  stream.on('text', (text) => answer.text(text))
   const final = await stream.finalMessage()
   if (final.stop_reason === 'refusal') {
     throw new Error('Claude declined to answer this question.')
   }
   return final.content
-    .filter((b): b is Anthropic.Beta.BetaTextBlock => b.type === 'text')
-    .map((b) => b.text)
+    .filter((block): block is Anthropic.Beta.BetaTextBlock => block.type === 'text')
+    .map((block) => block.text)
     .join('')
 }
 
 /** The conversation replayed for a one-shot CLI prompt; the first message is always a question. */
 function transcriptOf(thread: AskThread) {
   return thread.messages
-    .map((m) => {
-      if (m.role === 'assistant') {
-        return `<your_answer>\n${m.content}\n</your_answer>`
+    .map((message) => {
+      if (message.role === 'assistant') {
+        return `<your_answer>\n${message.content}\n</your_answer>`
       }
-      return `<question>\n${questionText(m)}\n</question>`
+      return `<question>\n${questionText(message)}\n</question>`
     })
     .join('\n\n')
 }
@@ -163,7 +163,7 @@ function transcriptOf(thread: AskThread) {
 function takeLines(buffer: string): { lines: string[]; rest: string } {
   const parts = buffer.split('\n')
   const rest = parts.pop() ?? ''
-  return { lines: parts.map((l) => l.trim()).filter(Boolean), rest }
+  return { lines: parts.map((part) => part.trim()).filter(Boolean), rest }
 }
 
 /** Parses one stream-json line; null for lines that are not JSON (Claude Code prints a few). */

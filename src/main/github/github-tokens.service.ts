@@ -16,7 +16,7 @@ async function inspectToken(token: string): Promise<Pick<GithubAuthStatus, 'logi
   return {
     login: res.data.login,
     scopes,
-    canSeeTeams: scopes?.some((s) => ORG_SCOPE.test(s)) ?? null,
+    canSeeTeams: scopes?.some((scope) => ORG_SCOPE.test(scope)) ?? null,
   }
 }
 
@@ -99,12 +99,12 @@ export class GithubTokens {
   }
 
   #candidates(): Candidate[] {
-    const s = this.#sources
+    const sources = this.#sources
     return [
-      ['settings', s.readSaved],
-      ['dotenv', () => readDotEnvToken(s.dotEnvPath)],
-      ['GH_TOKEN', () => s.env.GH_TOKEN],
-      ['GITHUB_TOKEN', () => s.env.GITHUB_TOKEN],
+      ['settings', sources.readSaved],
+      ['dotenv', () => readDotEnvToken(sources.dotEnvPath)],
+      ['GH_TOKEN', () => sources.env.GH_TOKEN],
+      ['GITHUB_TOKEN', () => sources.env.GITHUB_TOKEN],
       ['gh-cli', () => this.#readCliToken()],
     ]
   }
@@ -145,6 +145,6 @@ export function parseScopes(header: string | undefined): string[] | null {
   }
   return header
     .split(',')
-    .map((s) => s.trim())
+    .map((scope) => scope.trim())
     .filter(Boolean)
 }

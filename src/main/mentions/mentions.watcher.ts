@@ -31,7 +31,7 @@ export class MentionWatcher {
 
   /** Marks the PR's GitHub notification read and clears its "new" mentions. */
   async markRead(ref: PullRef) {
-    const mention = this.#latest?.mentions.find((m) => isSamePull(m, ref))
+    const mention = this.#latest?.mentions.find((candidate) => isSamePull(candidate, ref))
     if (mention?.notificationId) {
       await this.#deps.markRead(mention.notificationId)
     }

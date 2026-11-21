@@ -21,12 +21,15 @@ const MOUSE_FORWARD = 4
 export function useRouteHistory(first: Route) {
   const [history, setHistory] = useState<NavHistory<Route>>(() => startHistory(first))
 
-  const go = useCallback((route: Route) => setHistory((h) => visit(h, route, sameRoute)), [])
+  const go = useCallback(
+    (route: Route) => setHistory((previousHistory) => visit(previousHistory, route, sameRoute)),
+    [],
+  )
   const move = useCallback((delta: -1 | 1) => {
-    setHistory((h) => {
-      const next = step(h, delta)
-      if (next === h) {
-        return h
+    setHistory((previousHistory) => {
+      const next = step(previousHistory, delta)
+      if (next === previousHistory) {
+        return previousHistory
       }
       // Arriving again should not re-run a one-time jump (e.g. opening a reply box).
       const entries = [...next.entries]
@@ -38,19 +41,19 @@ export function useRouteHistory(first: Route) {
   const forward = useCallback(() => move(1), [move])
 
   useEffect(() => {
-    const onMouse = (e: MouseEvent) => {
-      if (e.button === MOUSE_BACK) {
+    const onMouse = (event: MouseEvent) => {
+      if (event.button === MOUSE_BACK) {
         back()
       }
-      if (e.button === MOUSE_FORWARD) {
+      if (event.button === MOUSE_FORWARD) {
         forward()
       }
     }
     const navigate = { back, forward }
     globalThis.addEventListener('mouseup', onMouse)
-    const off = globalThis.revio.onEvent((e) => {
-      if (e.type === 'navigate') {
-        navigate[e.direction]()
+    const off = globalThis.revio.onEvent((event) => {
+      if (event.type === 'navigate') {
+        navigate[event.direction]()
       }
     })
     return () => {

@@ -32,8 +32,8 @@ export function UpdateSettings() {
     setError(null)
     try {
       await globalThis.revio.checkForUpdates()
-    } catch (e) {
-      setError(errorMessage(e))
+    } catch (failure) {
+      setError(errorMessage(failure))
     }
   }
   const problem = error ?? status.error

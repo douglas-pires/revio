@@ -65,10 +65,15 @@ export function newSideOnly(side: DiffSide, line: number | null) {
 }
 
 /** A draft comment from a Claude conversation about lines start..end, marked as Claude's. */
-export function draftFromAsk(t: AskThread, body: string): Omit<DraftComment, 'id'> {
-  const draft: Omit<DraftComment, 'id'> = { path: t.path, side: t.side, line: t.endLine, body: markedAsAi(body) }
-  if (t.startLine !== t.endLine) {
-    draft.startLine = t.startLine
+export function draftFromAsk(thread: AskThread, body: string): Omit<DraftComment, 'id'> {
+  const draft: Omit<DraftComment, 'id'> = {
+    path: thread.path,
+    side: thread.side,
+    line: thread.endLine,
+    body: markedAsAi(body),
+  }
+  if (thread.startLine !== thread.endLine) {
+    draft.startLine = thread.startLine
   }
   return draft
 }
