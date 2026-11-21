@@ -1,6 +1,6 @@
 import { type GraphRow, layoutGraph } from '@shared/commit-graph.util.ts'
 import type { CiState, Commit } from '@shared/git-log.types.ts'
-import { useMemo } from 'react'
+import { useEffect, useMemo, useRef } from 'react'
 import { formatAge, joinClassNames } from '../common/format.util.ts'
 import { GraphCell } from './commit-graph.component.tsx'
 import { measureGraphWidth, ROW_PX } from './graph-geometry.util.ts'
@@ -115,6 +115,7 @@ function CommitRow(props: {
   return (
     <button
       type="button"
+      data-commit={commit.hash}
       aria-pressed={props.selected}
       // biome-ignore lint/style/noInlineStyles: rows match the graph's fixed row height.
       style={{ height: ROW_PX }}
@@ -154,11 +155,18 @@ export function CommitList(props: {
   onLoadMore: () => void
 }) {
   const rows = useMemo(() => layoutGraph(props.commits), [props.commits])
+  const scroller = useRef<HTMLDivElement>(null)
+  // A commit picked from elsewhere (the Commits tab) scrolls into view.
+  useEffect(() => {
+    if (props.selected) {
+      scroller.current?.querySelector(`[data-commit="${props.selected}"]`)?.scrollIntoView({ block: 'nearest' })
+    }
+  }, [props.selected])
   const graphWidth = measureGraphWidth(Math.max(0, ...rows.map((row) => row.width)))
   return (
     <section className="flex min-w-0 flex-1 flex-col">
       <FilterBar filters={props.filters} onChange={props.onFilters} />
-      <div className="min-h-0 flex-1 overflow-auto">
+      <div ref={scroller} className="min-h-0 flex-1 overflow-auto">
         {props.commits.length === 0 && !props.loading && (
           <div className="px-4 py-10 text-center text-muted">No commits match these filters.</div>
         )}

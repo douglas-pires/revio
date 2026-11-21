@@ -105,10 +105,13 @@ export function PullTabs({
   view,
   pr,
   onEditGuidelines,
+  onOpenCommit,
 }: {
   view: PullViewState
   pr: PullDetail
   onEditGuidelines: EditGuidelines
+  /** A commit opened on the Commits tab, for the git log to pick. */
+  onOpenCommit: (sha: string) => void
 }) {
   return (
     <section className="flex min-w-0 flex-1 flex-col">
@@ -134,7 +137,7 @@ export function PullTabs({
         <OverviewPane view={view} pr={pr} onEditGuidelines={onEditGuidelines} />
       </TabPane>
       <TabPane active={view.tab === 'commits'}>
-        <CommitsTab pull={view.pull} headSha={pr.headSha} />
+        <CommitsTab pull={view.pull} headSha={pr.headSha} onOpenCommit={onOpenCommit} />
       </TabPane>
       <TabPane active={view.tab === 'files'}>
         <FilesPane view={view} pr={pr} />

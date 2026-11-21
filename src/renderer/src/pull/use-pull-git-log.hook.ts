@@ -113,6 +113,11 @@ function useSelectedCommit(repo: string) {
   return { selected, setSelected, detail, error }
 }
 
+/** A commit opened on the Commits tab; a new object each time, so opening the same commit again picks it again. */
+export interface CommitPick {
+  sha: string
+}
+
 /** Which PR's history the log reads: its repository, and its head commit and branch. */
 export interface PullLogSource {
   repo: string

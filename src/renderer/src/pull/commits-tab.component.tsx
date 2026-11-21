@@ -161,8 +161,19 @@ function FilePatch({ path, patch }: { path: string; patch?: string | undefined }
   )
 }
 
-/** The PR's commits, oldest first like GitHub. Expand one for its full message and the files it changed. */
-export function CommitsTab({ pull, headSha }: { pull: PullRef; headSha: string }) {
+/**
+ * The PR's commits, oldest first like GitHub. Expand one for its full message and the files it changed; opening one
+ * also tells `onOpenCommit`, so the git log below can pick it.
+ */
+export function CommitsTab({
+  pull,
+  headSha,
+  onOpenCommit,
+}: {
+  pull: PullRef
+  headSha: string
+  onOpenCommit: (sha: string) => void
+}) {
   const [commits, setCommits] = useState<PullCommit[] | null>(null)
   const [error, setError] = useState<string | null>(null)
   const [open, setOpen] = useState<string | null>(null)
@@ -197,7 +208,12 @@ export function CommitsTab({ pull, headSha }: { pull: PullRef; headSha: string }
           index={index + 1}
           repo={pull.repo}
           open={open === commit.sha}
-          onToggle={() => setOpen(toggleOpen(open, commit.sha))}
+          onToggle={() => {
+            if (open !== commit.sha) {
+              onOpenCommit(commit.sha)
+            }
+            setOpen(toggleOpen(open, commit.sha))
+          }}
         />
       ))}
     </ol>

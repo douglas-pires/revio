@@ -5,11 +5,13 @@ import { CommitDetailPanel } from '../gitlog/commit-detail.component.tsx'
 import { CommitFileDiff } from '../gitlog/commit-file-diff.component.tsx'
 import { CommitList } from '../gitlog/commit-list.component.tsx'
 import { usePanelLayout } from './use-panel-layout.hook.ts'
-import { type PullGitLogState, type PullLogSource, usePullGitLog } from './use-pull-git-log.hook.ts'
+import { type CommitPick, type PullGitLogState, type PullLogSource, usePullGitLog } from './use-pull-git-log.hook.ts'
 
 interface PullGitLogProps extends PullLogSource {
   /** The file open in Files changed, or null on the other tabs. */
   openPath: string | null
+  /** The commit last opened on the Commits tab, which the log picks. */
+  commitPick: CommitPick | null
 }
 
 /** A file opened in one commit; it counts as open only while that commit stays picked. */
@@ -133,6 +135,12 @@ function LogPane(props: { repo: string; gitLog: PullGitLogState; openFile: strin
 function PullGitLogBody(props: PullGitLogProps & { followPath: boolean }) {
   const gitLog = usePullGitLog(props, props.openPath, props.followPath)
   const [openFile, setOpenFile] = useOpenFile(gitLog.commit.selected)
+  const { setSelected } = gitLog.commit
+  useEffect(() => {
+    if (props.commitPick) {
+      setSelected(props.commitPick.sha)
+    }
+  }, [props.commitPick, setSelected])
   return (
     <>
       {Boolean(gitLog.error) && <ErrorBanner className="m-3">{gitLog.error}</ErrorBanner>}

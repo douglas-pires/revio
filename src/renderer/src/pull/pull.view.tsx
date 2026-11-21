@@ -1,4 +1,5 @@
 import type { PullDetail, PullRef } from '@shared/pull.types.ts'
+import { useState } from 'react'
 import { ErrorBanner } from '../common/error-banner.component.tsx'
 import type { OpenPull, PullTarget } from '../common/navigation.types.ts'
 import { Screen, ScreenBody, ScreenHeader } from '../common/screen.component.tsx'
@@ -10,6 +11,7 @@ import { PullSidePanels } from './pull-side-panels.component.tsx'
 import { PullTabs } from './pull-tabs.component.tsx'
 import { StackBar } from './stack-bar.component.tsx'
 import { UnsentScopeContext } from './unsent-comments.util.ts'
+import type { CommitPick } from './use-pull-git-log.hook.ts'
 import { type PullViewState, usePullView } from './use-pull-view.hook.ts'
 import { ReactionsContext } from './use-reactions.hook.ts'
 import { ReplyTargetContext } from './use-reply-target.hook.ts'
@@ -73,6 +75,7 @@ function PullViewHeader({ view, pr, props }: { view: PullViewState; pr: PullDeta
 
 export function PullView(props: PullViewProps) {
   const view = usePullView(props.pull, props.initialTarget)
+  const [commitPick, setCommitPick] = useState<CommitPick | null>(null)
   const { pr } = view
   if (view.error) {
     return (
@@ -117,7 +120,12 @@ export function PullView(props: PullViewProps) {
                   draftCounts={view.draftCounts}
                   onSelect={view.nav.goTo}
                 />
-                <PullTabs view={view} pr={pr} onEditGuidelines={props.onEditGuidelines} />
+                <PullTabs
+                  view={view}
+                  pr={pr}
+                  onEditGuidelines={props.onEditGuidelines}
+                  onOpenCommit={(sha) => setCommitPick({ sha })}
+                />
                 <PullSidePanels view={view} pr={pr} />
               </div>
               <GitLogPanel
@@ -125,6 +133,7 @@ export function PullView(props: PullViewProps) {
                 headSha={pr.headSha}
                 headRef={pr.headRef}
                 openPath={readOpenPath(view)}
+                commitPick={commitPick}
               />
             </div>
           </ThreadFoldContext>
