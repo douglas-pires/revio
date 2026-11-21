@@ -4,6 +4,7 @@ import type { PullDetail, PullLocalState, PullRef } from '@shared/pull.types.ts'
 import { MS_PER_MINUTE } from '@shared/time.util.ts'
 import { useCallback, useEffect, useRef, useState } from 'react'
 import { readErrorMessage } from '../common/format.util.ts'
+import { createVisibleRefresher } from './live-refresh.util.ts'
 import { hasSameContent } from './pull-content.util.ts'
 import { findKnownStack, rememberStack } from './stack-memory.util.ts'
 
@@ -52,31 +53,18 @@ function refreshInBackground(pull: PullRef, show: (pr: PullDetail) => void) {
     })
 }
 
-/** Refetches the PR only while the window is visible, and skips a refetch when the last one is recent. */
-function createVisibleRefresher(pull: PullRef, showPull: (pr: PullDetail) => void) {
-  let lastRefreshedAt = Date.now()
-  const refreshIfVisible = () => {
-    if (document.visibilityState !== 'visible') {
-      return
-    }
-    lastRefreshedAt = Date.now()
-    refreshInBackground(pull, showPull)
-  }
-  const refreshIfStale = () => {
-    if (Date.now() - lastRefreshedAt > FRESH_ENOUGH_MS) {
-      refreshIfVisible()
-    }
-  }
-  return { refreshIfVisible, refreshIfStale }
-}
-
 /**
  * Keeps an open PR current, so replies and new comments show up without reopening it: refetches every
  * `LIVE_REFRESH_MS` while the window is visible, and at once when you come back to it.
  */
 function useLiveRefresh(pull: PullRef, showPull: (pr: PullDetail) => void) {
   useEffect(() => {
-    const { refreshIfVisible, refreshIfStale } = createVisibleRefresher(pull, showPull)
+    const { refreshIfVisible, refreshIfStale } = createVisibleRefresher({
+      refresh: () => refreshInBackground(pull, showPull),
+      isVisible: () => document.visibilityState === 'visible',
+      now: () => Date.now(),
+      freshEnoughMs: FRESH_ENOUGH_MS,
+    })
     const timer = setInterval(refreshIfVisible, LIVE_REFRESH_MS)
     globalThis.addEventListener('focus', refreshIfStale)
     document.addEventListener('visibilitychange', refreshIfStale)
