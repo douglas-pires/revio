@@ -4,6 +4,7 @@ import type { PullDetail, PullLocalState, PullRef } from '@shared/pull.types.ts'
 import { MS_PER_MINUTE } from '@shared/time.util.ts'
 import { useCallback, useEffect, useRef, useState } from 'react'
 import { errorMessage } from '../common/format.util.ts'
+import { createVisibleRefresher } from './live-refresh.util.ts'
 import { hasSameContent } from './pull-content.util.ts'
 import { knownStackOf, rememberStack } from './stack-memory.util.ts'
 
@@ -11,6 +12,8 @@ import { knownStackOf, rememberStack } from './stack-memory.util.ts'
 const PREFETCH_MAX_AGE_MS = 2 * MS_PER_MINUTE
 /** Copies older than this are refreshed in the background after showing. */
 const FRESH_ENOUGH_MS = 15_000
+/** How often an open PR checks GitHub for new comments and replies. */
+const LIVE_REFRESH_MS = MS_PER_MINUTE
 
 /** The current copy when a refetch changed nothing, so memoized views stay put; else the new one. */
 function keepIfSame(prev: PullDetail | null, next: PullDetail) {
@@ -48,6 +51,29 @@ function refreshInBackground(pull: PullRef, show: (pr: PullDetail) => void) {
     .catch(() => {
       // The copy on screen stays; the next open fetches again.
     })
+}
+
+/**
+ * Keeps an open PR current, so replies and new comments show up without reopening it: refetches every
+ * `LIVE_REFRESH_MS` while the window is visible, and at once when you come back to it.
+ */
+function useLiveRefresh(pull: PullRef, showPull: (pr: PullDetail) => void) {
+  useEffect(() => {
+    const { refreshIfVisible, refreshIfStale } = createVisibleRefresher({
+      refresh: () => refreshInBackground(pull, showPull),
+      isVisible: () => document.visibilityState === 'visible',
+      now: () => Date.now(),
+      freshEnoughMs: FRESH_ENOUGH_MS,
+    })
+    const timer = setInterval(refreshIfVisible, LIVE_REFRESH_MS)
+    globalThis.addEventListener('focus', refreshIfStale)
+    document.addEventListener('visibilitychange', refreshIfStale)
+    return () => {
+      clearInterval(timer)
+      globalThis.removeEventListener('focus', refreshIfStale)
+      document.removeEventListener('visibilitychange', refreshIfStale)
+    }
+  }, [pull, showPull])
 }
 
 /**
@@ -93,6 +119,8 @@ export function usePullDetail(pull: PullRef, onLoaded: (pr: PullDetail, local: P
   useEffect(() => {
     load(PREFETCH_MAX_AGE_MS)
   }, [load])
+
+  useLiveRefresh(pull, showPr)
 
   /** Posts a reply right away and refetches so it shows. */
   const replyNow = useCallback(
