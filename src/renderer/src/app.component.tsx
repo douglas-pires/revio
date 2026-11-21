@@ -9,6 +9,7 @@ import type { OpenPull } from './common/navigation.types.ts'
 import { useRouteHistory } from './common/use-route-history.hook.ts'
 import { HighlighterContext, WorkerHighlighter } from './highlight/highlight.service.ts'
 import { Inbox } from './inbox/inbox.view.tsx'
+import { countPullsNeedingYou } from './my-pulls/my-pulls.util.ts'
 import { UpdateBanner } from './updates/update-banner.component.tsx'
 import { useUpdateStatus } from './updates/use-update-status.hook.ts'
 
@@ -16,6 +17,8 @@ import { useUpdateStatus } from './updates/use-update-status.hook.ts'
 const PullView = lazy(() => import('./pull/pull.view.tsx').then((m) => ({ default: m.PullView })))
 
 const Guidelines = lazy(() => import('./guidelines/guidelines.view.tsx').then((m) => ({ default: m.Guidelines })))
+
+const MyPulls = lazy(() => import('./my-pulls/my-pulls.view.tsx').then((m) => ({ default: m.MyPulls })))
 
 const Mentions = lazy(() => import('./mentions/mentions.view.tsx').then((m) => ({ default: m.Mentions })))
 
@@ -123,6 +126,15 @@ function NavRail({
         <path d="M3 13h4l2 3h6l2-3h4M3 13l3-8h12l3 8v6H3z" />
       </NavButton>
       <NavButton
+        active={route.view === 'my-pulls'}
+        label="My PRs"
+        onClick={() => setRoute({ view: 'my-pulls' })}
+        badge={countPullsNeedingYou(inbox?.authored ?? [])}
+        badgeTone="danger"
+      >
+        <path d="M6 3v12M6 15a3 3 0 1 0 0 6 3 3 0 0 0 0-6zM18 21V9a3 3 0 0 0-3-3h-4M13 3l-2 3 2 3" />
+      </NavButton>
+      <NavButton
         active={route.view === 'mentions'}
         label="Mentions"
         onClick={() => setRoute({ view: 'mentions' })}
@@ -181,6 +193,7 @@ function Screen({
         />
       )}
       {route.view === 'guidelines' && <Guidelines initialRepo={route.repo} initialPath={route.path} />}
+      {route.view === 'my-pulls' && <MyPulls inbox={inbox} onOpen={openPull} />}
       {route.view === 'mentions' && <Mentions mentions={mentions} onOpen={openPull} />}
       {route.view === 'settings' && <Settings />}
     </Suspense>
