@@ -1,45 +1,47 @@
 import type { Mention } from '@shared/mention.types.ts'
 
-const namesYou = (m: Mention) => m.snippets.some((s) => s.viaTeam === null)
-const namesTeam = (m: Mention, team: string) => m.snippets.some((s) => s.viaTeam === team)
+const mentionsYou = (mention: Mention) => mention.snippets.some((snippet) => snippet.viaTeam === null)
+const mentionsTeam = (mention: Mention, team: string) => mention.snippets.some((snippet) => snippet.viaTeam === team)
 
 /** Whose mentions to show: all of them, the ones naming you, or the ones naming one of your teams. */
 export type MentionAudience = { kind: 'all' } | { kind: 'me' } | { kind: 'team'; team: string }
 
-export function matchesAudience(m: Mention, a: MentionAudience): boolean {
-  if (a.kind === 'me') {
-    return namesYou(m)
+export function matchesAudience(mention: Mention, audience: MentionAudience): boolean {
+  if (audience.kind === 'me') {
+    return mentionsYou(mention)
   }
-  if (a.kind === 'team') {
-    return namesTeam(m, a.team)
+  if (audience.kind === 'team') {
+    return mentionsTeam(mention, audience.team)
   }
   return true
 }
 
 /** The choices with their counts: All, Me, then each team that was mentioned, most mentioned first. */
-export function audienceCounts(mentions: readonly Mention[]): { audience: MentionAudience; count: number }[] {
-  const teams = [...new Set(mentions.flatMap((m) => m.snippets.flatMap((s) => s.viaTeam ?? [])))]
+export function countAudiences(mentions: readonly Mention[]): { audience: MentionAudience; count: number }[] {
+  const teams = [
+    ...new Set(mentions.flatMap((mention) => mention.snippets.flatMap((snippet) => snippet.viaTeam ?? []))),
+  ]
     .map((team) => ({
       audience: { kind: 'team', team } as const,
-      count: mentions.filter((m) => namesTeam(m, team)).length,
+      count: mentions.filter((mention) => mentionsTeam(mention, team)).length,
     }))
-    .sort((a, b) => b.count - a.count)
+    .sort((left, right) => right.count - left.count)
   return [
     { audience: { kind: 'all' }, count: mentions.length },
-    { audience: { kind: 'me' }, count: mentions.filter(namesYou).length },
+    { audience: { kind: 'me' }, count: mentions.filter(mentionsYou).length },
     ...teams,
   ]
 }
 
-export function sameAudience(a: MentionAudience, b: MentionAudience): boolean {
-  return a.kind === b.kind && (a.kind !== 'team' || (b.kind === 'team' && a.team === b.team))
+export function sameAudience(left: MentionAudience, right: MentionAudience): boolean {
+  return left.kind === right.kind && (left.kind !== 'team' || (right.kind === 'team' && left.team === right.team))
 }
 
-export function audienceLabel(a: MentionAudience): string {
-  if (a.kind === 'team') {
-    return `@${a.team}`
+export function describeAudience(audience: MentionAudience): string {
+  if (audience.kind === 'team') {
+    return `@${audience.team}`
   }
-  if (a.kind === 'me') {
+  if (audience.kind === 'me') {
     return 'Me'
   }
   return 'All'

@@ -2,7 +2,7 @@ import { describe, expect, it } from 'vitest'
 import { makeSummary } from '../../../../test/fixtures.ts'
 import { countPullsNeedingYou, groupMyPulls } from './my-pulls.util.ts'
 
-const idsOf = (pulls: readonly { id: string }[]) => pulls.map((pull) => pull.id)
+const listIds = (pulls: readonly { id: string }[]) => pulls.map((pull) => pull.id)
 
 describe('groupMyPulls', () => {
   const prs = [
@@ -15,10 +15,10 @@ describe('groupMyPulls', () => {
 
   it('sorts your PRs by what they need next, drafts apart whatever their reviews say', () => {
     const groups = groupMyPulls(prs)
-    expect(idsOf(groups.changesRequested)).toEqual(['fix-me'])
-    expect(idsOf(groups.approved)).toEqual(['ship-me'])
-    expect(idsOf(groups.inReview)).toEqual(['waiting', 'no-rules'])
-    expect(idsOf(groups.drafts)).toEqual(['wip'])
+    expect(listIds(groups.changesRequested)).toEqual(['fix-me'])
+    expect(listIds(groups.approved)).toEqual(['ship-me'])
+    expect(listIds(groups.inReview)).toEqual(['waiting', 'no-rules'])
+    expect(listIds(groups.drafts)).toEqual(['wip'])
   })
 
   it('counts only the ready PRs with changes requested as needing you', () => {

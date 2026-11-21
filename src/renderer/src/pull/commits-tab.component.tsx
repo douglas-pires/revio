@@ -3,10 +3,10 @@ import type { PullRef } from '@shared/pull.types.ts'
 import { useEffect, useMemo, useState } from 'react'
 import { CopyButton } from '../common/copy-button.component.tsx'
 import { ErrorBanner } from '../common/error-banner.component.tsx'
-import { ago, cx, errorMessage } from '../common/format.util.ts'
-import { toggledIn, toggledOpen } from '../common/group.util.ts'
+import { formatAge, joinClassNames, readErrorMessage } from '../common/format.util.ts'
+import { toggleInSet, toggleOpen } from '../common/group.util.ts'
 import { parsePatch } from './diff.util.ts'
-import { renameTitle } from './files.util.ts'
+import { describeRename } from './files.util.ts'
 import { StaticDiff } from './static-diff.component.tsx'
 
 const AVATAR_PX = 24
@@ -14,7 +14,7 @@ const AVATAR_PX = 24
 const OPEN_ALL_UP_TO = 3
 
 function CommitRow({
-  commit: c,
+  commit,
   index,
   repo,
   open,
@@ -26,40 +26,45 @@ function CommitRow({
   open: boolean
   onToggle: () => void
 }) {
-  const details = c.message.slice(c.headline.length).trim()
+  const details = commit.message.slice(commit.headline.length).trim()
   return (
     <li
-      className={cx('overflow-hidden rounded-lg border bg-panel', open && 'border-accent/50', !open && 'border-line')}
+      className={joinClassNames(
+        'overflow-hidden rounded-lg border bg-panel',
+        open && 'border-accent/50',
+        !open && 'border-line',
+      )}
     >
       <div className="flex items-center gap-3 px-4 py-2.5">
         <span className="w-6 shrink-0 text-right font-mono text-[11px] text-muted">{index}</span>
-        {Boolean(c.authorAvatar) && (
+        {Boolean(commit.authorAvatar) && (
           <img
-            src={c.authorAvatar}
+            src={commit.authorAvatar}
             alt=""
             width={AVATAR_PX}
             height={AVATAR_PX}
             className="size-6 shrink-0 rounded-full"
           />
         )}
-        {!c.authorAvatar && <span className="size-6 shrink-0 rounded-full bg-panel-2" />}
+        {!commit.authorAvatar && <span className="size-6 shrink-0 rounded-full bg-panel-2" />}
         <button type="button" className="min-w-0 flex-1 text-left" onClick={onToggle} aria-expanded={open}>
-          <div className="truncate text-[13px] font-medium hover:underline">{c.headline}</div>
+          <div className="truncate text-[13px] font-medium hover:underline">{commit.headline}</div>
           <div className="text-[11.5px] text-muted">
-            {c.author} committed <span title={new Date(c.date).toLocaleString()}>{ago(c.date)} ago</span>
+            {commit.author} committed{' '}
+            <span title={new Date(commit.date).toLocaleString()}>{formatAge(commit.date)} ago</span>
           </div>
         </button>
         <CopyButton
-          text={c.sha}
-          title={`Copy commit sha ${c.sha}`}
+          text={commit.sha}
+          title={`Copy commit sha ${commit.sha}`}
           className="shrink-0 rounded px-1 font-mono text-[11.5px] text-muted hover:bg-hover hover:text-fg"
         >
-          {c.shortSha}
+          {commit.shortSha}
         </CopyButton>
         <button
           type="button"
           className="btn btn-ghost shrink-0 py-0 text-[12px]"
-          onClick={() => globalThis.revio.openExternal(c.url)}
+          onClick={() => globalThis.revio.openExternal(commit.url)}
         >
           GitHub ↗
         </button>
@@ -71,7 +76,7 @@ function CommitRow({
               {details}
             </pre>
           )}
-          <CommitFiles repo={repo} sha={c.sha} />
+          <CommitFiles repo={repo} sha={commit.sha} />
         </div>
       )}
     </li>
@@ -88,17 +93,17 @@ function CommitFiles({ repo, sha }: { repo: string; sha: string }) {
     let live = true
     globalThis.revio
       .getCommitFiles({ repo, sha })
-      .then((f) => {
+      .then((commitFiles) => {
         if (!live) {
           return
         }
-        setFiles(f)
+        setFiles(commitFiles)
         // Small commits open fully; larger ones list files to open one by one.
-        if (f.length <= OPEN_ALL_UP_TO) {
-          setShown(new Set(f.map((x) => x.path)))
+        if (commitFiles.length <= OPEN_ALL_UP_TO) {
+          setShown(new Set(commitFiles.map((file) => file.path)))
         }
       })
-      .catch((e) => live && setError(errorMessage(e)))
+      .catch((failure) => live && setError(readErrorMessage(failure)))
     return () => {
       live = false
     }
@@ -110,34 +115,34 @@ function CommitFiles({ repo, sha }: { repo: string; sha: string }) {
   if (!files) {
     return <div className="px-4 py-3 text-[12px] text-muted">Loading files…</div>
   }
-  const toggle = (path: string) => setShown((s) => toggledIn(s, path))
+  const toggle = (path: string) => setShown((shownPaths) => toggleInSet(shownPaths, path))
   return (
     <div className="divide-y divide-line">
-      {files.map((f) => (
-        <div key={f.path}>
+      {files.map((file) => (
+        <div key={file.path}>
           <button
             type="button"
             className="flex w-full items-center gap-2 px-4 py-1.5 text-left hover:bg-hover"
-            onClick={() => toggle(f.path)}
-            aria-expanded={shown.has(f.path)}
+            onClick={() => toggle(file.path)}
+            aria-expanded={shown.has(file.path)}
           >
             <svg
               aria-hidden={true}
               viewBox="0 0 16 16"
-              className={cx('size-3 shrink-0 text-muted transition', !shown.has(f.path) && '-rotate-90')}
+              className={joinClassNames('size-3 shrink-0 text-muted transition', !shown.has(file.path) && '-rotate-90')}
               fill="currentColor"
             >
               <path d="M4 6l4 4 4-4z" />
             </svg>
-            <span className="min-w-0 flex-1 truncate font-mono text-[12px]" title={renameTitle(f)}>
-              {Boolean(f.previousPath) && <span className="text-muted">{f.previousPath} → </span>}
-              {f.path}
+            <span className="min-w-0 flex-1 truncate font-mono text-[12px]" title={describeRename(file)}>
+              {Boolean(file.previousPath) && <span className="text-muted">{file.previousPath} → </span>}
+              {file.path}
             </span>
             <span className="shrink-0 font-mono text-[11.5px]">
-              <span className="text-ok">+{f.additions}</span> <span className="text-danger">−{f.deletions}</span>
+              <span className="text-ok">+{file.additions}</span> <span className="text-danger">−{file.deletions}</span>
             </span>
           </button>
-          {Boolean(shown.has(f.path)) && <FilePatch path={f.path} patch={f.patch} />}
+          {Boolean(shown.has(file.path)) && <FilePatch path={file.path} patch={file.patch} />}
         </div>
       ))}
     </div>
@@ -166,8 +171,8 @@ export function CommitsTab({ pull, headSha }: { pull: PullRef; headSha: string }
     let live = true
     globalThis.revio
       .getPullCommits(pull, headSha)
-      .then((c) => live && setCommits(c))
-      .catch((e) => live && setError(errorMessage(e)))
+      .then((loaded) => live && setCommits(loaded))
+      .catch((failure) => live && setError(readErrorMessage(failure)))
     return () => {
       live = false
     }
@@ -185,14 +190,14 @@ export function CommitsTab({ pull, headSha }: { pull: PullRef; headSha: string }
   }
   return (
     <ol data-commits={true} className="mx-auto max-w-5xl space-y-2 px-6 py-5">
-      {commits.map((c, i) => (
+      {commits.map((commit, index) => (
         <CommitRow
-          key={c.sha}
-          commit={c}
-          index={i + 1}
+          key={commit.sha}
+          commit={commit}
+          index={index + 1}
           repo={pull.repo}
-          open={open === c.sha}
-          onToggle={() => setOpen(toggledOpen(open, c.sha))}
+          open={open === commit.sha}
+          onToggle={() => setOpen(toggleOpen(open, commit.sha))}
         />
       ))}
     </ol>

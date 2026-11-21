@@ -15,7 +15,7 @@ export function configureTokenResolver(resolve: () => Promise<ResolvedToken>) {
   resetClient()
 }
 
-export async function gh(): Promise<Octokit> {
+export async function getGithubClient(): Promise<Octokit> {
   const { token } = await resolveToken()
   if (client?.token !== token) {
     client = { token, octokit: new Octokit({ auth: token, userAgent: 'revio' }) }
@@ -24,15 +24,15 @@ export async function gh(): Promise<Octokit> {
 }
 
 /** The token the client currently uses, or null before the first request. */
-export const tokenInUse = () => client?.token ?? null
+export const readTokenInUse = () => client?.token ?? null
 
 export function resetClient() {
   client = null
 }
 
-export async function viewerLogin(): Promise<string> {
-  const octokit = await gh()
-  const token = tokenInUse()
+export async function getViewerLogin(): Promise<string> {
+  const octokit = await getGithubClient()
+  const token = readTokenInUse()
   if (cachedViewer !== null && cachedViewer.token === token) {
     return cachedViewer.login
   }
@@ -44,11 +44,11 @@ export async function viewerLogin(): Promise<string> {
 }
 
 /** GitHub serves 460px avatars by default; the app shows them at 20–28px. */
-export function smallAvatar(url: string | undefined) {
+export function buildSmallAvatarUrl(url: string | undefined) {
   if (!url) {
     return ''
   }
-  const u = new URL(url)
-  u.searchParams.set('s', '64')
-  return u.toString()
+  const avatarUrl = new URL(url)
+  avatarUrl.searchParams.set('s', '64')
+  return avatarUrl.toString()
 }

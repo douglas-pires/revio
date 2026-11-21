@@ -1,13 +1,13 @@
 import { describe, expect, it } from 'vitest'
-import { duration, isGenerated } from '@/common/format.util.ts'
+import { formatDuration, isGenerated } from '@/common/format.util.ts'
 import { EMPTY, groupBy } from '@/common/group.util.ts'
-import { groupByDir, initialCollapsed, newSideLinesByPath, suggestFolders } from '@/pull/files.util.ts'
-import { expectPresent, makeDetail, makeFile } from '../../../../test/fixtures.ts'
+import { collectNewSideLines, computeInitialCollapsed, groupByDir, suggestFolders } from '@/pull/files.util.ts'
+import { assertPresent, makeDetail, makeFile } from '../../../../test/fixtures.ts'
 
 describe('groupByDir', () => {
   it('groups by containing folder, root files under ""', () => {
-    const out = groupByDir([{ path: 'a/x.ts' }, { path: 'README.md' }, { path: 'a/y.ts' }])
-    expect(out).toEqual([
+    const output = groupByDir([{ path: 'a/x.ts' }, { path: 'README.md' }, { path: 'a/y.ts' }])
+    expect(output).toEqual([
       ['a/', [{ path: 'a/x.ts' }, { path: 'a/y.ts' }]],
       ['', [{ path: 'README.md' }]],
     ])
@@ -46,7 +46,7 @@ describe('initialCollapsed', () => {
       questions: [],
       guidelineChecks: [],
     }
-    const collapsed = initialCollapsed(pr, {
+    const collapsed = computeInitialCollapsed(pr, {
       drafts: [],
       viewed: { 'viewed.ts': 'v1', 'changed-since.ts': 'old' },
       briefing: { briefing, headSha: 'h', createdAt: '', backend: 'api', model: 'claude-opus-5-5', omittedFiles: [] },
@@ -70,8 +70,8 @@ describe('newSideLinesByPath', () => {
         makeFile({ path: 'img.png', patch: undefined }),
       ],
     })
-    const lines = newSideLinesByPath(pr)
-    expect([...expectPresent(lines.get('a.ts'))]).toEqual([1, 2])
+    const lines = collectNewSideLines(pr)
+    expect([...assertPresent(lines.get('a.ts'))]).toEqual([1, 2])
     expect(lines.get('img.png')?.size).toBe(0)
   })
 })
@@ -79,10 +79,10 @@ describe('newSideLinesByPath', () => {
 describe('isGenerated', () => {
   it.each(['yarn.lock', 'apps/web/pnpm-lock.yaml', 'x/__snapshots__/a.test.ts.snap', 'dist/index.js', 'a.min.js'])(
     'flags %s',
-    (p) => expect(isGenerated(p)).toBe(true),
+    (path) => expect(isGenerated(path)).toBe(true),
   )
-  it.each(['src/build.ts', 'lockfile.ts', 'distance/a.ts'])('leaves %s alone', (p) =>
-    expect(isGenerated(p)).toBe(false),
+  it.each(['src/build.ts', 'lockfile.ts', 'distance/a.ts'])('leaves %s alone', (path) =>
+    expect(isGenerated(path)).toBe(false),
   )
 })
 
@@ -93,21 +93,21 @@ describe('duration', () => {
     [5.4, '5h'],
     [47, '47h'],
     [72, '3d'],
-  ])('%d hours → %s', (h, s) => expect(duration(h)).toBe(s))
+  ])('%d hours → %s', (hours, expected) => expect(formatDuration(hours)).toBe(expected))
 })
 
 describe('groupBy', () => {
   it('keeps insertion order', () => {
-    const g = groupBy(
+    const groups = groupBy(
       [
         { k: 'b', v: 1 },
         { k: 'a', v: 2 },
         { k: 'b', v: 3 },
       ],
-      (x) => x.k,
+      (entry) => entry.k,
     )
-    expect([...g.keys()]).toEqual(['b', 'a'])
-    expect(g.get('b')?.map((x) => x.v)).toEqual([1, 3])
+    expect([...groups.keys()]).toEqual(['b', 'a'])
+    expect(groups.get('b')?.map((entry) => entry.v)).toEqual([1, 3])
   })
 
   it('shares one frozen empty array', () => {

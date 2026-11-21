@@ -1,11 +1,7 @@
 import type { PullSummary } from '@shared/inbox.types.ts'
-
-import { ago, cx, duration } from '../common/format.util.ts'
-
+import { formatAge, formatDuration, joinClassNames } from '../common/format.util.ts'
 import { onActivateKey } from '../common/keyboard.util.ts'
-
 import type { OpenPull } from '../common/navigation.types.ts'
-
 import { usePrefetchOnHover } from './use-prefetch-on-hover.hook.ts'
 
 /** Size labels by changed lines (additions + deletions): below each limit, that label; XL above them all. */
@@ -16,7 +12,7 @@ const AVATAR_PX = 28
 /** The time at the end of a row: how long a review request has waited, or when the PR last changed. */
 type RowTime = 'waiting' | 'updated'
 
-function requestedTitle(requestedAt: string | null) {
+function describeRequestTime(requestedAt: string | null) {
   if (!requestedAt) {
     return 'request time unknown'
   }
@@ -29,8 +25,8 @@ function StackChip({ stack, onStack }: { stack: NonNullable<PullSummary['stack']
       type="button"
       className="chip bg-accent/15 text-accent hover:bg-accent/25"
       title={`Stacked PR: ${stack.position} of ${stack.size} from the bottom. Click to see the stack.`}
-      onClick={(e) => {
-        e.stopPropagation()
+      onClick={(event) => {
+        event.stopPropagation()
         onStack(stack.id)
       }}
     >
@@ -50,18 +46,24 @@ function RowStats({ pr, time }: { pr: PullSummary; time: RowTime }) {
       <span>
         <span className="text-ok">+{pr.additions}</span> <span className="text-danger">−{pr.deletions}</span>
       </span>
-      <span className="chip w-7 justify-center bg-panel-2 text-muted">{sizeLabelOf(pr.additions + pr.deletions)}</span>
+      <span className="chip w-7 justify-center bg-panel-2 text-muted">
+        {pickSizeLabel(pr.additions + pr.deletions)}
+      </span>
       {!updated && (
         <span
-          className={cx('w-12 text-right', pr.stale && 'font-semibold text-danger', !pr.stale && 'text-muted')}
-          title={requestedTitle(pr.requestedAt)}
+          className={joinClassNames(
+            'w-12 text-right',
+            pr.stale && 'font-semibold text-danger',
+            !pr.stale && 'text-muted',
+          )}
+          title={describeRequestTime(pr.requestedAt)}
         >
-          {duration(pr.waitingHours)}
+          {formatDuration(pr.waitingHours)}
         </span>
       )}
       {Boolean(updated) && (
         <span className="w-12 text-right text-muted" title={`updated ${new Date(pr.updatedAt).toLocaleString()}`}>
-          {ago(pr.updatedAt)}
+          {formatAge(pr.updatedAt)}
         </span>
       )}
     </div>
@@ -69,7 +71,7 @@ function RowStats({ pr, time }: { pr: PullSummary; time: RowTime }) {
 }
 
 /** The time a row shows unless told otherwise: muted rows (already reviewed) show when the PR last changed. */
-function defaultRowTime(muted: boolean): RowTime {
+function pickDefaultRowTime(muted: boolean): RowTime {
   if (muted) {
     return 'updated'
   }
@@ -77,7 +79,7 @@ function defaultRowTime(muted: boolean): RowTime {
 }
 
 /** A T-shirt size for a PR from how many lines it changes. */
-function sizeLabelOf(changedLines: number) {
+function pickSizeLabel(changedLines: number) {
   return Object.entries(SIZE_LIMITS).find(([, limit]) => changedLines < limit)?.[0] ?? 'XL'
 }
 
@@ -87,7 +89,7 @@ export function InboxRow({
   onOpen,
   onStack,
   muted = false,
-  time = defaultRowTime(muted),
+  time = pickDefaultRowTime(muted),
 }: {
   pr: PullSummary
   onOpen: OpenPull
@@ -118,7 +120,7 @@ export function InboxRow({
         />
         <div className="min-w-0 flex-1">
           <div className="flex items-center gap-2">
-            <span className={cx('truncate font-medium', muted && 'text-muted')}>{pr.title}</span>
+            <span className={joinClassNames('truncate font-medium', muted && 'text-muted')}>{pr.title}</span>
             {Boolean(pr.isDraft) && <span className="chip bg-panel-2 text-muted">draft</span>}
             {pr.stack !== undefined && <StackChip stack={pr.stack} onStack={onStack} />}
             {pr.viaTeam !== null && <span className="chip bg-panel-2 text-muted">@{pr.viaTeam}</span>}

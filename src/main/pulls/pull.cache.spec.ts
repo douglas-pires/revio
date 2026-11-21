@@ -10,9 +10,9 @@ describe('PullCache', () => {
   it('shares one fetch between concurrent requests', async () => {
     const fetch = vi.fn(async () => makeDetail())
     const cache = new PullCache(fetch)
-    const [a, b] = await Promise.all([cache.get(PR), cache.get(PR)])
+    const [first, second] = await Promise.all([cache.get(PR), cache.get(PR)])
     expect(fetch).toHaveBeenCalledOnce()
-    expect(a).toBe(b)
+    expect(first).toBe(second)
   })
 
   it('serves a copy within maxAge and refetches once it is older, or when maxAge is 0', async () => {

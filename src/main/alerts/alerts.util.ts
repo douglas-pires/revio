@@ -34,13 +34,16 @@ function wantsRequestAlert(change: RequestChange, settings: AlertSettings) {
 }
 
 /** Notifies about one queued PR: a new or renewed request, and a stale one when its alert is due. Records the latter. */
-function alertRequest(pr: PullSummary, change: RequestChange | null, ctx: Required<AlertContext>) {
-  if (change && wantsRequestAlert(change, ctx.settings)) {
-    ctx.notify(requestTitle(change, pr), describePull(pr), pr)
+function alertRequest(pr: PullSummary, change: RequestChange | null, context: Required<AlertContext>) {
+  if (change && wantsRequestAlert(change, context.settings)) {
+    context.notify(requestTitle(change, pr), describePull(pr), pr)
   }
-  if (ctx.settings.notifyOnStale && isStaleAlertDue(pr, ctx.state, ctx.settings.staleRepeatHours, ctx.now)) {
-    recordStaleAlert(pr, ctx.state, ctx.now)
-    ctx.notify(`Stale review · waiting ${formatHours(pr.waitingHours)}`, describePull(pr), pr)
+  if (
+    context.settings.notifyOnStale &&
+    isStaleAlertDue(pr, context.state, context.settings.staleRepeatHours, context.now)
+  ) {
+    recordStaleAlert(pr, context.state, context.now)
+    context.notify(`Stale review · waiting ${formatHours(pr.waitingHours)}`, describePull(pr), pr)
   }
 }
 
@@ -94,7 +97,7 @@ export function raiseAlerts(inbox: Inbox, { settings, state, notify, now = Date.
       alertRequest(pr, change, { settings, state, notify, now })
     }
   }
-  forgetLeftQueue(state, new Set(inbox.requested.map((p) => p.id)))
+  forgetLeftQueue(state, new Set(inbox.requested.map((pull) => pull.id)))
   state.seeded = true
 }
 
@@ -145,14 +148,14 @@ export function forgetLeftQueue(state: AlertState, live: Set<string>) {
   }
 }
 
-export function formatHours(h: number) {
-  if (h < 1) {
-    return `${Math.max(1, Math.round(h * 60))}m`
+export function formatHours(hours: number) {
+  if (hours < 1) {
+    return `${Math.max(1, Math.round(hours * 60))}m`
   }
-  if (h < MAX_HOURS_SHOWN) {
-    return `${Math.round(h)}h`
+  if (hours < MAX_HOURS_SHOWN) {
+    return `${Math.round(hours)}h`
   }
-  return `${Math.round(h / 24)}d`
+  return `${Math.round(hours / 24)}d`
 }
 
 /**

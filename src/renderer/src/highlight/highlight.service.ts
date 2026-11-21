@@ -24,9 +24,9 @@ export class WorkerHighlighter implements Highlighter {
       return this.#worker
     }
     const worker = new Worker(new URL('./highlight.worker.ts', import.meta.url), { type: 'module' })
-    worker.onmessage = (e: MessageEvent<HighlightResponse>) => {
-      this.#pending.get(e.data.id)?.(e.data)
-      this.#pending.delete(e.data.id)
+    worker.onmessage = (event: MessageEvent<HighlightResponse>) => {
+      this.#pending.get(event.data.id)?.(event.data)
+      this.#pending.delete(event.data.id)
     }
     worker.onerror = () => {
       for (const resolve of this.#pending.values()) {
@@ -48,24 +48,24 @@ export class WorkerHighlighter implements Highlighter {
   }
 
   async highlightRows(path: string, rows: readonly DiffRow[], patchLength: number) {
-    const res = await this.#request({
+    const response = await this.#request({
       kind: 'rows',
       path,
       patchLength,
-      rows: rows.map((r) => ({ kind: r.kind, text: r.text })),
+      rows: rows.map((row) => ({ kind: row.kind, text: row.text })),
     })
-    if (res?.kind !== 'rows' || !res.tokens) {
+    if (response?.kind !== 'rows' || !response.tokens) {
       return null
     }
-    return new Map(res.tokens)
+    return new Map(response.tokens)
   }
 
   async highlightCode(language: string, code: string) {
-    const res = await this.#request({ kind: 'code', language, code })
-    if (res?.kind !== 'code') {
+    const response = await this.#request({ kind: 'code', language, code })
+    if (response?.kind !== 'code') {
       return null
     }
-    return res.lines
+    return response.lines
   }
 
   dispose() {

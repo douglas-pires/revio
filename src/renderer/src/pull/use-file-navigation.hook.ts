@@ -28,7 +28,7 @@ export function useFileNavigation(opts: {
       }
       setCurrent(target.path)
       if (expand) {
-        setCollapsed((c) => ({ ...c, [target.path]: false }))
+        setCollapsed((previousCollapsed) => ({ ...previousCollapsed, [target.path]: false }))
       }
       setScrollTarget(target)
     },
@@ -54,11 +54,15 @@ export function useFileNavigation(opts: {
   useScrollToTarget(scrollTarget, opts.onFilesTab, clearScrollTarget)
 
   const setFileCollapsed = useCallback(
-    (path: string, value: boolean) => setCollapsed((c) => ({ ...c, [path]: value })),
+    (path: string, value: boolean) => setCollapsed((previousCollapsed) => ({ ...previousCollapsed, [path]: value })),
     [],
   )
   const collapseFiles = useCallback(
-    (paths: readonly string[]) => setCollapsed((c) => ({ ...c, ...Object.fromEntries(paths.map((p) => [p, true])) })),
+    (paths: readonly string[]) =>
+      setCollapsed((previousCollapsed) => ({
+        ...previousCollapsed,
+        ...Object.fromEntries(paths.map((path) => [path, true])),
+      })),
     [],
   )
 

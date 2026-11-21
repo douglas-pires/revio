@@ -4,7 +4,7 @@ import { FilterChips } from '../common/filter-chips.component.tsx'
 import { countTeams, type ReviewAudience } from './inbox-query.util.ts'
 
 /** "team" stands in for team names the token may not read (no read:org). */
-function teamTitle(team: string) {
+function describeTeam(team: string) {
   if (team === 'team') {
     return 'Requested from a team (grant read:org to see team names)'
   }
@@ -22,9 +22,10 @@ export const AudienceBar = memo(function AudienceBarView({
   onPick: (audience: ReviewAudience) => void
 }) {
   const teams = countTeams(requested)
-  const direct = requested.filter((p) => !p.viaTeam).length
-  const isActive = (a: ReviewAudience) =>
-    active?.kind === a.kind && (a.kind !== 'team' || (active.kind === 'team' && active.team === a.team))
+  const direct = requested.filter((pull) => !pull.viaTeam).length
+  const isActive = (audience: ReviewAudience) =>
+    active?.kind === audience.kind &&
+    (audience.kind !== 'team' || (active.kind === 'team' && active.team === audience.team))
   const options: { audience: ReviewAudience; label: string; count: number; title: string }[] = [
     { audience: { kind: 'all' }, label: 'All', count: requested.length, title: 'Everything in your inbox' },
     { audience: { kind: 'me' }, label: 'Me', count: direct, title: 'Requested from you directly' },
@@ -32,7 +33,7 @@ export const AudienceBar = memo(function AudienceBarView({
       audience: { kind: 'team', team } as const,
       label: `@${team}`,
       count,
-      title: teamTitle(team),
+      title: describeTeam(team),
     })),
   ]
   const chips = options.map(({ audience, label, count, title }) => ({

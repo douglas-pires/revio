@@ -1,16 +1,16 @@
 import { describe, expect, it } from 'vitest'
-import { expectPresent } from '../../../../test/fixtures.ts'
+import { assertPresent } from '../../../../test/fixtures.ts'
 import {
-  anchorFor,
-  anchorOf,
-  diffSnippet,
-  keysOf,
-  lineRangeOfRows,
-  newSideText,
+  computeLineRange,
+  extractDiffSnippet,
+  extractNewSideText,
+  findRowAnchor,
+  listRowKeys,
   parsePatch,
   parseRange,
+  parseSnippetRows,
+  readRowAnchor,
   sliceAroundLine,
-  snippetRows,
   toSplit,
 } from './diff.util.ts'
 
@@ -50,26 +50,26 @@ describe('parsePatch of nothing', () => {
 
 describe('anchors', () => {
   const rows = parsePatch(PATCH)
-  const ctx = expectPresent(rows[1])
-  const del = expectPresent(rows[2])
-  const add = expectPresent(rows[3])
+  const context = assertPresent(rows[1])
+  const deletedRow = assertPresent(rows[2])
+  const add = assertPresent(rows[3])
 
   it('attaches deletions to the left side and everything else to the right', () => {
-    expect(anchorOf(del)).toEqual({ side: 'LEFT', line: 11 })
-    expect(anchorOf(add)).toEqual({ side: 'RIGHT', line: 11 })
-    expect(anchorOf(ctx)).toEqual({ side: 'RIGHT', line: 10 })
+    expect(readRowAnchor(deletedRow)).toEqual({ side: 'LEFT', line: 11 })
+    expect(readRowAnchor(add)).toEqual({ side: 'RIGHT', line: 11 })
+    expect(readRowAnchor(context)).toEqual({ side: 'RIGHT', line: 10 })
   })
 
   it('picks the requested half in split view, or nothing when that half is empty', () => {
-    expect(anchorFor(ctx, 'LEFT')).toEqual({ side: 'LEFT', line: 10 })
-    expect(anchorFor(add, 'LEFT')).toBeNull()
-    expect(anchorFor(del, 'RIGHT')).toBeNull()
+    expect(findRowAnchor(context, 'LEFT')).toEqual({ side: 'LEFT', line: 10 })
+    expect(findRowAnchor(add, 'LEFT')).toBeNull()
+    expect(findRowAnchor(deletedRow, 'RIGHT')).toBeNull()
   })
 
   it('gives context lines keys on both sides', () => {
-    expect(keysOf(ctx)).toEqual(['RIGHT:10', 'LEFT:10'])
-    expect(keysOf(ctx, 'LEFT')).toEqual(['LEFT:10'])
-    expect(keysOf(del)).toEqual(['LEFT:11'])
+    expect(listRowKeys(context)).toEqual(['RIGHT:10', 'LEFT:10'])
+    expect(listRowKeys(context, 'LEFT')).toEqual(['LEFT:10'])
+    expect(listRowKeys(deletedRow)).toEqual(['LEFT:11'])
   })
 })
 
@@ -109,15 +109,16 @@ describe('sliceAroundLine', () => {
   const rows = parsePatch(
     ['@@ -1,6 +1,6 @@', ' a', ' b', '-c', '+C', ' d', ' e', '@@ -40,2 +40,2 @@', ' x', ' y'].join('\n'),
   )
-  const newLines = (slice: ReturnType<typeof sliceAroundLine>) => slice.map((r) => `${r.kind}:${r.newNo ?? r.oldNo}`)
+  const describeNewLines = (slice: ReturnType<typeof sliceAroundLine>) =>
+    slice.map((row) => `${row.kind}:${row.newNo ?? row.oldNo}`)
 
   it('takes rows around the line, deleted rows included', () => {
-    expect(newLines(sliceAroundLine(rows, 3, 1))).toEqual(['del:3', 'add:3', 'ctx:4'])
+    expect(describeNewLines(sliceAroundLine(rows, 3, 1))).toEqual(['del:3', 'add:3', 'ctx:4'])
   })
 
   it('stops at hunk boundaries', () => {
-    expect(newLines(sliceAroundLine(rows, 40, 3))).toEqual(['ctx:40', 'ctx:41'])
-    expect(newLines(sliceAroundLine(rows, 1, 2))).toEqual(['ctx:1', 'ctx:2', 'del:3'])
+    expect(describeNewLines(sliceAroundLine(rows, 40, 3))).toEqual(['ctx:40', 'ctx:41'])
+    expect(describeNewLines(sliceAroundLine(rows, 1, 2))).toEqual(['ctx:1', 'ctx:2', 'del:3'])
   })
 
   it('is empty when the line is not part of the diff', () => {
@@ -129,21 +130,21 @@ describe('diffSnippet', () => {
   const rows = parsePatch(PATCH)
 
   it('marks added and removed rows across the new-side range', () => {
-    expect(diffSnippet(rows, 'RIGHT', 10, 11)).toBe(' keep\n-old\n+new')
+    expect(extractDiffSnippet(rows, 'RIGHT', 10, 11)).toBe(' keep\n-old\n+new')
   })
 
   it('leaves out added rows for an old-side range', () => {
-    expect(diffSnippet(rows, 'LEFT', 11, 12)).toBe('-old\n tail')
+    expect(extractDiffSnippet(rows, 'LEFT', 11, 12)).toBe('-old\n tail')
   })
 
   it('is empty when no row is in range', () => {
-    expect(diffSnippet(rows, 'RIGHT', 90, 95)).toBe('')
+    expect(extractDiffSnippet(rows, 'RIGHT', 90, 95)).toBe('')
   })
 })
 
 describe('newSideText', () => {
   it('joins the new-side text of the range', () => {
-    expect(newSideText(parsePatch(PATCH), 11, 12)).toBe('new\nextra')
+    expect(extractNewSideText(parsePatch(PATCH), 11, 12)).toBe('new\nextra')
   })
 })
 
@@ -152,16 +153,16 @@ describe('lineRangeOfRows', () => {
   const rows = parsePatch(PATCH)
 
   it('uses the new side unless only deleted rows are selected', () => {
-    expect(lineRangeOfRows(rows, 1, 4)).toEqual({ side: 'RIGHT', start: 10, end: 12 })
-    expect(lineRangeOfRows(rows, 2, 2)).toEqual({ side: 'LEFT', start: 11, end: 11 })
+    expect(computeLineRange(rows, 1, 4)).toEqual({ side: 'RIGHT', start: 10, end: 12 })
+    expect(computeLineRange(rows, 2, 2)).toEqual({ side: 'LEFT', start: 11, end: 11 })
   })
 
   it('keeps the split-view half the selection started in, in either order', () => {
-    expect(lineRangeOfRows(rows, 5, 1, 'LEFT')).toEqual({ side: 'LEFT', start: 10, end: 12 })
+    expect(computeLineRange(rows, 5, 1, 'LEFT')).toEqual({ side: 'LEFT', start: 10, end: 12 })
   })
 
   it('is null for a selection over the hunk header only', () => {
-    expect(lineRangeOfRows(rows, 0, 0)).toBeNull()
+    expect(computeLineRange(rows, 0, 0)).toBeNull()
   })
 })
 
@@ -169,7 +170,13 @@ describe('snippetRows', () => {
   const rows = parsePatch(PATCH)
 
   it('reads back a new-side snippet, numbering new-side lines', () => {
-    expect(snippetRows(diffSnippet(rows, 'RIGHT', 10, 11), 'RIGHT', 10).map((r) => [r.kind, r.text, r.newNo])).toEqual([
+    expect(
+      parseSnippetRows(extractDiffSnippet(rows, 'RIGHT', 10, 11), 'RIGHT', 10).map((row) => [
+        row.kind,
+        row.text,
+        row.newNo,
+      ]),
+    ).toEqual([
       ['ctx', 'keep', 10],
       ['del', 'old', null],
       ['add', 'new', 11],
@@ -177,7 +184,9 @@ describe('snippetRows', () => {
   })
 
   it('numbers old-side lines for an old-side snippet', () => {
-    expect(snippetRows(diffSnippet(rows, 'LEFT', 11, 12), 'LEFT', 11).map((r) => [r.kind, r.oldNo])).toEqual([
+    expect(
+      parseSnippetRows(extractDiffSnippet(rows, 'LEFT', 11, 12), 'LEFT', 11).map((row) => [row.kind, row.oldNo]),
+    ).toEqual([
       ['del', 11],
       ['ctx', 12],
     ])

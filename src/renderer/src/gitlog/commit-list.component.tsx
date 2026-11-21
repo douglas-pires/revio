@@ -1,7 +1,7 @@
 import { type GraphRow, layoutGraph } from '@shared/commit-graph.util.ts'
 import type { Branches, CiState, Commit } from '@shared/git-log.types.ts'
 import { useMemo } from 'react'
-import { ago, cx } from '../common/format.util.ts'
+import { formatAge, joinClassNames } from '../common/format.util.ts'
 import { GraphCell } from './commit-graph.component.tsx'
 import { measureGraphWidth, ROW_PX } from './graph-geometry.util.ts'
 import type { LogFilters } from './use-git-log.hook.ts'
@@ -107,7 +107,10 @@ function RefChips({ refs, localBranches }: { refs: readonly string[]; localBranc
       {shownRefs.map((ref) => (
         <span
           key={ref}
-          className={cx('chip min-w-0 shrink truncate py-0 font-mono text-[10.5px]', pickChipClass(ref, localBranches))}
+          className={joinClassNames(
+            'chip min-w-0 shrink truncate py-0 font-mono text-[10.5px]',
+            pickChipClass(ref, localBranches),
+          )}
         >
           {ref}
         </span>
@@ -122,7 +125,7 @@ function RefChips({ refs, localBranches }: { refs: readonly string[]; localBranc
 function CiMark({ state }: { state: CiState | undefined }) {
   const look = CI_LOOK[state ?? 'none']
   return (
-    <span className={cx('w-4 shrink-0 text-center font-semibold', look.className)} title={look.title}>
+    <span className={joinClassNames('w-4 shrink-0 text-center font-semibold', look.className)} title={look.title}>
       {look.mark}
     </span>
   )
@@ -146,7 +149,7 @@ function CommitRow(props: {
       aria-pressed={props.selected}
       // biome-ignore lint/style/noInlineStyles: rows match the graph's fixed row height.
       style={{ height: ROW_PX }}
-      className={cx(
+      className={joinClassNames(
         'flex w-full cursor-default items-center gap-2 pr-3 pl-2 text-left text-[12.5px]',
         props.selected && 'bg-accent/15',
         !props.selected && 'hover:bg-hover',
@@ -154,7 +157,7 @@ function CommitRow(props: {
       onClick={() => props.onSelect(commit.hash)}
     >
       {props.row !== undefined && <GraphCell row={props.row} width={props.graphWidth} merge={isMerge} />}
-      <span className={cx('min-w-[30%] flex-1 truncate', isMerge && 'text-muted')} title={commit.subject}>
+      <span className={joinClassNames('min-w-[30%] flex-1 truncate', isMerge && 'text-muted')} title={commit.subject}>
         {commit.subject}
       </span>
       <RefChips refs={commit.refs} localBranches={props.localBranches} />
@@ -162,7 +165,7 @@ function CommitRow(props: {
         {commit.author}
       </span>
       <span className="w-24 shrink-0 text-right text-muted" title={new Date(commit.date).toLocaleString()}>
-        {ago(commit.date)}
+        {formatAge(commit.date)}
       </span>
       <CiMark state={props.ci} />
     </button>

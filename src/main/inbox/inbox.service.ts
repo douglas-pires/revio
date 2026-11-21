@@ -2,12 +2,12 @@ import type { Octokit } from '@octokit/rest'
 import type { Inbox, PullSummary } from '@shared/inbox.types.ts'
 import type { Settings } from '@shared/settings.types.ts'
 import { MS_PER_HOUR } from '@shared/time.util.ts'
-import { gh, tokenInUse } from '../github/github.client.ts'
+import { getGithubClient, readTokenInUse } from '../github/github.client.ts'
 import type { StackFinder } from '../stacks/stacks.service.ts'
 import { store } from '../store/store.service.ts'
 import {
-  awaitsYou,
   classifyRequest,
+  isAwaitingYou,
   type RawReviewer,
   type RequestEvent,
   type ReviewRequest,
@@ -16,7 +16,7 @@ import {
 const SCOPE_ERROR = /scopes/iu
 
 /** The team half of a reviewer selection, left out when the token may not read team names. */
-function teamField(teamSlugs: boolean) {
+function buildTeamField(teamSlugs: boolean) {
   if (teamSlugs) {
     return '... on Team { slug }'
   }
@@ -37,13 +37,13 @@ const searchQuery = (teamSlugs: boolean) => /* GraphQL */ `
     author { login avatarUrl(size: 64) }
     latestReviews(first: 30) { nodes { author { login } submittedAt } }
     reviewRequests(first: 20) {
-      nodes { requestedReviewer { __typename ... on User { login } ${teamField(teamSlugs)} } }
+      nodes { requestedReviewer { __typename ... on User { login } ${buildTeamField(teamSlugs)} } }
     }
     timelineItems(itemTypes: [REVIEW_REQUESTED_EVENT], last: 30) {
       nodes {
         ... on ReviewRequestedEvent {
           createdAt
-          requestedReviewer { __typename ... on User { login } ${teamField(teamSlugs)} }
+          requestedReviewer { __typename ... on User { login } ${buildTeamField(teamSlugs)} }
         }
       }
     }
@@ -73,14 +73,14 @@ interface RawPr {
 
 function readReviewRequest(pr: RawPr, viewer: string): ReviewRequest {
   return classifyRequest(
-    pr.reviewRequests.nodes.map((n) => n?.requestedReviewer ?? null),
-    pr.timelineItems.nodes.filter((n): n is RequestEvent => Boolean(n?.createdAt)),
+    pr.reviewRequests.nodes.map((node) => node?.requestedReviewer ?? null),
+    pr.timelineItems.nodes.filter((node): node is RequestEvent => Boolean(node?.createdAt)),
     viewer,
   )
 }
 
 const findLastReviewAt = (pr: RawPr, viewer: string) =>
-  pr.latestReviews.nodes.find((r) => r?.author?.login === viewer)?.submittedAt ?? null
+  pr.latestReviews.nodes.find((review) => review?.author?.login === viewer)?.submittedAt ?? null
 
 /** `request` is set for PRs waiting on your review, null for ones you already reviewed. */
 function toSummary(pr: RawPr, staleAfterHours: number, request: ReviewRequest | null, viewer: string): PullSummary {
@@ -117,7 +117,7 @@ function toSummary(pr: RawPr, staleAfterHours: number, request: ReviewRequest | 
 /** The token GitHub refused team names for (no read:org); a different token gets to try again. */
 let teamNamesRefusedFor: string | null = null
 
-const teamNamesAllowed = () => teamNamesRefusedFor !== tokenInUse()
+const areTeamNamesAllowed = () => teamNamesRefusedFor !== readTokenInUse()
 
 interface InboxSearch {
   viewer: { login: string }
@@ -148,12 +148,12 @@ function buildInboxSearches(settings: Pick<Settings, 'includeTeamRequests' | 'ig
 /** Team names need the read:org scope, which `gh` tokens often lack: on a scope error, retry without them. */
 async function searchInbox(octokit: Octokit, searches: InboxSearches): Promise<InboxSearch> {
   try {
-    return await octokit.graphql<InboxSearch>(searchQuery(teamNamesAllowed()), searches)
-  } catch (err) {
-    if (!(teamNamesAllowed() && SCOPE_ERROR.test(String(err)))) {
-      throw err
+    return await octokit.graphql<InboxSearch>(searchQuery(areTeamNamesAllowed()), searches)
+  } catch (failure) {
+    if (!(areTeamNamesAllowed() && SCOPE_ERROR.test(String(failure)))) {
+      throw failure
     }
-    teamNamesRefusedFor = tokenInUse()
+    teamNamesRefusedFor = readTokenInUse()
     return octokit.graphql<InboxSearch>(searchQuery(false), searches)
   }
 }
@@ -167,26 +167,26 @@ function sortInbox(data: InboxSearch, viewer: string, staleAfterHours: number) {
   const reviewedSinceRequest: PullSummary[] = []
   for (const pr of data.requested.nodes.filter(isPr)) {
     const request = readReviewRequest(pr, viewer)
-    if (awaitsYou(request, findLastReviewAt(pr, viewer))) {
+    if (isAwaitingYou(request, findLastReviewAt(pr, viewer))) {
       requested.push(toSummary(pr, staleAfterHours, request, viewer))
     } else {
       reviewedSinceRequest.push(toSummary(pr, staleAfterHours, null, viewer))
     }
   }
-  requested.sort((a, b) => b.waitingHours - a.waitingHours)
-  const listed = new Set([...requested, ...reviewedSinceRequest].map((p) => p.id))
-  const otherReviewed = data.reviewed.nodes.filter((n): n is RawPr => isPr(n) && !listed.has(n.id))
+  requested.sort((left, right) => right.waitingHours - left.waitingHours)
+  const listed = new Set([...requested, ...reviewedSinceRequest].map((pull) => pull.id))
+  const otherReviewed = data.reviewed.nodes.filter((node): node is RawPr => isPr(node) && !listed.has(node.id))
   return {
     requested,
     reviewed: [...reviewedSinceRequest, ...otherReviewed.map((pr) => toSummary(pr, staleAfterHours, null, viewer))],
   }
 }
 
-const isPr = (n: RawPr | null): n is RawPr => Boolean(n?.id)
+const isPr = (node: RawPr | null): node is RawPr => Boolean(node?.id)
 
 export async function fetchInbox(stackFinder: StackFinder): Promise<Inbox> {
   const settings = store.settings()
-  const octokit = await gh()
+  const octokit = await getGithubClient()
   const data = await searchInbox(octokit, buildInboxSearches(settings))
   const viewer = data.viewer.login
   const { requested, reviewed } = sortInbox(data, viewer, settings.staleAfterHours)

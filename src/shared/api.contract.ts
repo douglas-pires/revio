@@ -73,7 +73,7 @@ export interface RevioApi {
   openInEditor: (target: EditorTarget) => Promise<void>
 
   listGuidelines: () => Promise<Guideline[]>
-  saveGuideline: (g: Omit<Guideline, 'id' | 'updatedAt'> & { id?: string }) => Promise<Guideline>
+  saveGuideline: (guideline: Omit<Guideline, 'id' | 'updatedAt'> & { id?: string }) => Promise<Guideline>
   deleteGuideline: (id: string) => Promise<void>
   resolveGuidelines: (repo: string, paths: string[]) => Promise<ResolvedGuideline[]>
   knownRepos: () => Promise<string[]>

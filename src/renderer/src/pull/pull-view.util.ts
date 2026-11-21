@@ -9,7 +9,7 @@ const AI_MARK = '🤖'
  * A comment Claude wrote, starting with 🤖 so whoever reads it on GitHub can tell. Marked once, however often it is
  * passed through.
  */
-export function markedAsAi(body: string): string {
+export function markAsAi(body: string): string {
   if (body.startsWith(AI_MARK)) {
     return body
   }
@@ -25,7 +25,7 @@ export function quoteOf(target: PullTarget | undefined): ConversationQuote | nul
 }
 
 /** The place in the diff the PR opened at, if any. */
-export function fileTargetOf(target: PullTarget | undefined): ScrollTarget | undefined {
+export function readFileTarget(target: PullTarget | undefined): ScrollTarget | undefined {
   if (!target || isConversationTarget(target)) {
     return undefined
   }
@@ -57,7 +57,7 @@ export function appendSummaryLine(body: string, line: string) {
 }
 
 /** A line to scroll to; only new-side lines can be found in the diff, so others land on the file. */
-export function newSideOnly(side: DiffSide, line: number | null) {
+export function keepNewSideOnly(side: DiffSide, line: number | null) {
   if (side !== 'RIGHT') {
     return null
   }
@@ -65,10 +65,15 @@ export function newSideOnly(side: DiffSide, line: number | null) {
 }
 
 /** A draft comment from a Claude conversation about lines start..end, marked as Claude's. */
-export function draftFromAsk(t: AskThread, body: string): Omit<DraftComment, 'id'> {
-  const draft: Omit<DraftComment, 'id'> = { path: t.path, side: t.side, line: t.endLine, body: markedAsAi(body) }
-  if (t.startLine !== t.endLine) {
-    draft.startLine = t.startLine
+export function buildDraftFromAsk(thread: AskThread, body: string): Omit<DraftComment, 'id'> {
+  const draft: Omit<DraftComment, 'id'> = {
+    path: thread.path,
+    side: thread.side,
+    line: thread.endLine,
+    body: markAsAi(body),
+  }
+  if (thread.startLine !== thread.endLine) {
+    draft.startLine = thread.startLine
   }
   return draft
 }
@@ -82,7 +87,7 @@ export function askHistory(current: AskThread, saved: readonly AskThread[]): Ask
 }
 
 /** The other of two states, for a toggle. */
-export function toggled<T>(value: T, [first, second]: readonly [T, T]): T {
+export function toggleBetween<T>(value: T, [first, second]: readonly [T, T]): T {
   if (value === first) {
     return second
   }

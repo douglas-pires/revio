@@ -17,12 +17,12 @@ export function startProgress(threadId: string, now: number): AskProgress {
 }
 
 /** The progress once the answer is in, kept to show how the answer came about. */
-export function finishedProgress(progress: AskProgress, now: number): AskProgress {
+export function finishProgress(progress: AskProgress, now: number): AskProgress {
   return { ...progress, finishedAt: now }
 }
 
 /** The progress after one more activity: a new step, or more reasoning. */
-export function withActivity(progress: AskProgress, activity: AskActivity): AskProgress {
+export function addActivity(progress: AskProgress, activity: AskActivity): AskProgress {
   if (activity.kind === 'step') {
     return { ...progress, steps: [...progress.steps, activity.label] }
   }
@@ -30,7 +30,7 @@ export function withActivity(progress: AskProgress, activity: AskActivity): AskP
 }
 
 /** Whole seconds worked on the question (so far, or until the answer was in), at least 1. */
-export function secondsSince(progress: AskProgress, now: number): number {
+export function countSecondsSince(progress: AskProgress, now: number): number {
   const end = progress.finishedAt ?? now
   return Math.max(1, Math.round((end - progress.startedAt) / MS_PER_SECOND))
 }

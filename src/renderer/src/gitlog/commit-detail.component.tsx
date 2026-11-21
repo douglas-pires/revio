@@ -1,6 +1,6 @@
 import type { CiState, CommitDetail, FileChange, FileChangeStatus } from '@shared/git-log.types.ts'
 import { CopyButton } from '../common/copy-button.component.tsx'
-import { countOf, cx } from '../common/format.util.ts'
+import { countOf, joinClassNames } from '../common/format.util.ts'
 import { groupBy } from '../common/group.util.ts'
 
 const STATUS_LOOK: Record<FileChangeStatus, { className: string; title: string }> = {
@@ -35,8 +35,8 @@ function ChangedFile({ change }: { change: FileChange }) {
   const look = STATUS_LOOK[change.status]
   return (
     <div className="flex items-center gap-1.5 pl-3" title={describeChange(change)}>
-      <span className={cx('w-3 shrink-0 font-mono text-[11px]', look.className)}>{change.status}</span>
-      <span className={cx('truncate font-mono', look.className)}>{readFileName(change.path)}</span>
+      <span className={joinClassNames('w-3 shrink-0 font-mono text-[11px]', look.className)}>{change.status}</span>
+      <span className={joinClassNames('truncate font-mono', look.className)}>{readFileName(change.path)}</span>
     </div>
   )
 }

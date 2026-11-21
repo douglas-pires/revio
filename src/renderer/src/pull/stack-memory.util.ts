@@ -17,24 +17,24 @@ interface StackMemory {
 
 let memory: StackMemory | null = null
 
-const holds = (stack: Stack, pull: PullRef) => stack.nodes.some((n) => isSamePull(n.pr, pull))
+const containsPull = (stack: Stack, pull: PullRef) => stack.nodes.some((node) => isSamePull(node.pr, pull))
 
 /** The remembered memory when `pull` belongs to its stack. */
-function memoryFor(pull: PullRef): StackMemory | null {
-  if (memory !== null && holds(memory.stack, pull)) {
+function findMemory(pull: PullRef): StackMemory | null {
+  if (memory !== null && containsPull(memory.stack, pull)) {
     return memory
   }
   return null
 }
 
 /** The last stack you were in, when it holds `pull`: shown at once while the PR's own lookup runs. */
-export function knownStackOf(pull: PullRef): Stack | null {
-  return memoryFor(pull)?.stack ?? null
+export function findKnownStack(pull: PullRef): Stack | null {
+  return findMemory(pull)?.stack ?? null
 }
 
 /** The PR at `pull` in its remembered stack (title, author, branches), for showing it before its details load. */
-export function knownStackPr(pull: PullRef) {
-  return memoryFor(pull)?.stack.nodes.find((n) => isSamePull(n.pr, pull))?.pr ?? null
+export function findKnownStackPr(pull: PullRef) {
+  return findMemory(pull)?.stack.nodes.find((node) => isSamePull(node.pr, pull))?.pr ?? null
 }
 
 /** Remembers a stack the view found; the scroll and tab carry over when it is the same stack as before. */
@@ -46,7 +46,7 @@ export function rememberStack(stack: Stack) {
   memory = { stack, scrollLeft: 0, tab: null }
 }
 
-export function stackScrollOf(stack: Stack): number {
+export function readStackScroll(stack: Stack): number {
   if (memory?.stack.id === stack.id) {
     return memory.scrollLeft
   }
@@ -60,12 +60,12 @@ export function rememberStackScroll(stack: Stack, scrollLeft: number) {
 }
 
 /** The tab to open on `pull`: the one you had open on the stack's last PR, when `pull` is in that stack. */
-export function stackTabFor(pull: PullRef): PullTab | null {
-  return memoryFor(pull)?.tab ?? null
+export function readStackTab(pull: PullRef): PullTab | null {
+  return findMemory(pull)?.tab ?? null
 }
 
 export function rememberStackTab(pull: PullRef, tab: PullTab) {
-  if (memory !== null && holds(memory.stack, pull)) {
+  if (memory !== null && containsPull(memory.stack, pull)) {
     memory = { ...memory, tab }
   }
 }

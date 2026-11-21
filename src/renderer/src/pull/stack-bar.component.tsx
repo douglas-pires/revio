@@ -1,28 +1,28 @@
 import type { Stack, StackPr, StackPrComments } from '@shared/inbox.types.ts'
-import { isSamePull, type PullRef, pullKey } from '@shared/pull.types.ts'
+import { buildPullKey, isSamePull, type PullRef } from '@shared/pull.types.ts'
 import { useEffect, useLayoutEffect, useRef, useState } from 'react'
-import { countOf, cx } from '../common/format.util.ts'
+import { countOf, joinClassNames } from '../common/format.util.ts'
 import type { OpenPull } from '../common/navigation.types.ts'
-import { rememberStackScroll, stackScrollOf } from './stack-memory.util.ts'
+import { readStackScroll, rememberStackScroll } from './stack-memory.util.ts'
 
 /** The dot by each PR: waiting on you (red when stale), approved, changes requested, or neither. */
-function dotOf(p: StackPr) {
-  if (p.inbox === 'requested' && p.stale) {
+function pickStatusDot(pr: StackPr) {
+  if (pr.inbox === 'requested' && pr.stale) {
     return 'bg-danger'
   }
-  if (p.inbox === 'requested') {
+  if (pr.inbox === 'requested') {
     return 'bg-accent'
   }
-  if (p.reviewDecision === 'APPROVED') {
+  if (pr.reviewDecision === 'APPROVED') {
     return 'bg-ok'
   }
-  if (p.reviewDecision === 'CHANGES_REQUESTED') {
+  if (pr.reviewDecision === 'CHANGES_REQUESTED') {
     return 'bg-danger/60'
   }
   return 'bg-muted/50'
 }
 
-function prTitle(pr: StackPr | undefined) {
+function describePull(pr: StackPr | undefined) {
   if (!pr) {
     return
   }
@@ -30,7 +30,7 @@ function prTitle(pr: StackPr | undefined) {
 }
 
 /** The tooltip on a chain entry: number, title, branches, and whether it was asked of you. */
-function chainTitle(pr: StackPr) {
+function describeChainEntry(pr: StackPr) {
   let notRequested = ''
   if (!pr.inbox) {
     notRequested = '\n(not requested from you)'
@@ -50,7 +50,7 @@ function useStackComments(stack: Stack): CommentsByPull {
       .getStackComments(stack)
       .then((summaries) => {
         if (stillShown) {
-          setCommentsByPull(new Map(summaries.map((summary) => [pullKey(summary), summary])))
+          setCommentsByPull(new Map(summaries.map((summary) => [buildPullKey(summary), summary])))
         }
       })
       .catch(() => {
@@ -91,7 +91,7 @@ function CommentsMarker({ summary }: { summary: StackPrComments | undefined }) {
 }
 
 /** Between two PRs: › when the next one is stacked on top, · when it is a sibling. */
-function separatorOf(depth: number, previousDepth: number) {
+function pickSeparator(depth: number, previousDepth: number) {
   if (depth > previousDepth) {
     return '›'
   }
@@ -105,7 +105,7 @@ function StepButton({ pr, label, onOpen }: { pr: StackPr | undefined; label: str
       className="btn btn-ghost shrink-0 py-0"
       disabled={!pr}
       onClick={() => pr && onOpen(pr)}
-      title={prTitle(pr)}
+      title={describePull(pr)}
     >
       {label}
     </button>
@@ -118,7 +118,7 @@ function isOutOfView(item: DOMRect, view: DOMRect) {
 }
 
 /** Marks the open PR in the chain, for screen readers and for scrolling it into view. */
-function currentMarker(current: boolean): 'page' | undefined {
+function pickCurrentMarker(current: boolean): 'page' | undefined {
   let marker: 'page' | undefined
   if (current) {
     marker = 'page'
@@ -132,44 +132,46 @@ function StackChain({ stack, index, onOpen }: { stack: Stack; index: number; onO
   const commentsByPull = useStackComments(stack)
   // Each PR's view draws a new bar: put it back where you had it scrolled, then bring the open PR into view if needed.
   useLayoutEffect(() => {
-    const el = scroller.current
-    if (!el) {
+    const element = scroller.current
+    if (!element) {
       return
     }
-    el.scrollLeft = stackScrollOf(stack)
-    const open = el.querySelector('[aria-current="page"]')
-    if (open && isOutOfView(open.getBoundingClientRect(), el.getBoundingClientRect())) {
+    element.scrollLeft = readStackScroll(stack)
+    const open = element.querySelector('[aria-current="page"]')
+    if (open && isOutOfView(open.getBoundingClientRect(), element.getBoundingClientRect())) {
       open.scrollIntoView({ block: 'nearest', inline: 'nearest' })
     }
     // Scroll events can arrive late; the bar's position as it goes is what the next PR's bar starts from.
-    return () => rememberStackScroll(stack, el.scrollLeft)
+    return () => rememberStackScroll(stack, element.scrollLeft)
   }, [stack])
   return (
     <div
       ref={scroller}
-      onScroll={(e) => rememberStackScroll(stack, e.currentTarget.scrollLeft)}
+      onScroll={(event) => rememberStackScroll(stack, event.currentTarget.scrollLeft)}
       className="flex min-w-0 flex-1 items-center gap-1 overflow-x-auto"
     >
-      {stack.nodes.map(({ pr, depth }, i) => {
-        const current = i === index
+      {stack.nodes.map(({ pr, depth }, position) => {
+        const current = position === index
         return (
           <span key={pr.id} className="flex shrink-0 items-center gap-1">
-            {i > 0 && <span className="text-muted">{separatorOf(depth, stack.nodes[i - 1]?.depth ?? depth)}</span>}
+            {position > 0 && (
+              <span className="text-muted">{pickSeparator(depth, stack.nodes[position - 1]?.depth ?? depth)}</span>
+            )}
             <button
               type="button"
               onClick={() => !current && onOpen(pr)}
-              title={chainTitle(pr) + describeYourComments(commentsByPull.get(pullKey(pr)))}
-              aria-current={currentMarker(current)}
-              className={cx(
+              title={describeChainEntry(pr) + describeYourComments(commentsByPull.get(buildPullKey(pr)))}
+              aria-current={pickCurrentMarker(current)}
+              className={joinClassNames(
                 'flex max-w-56 items-center gap-1.5 rounded px-1.5 py-0.5',
                 current && 'bg-hover font-semibold text-fg ring-1 ring-accent/60',
                 !current && 'text-muted hover:bg-hover hover:text-fg',
               )}
             >
-              <span className={cx('size-1.5 shrink-0 rounded-full', dotOf(pr))} />
+              <span className={joinClassNames('size-1.5 shrink-0 rounded-full', pickStatusDot(pr))} />
               <span className="font-mono">#{pr.number}</span>
               <span className="truncate">{pr.title}</span>
-              <CommentsMarker summary={commentsByPull.get(pullKey(pr))} />
+              <CommentsMarker summary={commentsByPull.get(buildPullKey(pr))} />
             </button>
           </span>
         )
@@ -180,19 +182,19 @@ function StackChain({ stack, index, onOpen }: { stack: Stack; index: number; onO
 
 /** The stack this PR belongs to: its place, the chain to jump along, and a warning when its base is unapproved. */
 export function StackBar({ stack, pull, onOpen }: { stack: Stack; pull: PullRef; onOpen: OpenPull }) {
-  const idx = stack.nodes.findIndex((n) => isSamePull(n.pr, pull))
-  const me = stack.nodes[idx]?.pr
-  const parent = me && stack.nodes.find((n) => n.pr.headRef === me.baseRef)?.pr
+  const index = stack.nodes.findIndex((node) => isSamePull(node.pr, pull))
+  const me = stack.nodes[index]?.pr
+  const parent = me && stack.nodes.find((node) => node.pr.headRef === me.baseRef)?.pr
   return (
     <div className="flex shrink-0 items-center gap-2 border-b border-line bg-panel-2/60 px-4 py-1.5 text-[12px]">
       <span
         className="chip shrink-0 bg-accent/15 text-accent"
         title="Stacked PRs, bottom (closest to the default branch) first"
       >
-        ⧉ Stack {idx + 1}/{stack.nodes.length}
+        ⧉ Stack {index + 1}/{stack.nodes.length}
       </span>
-      <StepButton pr={stack.nodes[idx - 1]?.pr} label="‹ Prev" onOpen={onOpen} />
-      <StackChain stack={stack} index={idx} onOpen={onOpen} />
+      <StepButton pr={stack.nodes[index - 1]?.pr} label="‹ Prev" onOpen={onOpen} />
+      <StackChain stack={stack} index={index} onOpen={onOpen} />
       {parent !== undefined && parent.reviewDecision !== 'APPROVED' && (
         <span
           className="shrink-0 text-warn"
@@ -201,7 +203,7 @@ export function StackBar({ stack, pull, onOpen }: { stack: Stack; pull: PullRef;
           Builds on #{parent.number}, not approved yet
         </span>
       )}
-      <StepButton pr={stack.nodes[idx + 1]?.pr} label="Next ›" onOpen={onOpen} />
+      <StepButton pr={stack.nodes[index + 1]?.pr} label="Next ›" onOpen={onOpen} />
     </div>
   )
 }

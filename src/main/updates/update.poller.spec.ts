@@ -53,8 +53,8 @@ describe('UpdatePoller', () => {
       loadLatest: load,
       onStatus: () => undefined,
     })
-    const [a] = await Promise.all([failing.check(), failing.check()])
-    expect(a).toMatchObject({ error: 'Bad credentials', checking: false })
+    const [firstCheck] = await Promise.all([failing.check(), failing.check()])
+    expect(firstCheck).toMatchObject({ error: 'Bad credentials', checking: false })
     expect(load).toHaveBeenCalledTimes(1)
   })
 })

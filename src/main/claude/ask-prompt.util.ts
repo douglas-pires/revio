@@ -6,24 +6,24 @@ const SIDE_LABELS: Record<AskContext['side'], string> = {
 }
 
 /** A selection of the diff as Claude reads it: path, lines, side and the lines themselves. */
-export function selectionBlock(sel: AskContext, tag = 'selection') {
-  let lines = `${sel.startLine}-${sel.endLine}`
-  if (sel.startLine === sel.endLine) {
-    lines = `${sel.startLine}`
+export function buildSelectionBlock(selection: AskContext, tag = 'selection') {
+  let lines = `${selection.startLine}-${selection.endLine}`
+  if (selection.startLine === selection.endLine) {
+    lines = `${selection.startLine}`
   }
-  return `<${tag} path="${sel.path}" lines="${lines}" side="${SIDE_LABELS[sel.side]}">\n${sel.snippet}\n</${tag}>`
+  return `<${tag} path="${selection.path}" lines="${lines}" side="${SIDE_LABELS[selection.side]}">\n${selection.snippet}\n</${tag}>`
 }
 
 /** A question as sent: the lines added for it first, then the question. */
-export function questionText(m: AskMessage) {
-  const added = (m.context ?? []).map((c) => selectionBlock(c, 'added_selection'))
-  return [...added, m.content].join('\n\n')
+export function buildQuestionText(message: AskMessage) {
+  const added = (message.context ?? []).map((selection) => buildSelectionBlock(selection, 'added_selection'))
+  return [...added, message.content].join('\n\n')
 }
 
 /** A message as sent: questions with their added lines, answers as they were. */
-export function messageText(m: AskMessage) {
-  if (m.role === 'user') {
-    return questionText(m)
+export function buildMessageText(message: AskMessage) {
+  if (message.role === 'user') {
+    return buildQuestionText(message)
   }
-  return m.content
+  return message.content
 }

@@ -1,5 +1,5 @@
 /** A user always resolves, so an unreadable reviewer can only be a team. */
-const isTeam = (r: RawReviewer) => !r || r.__typename === 'Team'
+const isTeam = (reviewer: RawReviewer) => !reviewer || reviewer.__typename === 'Team'
 
 /** A reviewer as GitHub's GraphQL returns it. Teams come back as null when the token lacks read:org. */
 export type RawReviewer = { __typename: string; login?: string; slug?: string } | null
@@ -25,14 +25,14 @@ export function classifyRequest(
   timeline: readonly RequestEvent[],
   viewer: string,
 ): ReviewRequest {
-  if (pending.some((r) => r?.login === viewer)) {
+  if (pending.some((reviewer) => reviewer?.login === viewer)) {
     return {
       viaTeam: null,
-      requestedAt: timeline.filter((e) => e.requestedReviewer?.login === viewer).at(-1)?.createdAt ?? null,
+      requestedAt: timeline.filter((event) => event.requestedReviewer?.login === viewer).at(-1)?.createdAt ?? null,
     }
   }
-  const lastTeamEvent = timeline.filter((e) => isTeam(e.requestedReviewer)).at(-1)
-  const slug = pending.find((r) => r?.slug)?.slug ?? lastTeamEvent?.requestedReviewer?.slug ?? 'team'
+  const lastTeamEvent = timeline.filter((event) => isTeam(event.requestedReviewer)).at(-1)
+  const slug = pending.find((reviewer) => reviewer?.slug)?.slug ?? lastTeamEvent?.requestedReviewer?.slug ?? 'team'
   return { viaTeam: slug, requestedAt: lastTeamEvent?.createdAt ?? null }
 }
 
@@ -40,7 +40,7 @@ export function classifyRequest(
  * Whether a request still waits on you: you have not reviewed since you were (last) asked.
  * With no known request time, any review of yours counts as answering it.
  */
-export function awaitsYou(request: ReviewRequest, yourLastReviewAt: string | null): boolean {
+export function isAwaitingYou(request: ReviewRequest, yourLastReviewAt: string | null): boolean {
   if (!yourLastReviewAt) {
     return true
   }

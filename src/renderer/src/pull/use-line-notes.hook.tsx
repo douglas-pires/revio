@@ -1,6 +1,6 @@
 import type { DraftComment } from '@shared/pull.types.ts'
 import type { FileCommentIndex } from './comment-threads.util.ts'
-import { draftFromSelection, rangeLabel } from './diff-file.util.ts'
+import { buildDraftFromSelection, describeRange } from './diff-file.util.ts'
 import { type ComposerSpec, LineAnnotations } from './line-annotations.component.tsx'
 import type { CommentActions } from './review-comments.component.tsx'
 import { useUnsentScope } from './unsent-comments.util.ts'
@@ -27,41 +27,41 @@ interface LineNotesInput {
 export function useLineNotes(input: LineNotesInput) {
   const { path, index, selection } = input
   const scope = useUnsentScope()
-  const composerFor = (anchor: Anchor | null): ComposerSpec | null => {
-    const { sel } = selection
-    if (!(sel && selection.composerAt(anchor))) {
+  const findComposer = (anchor: Anchor | null): ComposerSpec | null => {
+    const { sel: lineSelection } = selection
+    if (!(lineSelection && selection.composerAt(anchor))) {
       return null
     }
     const spec: ComposerSpec = {
-      label: rangeLabel(sel),
+      label: describeRange(lineSelection),
       // By the line the box opens under, not the whole range: select up to the same line again and your text is back.
-      unsentKey: `${scope}:line:${path}:${sel.side}:${sel.end}`,
+      unsentKey: `${scope}:line:${path}:${lineSelection.side}:${lineSelection.end}`,
       onCancel: selection.clear,
       onAsk: () => {
-        input.onAsk(sel)
+        input.onAsk(lineSelection)
         selection.clear()
       },
       onSubmit: (body) => {
-        input.actions.onAddDraft(draftFromSelection(path, sel, body))
+        input.actions.onAddDraft(buildDraftFromSelection(path, lineSelection, body))
         selection.clear()
       },
     }
-    if (sel.side === 'RIGHT') {
-      spec.suggestion = input.newSideText(sel.start, sel.end)
+    if (lineSelection.side === 'RIGHT') {
+      spec.suggestion = input.newSideText(lineSelection.start, lineSelection.end)
     }
     const { onAddToChat } = input
     if (onAddToChat) {
       spec.onAddToChat = () => {
-        onAddToChat(sel)
+        onAddToChat(lineSelection)
         selection.clear()
       }
     }
     return spec
   }
   return (keys: string[], anchor: Anchor | null) => {
-    const threads = keys.flatMap((k) => index.threadsByLine.get(k) ?? [])
-    const drafts = keys.flatMap((k) => index.draftsByLine.get(k) ?? [])
-    const composer = composerFor(anchor)
+    const threads = keys.flatMap((key) => index.threadsByLine.get(key) ?? [])
+    const drafts = keys.flatMap((key) => index.draftsByLine.get(key) ?? [])
+    const composer = findComposer(anchor)
     if (threads.length === 0 && drafts.length === 0 && composer === null) {
       return null
     }

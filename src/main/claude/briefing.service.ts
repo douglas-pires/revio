@@ -7,7 +7,7 @@ import { app } from 'electron'
 import { z } from 'zod'
 import { env } from '../common/env.config.ts'
 import { runWithInput } from '../common/shell.util.ts'
-import { scopeLabel } from '../guidelines/guidelines.service.ts'
+import { describeScope } from '../guidelines/guidelines.service.ts'
 import { store } from '../store/store.service.ts'
 
 const BriefingSchema = z.object({
@@ -69,11 +69,11 @@ const FENCED_JSON = /```(?:json)?\s*(?<json>[\s\S]*?)```/u
 const BACKEND_LABELS: Record<'api' | 'cli', string> = { api: 'the Anthropic API', cli: 'Claude Code' }
 
 function buildPrompt(pr: PullDetail, guidelines: ResolvedGuideline[]) {
-  const { context, omitted } = prContext(pr, guidelines)
+  const { context, omitted } = buildPrContext(pr, guidelines)
   return { prompt: `${context}\n\nBrief me on this pull request using the required JSON format.`, omitted }
 }
 
-async function viaApi(prompt: string, model: string): Promise<Briefing> {
+async function briefViaApi(prompt: string, model: string): Promise<Briefing> {
   const apiKey = store.anthropicKey()
   const client = new Anthropic({ ...(apiKey !== undefined && { apiKey }) })
   const response = await client.beta.messages.parse({
@@ -98,11 +98,11 @@ async function viaApi(prompt: string, model: string): Promise<Briefing> {
   return response.parsed_output
 }
 
-async function viaCli(prompt: string, model: string, onProgress: (m: string) => void): Promise<Briefing> {
+async function briefViaCli(prompt: string, model: string, onProgress: (message: string) => void): Promise<Briefing> {
   // The CLI's validator does not know the draft-2020 meta-schema tag Zod emits.
   const { $schema: _ignored, ...jsonSchema } = z.toJSONSchema(BriefingSchema, { target: 'draft-7' })
   const schema = JSON.stringify(jsonSchema)
-  const out = await runWithInput(
+  const output = await runWithInput(
     'claude',
     [
       '-p',
@@ -122,10 +122,10 @@ async function viaCli(prompt: string, model: string, onProgress: (m: string) => 
     {
       cwd: app.getPath('temp'),
       timeoutMs: CLI_TIMEOUT_MS,
-      onStderr: (l) => onProgress(l.trim().slice(0, MAX_PROGRESS_CHARS)),
+      onStderr: (line) => onProgress(line.trim().slice(0, MAX_PROGRESS_CHARS)),
     },
   )
-  const result = JSON.parse(out) as { is_error?: boolean; result?: string; structured_output?: unknown }
+  const result = JSON.parse(output) as { is_error?: boolean; result?: string; structured_output?: unknown }
   if (result.is_error) {
     throw new Error(result.result || 'Claude Code returned an error')
   }
@@ -152,45 +152,48 @@ function budgetDiffs(pr: PullDetail, budget: number) {
   const omitted: string[] = []
   const included = new Set<string>()
   let used = 0
-  for (const f of [...pr.files].sort((a, b) => (a.patch?.length ?? 0) - (b.patch?.length ?? 0))) {
-    const size = f.patch?.length ?? 0
-    if (f.patch && used + size <= budget) {
+  for (const file of [...pr.files].sort((left, right) => (left.patch?.length ?? 0) - (right.patch?.length ?? 0))) {
+    const size = file.patch?.length ?? 0
+    if (file.patch && used + size <= budget) {
       used += size
-      included.add(f.path)
+      included.add(file.path)
     } else {
-      omitted.push(f.path)
+      omitted.push(file.path)
     }
   }
   return { included, omitted }
 }
 
-function guidelinesText(guidelines: ResolvedGuideline[]) {
+function buildGuidelinesText(guidelines: ResolvedGuideline[]) {
   if (guidelines.length === 0) {
     return '(none configured)'
   }
   return guidelines
-    .map((g) => `<guideline title="${g.title}" scope="${scopeLabel(g)}">\n${g.body}\n</guideline>`)
+    .map(
+      (guideline) =>
+        `<guideline title="${guideline.title}" scope="${describeScope(guideline)}">\n${guideline.body}\n</guideline>`,
+    )
     .join('\n\n')
 }
 
-function describeFile(f: PullDetail['files'][number]) {
+function describeFile(file: PullDetail['files'][number]) {
   let renamed = ''
-  if (f.previousPath) {
-    renamed = ` (from ${f.previousPath})`
+  if (file.previousPath) {
+    renamed = ` (from ${file.previousPath})`
   }
-  return `- ${f.status} ${f.path}${renamed} +${f.additions}/-${f.deletions}`
+  return `- ${file.status} ${file.path}${renamed} +${file.additions}/-${file.deletions}`
 }
 
-function describeComment(c: PullDetail['comments'][number]) {
+function describeComment(comment: PullDetail['comments'][number]) {
   let line = ''
-  if (c.line) {
-    line = `:${c.line}`
+  if (comment.line) {
+    line = `:${comment.line}`
   }
-  return `- ${c.author} on ${c.path}${line}: ${c.body.slice(0, COMMENT_CHARS)}`
+  return `- ${comment.author} on ${comment.path}${line}: ${comment.body.slice(0, COMMENT_CHARS)}`
 }
 
 /** An XML-ish section of the prompt, or nothing when it would be empty. */
-function optionalSection(tag: string, body: string, attributes = '') {
+function buildOptionalSection(tag: string, body: string, attributes = '') {
   if (!body) {
     return ''
   }
@@ -198,21 +201,21 @@ function optionalSection(tag: string, body: string, attributes = '') {
 }
 
 /** Guidelines + PR metadata + budgeted diffs, shared by the briefing and Ask Claude. */
-export function prContext(pr: PullDetail, guidelines: ResolvedGuideline[], budget = DIFF_BUDGET_CHARS) {
+export function buildPrContext(pr: PullDetail, guidelines: ResolvedGuideline[], budget = DIFF_BUDGET_CHARS) {
   const { included, omitted } = budgetDiffs(pr, budget)
   const fileList = pr.files.map(describeFile).join('\n')
   const diffs = pr.files
-    .filter((f) => included.has(f.path))
-    .map((f) => `<file path="${f.path}" status="${f.status}">\n${f.patch}\n</file>`)
+    .filter((file) => included.has(file.path))
+    .map((file) => `<file path="${file.path}" status="${file.status}">\n${file.patch}\n</file>`)
     .join('\n\n')
   const discussion = pr.comments.slice(-RECENT_COMMENTS).map(describeComment).join('\n')
-  const omittedSection = optionalSection(
+  const omittedSection = buildOptionalSection(
     'omitted_diffs',
     omitted.join('\n'),
     ' reason="binary, too large, or over the size budget"',
   )
   const prompt = `<reviewer_guidelines>
-${guidelinesText(guidelines)}
+${buildGuidelinesText(guidelines)}
 </reviewer_guidelines>
 
 <pull_request repo="${pr.repo}" number="${pr.number}" author="${pr.author}" base="${pr.baseRef}" head="${pr.headRef}">
@@ -223,7 +226,7 @@ ${pr.body || '(no description)'}
 <changed_files count="${pr.files.length}">
 ${fileList}
 </changed_files>
-${omittedSection}${optionalSection('existing_review_comments', discussion)}<diff>
+${omittedSection}${buildOptionalSection('existing_review_comments', discussion)}<diff>
 ${diffs}
 </diff>
 </pull_request>`
@@ -231,9 +234,9 @@ ${diffs}
 }
 
 export function pickBackend(): 'api' | 'cli' {
-  const s = store.settings()
-  if (s.claudeBackend !== 'auto') {
-    return s.claudeBackend
+  const settings = store.settings()
+  if (settings.claudeBackend !== 'auto') {
+    return settings.claudeBackend
   }
   if (store.anthropicKey() || env.ANTHROPIC_API_KEY) {
     return 'api'
@@ -244,7 +247,7 @@ export function pickBackend(): 'api' | 'cli' {
 export async function generateBriefing(
   pr: PullDetail,
   guidelines: ResolvedGuideline[],
-  onProgress: (m: string) => void,
+  onProgress: (message: string) => void,
 ): Promise<BriefingRecord> {
   const { prompt, omitted } = buildPrompt(pr, guidelines)
   const backend = pickBackend()
@@ -252,9 +255,9 @@ export async function generateBriefing(
   onProgress(`Asking ${model} via ${BACKEND_LABELS[backend]}…`)
   let briefing: Briefing
   if (backend === 'api') {
-    briefing = await viaApi(prompt, model)
+    briefing = await briefViaApi(prompt, model)
   } else {
-    briefing = await viaCli(prompt, model, onProgress)
+    briefing = await briefViaCli(prompt, model, onProgress)
   }
   return { headSha: pr.headSha, createdAt: new Date().toISOString(), backend, model, briefing, omittedFiles: omitted }
 }

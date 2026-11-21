@@ -1,7 +1,7 @@
 import type { Inbox, PullSummary } from '@shared/inbox.types.ts'
 import type { Mention, MentionsInbox } from '@shared/mention.types.ts'
 import { beforeEach, describe, expect, it, vi } from 'vitest'
-import { expectPresent, makeSummary } from '../../../test/fixtures.ts'
+import { assertPresent, makeSummary } from '../../../test/fixtures.ts'
 import {
   type AlertSettings,
   type AlertState,
@@ -62,7 +62,7 @@ describe('raiseAlerts', () => {
     const notify = vi.fn()
     runAlerts(makeInbox(makeSummary()), notify, NOW)
     runAlerts(makeInbox(makeSummary({ requestedAt: '2026-11-10T00:00:00Z', viaTeam: 'web' })), notify)
-    expect(notify.mock.calls.map((c) => c[0])).toEqual(['Review requested', 'Re-review requested (via @web)'])
+    expect(notify.mock.calls.map((call) => call[0])).toEqual(['Review requested', 'Re-review requested (via @web)'])
   })
 
   it('alerts again after a PR leaves the queue and comes back', () => {
@@ -70,17 +70,20 @@ describe('raiseAlerts', () => {
     runAlerts(makeInbox(makeSummary()), notify, NOW)
     runAlerts(makeInbox(), notify, NOW)
     runAlerts(makeInbox(makeSummary()), notify, NOW)
-    expect(notify.mock.calls.map((c) => c[0])).toEqual(['Review requested', 'Review requested'])
+    expect(notify.mock.calls.map((call) => call[0])).toEqual(['Review requested', 'Review requested'])
   })
 
   it('repeats stale alerts only after the repeat interval', () => {
     const notify = vi.fn()
     const stale = makeSummary({ stale: true, waitingHours: 30 })
-    state.requested.PR_1 = expectPresent(stale.requestedAt)
+    state.requested.PR_1 = assertPresent(stale.requestedAt)
     runAlerts(makeInbox(stale), notify, NOW)
     runAlerts(makeInbox(stale), notify, NOW + 23 * HOUR)
     runAlerts(makeInbox(stale), notify, NOW + 24 * HOUR)
-    expect(notify.mock.calls.map((c) => c[0])).toEqual(['Stale review · waiting 30h', 'Stale review · waiting 30h'])
+    expect(notify.mock.calls.map((call) => call[0])).toEqual([
+      'Stale review · waiting 30h',
+      'Stale review · waiting 30h',
+    ])
   })
 
   it('respects the notification switches', () => {
@@ -103,7 +106,7 @@ describe('re-requested reviews', () => {
     runAlerts(makeInbox(), notify, NOW)
     const again = makeSummary({ requestedAt: '2026-11-12T09:00:00Z', yourLastReviewAt: '2026-11-11T16:00:00Z' })
     runAlerts(makeInbox(again), notify, NOW)
-    expect(notify.mock.calls.map((c) => c[0])).toEqual(['Review requested', 'Re-review requested'])
+    expect(notify.mock.calls.map((call) => call[0])).toEqual(['Review requested', 'Re-review requested'])
   })
 
   it('has separate switches for new requests and re-requests', () => {
@@ -111,12 +114,12 @@ describe('re-requested reviews', () => {
     const fresh = makeSummary({ id: 'PR_new' })
     const again = makeSummary({ id: 'PR_again', yourLastReviewAt: '2026-11-11T16:00:00Z' })
     runAlerts(makeInbox(fresh, again), notify, NOW, { ...settings, notifyOnReRequest: false })
-    expect(notify.mock.calls.map((c) => c[1])).toEqual(['acme/web#1 · Add thing\nby ana'])
+    expect(notify.mock.calls.map((call) => call[1])).toEqual(['acme/web#1 · Add thing\nby ana'])
     expect(notify).toHaveBeenCalledOnce()
     const quiet = vi.fn()
     state.requested = {}
     runAlerts(makeInbox(fresh, again), quiet, NOW, { ...settings, notifyOnRequest: false })
-    expect(quiet.mock.calls.map((c) => c[0])).toEqual(['Re-review requested'])
+    expect(quiet.mock.calls.map((call) => call[0])).toEqual(['Re-review requested'])
   })
 })
 
@@ -156,11 +159,11 @@ describe('formatHours', () => {
     [0.25, '15m'],
     [5, '5h'],
     [49, '2d'],
-  ])('%d → %s', (h, s) => expect(formatHours(h)).toBe(s))
+  ])('%d → %s', (hours, expected) => expect(formatHours(hours)).toBe(expected))
 })
 
 describe('mention alerts', () => {
-  const snippet = (id: string, isNew: boolean) => ({
+  const makeSnippet = (id: string, isNew: boolean) => ({
     id,
     kind: 'comment' as const,
     author: 'bo',
@@ -174,7 +177,7 @@ describe('mention alerts', () => {
     viaTeam: null,
     isNew,
   })
-  const mention = (...snippets: ReturnType<typeof snippet>[]): Mention => ({
+  const makeMention = (...snippets: ReturnType<typeof makeSnippet>[]): Mention => ({
     repo: 'acme/web',
     number: 1,
     title: 't',
@@ -190,11 +193,11 @@ describe('mention alerts', () => {
     windowDays: 14,
     fetchedAt: '',
   })
-  const alertIds = (inbox: MentionsInbox) => findUnalertedMentions(inbox, state).map((a) => a.snippet.id)
+  const alertIds = (inbox: MentionsInbox) => findUnalertedMentions(inbox, state).map((alert) => alert.snippet.id)
 
   it('finds nothing before the first fetch is recorded, which is silent', () => {
     state.seenMentionsRecorded = false
-    const inbox = makeMentions(mention(snippet('a', true)))
+    const inbox = makeMentions(makeMention(makeSnippet('a', true)))
     expect(alertIds(inbox)).toEqual([])
     recordMentionAlerts(inbox, state)
     expect(state.seenMentionsRecorded).toBe(true)
@@ -203,7 +206,7 @@ describe('mention alerts', () => {
 
   it('finds each mention once, read or not, and finding does not record', () => {
     // Without notifications access (fine-grained tokens) GitHub never says a mention is unread.
-    const inbox = makeMentions(mention(snippet('a', true), snippet('b', false)))
+    const inbox = makeMentions(makeMention(makeSnippet('a', true), makeSnippet('b', false)))
     expect(alertIds(inbox)).toEqual(['a', 'b'])
     expect(alertIds(inbox)).toEqual(['a', 'b'])
     recordMentionAlerts(inbox, state)
@@ -211,7 +214,7 @@ describe('mention alerts', () => {
   })
 
   it('forgets mentions that left the window', () => {
-    recordMentionAlerts(makeMentions(mention(snippet('a', true))), state)
+    recordMentionAlerts(makeMentions(makeMention(makeSnippet('a', true))), state)
     recordMentionAlerts(makeMentions(), state)
     expect(state.seenMentions).toEqual({})
   })
@@ -220,7 +223,7 @@ describe('mention alerts', () => {
 describe('describeMentionAlert', () => {
   it('names the team when a team was mentioned', async () => {
     const { describeMentionAlert } = await import('../mentions/mention-alerts.service.ts')
-    const m: Mention = {
+    const mention: Mention = {
       repo: 'acme/web',
       number: 3,
       title: 'Speed up',
@@ -244,7 +247,7 @@ describe('describeMentionAlert', () => {
       viaTeam: 'acme/web-team',
       isNew: true,
     }
-    expect(describeMentionAlert(m, snippet)).toEqual({
+    expect(describeMentionAlert(mention, snippet)).toEqual({
       title: 'bo mentioned @acme/web-team',
       body: 'acme/web#3 · Speed up\nping @acme/web-team',
     })

@@ -1,13 +1,13 @@
 import type { AskContext } from '@shared/claude.types.ts'
 
 /** Where a selection is, short: the file name and its lines (old side marked). */
-function placeOf(c: AskContext) {
-  const name = c.path.slice(c.path.lastIndexOf('/') + 1)
-  let lines = `${c.startLine}–${c.endLine}`
-  if (c.startLine === c.endLine) {
-    lines = `${c.startLine}`
+function placeOf(context: AskContext) {
+  const name = context.path.slice(context.path.lastIndexOf('/') + 1)
+  let lines = `${context.startLine}–${context.endLine}`
+  if (context.startLine === context.endLine) {
+    lines = `${context.startLine}`
   }
-  if (c.side === 'LEFT') {
+  if (context.side === 'LEFT') {
     return `${name}:${lines} (old)`
   }
   return `${name}:${lines}`
@@ -27,18 +27,18 @@ export function PendingContext({
   return (
     <div data-pending-context={true} className="flex flex-wrap items-center gap-1 px-3 pt-2 text-[11.5px]">
       <span className="text-muted">With your next question:</span>
-      {context.map((c, i) => (
+      {context.map((selection, index) => (
         <span
-          key={`${c.path}:${c.side}:${c.startLine}-${c.endLine}`}
+          key={`${selection.path}:${selection.side}:${selection.startLine}-${selection.endLine}`}
           className="chip gap-1 bg-accent/15 py-0 font-mono text-accent"
-          title={`${c.path}\n${c.snippet}`}
+          title={`${selection.path}\n${selection.snippet}`}
         >
-          + {placeOf(c)}
+          + {placeOf(selection)}
           <button
             type="button"
             className="text-muted hover:text-fg"
-            aria-label={`Remove ${placeOf(c)}`}
-            onClick={() => onRemove(i)}
+            aria-label={`Remove ${placeOf(selection)}`}
+            onClick={() => onRemove(index)}
           >
             ✕
           </button>
@@ -55,13 +55,13 @@ export function SentContext({ context }: { context: readonly AskContext[] | unde
   }
   return (
     <div className="mt-1 flex flex-wrap justify-end gap-1">
-      {context.map((c) => (
+      {context.map((selection) => (
         <span
-          key={`${c.path}:${c.side}:${c.startLine}-${c.endLine}`}
+          key={`${selection.path}:${selection.side}:${selection.startLine}-${selection.endLine}`}
           className="chip bg-accent/10 py-0 font-mono text-[11px] text-accent"
-          title={`${c.path}\n${c.snippet}`}
+          title={`${selection.path}\n${selection.snippet}`}
         >
-          + {placeOf(c)}
+          + {placeOf(selection)}
         </span>
       ))}
     </div>

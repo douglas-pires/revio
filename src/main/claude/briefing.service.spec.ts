@@ -1,7 +1,7 @@
 import type { ResolvedGuideline } from '@shared/guideline.types.ts'
 import { describe, expect, it } from 'vitest'
 import { makeDetail, makeFile } from '../../../test/fixtures.ts'
-import { prContext } from './briefing.service.ts'
+import { buildPrContext } from './briefing.service.ts'
 
 const guide: ResolvedGuideline = {
   id: 'g',
@@ -25,8 +25,8 @@ describe('prContext', () => {
         makeFile({ path: 'image.png', patch: undefined }),
       ],
     })
-    const { context, omitted } = prContext(pr, [], 50)
-    expect(omitted.toSorted((a, b) => a.localeCompare(b))).toEqual(['big.ts', 'image.png'])
+    const { context, omitted } = buildPrContext(pr, [], 50)
+    expect(omitted.toSorted((left, right) => left.localeCompare(right))).toEqual(['big.ts', 'image.png'])
     expect(context).toContain('<file path="small.ts"')
     expect(context).toContain('<file path="mid.ts"')
     expect(context).not.toContain('<file path="big.ts"')
@@ -55,7 +55,7 @@ describe('prContext', () => {
         },
       ],
     })
-    const { context } = prContext(pr, [guide])
+    const { context } = buildPrContext(pr, [guide])
     expect(context).toContain('<guideline title="Web rules" scope="acme/web › apps/web/">\nNo any.\n</guideline>')
     expect(context).toContain('Fixes login.')
     expect(context).toContain('- bo on src/a.ts:3: why?')

@@ -1,4 +1,4 @@
-import { errorMessage } from '@shared/error.util.ts'
+import { readErrorMessage } from '@shared/error.util.ts'
 import { MS_PER_HOUR } from '@shared/time.util.ts'
 import type { UpdateStatus } from '@shared/update.types.ts'
 import { isNewerVersion } from './release.util.ts'
@@ -89,8 +89,8 @@ export class UpdatePoller {
         downloadUrl: latest.downloadUrl,
         notes: latest.notes,
       })
-    } catch (err) {
-      return this.#set({ checking: false, error: errorMessage(err) })
+    } catch (failure) {
+      return this.#set({ checking: false, error: readErrorMessage(failure) })
     }
   }
 

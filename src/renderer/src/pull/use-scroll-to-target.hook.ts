@@ -7,7 +7,7 @@ const FLASH_MS = 1200
 const LINE_ATTRIBUTES: Record<DiffSide, string> = { LEFT: 'data-old-line', RIGHT: 'data-new-line' }
 
 /** The rendered file's element, found by path (paths hold characters CSS selectors treat specially). */
-const fileElementOf = (path: string) => document.querySelector<HTMLElement>(`#${CSS.escape(`file-${path}`)}`)
+const findFileElement = (path: string) => document.querySelector<HTMLElement>(`#${CSS.escape(`file-${path}`)}`)
 
 /** The comment when one is asked for and rendered (opening the folded outdated list if it is in there), else the line's row. */
 function findExact(fileEl: HTMLElement | null, target: ScrollTarget): Element | null {
@@ -28,23 +28,23 @@ function findExact(fileEl: HTMLElement | null, target: ScrollTarget): Element | 
   return fileEl?.querySelector(`tr[${LINE_ATTRIBUTES[target.side ?? 'RIGHT']}="${target.line}"]`) ?? null
 }
 
-function flash(el: Element) {
-  el.classList.add('flash')
-  setTimeout(() => el.classList.remove('flash'), FLASH_MS)
+function flash(element: Element) {
+  element.classList.add('flash')
+  setTimeout(() => element.classList.remove('flash'), FLASH_MS)
 }
 
 /**
  * Scrolls to where the jump lands, flashing it when it is the exact comment or line. A comment can be taller than the
  * window, so it lands at the top (below the sticky file header); a line is centered.
  */
-function land(el: Element, exact: boolean) {
+function land(element: Element, exact: boolean) {
   let block: ScrollLogicalPosition = 'start'
-  if (el.matches('tr')) {
+  if (element.matches('tr')) {
     block = 'center'
   }
-  el.scrollIntoView({ block })
+  element.scrollIntoView({ block })
   if (exact) {
-    flash(el)
+    flash(element)
   }
 }
 
@@ -69,9 +69,9 @@ export function useScrollToTarget(target: ScrollTarget | null, active: boolean, 
       return
     }
     let frame = 0
-    let raf = 0
+    let frameRequest = 0
     const attempt = () => {
-      const fileEl = fileElementOf(target.path)
+      const fileEl = findFileElement(target.path)
       const exact = findExact(fileEl, target)
       if (fileEl && (exact || !(target.line || target.commentId) || frame >= MAX_FRAMES)) {
         land(exact ?? fileEl, exact !== null)
@@ -83,12 +83,12 @@ export function useScrollToTarget(target: ScrollTarget | null, active: boolean, 
       }
       frame += 1
       if (frame <= MAX_FRAMES) {
-        raf = requestAnimationFrame(attempt)
+        frameRequest = requestAnimationFrame(attempt)
       } else {
         onDone()
       }
     }
     attempt()
-    return () => cancelAnimationFrame(raf)
+    return () => cancelAnimationFrame(frameRequest)
   }, [target, active, onDone])
 }

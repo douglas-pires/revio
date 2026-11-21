@@ -1,5 +1,5 @@
 import type { ReactNode } from 'react'
-import { cx } from './format.util.ts'
+import { joinClassNames } from './format.util.ts'
 import { HistoryArrows } from './history-arrows.component.tsx'
 
 /**
@@ -35,7 +35,7 @@ export function ScreenHeader(props: {
 export function ScreenBody({ narrow = false, children }: { narrow?: boolean; children: ReactNode }) {
   return (
     <div className="min-h-0 flex-1 overflow-y-auto">
-      <div className={cx('px-5 py-4', narrow && 'mx-auto max-w-2xl')}>{children}</div>
+      <div className={joinClassNames('px-5 py-4', narrow && 'mx-auto max-w-2xl')}>{children}</div>
     </div>
   )
 }

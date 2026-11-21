@@ -1,5 +1,5 @@
 import { useEffect, useId, useRef, useState } from 'react'
-import { cx, errorMessage } from './format.util.ts'
+import { joinClassNames, readErrorMessage } from './format.util.ts'
 import { onActivateKey } from './keyboard.util.ts'
 
 type MermaidApi = typeof import('mermaid')['default']
@@ -12,8 +12,8 @@ let loader: Promise<MermaidApi> | null = null
 let configuredTheme: string | null = null
 
 /** Mermaid is large, so it is loaded the first time a diagram is on screen. */
-async function mermaidFor(theme: MermaidTheme) {
-  loader ??= import('mermaid').then((m) => m.default)
+async function loadMermaid(theme: MermaidTheme) {
+  loader ??= import('mermaid').then((module) => module.default)
   const mermaid = await loader
   if (configuredTheme !== theme) {
     // strict: no click handlers or HTML labels from the diagram source; output SVG is sanitized. Links in the
@@ -32,16 +32,16 @@ async function mermaidFor(theme: MermaidTheme) {
   return mermaid
 }
 
-const prefersDark = () => !globalThis.matchMedia('(prefers-color-scheme: light)').matches
+const isDarkPreferred = () => !globalThis.matchMedia('(prefers-color-scheme: light)').matches
 
 /** Whether the app is in dark mode, following the system as it changes. */
 function usePrefersDark() {
-  const [dark, setDark] = useState(prefersDark)
+  const [dark, setDark] = useState(isDarkPreferred)
   useEffect(() => {
-    const mq = globalThis.matchMedia('(prefers-color-scheme: light)')
-    const onChange = () => setDark(prefersDark())
-    mq.addEventListener('change', onChange)
-    return () => mq.removeEventListener('change', onChange)
+    const colorSchemeQuery = globalThis.matchMedia('(prefers-color-scheme: light)')
+    const onChange = () => setDark(isDarkPreferred())
+    colorSchemeQuery.addEventListener('change', onChange)
+    return () => colorSchemeQuery.removeEventListener('change', onChange)
   }, [])
   return dark
 }
@@ -59,14 +59,14 @@ function useMermaidSvg(code: string) {
       theme = 'dark'
     }
     setError(null)
-    mermaidFor(theme)
-      .then((m) => m.render(`${id}-${theme}`, code))
+    loadMermaid(theme)
+      .then((mermaid) => mermaid.render(`${id}-${theme}`, code))
       .then((drawn) => live && setSvg(drawn.svg))
-      .catch((e: unknown) => {
+      .catch((failure: unknown) => {
         // Mermaid renders into a temporary element in <body> (`d` + the render id); drop it if a failure left it there.
         document.querySelector(`#d${CSS.escape(`${id}-${theme}`)}`)?.remove()
         if (live) {
-          setError(errorMessage(e))
+          setError(readErrorMessage(failure))
         }
       })
     return () => {
@@ -80,18 +80,18 @@ function useMermaidSvg(code: string) {
  * Mermaid sizes the SVG as width:100% with max-width = its natural width; zoomed shows it at natural size.
  * The viewBox holds the drawn size, since not every diagram type sets an inline max-width.
  */
-function sizeDiagram(el: SVGSVGElement, zoomed: boolean) {
-  const drawnWidth = el.viewBox?.baseVal?.width
-  let natural = el.style.maxWidth || '100%'
+function resizeDiagram(element: SVGSVGElement, zoomed: boolean) {
+  const drawnWidth = element.viewBox?.baseVal?.width
+  let natural = element.style.maxWidth || '100%'
   if (drawnWidth) {
     natural = `${Math.round(drawnWidth)}px`
   }
   if (zoomed) {
-    el.style.width = natural
-    el.style.maxWidth = 'none'
+    element.style.width = natural
+    element.style.maxWidth = 'none'
   } else {
-    el.style.width = '100%'
-    el.style.maxWidth = natural
+    element.style.width = '100%'
+    element.style.maxWidth = natural
   }
 }
 
@@ -113,9 +113,9 @@ function Diagram({ svg }: { svg: string }) {
   const [zoomed, setZoomed] = useState(false)
   const box = useRef<HTMLDivElement>(null)
   useEffect(() => {
-    const el = box.current?.querySelector('svg')
-    if (el) {
-      sizeDiagram(el, zoomed)
+    const element = box.current?.querySelector('svg')
+    if (element) {
+      resizeDiagram(element, zoomed)
     }
   }, [zoomed])
   const toggleZoom = () => setZoomed(!zoomed)
@@ -130,15 +130,15 @@ function Diagram({ svg }: { svg: string }) {
       role="button"
       tabIndex={0}
       title={title}
-      onClick={(e) => {
-        if (openDiagramLink(e.target)) {
-          e.preventDefault()
+      onClick={(event) => {
+        if (openDiagramLink(event.target)) {
+          event.preventDefault()
           return
         }
         toggleZoom()
       }}
       onKeyDown={onActivateKey(toggleZoom)}
-      className={cx(
+      className={joinClassNames(
         'flex overflow-x-auto [&_svg]:h-auto [&_svg]:shrink-0',
         zoomed && 'cursor-zoom-out justify-start',
         !zoomed && 'cursor-zoom-in justify-center',

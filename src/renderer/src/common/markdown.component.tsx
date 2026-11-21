@@ -33,15 +33,15 @@ const open = (href?: string) => {
 }
 
 /** An image source that is a URL; markdown can also hand over a Blob, which the app never shows. */
-function stringOrNothing(src: unknown) {
-  if (typeof src !== 'string') {
+function keepString(source: unknown) {
+  if (typeof source !== 'string') {
     return
   }
-  return src
+  return source
 }
 
 function Img({
-  src,
+  src: source,
   alt,
   width,
   height,
@@ -52,17 +52,17 @@ function Img({
   height?: string | number | undefined
 }) {
   const [broken, setBroken] = useState(false)
-  if (!src) {
+  if (!source) {
     return null
   }
   // Images on private repos often need a GitHub session the app does not have; offer a link instead.
   if (broken) {
     return (
       <a
-        href={src}
-        onClick={(e) => {
-          e.preventDefault()
-          open(src)
+        href={source}
+        onClick={(event) => {
+          event.preventDefault()
+          open(source)
         }}
         className="inline-flex items-center gap-1 rounded border border-line px-1.5 py-0.5 text-[12px] no-underline"
       >
@@ -73,7 +73,7 @@ function Img({
   return (
     // biome-ignore lint/a11y/noNoninteractiveElementInteractions: onError swaps a broken image for a link; it is not a user interaction.
     <img
-      src={src}
+      src={source}
       alt={alt}
       width={width}
       height={height}
@@ -84,7 +84,7 @@ function Img({
 }
 
 /** The file extension, used as the language of a ```suggestion block on that file. */
-function extensionOf(path: string | undefined) {
+function readExtension(path: string | undefined) {
   if (!path?.includes('.')) {
     return
   }
@@ -105,7 +105,7 @@ function Pre({ children, codePath }: { children?: ReactNode; codePath?: string |
     return <MermaidBlock code={code} />
   }
   if (language === 'suggestion') {
-    return <CodeBlock code={code} language={extensionOf(codePath)} label="Suggested change" />
+    return <CodeBlock code={code} language={readExtension(codePath)} label="Suggested change" />
   }
   return <CodeBlock code={code} language={language} />
 }
@@ -129,8 +129,8 @@ export const Markdown = memo(function MarkdownView({
           a: ({ href, children: label }) => (
             <a
               href={href}
-              onClick={(e) => {
-                e.preventDefault()
+              onClick={(event) => {
+                event.preventDefault()
                 open(href)
               }}
             >
@@ -138,8 +138,8 @@ export const Markdown = memo(function MarkdownView({
             </a>
           ),
           pre: ({ children: code }) => <Pre codePath={codePath}>{code}</Pre>,
-          img: ({ src, alt, width, height }) => (
-            <Img src={stringOrNothing(src)} alt={alt} width={width} height={height} />
+          img: ({ src: source, alt, width, height }) => (
+            <Img src={keepString(source)} alt={alt} width={width} height={height} />
           ),
         }}
       >

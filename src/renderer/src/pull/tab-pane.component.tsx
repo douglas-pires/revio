@@ -1,5 +1,5 @@
 import { type ReactNode, useLayoutEffect, useRef, useState } from 'react'
-import { cx } from '../common/format.util.ts'
+import { joinClassNames } from '../common/format.util.ts'
 
 /**
  * One tab's own scroll area. It mounts the first time the tab is shown and then stays mounted while hidden, so the
@@ -26,12 +26,12 @@ export function TabPane({ active, children }: { active: boolean; children: React
     <div
       ref={scroller}
       data-scroll-root={true}
-      onScroll={(e) => {
+      onScroll={(event) => {
         if (active) {
-          scrollTop.current = e.currentTarget.scrollTop
+          scrollTop.current = event.currentTarget.scrollTop
         }
       }}
-      className={cx('min-h-0 flex-1 overflow-x-hidden overflow-y-auto', !active && 'hidden')}
+      className={joinClassNames('min-h-0 flex-1 overflow-x-hidden overflow-y-auto', !active && 'hidden')}
     >
       {children}
     </div>

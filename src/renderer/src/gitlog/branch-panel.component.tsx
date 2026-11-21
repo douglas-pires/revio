@@ -1,6 +1,6 @@
 import type { Branch, Branches } from '@shared/git-log.types.ts'
 import { useState } from 'react'
-import { cx } from '../common/format.util.ts'
+import { joinClassNames } from '../common/format.util.ts'
 import { type BranchFolder, buildBranchTree, filterBranches, readLeafName } from './branch-tree.util.ts'
 
 /** Indent per folder level. */
@@ -43,7 +43,7 @@ function BranchRow(props: { branch: Branch; label: string; depth: number; active
       type="button"
       // biome-ignore lint/style/noInlineStyles: the indent follows the folder depth.
       style={indentByDepth(props.depth)}
-      className={cx(
+      className={joinClassNames(
         'flex w-full items-center gap-1.5 rounded py-0.5 pr-2 text-left text-[12px]',
         props.active && 'bg-accent/15 text-fg',
         !props.active && 'text-muted hover:bg-hover hover:text-fg',
@@ -51,7 +51,7 @@ function BranchRow(props: { branch: Branch; label: string; depth: number; active
       title={props.branch.name}
       onClick={props.onPick}
     >
-      <span className={cx('shrink-0', props.branch.current && 'text-warn')}>
+      <span className={joinClassNames('shrink-0', props.branch.current && 'text-warn')}>
         {pickBranchIcon(props.branch.current)}
       </span>
       <span className="min-w-0 flex-1 truncate">{props.label}</span>
@@ -141,7 +141,7 @@ export function BranchPanel(props: { branches: Branches | null; picked: string; 
       <div className="min-h-0 flex-1 overflow-y-auto px-1 pb-2">
         <button
           type="button"
-          className={cx(
+          className={joinClassNames(
             'w-full rounded px-2 py-0.5 text-left text-[12px]',
             props.picked === '' && 'bg-accent/15 text-fg',
             props.picked !== '' && 'text-muted hover:bg-hover hover:text-fg',

@@ -4,7 +4,10 @@ import { answerStream } from './ask-activity.util.ts'
 
 function record() {
   const seen: (AskActivity | { kind: 'text'; text: string })[] = []
-  const stream = answerStream({ onText: (text) => seen.push({ kind: 'text', text }), onActivity: (a) => seen.push(a) })
+  const stream = answerStream({
+    onText: (text) => seen.push({ kind: 'text', text }),
+    onActivity: (activity) => seen.push(activity),
+  })
   return { seen, stream }
 }
 

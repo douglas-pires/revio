@@ -4,7 +4,7 @@ import type { OpenThread } from '@shared/thread.types.ts'
 import { memo, useState } from 'react'
 import { CopyButton } from '../common/copy-button.component.tsx'
 import { EmptyState } from '../common/empty-state.component.tsx'
-import { ago, countOf, cx } from '../common/format.util.ts'
+import { countOf, formatAge, joinClassNames } from '../common/format.util.ts'
 import { groupBy } from '../common/group.util.ts'
 import type { OpenPull } from '../common/navigation.types.ts'
 import { SectionHeading } from '../common/section-heading.component.tsx'
@@ -28,8 +28,8 @@ function ThreadSection(props: {
   if (props.threads.length === 0) {
     return null
   }
-  const open = props.threads.filter((t) => !props.resolved.has(t.id)).length
-  const byPr = groupBy(props.threads, (t) => `${t.repo}#${t.number}`)
+  const open = props.threads.filter((thread) => !props.resolved.has(thread.id)).length
+  const byPr = groupBy(props.threads, (thread) => `${thread.repo}#${thread.number}`)
   return (
     <section className="mb-6">
       <SectionHeading title={props.title} count={open} hint={props.hint} tone={props.tone} />
@@ -69,8 +69,8 @@ function PrThreads({
         </span>
       </button>
       <ul>
-        {threads.map((t) => (
-          <ThreadRow key={t.id} thread={t} isResolved={resolved.has(t.id)} actions={actions} />
+        {threads.map((thread) => (
+          <ThreadRow key={thread.id} thread={thread} isResolved={resolved.has(thread.id)} actions={actions} />
         ))}
       </ul>
     </div>
@@ -114,7 +114,7 @@ function ThreadRow({
         <div className="flex shrink-0 flex-col items-end gap-1">
           <span className="flex items-baseline gap-2">
             <CopyLatestCommentLinkButton url={latestComment?.url} />
-            <span className="font-mono text-[11.5px] text-muted">{ago(thread.lastActivityAt)}</span>
+            <span className="font-mono text-[11.5px] text-muted">{formatAge(thread.lastActivityAt)}</span>
           </span>
           <ThreadButtons
             isResolved={isResolved}
@@ -144,7 +144,7 @@ function ThreadRow({
 
 const AVATAR_PX = 24
 
-function summaryTitle(outdated: boolean) {
+function describeSummary(outdated: boolean) {
   if (outdated) {
     return 'The code this thread was on has changed since; opens the file.'
   }
@@ -152,24 +152,24 @@ function summaryTitle(outdated: boolean) {
 }
 
 /** `path:line`, or the path alone when the thread has no current line. */
-function pathAndLine(t: OpenThread) {
-  if (!t.line) {
-    return t.path
+function formatPathAndLine(thread: OpenThread) {
+  if (!thread.line) {
+    return thread.path
   }
-  return `${t.path}:${t.line}`
+  return `${thread.path}:${thread.line}`
 }
 
-function ThreadSummary({ thread: t, dimmed, onOpen }: { thread: OpenThread; dimmed: boolean; onOpen: () => void }) {
-  const last = t.comments.at(-1)
+function ThreadSummary({ thread, dimmed, onOpen }: { thread: OpenThread; dimmed: boolean; onOpen: () => void }) {
+  const last = thread.comments.at(-1)
   if (!last) {
     return null
   }
   return (
     <button
       type="button"
-      className={cx('flex min-w-0 flex-1 gap-3 text-left', dimmed && 'opacity-50')}
+      className={joinClassNames('flex min-w-0 flex-1 gap-3 text-left', dimmed && 'opacity-50')}
       onClick={onOpen}
-      title={summaryTitle(t.outdated)}
+      title={describeSummary(thread.outdated)}
     >
       <img
         src={last.authorAvatar}
@@ -180,14 +180,16 @@ function ThreadSummary({ thread: t, dimmed, onOpen }: { thread: OpenThread; dimm
       />
       <div className="min-w-0 flex-1">
         <div className="flex items-center gap-2 text-[12px]">
-          <code className="truncate" title={pathAndLine(t)}>
-            {pathAndLine(t)}
+          <code className="truncate" title={formatPathAndLine(thread)}>
+            {formatPathAndLine(thread)}
           </code>
-          {Boolean(t.outdated) && <span className="chip bg-panel-2 text-muted">outdated</span>}
+          {Boolean(thread.outdated) && <span className="chip bg-panel-2 text-muted">outdated</span>}
           {Boolean(last.bot) && <span className="chip bg-panel-2 text-muted">bot</span>}
-          <span className="shrink-0 text-muted">{countOf(t.totalComments, 'comment', 'comments')}</span>
+          <span className="shrink-0 text-muted">{countOf(thread.totalComments, 'comment', 'comments')}</span>
         </div>
-        <div className={cx('mt-0.5 line-clamp-2 text-[12.5px]', t.waitingOn === 'others' && 'text-muted')}>
+        <div
+          className={joinClassNames('mt-0.5 line-clamp-2 text-[12.5px]', thread.waitingOn === 'others' && 'text-muted')}
+        >
           <span className="font-medium">{last.author}</span>: {summarizeComment(last.body)}
         </div>
       </div>
@@ -278,14 +280,14 @@ export const ThreadList = memo(function ThreadListView({ threads, resolved, filt
         title="Waiting on your reply"
         hint="someone else spoke last"
         tone="accent"
-        threads={threads.filter((t) => t.waitingOn === 'you')}
+        threads={threads.filter((thread) => thread.waitingOn === 'you')}
         resolved={resolved}
         actions={actions}
       />
       <ThreadSection
         title="Waiting on others"
         hint="your comment has no answer yet"
-        threads={threads.filter((t) => t.waitingOn === 'others')}
+        threads={threads.filter((thread) => thread.waitingOn === 'others')}
         resolved={resolved}
         actions={actions}
       />

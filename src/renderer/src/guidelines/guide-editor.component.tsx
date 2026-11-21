@@ -1,7 +1,7 @@
 import { useId, useState } from 'react'
 import { Markdown } from '../common/markdown.component.tsx'
 import { SegmentedControl } from '../common/segmented-control.component.tsx'
-import { type Draft, defaultTitle } from './guidelines.util.ts'
+import { buildDefaultTitle, type Draft } from './guidelines.util.ts'
 
 type Change = (draft: Draft) => void
 
@@ -33,12 +33,12 @@ function ScopeFields({ draft, repos, onChange }: { draft: Draft; repos: readonly
           list={ids.repos}
           value={draft.repo}
           placeholder="owner/repo or *"
-          onChange={(e) => onChange({ ...draft, repo: e.target.value })}
+          onChange={(event) => onChange({ ...draft, repo: event.target.value })}
         />
         <datalist id={ids.repos}>
           <option value="*">All repositories</option>
-          {repos.map((r) => (
-            <option key={r} value={r} />
+          {repos.map((repo) => (
+            <option key={repo} value={repo} />
           ))}
         </datalist>
       </Field>
@@ -49,7 +49,7 @@ function ScopeFields({ draft, repos, onChange }: { draft: Draft; repos: readonly
           value={draft.path}
           disabled={draft.repo === '*'}
           placeholder="apps/web/"
-          onChange={(e) => onChange({ ...draft, path: e.target.value })}
+          onChange={(event) => onChange({ ...draft, path: event.target.value })}
         />
       </Field>
       <Field label="Title" htmlFor={ids.title}>
@@ -57,8 +57,8 @@ function ScopeFields({ draft, repos, onChange }: { draft: Draft; repos: readonly
           id={ids.title}
           className="input"
           value={draft.title}
-          placeholder={defaultTitle(draft)}
-          onChange={(e) => onChange({ ...draft, title: e.target.value })}
+          placeholder={buildDefaultTitle(draft)}
+          onChange={(event) => onChange({ ...draft, title: event.target.value })}
         />
       </Field>
     </div>
@@ -91,10 +91,10 @@ function GuideBody(props: { draft: Draft; onChange: Change; onSave: () => void; 
             aria-label="Guide text"
             className="input h-full resize-none font-mono text-[12.5px] leading-relaxed"
             value={draft.body}
-            onChange={(e) => onChange({ ...draft, body: e.target.value })}
-            onKeyDown={(e) => {
-              if (e.key === 's' && e.metaKey) {
-                e.preventDefault()
+            onChange={(event) => onChange({ ...draft, body: event.target.value })}
+            onKeyDown={(event) => {
+              if (event.key === 's' && event.metaKey) {
+                event.preventDefault()
                 onSave()
               }
             }}
@@ -145,7 +145,7 @@ function GuideActions(props: {
         <input
           type="checkbox"
           checked={draft.enabled}
-          onChange={(e) => props.onChange({ ...draft, enabled: e.target.checked })}
+          onChange={(event) => props.onChange({ ...draft, enabled: event.target.checked })}
         />
         Enabled
       </label>

@@ -1,4 +1,4 @@
-import { cx } from './format.util.ts'
+import { joinClassNames } from './format.util.ts'
 
 export interface Segment<T extends string> {
   value: T
@@ -14,21 +14,21 @@ export function SegmentedControl<T extends string>(props: {
   className?: string
 }) {
   return (
-    <div className={cx('no-drag flex shrink-0 rounded-md border border-line p-0.5', props.className)}>
-      {props.segments.map((s) => (
+    <div className={joinClassNames('no-drag flex shrink-0 rounded-md border border-line p-0.5', props.className)}>
+      {props.segments.map((segment) => (
         <button
           type="button"
-          aria-pressed={props.value === s.value}
-          key={s.value}
-          title={s.title}
-          onClick={() => props.onChange(s.value)}
-          className={cx(
+          aria-pressed={props.value === segment.value}
+          key={segment.value}
+          title={segment.title}
+          onClick={() => props.onChange(segment.value)}
+          className={joinClassNames(
             'rounded px-2.5 py-0.5 text-[12px] whitespace-nowrap',
-            props.value === s.value && 'bg-hover text-fg',
-            props.value !== s.value && 'text-muted hover:text-fg',
+            props.value === segment.value && 'bg-hover text-fg',
+            props.value !== segment.value && 'text-muted hover:text-fg',
           )}
         >
-          {s.label}
+          {segment.label}
         </button>
       ))}
     </div>

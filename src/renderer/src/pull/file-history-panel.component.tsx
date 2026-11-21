@@ -1,8 +1,8 @@
 import type { FileHistoryEntry } from '@shared/history.types.ts'
 import { useEffect, useMemo, useState } from 'react'
 import { CopyButton } from '../common/copy-button.component.tsx'
-import { ago, cx, errorMessage } from '../common/format.util.ts'
-import { toggledOpen } from '../common/group.util.ts'
+import { formatAge, joinClassNames, readErrorMessage } from '../common/format.util.ts'
+import { toggleOpen } from '../common/group.util.ts'
 import { PanelHeader } from '../common/panel-header.component.tsx'
 import { parsePatch } from './diff.util.ts'
 import { StaticDiff } from './static-diff.component.tsx'
@@ -10,7 +10,7 @@ import { StaticDiff } from './static-diff.component.tsx'
 const AVATAR_PX = 20
 
 function HistoryEntry({
-  entry: c,
+  entry,
   repo,
   path,
   open,
@@ -23,28 +23,29 @@ function HistoryEntry({
   onToggle: () => void
 }) {
   return (
-    <li className={cx('border-b border-line', open && 'bg-bg/40')}>
+    <li className={joinClassNames('border-b border-line', open && 'bg-bg/40')}>
       <button
         type="button"
         className="flex w-full gap-2 px-3 py-2 text-left hover:bg-hover"
         onClick={onToggle}
         aria-expanded={open}
       >
-        {Boolean(c.authorAvatar) && (
+        {Boolean(entry.authorAvatar) && (
           <img
-            src={c.authorAvatar}
+            src={entry.authorAvatar}
             alt=""
             width={AVATAR_PX}
             height={AVATAR_PX}
             className="mt-0.5 size-5 shrink-0 rounded-full"
           />
         )}
-        {!c.authorAvatar && <span className="mt-0.5 size-5 shrink-0 rounded-full bg-panel-2" />}
+        {!entry.authorAvatar && <span className="mt-0.5 size-5 shrink-0 rounded-full bg-panel-2" />}
         <span className="min-w-0 flex-1">
-          <span className="line-clamp-2 text-[12.5px]">{c.headline}</span>
+          <span className="line-clamp-2 text-[12.5px]">{entry.headline}</span>
           <span className="mt-0.5 flex items-center gap-1.5 text-[11.5px] text-muted">
-            <span>{c.author}</span>·<span title={new Date(c.date).toLocaleString()}>{ago(c.date)} ago</span>
-            {Boolean(c.inThisPr) && <span className="chip bg-accent/15 text-accent">this PR</span>}
+            <span>{entry.author}</span>·
+            <span title={new Date(entry.date).toLocaleString()}>{formatAge(entry.date)} ago</span>
+            {Boolean(entry.inThisPr) && <span className="chip bg-accent/15 text-accent">this PR</span>}
           </span>
         </span>
       </button>
@@ -52,18 +53,22 @@ function HistoryEntry({
         <div className="px-3 pb-3">
           <div className="mb-2 flex items-center gap-2 text-[11.5px]">
             <CopyButton
-              text={c.sha}
-              title={`Copy commit sha ${c.sha}`}
+              text={entry.sha}
+              title={`Copy commit sha ${entry.sha}`}
               className="rounded px-1 font-mono text-muted hover:bg-hover hover:text-fg"
             >
-              {c.shortSha}
+              {entry.shortSha}
             </CopyButton>
             <div className="flex-1" />
-            <button type="button" className="btn btn-ghost py-0" onClick={() => globalThis.revio.openExternal(c.url)}>
+            <button
+              type="button"
+              className="btn btn-ghost py-0"
+              onClick={() => globalThis.revio.openExternal(entry.url)}
+            >
               Open commit ↗
             </button>
           </div>
-          <CommitChange repo={repo} sha={c.sha} path={path} />
+          <CommitChange repo={repo} sha={entry.sha} path={path} />
         </div>
       )}
     </li>
@@ -78,8 +83,8 @@ function CommitChange({ repo, sha, path }: { repo: string; sha: string; path: st
     let live = true
     globalThis.revio
       .getCommitFilePatch({ repo, sha, path })
-      .then((p) => live && setPatch(p))
-      .catch((e) => live && setError(errorMessage(e)))
+      .then((loadedPatch) => live && setPatch(loadedPatch))
+      .catch((failure) => live && setError(readErrorMessage(failure)))
     return () => {
       live = false
     }
@@ -121,8 +126,8 @@ export function FileHistoryPanel(props: {
     setOpen(null)
     globalThis.revio
       .getFileHistory(pull, { repo, sha: headSha, path })
-      .then((e) => live && setEntries(e))
-      .catch((e) => live && setError(errorMessage(e)))
+      .then((loadedEntries) => live && setEntries(loadedEntries))
+      .catch((failure) => live && setError(readErrorMessage(failure)))
     return () => {
       live = false
     }
@@ -147,14 +152,14 @@ export function FileHistoryPanel(props: {
           <div className="px-3 py-8 text-center text-[12px] text-muted">No commits found for this file.</div>
         )}
         <ol>
-          {entries?.map((c) => (
+          {entries?.map((entry) => (
             <HistoryEntry
-              key={c.sha}
-              entry={c}
+              key={entry.sha}
+              entry={entry}
               repo={repo}
               path={path}
-              open={open === c.sha}
-              onToggle={() => setOpen(toggledOpen(open, c.sha))}
+              open={open === entry.sha}
+              onToggle={() => setOpen(toggleOpen(open, entry.sha))}
             />
           ))}
         </ol>

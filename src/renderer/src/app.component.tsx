@@ -1,9 +1,9 @@
 import type { Inbox as InboxData } from '@shared/inbox.types.ts'
 import type { MentionsInbox } from '@shared/mention.types.ts'
-import { pullKey } from '@shared/pull.types.ts'
+import { buildPullKey } from '@shared/pull.types.ts'
 // biome-ignore lint/correctness/noUnresolvedImports: @types/react declares these through its namespace, which Biome's resolver does not follow.
 import { lazy, Suspense, useEffect, useState } from 'react'
-import { cx } from './common/format.util.ts'
+import { joinClassNames } from './common/format.util.ts'
 import { HistoryContext } from './common/history.context.ts'
 import type { OpenPull } from './common/navigation.types.ts'
 import { useRouteHistory } from './common/use-route-history.hook.ts'
@@ -14,16 +14,18 @@ import { UpdateBanner } from './updates/update-banner.component.tsx'
 import { useUpdateStatus } from './updates/use-update-status.hook.ts'
 
 // The inbox is the first screen; everything else (markdown, diff, highlighting) loads when first opened.
-const PullView = lazy(() => import('./pull/pull.view.tsx').then((m) => ({ default: m.PullView })))
+const PullView = lazy(() => import('./pull/pull.view.tsx').then((module) => ({ default: module.PullView })))
 
-const Guidelines = lazy(() => import('./guidelines/guidelines.view.tsx').then((m) => ({ default: m.Guidelines })))
+const Guidelines = lazy(() =>
+  import('./guidelines/guidelines.view.tsx').then((module) => ({ default: module.Guidelines })),
+)
 
-const MyPulls = lazy(() => import('./my-pulls/my-pulls.view.tsx').then((m) => ({ default: m.MyPulls })))
-const GitLog = lazy(() => import('./gitlog/git-log.view.tsx').then((m) => ({ default: m.GitLog })))
+const MyPulls = lazy(() => import('./my-pulls/my-pulls.view.tsx').then((module) => ({ default: module.MyPulls })))
+const GitLog = lazy(() => import('./gitlog/git-log.view.tsx').then((module) => ({ default: module.GitLog })))
 
-const Mentions = lazy(() => import('./mentions/mentions.view.tsx').then((m) => ({ default: m.Mentions })))
+const Mentions = lazy(() => import('./mentions/mentions.view.tsx').then((module) => ({ default: module.Mentions })))
 
-const Settings = lazy(() => import('./settings/settings.view.tsx').then((m) => ({ default: m.Settings })))
+const Settings = lazy(() => import('./settings/settings.view.tsx').then((module) => ({ default: module.Settings })))
 
 function NavButton(props: {
   active: boolean
@@ -37,7 +39,7 @@ function NavButton(props: {
     <button
       type="button"
       onClick={props.onClick}
-      className={cx(
+      className={joinClassNames(
         'no-drag relative flex w-14 flex-col items-center gap-1 rounded-lg py-2 text-[10.5px] transition',
         props.active && 'bg-hover text-fg',
         !props.active && 'text-muted hover:bg-hover/60 hover:text-fg',
@@ -58,7 +60,7 @@ function NavButton(props: {
       {props.label}
       {Boolean(props.badge) && (
         <span
-          className={cx(
+          className={joinClassNames(
             'absolute top-1 right-2 min-w-4 rounded-full px-1 text-center text-[10px] leading-4 font-semibold text-white',
             props.badgeTone === 'danger' && 'bg-danger',
             !(props.badgeTone === 'danger') && 'bg-accent',
@@ -81,17 +83,17 @@ function useLiveData(setRoute: RouteHistory['go']) {
   const [inbox, setInbox] = useState<InboxData | null>(null)
   const [mentions, setMentions] = useState<MentionsInbox | null>(null)
   useEffect(() => {
-    globalThis.revio.getInbox().then((i) => i && setInbox(i))
+    globalThis.revio.getInbox().then((latestInbox) => latestInbox && setInbox(latestInbox))
     globalThis.revio.getMentions().then(setMentions)
-    return globalThis.revio.onEvent((e) => {
-      if (e.type === 'inbox') {
-        setInbox(e.inbox)
+    return globalThis.revio.onEvent((event) => {
+      if (event.type === 'inbox') {
+        setInbox(event.inbox)
       }
-      if (e.type === 'mentions') {
-        setMentions(e.mentions)
+      if (event.type === 'mentions') {
+        setMentions(event.mentions)
       }
-      if (e.type === 'open-pull') {
-        setRoute({ view: 'pull', pull: e.ref })
+      if (event.type === 'open-pull') {
+        setRoute({ view: 'pull', pull: event.ref })
       }
     })
   }, [setRoute])
@@ -109,8 +111,9 @@ function NavRail({
   mentions: MentionsInbox | null
 }) {
   const { route, go: setRoute } = history
-  const staleCount = inbox?.requested.filter((p) => p.stale).length ?? 0
-  const newMentions = mentions?.mentions.filter((m) => m.snippets.some((s) => s.isNew)).length ?? 0
+  const staleCount = inbox?.requested.filter((pull) => pull.stale).length ?? 0
+  const newMentions =
+    mentions?.mentions.filter((mention) => mention.snippets.some((snippet) => snippet.isNew)).length ?? 0
   let inboxTone: 'danger' | 'accent' = 'accent'
   if (staleCount > 0) {
     inboxTone = 'danger'
@@ -187,7 +190,7 @@ function Screen({
       )}
       {route.view === 'pull' && (
         <PullView
-          key={pullKey(route.pull)}
+          key={buildPullKey(route.pull)}
           pull={route.pull}
           initialTarget={route.target}
           onBack={goBack}

@@ -1,4 +1,4 @@
-import { errorMessage as sharedErrorMessage } from '@shared/error.util.ts'
+import { readErrorMessage as readSharedErrorMessage } from '@shared/error.util.ts'
 import { MS_PER_HOUR } from '@shared/time.util.ts'
 
 const IPC_ERROR_PREFIX = /^Error invoking remote method '[^']+': (?:Error: )?/u
@@ -12,12 +12,12 @@ const GENERATED = [
 /** Waits shorter than this read in hours ("30h"); longer ones in days ("3d"). */
 const MAX_HOURS_SHOWN = 48
 
-export function ago(iso: string | null | undefined) {
+export function formatAge(iso: string | null | undefined) {
   if (!iso) {
     return ''
   }
-  const h = (Date.now() - new Date(iso).getTime()) / MS_PER_HOUR
-  return duration(h)
+  const hours = (Date.now() - new Date(iso).getTime()) / MS_PER_HOUR
+  return formatDuration(hours)
 }
 
 /** "just updated", "updated 5m ago", or "loading…" before the first fetch. */
@@ -25,32 +25,33 @@ export function describeFreshness(fetchedAt: string | undefined) {
   if (!fetchedAt) {
     return 'loading…'
   }
-  const age = ago(fetchedAt)
+  const age = formatAge(fetchedAt)
   if (age === 'now') {
     return 'just updated'
   }
   return `updated ${age} ago`
 }
 
-export function duration(h: number) {
-  if (h < 1 / 60) {
+export function formatDuration(hours: number) {
+  if (hours < 1 / 60) {
     return 'now'
   }
-  if (h < 1) {
-    return `${Math.round(h * 60)}m`
+  if (hours < 1) {
+    return `${Math.round(hours * 60)}m`
   }
-  if (h < MAX_HOURS_SHOWN) {
-    return `${Math.round(h)}h`
+  if (hours < MAX_HOURS_SHOWN) {
+    return `${Math.round(hours)}h`
   }
-  return `${Math.round(h / 24)}d`
+  return `${Math.round(hours / 24)}d`
 }
 
-export const cx = (...c: (string | false | null | undefined)[]) => c.filter(Boolean).join(' ')
+export const joinClassNames = (...classNames: (string | false | null | undefined)[]) =>
+  classNames.filter(Boolean).join(' ')
 
 /** A thrown value as text, without the prefix Electron adds to errors that crossed IPC. */
-export const errorMessage = (e: unknown) => sharedErrorMessage(e).replace(IPC_ERROR_PREFIX, '')
+export const readErrorMessage = (failure: unknown) => readSharedErrorMessage(failure).replace(IPC_ERROR_PREFIX, '')
 
-export const isGenerated = (path: string) => GENERATED.some((r) => r.test(path))
+export const isGenerated = (path: string) => GENERATED.some((pattern) => pattern.test(path))
 
 /** "1 reply", "3 replies": the count with the word that fits it. */
 export function countOf(count: number, one: string, many: string) {

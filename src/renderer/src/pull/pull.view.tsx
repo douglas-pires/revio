@@ -26,46 +26,52 @@ interface PullViewProps {
 }
 
 /** The header, with the review popover that submits your review and its pending comments. */
-function PullViewHeader({ v, pr, props }: { v: PullViewState; pr: PullDetail; props: PullViewProps }) {
-  const { review } = v
-  const savedAsks = v.local.asks ?? []
+function PullViewHeader({ view, pr, props }: { view: PullViewState; pr: PullDetail; props: PullViewProps }) {
+  const { review } = view
+  const savedAsks = view.local.asks ?? []
   let askCount = savedAsks.length
-  if (v.ask.thread !== null) {
+  if (view.ask.thread !== null) {
     askCount = 0
   }
   return (
     <PullHeader
       pr={pr}
-      draftCount={v.local.drafts.length}
+      draftCount={view.local.drafts.length}
       askCount={askCount}
-      onOpenAsks={() => v.ask.setThread(savedAsks[0] ?? null)}
+      onOpenAsks={() => view.ask.setThread(savedAsks[0] ?? null)}
       reviewOpen={review.open}
       setReviewOpen={review.setOpen}
       reviewBody={review.body}
       setReviewBody={review.setBody}
       onSubmitReview={async (event) => {
-        const { repo, number } = v.pull
-        const res = await globalThis.revio.submitReview({ repo, number, headSha: pr.headSha, event, body: review.body })
+        const { repo, number } = view.pull
+        const response = await globalThis.revio.submitReview({
+          repo,
+          number,
+          headSha: pr.headSha,
+          event,
+          body: review.body,
+        })
         review.setBody('')
         review.setOpen(false)
-        v.forgetDrafts()
+        view.forgetDrafts()
         props.onReviewed()
-        return res.url
+        return response.url
       }}
     />
   )
 }
 
 export function PullView(props: PullViewProps) {
-  const v = usePullView(props.pull, props.initialTarget)
-  const { pr } = v
-  if (v.error) {
+  const view = usePullView(props.pull, props.initialTarget)
+  const { pr } = view
+  if (view.error) {
     return (
       <Screen
         header={<ScreenHeader title={`${props.pull.repo}#${props.pull.number}`} subtitle="Couldn't open this PR" />}
       >
         <ScreenBody>
-          <ErrorBanner className="mb-4">{v.error}</ErrorBanner>
+          <ErrorBanner className="mb-4">{view.error}</ErrorBanner>
           <button type="button" className="btn" onClick={props.onBack}>
             Back to the inbox
           </button>
@@ -74,28 +80,36 @@ export function PullView(props: PullViewProps) {
     )
   }
   if (!pr) {
-    return <PullLoading pull={props.pull} stack={v.stack} tab={v.tab} onTab={v.setTab} onOpenPull={props.onOpenPull} />
+    return (
+      <PullLoading
+        pull={props.pull}
+        stack={view.stack}
+        tab={view.tab}
+        onTab={view.setTab}
+        onOpenPull={props.onOpenPull}
+      />
+    )
   }
   return (
-    <ReactionsContext value={v.setReaction}>
-      <ReplyTargetContext value={v.replyTarget}>
+    <ReactionsContext value={view.setReaction}>
+      <ReplyTargetContext value={view.replyTarget}>
         <UnsentScopeContext value={`${props.pull.repo}#${props.pull.number}`}>
-          <ThreadFoldContext value={v.threadFold}>
+          <ThreadFoldContext value={view.threadFold}>
             <div className="flex h-full flex-col">
-              <PullViewHeader v={v} pr={pr} props={props} />
-              {v.stack !== null && <StackBar stack={v.stack} pull={v.pull} onOpen={props.onOpenPull} />}
+              <PullViewHeader view={view} pr={pr} props={props} />
+              {view.stack !== null && <StackBar stack={view.stack} pull={view.pull} onOpen={props.onOpenPull} />}
               <div className="flex min-h-0 flex-1">
                 <FileTree
                   files={pr.files}
-                  viewed={v.local.viewed}
-                  current={v.nav.current}
-                  focusPaths={v.focusPaths}
-                  ignorePaths={v.ignorePaths}
-                  draftCounts={v.draftCounts}
-                  onSelect={v.nav.goTo}
+                  viewed={view.local.viewed}
+                  current={view.nav.current}
+                  focusPaths={view.focusPaths}
+                  ignorePaths={view.ignorePaths}
+                  draftCounts={view.draftCounts}
+                  onSelect={view.nav.goTo}
                 />
-                <PullTabs v={v} pr={pr} onEditGuidelines={props.onEditGuidelines} />
-                <PullSidePanels v={v} pr={pr} />
+                <PullTabs view={view} pr={pr} onEditGuidelines={props.onEditGuidelines} />
+                <PullSidePanels view={view} pr={pr} />
               </div>
             </div>
           </ThreadFoldContext>

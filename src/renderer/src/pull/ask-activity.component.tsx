@@ -1,7 +1,7 @@
 import { useEffect, useState } from 'react'
 import { Markdown } from '../common/markdown.component.tsx'
-import { withPositions } from '../common/numbered-lines.util.ts'
-import { type AskProgress, secondsSince } from './ask-progress.util.ts'
+import { addPositions } from '../common/numbered-lines.util.ts'
+import { type AskProgress, countSecondsSince } from './ask-progress.util.ts'
 
 /** How often the elapsed time ticks. */
 const TICK_MS = 1000
@@ -21,7 +21,7 @@ function useNow() {
 function Steps({ steps, live }: { steps: readonly string[]; live: boolean }) {
   return (
     <ol className="space-y-0.5">
-      {withPositions(steps).map(({ item: step, position }) => {
+      {addPositions(steps).map(({ item: step, position }) => {
         // Positions count from 1, so the last step's is the length.
         const current = live && position === steps.length
         return (
@@ -60,7 +60,7 @@ function Reasoning({ text, tail }: { text: string; tail: boolean }) {
  * reasoning while it thinks. Once the answer starts, it folds into "Worked for Ns", which opens to show the steps.
  */
 export function AskActivity({ progress, answering }: { progress: AskProgress; answering: boolean }) {
-  const seconds = secondsSince(progress, useNow())
+  const seconds = countSecondsSince(progress, useNow())
   if (answering) {
     return (
       <details data-ask-activity="done" className="text-[12px] text-muted">

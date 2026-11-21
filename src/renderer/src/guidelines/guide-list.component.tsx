@@ -1,8 +1,8 @@
 import type { Guideline } from '@shared/guideline.types.ts'
-import { cx } from '../common/format.util.ts'
+import { joinClassNames } from '../common/format.util.ts'
 import { SectionHeading } from '../common/section-heading.component.tsx'
 import type { GuideDrafts } from './guide-drafts.util.ts'
-import { type Draft, defaultTitle, groupGuides } from './guidelines.util.ts'
+import { buildDefaultTitle, type Draft, groupGuides } from './guidelines.util.ts'
 
 function DraftChip() {
   return <span className="chip ml-auto shrink-0 bg-warn/20 py-0 text-[10px] text-warn">draft</span>
@@ -19,7 +19,7 @@ export function GuideList({
   selectedId: string | undefined
   /** Unsaved edits by guide id (`new` for a guide not saved yet), marked in the list. */
   drafts: GuideDrafts
-  onSelect: (g: Draft) => void
+  onSelect: (draft: Draft) => void
 }) {
   const newGuide = drafts.new
   return (
@@ -29,34 +29,34 @@ export function GuideList({
           <button
             type="button"
             onClick={() => onSelect(newGuide)}
-            className={cx(
+            className={joinClassNames(
               'mb-3 flex w-full items-center gap-2 rounded-md px-2 py-1.5 text-left',
               selectedId === undefined && 'bg-hover',
               selectedId !== undefined && 'hover:bg-hover/60',
             )}
           >
-            <span className="truncate italic">{newGuide.title || defaultTitle(newGuide)}</span>
+            <span className="truncate italic">{newGuide.title || buildDefaultTitle(newGuide)}</span>
             <DraftChip />
           </button>
         )}
         {groupGuides(list).map(([repo, items]) => (
           <div key={repo} className="mb-3">
             <SectionHeading title={repo} count={items.length} className="mb-1 px-2" />
-            {items.map((g) => (
+            {items.map((guideline) => (
               <button
                 type="button"
-                key={g.id}
-                onClick={() => onSelect(g)}
-                className={cx(
+                key={guideline.id}
+                onClick={() => onSelect(guideline)}
+                className={joinClassNames(
                   'flex w-full items-center gap-2 rounded-md px-2 py-1.5 text-left',
-                  selectedId === g.id && 'bg-hover',
-                  selectedId !== g.id && 'hover:bg-hover/60',
-                  !g.enabled && 'opacity-50',
+                  selectedId === guideline.id && 'bg-hover',
+                  selectedId !== guideline.id && 'hover:bg-hover/60',
+                  !guideline.enabled && 'opacity-50',
                 )}
               >
-                <span className="font-mono text-[11px] text-muted">{g.path || '/'}</span>
-                <span className="truncate">{g.title}</span>
-                {drafts[g.id] !== undefined && <DraftChip />}
+                <span className="font-mono text-[11px] text-muted">{guideline.path || '/'}</span>
+                <span className="truncate">{guideline.title}</span>
+                {drafts[guideline.id] !== undefined && <DraftChip />}
               </button>
             ))}
           </div>

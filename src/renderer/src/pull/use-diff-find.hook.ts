@@ -2,7 +2,7 @@ import type { PullFile } from '@shared/pull.types.ts'
 import { useEffect, useMemo, useRef, useState } from 'react'
 import { parsePatch } from './diff.util.ts'
 import { type DiffMatch, searchDiffs, stepMatch } from './diff-search.util.ts'
-import { cellOf, rangesIn } from './find-highlights.util.ts'
+import { findMatchCell, findRangesIn } from './find-highlights.util.ts'
 import type { ScrollTarget } from './use-scroll-to-target.hook.ts'
 
 const ALL = 'revio-find'
@@ -21,7 +21,7 @@ function delayFor(query: string) {
 }
 
 /** ⌘G steps forward, ⇧⌘G back. */
-function directionOf(shift: boolean): 1 | -1 {
+function pickDirection(shift: boolean): 1 | -1 {
   if (shift) {
     return -1
   }
@@ -32,8 +32,8 @@ function directionOf(shift: boolean): 1 | -1 {
 function useDeferredQuery(query: string) {
   const [settled, setSettled] = useState(query)
   useEffect(() => {
-    const t = setTimeout(() => setSettled(query), delayFor(query))
-    return () => clearTimeout(t)
+    const timer = setTimeout(() => setSettled(query), delayFor(query))
+    return () => clearTimeout(timer)
   }, [query])
   return settled
 }
@@ -53,14 +53,14 @@ function useMatchHighlights(query: string, caseSensitive: boolean, current: Diff
     if (!(query && scope)) {
       return clear
     }
-    let raf = 0
+    let frameRequest = 0
     const paint = () => {
-      raf = 0
+      frameRequest = 0
       const options = { caseSensitive }
       const cells = [...scope.querySelectorAll('td[data-row]')]
-      registry.set(ALL, new Highlight(...cells.flatMap((cell) => rangesIn(cell, query, options))))
-      const currentCell = current && cellOf(current)
-      const range = currentCell && rangesIn(currentCell, query, options)[current.nth]
+      registry.set(ALL, new Highlight(...cells.flatMap((cell) => findRangesIn(cell, query, options))))
+      const currentCell = current && findMatchCell(current)
+      const range = currentCell && findRangesIn(currentCell, query, options)[current.nth]
       if (range) {
         registry.set(CURRENT, new Highlight(range))
       } else {
@@ -68,14 +68,14 @@ function useMatchHighlights(query: string, caseSensitive: boolean, current: Diff
       }
     }
     const schedule = () => {
-      raf ||= requestAnimationFrame(paint)
+      frameRequest ||= requestAnimationFrame(paint)
     }
     paint()
     const observer = new MutationObserver(schedule)
     observer.observe(scope, { childList: true, subtree: true, characterData: true })
     return () => {
       observer.disconnect()
-      cancelAnimationFrame(raf)
+      cancelAnimationFrame(frameRequest)
       clear()
     }
   }, [query, caseSensitive, current])
@@ -83,7 +83,7 @@ function useMatchHighlights(query: string, caseSensitive: boolean, current: Diff
 
 /** The matches of the query in every file's diff, searched once typing pauses; none while the bar is closed. */
 function useMatches(files: readonly PullFile[], open: boolean, query: string, caseSensitive: boolean) {
-  const parsed = useMemo(() => files.map((f) => ({ path: f.path, rows: parsePatch(f.patch ?? '') })), [files])
+  const parsed = useMemo(() => files.map((file) => ({ path: file.path, rows: parsePatch(file.patch ?? '') })), [files])
   const deferred = useDeferredQuery(query)
   const matches = useMemo(() => {
     if (!(open && deferred)) {
@@ -102,18 +102,18 @@ function useFindShortcuts(
   const latest = useRef({ ...state, onOpen })
   latest.current = { ...state, onOpen }
   useEffect(() => {
-    const onKey = (e: KeyboardEvent) => {
-      if (!e.metaKey || e.ctrlKey || e.altKey) {
+    const onKey = (event: KeyboardEvent) => {
+      if (!event.metaKey || event.ctrlKey || event.altKey) {
         return
       }
-      const key = e.key.toLowerCase()
+      const key = event.key.toLowerCase()
       if (key === 'f') {
-        e.preventDefault()
+        event.preventDefault()
         latest.current.showFiles()
         latest.current.onOpen()
       } else if (key === 'g' && latest.current.open) {
-        e.preventDefault()
-        latest.current.go(directionOf(e.shiftKey))
+        event.preventDefault()
+        latest.current.go(pickDirection(event.shiftKey))
       }
     }
     globalThis.addEventListener('keydown', onKey)
@@ -155,15 +155,15 @@ export function useDiffFind(opts: {
       return
     }
     setIndex(next)
-    const m = matches[next]
-    if (m) {
-      jump({ path: m.path, line: m.line, side: m.side })
+    const match = matches[next]
+    if (match) {
+      jump({ path: match.path, line: match.line, side: match.side })
     }
   }
 
   useFindShortcuts({ go, open, showFiles: opts.showFiles }, () => {
     setOpen(true)
-    setFocusTick((t) => t + 1)
+    setFocusTick((tick) => tick + 1)
   })
 
   let highlighted = ''

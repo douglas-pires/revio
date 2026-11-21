@@ -4,7 +4,7 @@ import { useState } from 'react'
 import { EmptyState } from '../common/empty-state.component.tsx'
 import { ErrorBanner } from '../common/error-banner.component.tsx'
 import { FilterChips } from '../common/filter-chips.component.tsx'
-import { ago, cx } from '../common/format.util.ts'
+import { formatAge, joinClassNames } from '../common/format.util.ts'
 import { ListSkeleton } from '../common/list-skeleton.component.tsx'
 import type { OpenPull, PullTarget } from '../common/navigation.types.ts'
 import { RefreshControl } from '../common/refresh-control.component.tsx'
@@ -12,14 +12,14 @@ import { Screen, ScreenBody, ScreenHeader } from '../common/screen.component.tsx
 import { SectionHeading } from '../common/section-heading.component.tsx'
 import { useAsyncAction } from '../common/use-async-action.hook.ts'
 import {
-  audienceCounts,
-  audienceLabel,
+  countAudiences,
+  describeAudience,
   type MentionAudience,
   matchesAudience,
   sameAudience,
 } from './mention-audience.util.ts'
 
-const hasNew = (m: Mention) => m.snippets.some((s) => s.isNew)
+const hasNew = (mention: Mention) => mention.snippets.some((snippet) => snippet.isNew)
 
 /** The skeleton, the empty box, or the mentions in your filter: new first, then earlier. */
 function MentionList({
@@ -30,8 +30,8 @@ function MentionList({
 }: {
   mentions: MentionsInbox | null
   audience: MentionAudience
-  onOpen: (m: Mention, s: MentionSnippet) => void
-  onMarkRead: (m: Mention) => Promise<void>
+  onOpen: (mention: Mention, snippet: MentionSnippet) => void
+  onMarkRead: (mention: Mention) => Promise<void>
 }) {
   if (!mentions) {
     return <ListSkeleton rows={SKELETON_ROWS} rowHeight="h-24" />
@@ -39,7 +39,7 @@ function MentionList({
   if (mentions.mentions.length === 0) {
     return <EmptyState>No one mentioned you or your teams on a PR in the last {mentions.windowDays} days.</EmptyState>
   }
-  const shown = mentions.mentions.filter((m) => matchesAudience(m, audience))
+  const shown = mentions.mentions.filter((mention) => matchesAudience(mention, audience))
   return (
     <>
       <MentionSection
@@ -52,7 +52,7 @@ function MentionList({
       />
       <MentionSection
         title="Earlier"
-        mentions={shown.filter((m) => !hasNew(m))}
+        mentions={shown.filter((mention) => !hasNew(mention))}
         viewer={mentions.viewer}
         onOpen={onOpen}
         onMarkRead={onMarkRead}
@@ -65,11 +65,11 @@ function MentionList({
 function AudienceFilter(props: {
   mentions: readonly Mention[]
   active: MentionAudience
-  onPick: (a: MentionAudience) => void
+  onPick: (audience: MentionAudience) => void
 }) {
-  const chips = audienceCounts(props.mentions).map(({ audience, count }) => ({
-    key: audienceLabel(audience),
-    label: audienceLabel(audience),
+  const chips = countAudiences(props.mentions).map(({ audience, count }) => ({
+    key: describeAudience(audience),
+    label: describeAudience(audience),
     count,
     active: sameAudience(audience, props.active),
     onPick: () => props.onPick(audience),
@@ -82,8 +82,8 @@ function MentionSection(props: {
   tone?: 'accent' | undefined
   mentions: Mention[]
   viewer: string
-  onOpen: (m: Mention, s: MentionSnippet) => void
-  onMarkRead: (m: Mention) => Promise<void>
+  onOpen: (mention: Mention, snippet: MentionSnippet) => void
+  onMarkRead: (mention: Mention) => Promise<void>
 }) {
   if (props.mentions.length === 0) {
     return null
@@ -92,10 +92,10 @@ function MentionSection(props: {
     <section className="mb-6">
       <SectionHeading title={props.title} count={props.mentions.length} tone={props.tone} />
       <div className="space-y-3">
-        {props.mentions.map((m) => (
+        {props.mentions.map((mention) => (
           <MentionCard
-            key={`${m.repo}#${m.number}`}
-            mention={m}
+            key={`${mention.repo}#${mention.number}`}
+            mention={mention}
             viewer={props.viewer}
             onOpen={props.onOpen}
             onMarkRead={props.onMarkRead}
@@ -109,40 +109,40 @@ function MentionSection(props: {
 const STATE_CHIP: Record<Mention['state'], string | null> = { OPEN: null, MERGED: 'merged', CLOSED: 'closed' }
 
 function MentionCard({
-  mention: m,
+  mention,
   viewer,
   onOpen,
   onMarkRead,
 }: {
   mention: Mention
   viewer: string
-  onOpen: (m: Mention, s: MentionSnippet) => void
-  onMarkRead: (m: Mention) => Promise<void>
+  onOpen: (mention: Mention, snippet: MentionSnippet) => void
+  onMarkRead: (mention: Mention) => Promise<void>
 }) {
-  const state = STATE_CHIP[m.state]
+  const state = STATE_CHIP[mention.state]
   return (
     <div className="card">
       <div className="flex items-center gap-2 border-b border-line bg-panel-2 px-4 py-2 text-[12px]">
-        <span className="truncate font-semibold">{m.title}</span>
+        <span className="truncate font-semibold">{mention.title}</span>
         {Boolean(state) && <span className="chip bg-panel text-muted">{state}</span>}
         <span className="shrink-0 text-muted">
-          {m.repo}#{m.number}
+          {mention.repo}#{mention.number}
         </span>
         <div className="flex-1" />
-        {Boolean(hasNew(m)) && (
+        {Boolean(hasNew(mention)) && (
           <button
             type="button"
             className="btn btn-ghost py-0 text-[11.5px]"
             title="Mark this PR's GitHub notification as read"
-            onClick={() => onMarkRead(m)}
+            onClick={() => onMarkRead(mention)}
           >
             Mark read
           </button>
         )}
       </div>
       <ul>
-        {m.snippets.map((s) => (
-          <SnippetRow key={s.id} snippet={s} viewer={viewer} onOpen={() => onOpen(m, s)} />
+        {mention.snippets.map((snippet) => (
+          <SnippetRow key={snippet.id} snippet={snippet} viewer={viewer} onOpen={() => onOpen(mention, snippet)} />
         ))}
       </ul>
     </div>
@@ -161,38 +161,42 @@ const SKELETON_ROWS = 3
 /** The window the main process looks back over, shown until the first fetch says. */
 const DEFAULT_WINDOW_DAYS = 14
 
-function openTitle(s: MentionSnippet) {
-  if (s.path) {
+function openTitle(snippet: MentionSnippet) {
+  if (snippet.path) {
     return 'Open the PR at this comment'
   }
   return 'Open the PR and show this comment'
 }
 
-function pathAndLine(s: MentionSnippet) {
-  if (!s.line) {
-    return s.path ?? ''
+function formatPathAndLine(snippet: MentionSnippet) {
+  if (!snippet.line) {
+    return snippet.path ?? ''
   }
-  return `${s.path}:${s.line}`
+  return `${snippet.path}:${snippet.line}`
 }
 
 /** Review comments open at that comment in the diff, with its reply box; others are quoted on the overview. */
-function targetOf(s: MentionSnippet): PullTarget {
-  if (!s.path) {
-    return { conversation: s }
+function findTarget(snippet: MentionSnippet): PullTarget {
+  if (!snippet.path) {
+    return { conversation: snippet }
   }
-  return { path: s.path, line: s.line, commentId: s.commentId ?? undefined, reply: true }
+  return { path: snippet.path, line: snippet.line, commentId: snippet.commentId ?? undefined, reply: true }
 }
 
-function SnippetRow({ snippet: s, viewer, onOpen }: { snippet: MentionSnippet; viewer: string; onOpen: () => void }) {
+function SnippetRow({ snippet, viewer, onOpen }: { snippet: MentionSnippet; viewer: string; onOpen: () => void }) {
   return (
     <li className="group/row flex gap-3 border-b border-line px-4 py-2.5 last:border-b-0 hover:bg-hover">
-      <button type="button" className="flex min-w-0 flex-1 gap-3 text-left" onClick={onOpen} title={openTitle(s)}>
+      <button type="button" className="flex min-w-0 flex-1 gap-3 text-left" onClick={onOpen} title={openTitle(snippet)}>
         <span
-          className={cx('mt-2.5 size-2 shrink-0 rounded-full', s.isNew && 'bg-accent', !s.isNew && 'bg-transparent')}
+          className={joinClassNames(
+            'mt-2.5 size-2 shrink-0 rounded-full',
+            snippet.isNew && 'bg-accent',
+            !snippet.isNew && 'bg-transparent',
+          )}
         />
-        {Boolean(s.isNew) && <span className="sr-only">New:</span>}
+        {Boolean(snippet.isNew) && <span className="sr-only">New:</span>}
         <img
-          src={s.authorAvatar}
+          src={snippet.authorAvatar}
           alt=""
           width={AVATAR_PX}
           height={AVATAR_PX}
@@ -200,28 +204,28 @@ function SnippetRow({ snippet: s, viewer, onOpen }: { snippet: MentionSnippet; v
         />
         <div className="min-w-0 flex-1">
           <div className="flex items-center gap-1.5 text-[12px]">
-            <span className="font-medium">{s.author}</span>
-            <span className="text-muted">mentioned {!s.viaTeam && 'you'}</span>
-            {Boolean(s.viaTeam) && <span className="chip bg-panel-2 text-muted">@{s.viaTeam}</span>}
-            <span className="text-muted">{WHERE[s.kind]}</span>
-            {Boolean(s.path) && (
-              <code className="truncate text-[11.5px]" title={pathAndLine(s)}>
-                {pathAndLine(s)}
+            <span className="font-medium">{snippet.author}</span>
+            <span className="text-muted">mentioned {!snippet.viaTeam && 'you'}</span>
+            {Boolean(snippet.viaTeam) && <span className="chip bg-panel-2 text-muted">@{snippet.viaTeam}</span>}
+            <span className="text-muted">{WHERE[snippet.kind]}</span>
+            {Boolean(snippet.path) && (
+              <code className="truncate text-[11.5px]" title={formatPathAndLine(snippet)}>
+                {formatPathAndLine(snippet)}
               </code>
             )}
           </div>
-          <div className={cx('mt-0.5 line-clamp-3 text-[12.5px]', !s.isNew && 'text-muted')}>
-            {summarizeAround(s.body, s.viaTeam ?? viewer)}
+          <div className={joinClassNames('mt-0.5 line-clamp-3 text-[12.5px]', !snippet.isNew && 'text-muted')}>
+            {summarizeAround(snippet.body, snippet.viaTeam ?? viewer)}
           </div>
         </div>
       </button>
       <div className="flex shrink-0 flex-col items-end gap-1">
-        <span className="font-mono text-[11.5px] text-muted">{ago(s.createdAt)}</span>
+        <span className="font-mono text-[11.5px] text-muted">{formatAge(snippet.createdAt)}</span>
         <button
           type="button"
           className="btn btn-ghost py-0 text-[11.5px] opacity-0 group-hover/row:opacity-100"
           title="Open this comment on GitHub (Revio shows review comments, not the PR conversation)"
-          onClick={() => globalThis.revio.openExternal(s.url)}
+          onClick={() => globalThis.revio.openExternal(snippet.url)}
         >
           GitHub ↗
         </button>
@@ -236,15 +240,15 @@ export function Mentions({ mentions, onOpen }: { mentions: MentionsInbox | null;
   const refreshAction = useAsyncAction()
   const readAction = useAsyncAction()
   const refresh = () => refreshAction.run(() => globalThis.revio.refreshMentions())
-  const markRead = async (m: Mention) => {
-    await readAction.run(() => globalThis.revio.markMentionRead({ repo: m.repo, number: m.number }))
+  const markRead = async (mention: Mention) => {
+    await readAction.run(() => globalThis.revio.markMentionRead({ repo: mention.repo, number: mention.number }))
   }
   /** Opening a mention reads it, as on GitHub. Review comments open at that comment in the diff; others on the overview. */
-  const open = (m: Mention, s: MentionSnippet) => {
-    if (s.isNew) {
-      markRead(m)
+  const open = (mention: Mention, snippet: MentionSnippet) => {
+    if (snippet.isNew) {
+      markRead(mention)
     }
-    onOpen(m, targetOf(s))
+    onOpen(mention, findTarget(snippet))
   }
 
   return (

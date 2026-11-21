@@ -3,34 +3,37 @@ import type { OpenThread } from '@shared/thread.types.ts'
 import { describe, expect, it } from 'vitest'
 import {
   applyAudience,
+  convertStackPrToSearchable,
+  convertSummaryToSearchable,
+  convertThreadToSearchable,
   countTeams,
   matchesQuery,
   parseQuery,
   readAudience,
   type Searchable,
-  stackPrToSearchable,
-  summaryToSearchable,
-  threadToSearchable,
 } from '@/inbox/inbox-query.util.ts'
 import { makeSummary } from '../../../../test/fixtures.ts'
 
-function authorOf(bot: boolean) {
+function makeAuthor(bot: boolean) {
   if (bot) {
     return 'semgrep'
   }
   return 'bo'
 }
 
-const direct = summaryToSearchable(makeSummary({ id: 'D', title: 'Fix login redirect', author: 'ana' }), true)
-const viaWeb = summaryToSearchable(
+const direct = convertSummaryToSearchable(makeSummary({ id: 'D', title: 'Fix login redirect', author: 'ana' }), true)
+const viaWeb = convertSummaryToSearchable(
   makeSummary({ id: 'W', title: 'Bump deps', author: 'bo', viaTeam: 'web', isDraft: true }),
   true,
 )
-const viaApi = summaryToSearchable(
+const viaApi = convertSummaryToSearchable(
   makeSummary({ id: 'A', repo: 'acme/api', title: 'Add rate limit', viaTeam: 'api', stale: true }),
   true,
 )
-const reviewed = summaryToSearchable(makeSummary({ id: 'R', title: 'Old work', reviewDecision: 'APPROVED' }), false)
+const reviewed = convertSummaryToSearchable(
+  makeSummary({ id: 'R', title: 'Old work', reviewDecision: 'APPROVED' }),
+  false,
+)
 const all = [direct, viaWeb, viaApi, reviewed]
 
 const search = (text: string, items: Searchable[] = all) =>
@@ -79,7 +82,7 @@ describe('other qualifiers and text', () => {
 })
 
 describe('stack members', () => {
-  const member = (inbox: StackPr['inbox']): StackPr => ({
+  const makeStackMember = (inbox: StackPr['inbox']): StackPr => ({
     id: 'W',
     number: 2,
     title: 'Bump deps',
@@ -97,16 +100,23 @@ describe('stack members', () => {
 
   it('reuses the inbox row team, and has no request when outside the inbox', () => {
     const row = makeSummary({ id: 'W', viaTeam: 'web' })
-    expect(matchesQuery(stackPrToSearchable(member('requested'), row), parseQuery('team-review-requested:web'))).toBe(
+    expect(
+      matchesQuery(
+        convertStackPrToSearchable(makeStackMember('requested'), row),
+        parseQuery('team-review-requested:web'),
+      ),
+    ).toBe(true)
+    expect(
+      matchesQuery(convertStackPrToSearchable(makeStackMember(null), undefined), parseQuery('review-requested:@me')),
+    ).toBe(false)
+    expect(matchesQuery(convertStackPrToSearchable(makeStackMember(null), undefined), parseQuery('is:stacked'))).toBe(
       true,
     )
-    expect(matchesQuery(stackPrToSearchable(member(null), undefined), parseQuery('review-requested:@me'))).toBe(false)
-    expect(matchesQuery(stackPrToSearchable(member(null), undefined), parseQuery('is:stacked'))).toBe(true)
   })
 })
 
 describe('threads', () => {
-  const thread = (bot: boolean): OpenThread => ({
+  const makeThread = (bot: boolean): OpenThread => ({
     id: 't',
     repo: 'acme/web',
     number: 3,
@@ -122,7 +132,7 @@ describe('threads', () => {
     lastActivityAt: '',
     comments: [
       {
-        author: authorOf(bot),
+        author: makeAuthor(bot),
         authorAvatar: '',
         bot,
         body: 'Consider a TTL here',
@@ -133,16 +143,16 @@ describe('threads', () => {
   })
 
   it('match their file path and comment text', () => {
-    expect(matchesQuery(threadToSearchable(thread(false)), parseQuery('cache.ts ttl'))).toBe(true)
+    expect(matchesQuery(convertThreadToSearchable(makeThread(false)), parseQuery('cache.ts ttl'))).toBe(true)
   })
 
   it('-is:bot hides threads a bot spoke last in', () => {
-    expect(matchesQuery(threadToSearchable(thread(true)), parseQuery('-is:bot'))).toBe(false)
-    expect(matchesQuery(threadToSearchable(thread(false)), parseQuery('-is:bot'))).toBe(true)
+    expect(matchesQuery(convertThreadToSearchable(makeThread(true)), parseQuery('-is:bot'))).toBe(false)
+    expect(matchesQuery(convertThreadToSearchable(makeThread(false)), parseQuery('-is:bot'))).toBe(true)
   })
 
   it('never match review-request qualifiers', () => {
-    expect(matchesQuery(threadToSearchable(thread(false)), parseQuery('review-requested:@me'))).toBe(false)
+    expect(matchesQuery(convertThreadToSearchable(makeThread(false)), parseQuery('review-requested:@me'))).toBe(false)
   })
 })
 

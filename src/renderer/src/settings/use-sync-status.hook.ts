@@ -6,12 +6,12 @@ export function useSyncStatus(onApplied: () => void) {
   const [status, setStatus] = useState<SyncStatus | null>(null)
   useEffect(() => {
     globalThis.revio.getSyncStatus().then(setStatus)
-    return globalThis.revio.onEvent((e) => {
-      if (e.type !== 'sync') {
+    return globalThis.revio.onEvent((event) => {
+      if (event.type !== 'sync') {
         return
       }
-      setStatus(e.status)
-      if (e.applied) {
+      setStatus(event.status)
+      if (event.applied) {
         onApplied()
       }
     })

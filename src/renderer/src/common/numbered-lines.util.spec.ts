@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest'
-import { numberLines, withOffsets } from './numbered-lines.util.ts'
+import { addOffsets, numberLines } from './numbered-lines.util.ts'
 
 describe('numberLines', () => {
   it('numbers lines from 1, keeping empty ones', () => {
@@ -13,6 +13,6 @@ describe('numberLines', () => {
 
 describe('withOffsets', () => {
   it('places each piece where the previous ones end', () => {
-    expect(withOffsets([{ text: 'ab' }, { text: '' }, { text: 'c' }]).map((p) => p.offset)).toEqual([0, 2, 2])
+    expect(addOffsets([{ text: 'ab' }, { text: '' }, { text: 'c' }]).map((piece) => piece.offset)).toEqual([0, 2, 2])
   })
 })

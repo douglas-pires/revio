@@ -1,15 +1,15 @@
 import type { DiffSide } from '@shared/pull.types.ts'
-import { cx } from '../common/format.util.ts'
+import { joinClassNames } from '../common/format.util.ts'
 import type { Tok } from '../highlight/highlight.service.ts'
 import { TokenText } from '../highlight/token-text.component.tsx'
 import type { DiffRow } from './diff.util.ts'
-import { DIFF_SIGNS, rowBg } from './diff-look.util.ts'
+import { DIFF_SIGNS, pickRowBackground } from './diff-look.util.ts'
 
 /** Columns per side of a split row: line number, sign, code. */
 const SIDE_COLUMNS = 3
 
 /** The gutter's tooltip: how to comment, or why this line cannot take comments. */
-function gutterTitle(commentable: boolean) {
+function describeGutter(commentable: boolean) {
   if (commentable) {
     return 'Click to comment · drag or shift-click to select lines'
   }
@@ -17,11 +17,11 @@ function gutterTitle(commentable: boolean) {
 }
 
 /** A half's background: the selection's, else its kind's. */
-function halfBackground(selected: boolean, kind: DiffRow['kind']) {
+function pickHalfBackground(selected: boolean, kind: DiffRow['kind']) {
   if (selected) {
     return 'bg-accent/20'
   }
-  return rowBg(kind)
+  return pickRowBackground(kind)
 }
 
 export function Gutter(props: {
@@ -40,16 +40,16 @@ export function Gutter(props: {
   return (
     // biome-ignore lint/a11y/noNoninteractiveElementInteractions: picking lines is a pointer gesture (press and drag across rows) on the line numbers.
     <td
-      title={gutterTitle(commentable)}
-      onMouseDown={(e) => {
-        if (e.button !== 0) {
+      title={describeGutter(commentable)}
+      onMouseDown={(event) => {
+        if (event.button !== 0) {
           return
         }
-        e.preventDefault() // no text selection while dragging over lines
-        props.onDown(e.shiftKey)
+        event.preventDefault() // no text selection while dragging over lines
+        props.onDown(event.shiftKey)
       }}
       onMouseEnter={props.onEnter}
-      className={cx(
+      className={joinClassNames(
         'group relative w-[1%] border-r border-line px-2 text-right align-top whitespace-nowrap text-muted/70 select-none hover:text-fg',
         commentable && 'cursor-pointer',
         props.divider && 'border-l',
@@ -80,7 +80,7 @@ export function Sign({ kind }: { kind: DiffRow['kind'] }) {
 
 export function Code({
   row,
-  idx,
+  idx: index,
   tokens,
   note,
 }: {
@@ -90,7 +90,7 @@ export function Code({
   note?: React.ReactNode
 }) {
   return (
-    <td data-row={idx} className="pr-4 align-top break-all whitespace-pre-wrap select-text">
+    <td data-row={index} className="pr-4 align-top break-all whitespace-pre-wrap select-text">
       <TokenText tokens={tokens} text={row.text} />
       {note}
     </td>
@@ -113,7 +113,10 @@ export function Half(props: {
   divider?: boolean | undefined
   note?: React.ReactNode
 }) {
-  const bg = cx(halfBackground(props.selected, props.row.kind), props.commented && 'commented-line')
+  const background = joinClassNames(
+    pickHalfBackground(props.selected, props.row.kind),
+    props.commented && 'commented-line',
+  )
   return (
     <>
       <Gutter
@@ -128,7 +131,7 @@ export function Half(props: {
         {props.lineNo ?? ''}
       </Gutter>
       {/* biome-ignore lint/a11y/noNoninteractiveElementInteractions: hovering extends a line selection being dragged. */}
-      <td onMouseEnter={props.onEnter} className={cx('align-top', bg)}>
+      <td onMouseEnter={props.onEnter} className={joinClassNames('align-top', background)}>
         <span className="block pl-1.5 text-muted select-none">{DIFF_SIGNS[props.row.kind]}</span>
       </td>
       {/* biome-ignore lint/a11y/noNoninteractiveElementInteractions: hovering extends a line selection being dragged. */}
@@ -136,7 +139,7 @@ export function Half(props: {
         onMouseEnter={props.onEnter}
         data-row={props.idx}
         data-half={props.half}
-        className={cx('pr-3 align-top break-all whitespace-pre-wrap select-text', bg)}
+        className={joinClassNames('pr-3 align-top break-all whitespace-pre-wrap select-text', background)}
       >
         <TokenText tokens={props.tokens} text={props.row.text} />
         {props.note}
@@ -146,7 +149,7 @@ export function Half(props: {
 }
 
 export function EmptyHalf({ divider = false }: { divider?: boolean }) {
-  return <td colSpan={SIDE_COLUMNS} className={cx('bg-panel-2/60', divider && 'border-l border-line')} />
+  return <td colSpan={SIDE_COLUMNS} className={joinClassNames('bg-panel-2/60', divider && 'border-l border-line')} />
 }
 
 export function RowGroup({ children }: { children: React.ReactNode }) {

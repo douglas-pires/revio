@@ -1,25 +1,25 @@
 import { describe, expect, it } from 'vitest'
-import { finishedProgress, secondsSince, startProgress, withActivity } from '@/pull/ask-progress.util.ts'
+import { addActivity, countSecondsSince, finishProgress, startProgress } from '@/pull/ask-progress.util.ts'
 
 describe('ask progress', () => {
   it('collects steps in order and joins the reasoning', () => {
-    let p = startProgress('t1', 1000)
-    p = withActivity(p, { kind: 'step', label: 'Reading a.ts' })
-    p = withActivity(p, { kind: 'step', label: 'Thinking' })
-    p = withActivity(p, { kind: 'thinking', text: 'Status 0 ' })
-    p = withActivity(p, { kind: 'thinking', text: 'means a timeout.' })
-    expect(p.steps).toEqual(['Reading a.ts', 'Thinking'])
-    expect(p.thinking).toBe('Status 0 means a timeout.')
+    let progress = startProgress('t1', 1000)
+    progress = addActivity(progress, { kind: 'step', label: 'Reading a.ts' })
+    progress = addActivity(progress, { kind: 'step', label: 'Thinking' })
+    progress = addActivity(progress, { kind: 'thinking', text: 'Status 0 ' })
+    progress = addActivity(progress, { kind: 'thinking', text: 'means a timeout.' })
+    expect(progress.steps).toEqual(['Reading a.ts', 'Thinking'])
+    expect(progress.thinking).toBe('Status 0 means a timeout.')
   })
 
   it('counts whole seconds, never zero', () => {
-    const p = startProgress('t1', 1000)
-    expect(secondsSince(p, 1200)).toBe(1)
-    expect(secondsSince(p, 8600)).toBe(8)
+    const progress = startProgress('t1', 1000)
+    expect(countSecondsSince(progress, 1200)).toBe(1)
+    expect(countSecondsSince(progress, 8600)).toBe(8)
   })
 
   it('stops counting once the answer is in', () => {
-    const done = finishedProgress(startProgress('t1', 1000), 6000)
-    expect(secondsSince(done, 60_000)).toBe(5)
+    const done = finishProgress(startProgress('t1', 1000), 6000)
+    expect(countSecondsSince(done, 60_000)).toBe(5)
   })
 })

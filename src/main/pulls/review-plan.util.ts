@@ -1,10 +1,10 @@
 import type { DraftComment } from '@shared/pull.types.ts'
 
-function toLineComment(d: DraftComment & { line: number }): ReviewLineComment {
-  const comment: ReviewLineComment = { path: d.path, body: d.body, line: d.line, side: d.side }
-  if (d.startLine && d.startLine !== d.line) {
-    comment.start_line = d.startLine
-    comment.start_side = d.side
+function toLineComment(draft: DraftComment & { line: number }): ReviewLineComment {
+  const comment: ReviewLineComment = { path: draft.path, body: draft.body, line: draft.line, side: draft.side }
+  if (draft.startLine && draft.startLine !== draft.line) {
+    comment.start_line = draft.startLine
+    comment.start_side = draft.side
   }
   return comment
 }
@@ -30,13 +30,13 @@ export interface ReviewPlan {
 /** Sorts pending drafts into what each GitHub call needs. */
 export function planReview(drafts: readonly DraftComment[]): ReviewPlan {
   const plan: ReviewPlan = { replies: [], lineComments: [], fileComments: [] }
-  for (const d of drafts) {
-    if (d.inReplyTo) {
-      plan.replies.push({ commentId: d.inReplyTo, body: d.body })
-    } else if (d.line === null) {
-      plan.fileComments.push({ path: d.path, body: d.body })
+  for (const draft of drafts) {
+    if (draft.inReplyTo) {
+      plan.replies.push({ commentId: draft.inReplyTo, body: draft.body })
+    } else if (draft.line === null) {
+      plan.fileComments.push({ path: draft.path, body: draft.body })
     } else {
-      plan.lineComments.push(toLineComment({ ...d, line: d.line }))
+      plan.lineComments.push(toLineComment({ ...draft, line: draft.line }))
     }
   }
   return plan

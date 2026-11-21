@@ -5,9 +5,9 @@ import { describe, expect, it } from 'vitest'
 import { findClones } from './clone-finder.service.ts'
 
 /** Makes `dir` look like a clone whose origin is `remote`. */
-function clone(dir: string, remote: string) {
-  mkdirSync(join(dir, '.git'), { recursive: true })
-  writeFileSync(join(dir, '.git', 'config'), `[remote "origin"]\n\turl = ${remote}\n`)
+function clone(directory: string, remote: string) {
+  mkdirSync(join(directory, '.git'), { recursive: true })
+  writeFileSync(join(directory, '.git', 'config'), `[remote "origin"]\n\turl = ${remote}\n`)
 }
 
 describe('findClones', () => {

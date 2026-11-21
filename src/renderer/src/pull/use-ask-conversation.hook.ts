@@ -1,8 +1,8 @@
 import type { AskMessage, AskThread } from '@shared/claude.types.ts'
 import type { PullRef } from '@shared/pull.types.ts'
 import { useEffect, useState } from 'react'
-import { errorMessage } from '../common/format.util.ts'
-import { type AskProgress, finishedProgress, startProgress, withActivity } from './ask-progress.util.ts'
+import { readErrorMessage } from '../common/format.util.ts'
+import { type AskProgress, addActivity, finishProgress, startProgress } from './ask-progress.util.ts'
 
 /**
  * Asking Claude about a selection: the question being typed, the answer streaming in (`pending`, null when idle)
@@ -16,19 +16,19 @@ export function useAskConversation(pull: PullRef, thread: AskThread, onChange: (
 
   useEffect(
     () =>
-      globalThis.revio.onEvent((e) => {
-        if (e.type === 'ask-delta' && e.threadId === thread.id) {
-          setPending((p) => (p ?? '') + e.text)
+      globalThis.revio.onEvent((event) => {
+        if (event.type === 'ask-delta' && event.threadId === thread.id) {
+          setPending((pendingText) => (pendingText ?? '') + event.text)
         }
-        if (e.type === 'ask-activity' && e.threadId === thread.id) {
-          setProgress((p) => p && withActivity(p, e.activity))
+        if (event.type === 'ask-activity' && event.threadId === thread.id) {
+          setProgress((current) => current && addActivity(current, event.activity))
         }
       }),
     [thread.id],
   )
 
-  const send = async (q: string) => {
-    const text = q.trim()
+  const send = async (typed: string) => {
+    const text = typed.trim()
     if (!text || pending !== null) {
       return
     }
@@ -48,10 +48,10 @@ export function useAskConversation(pull: PullRef, thread: AskThread, onChange: (
       const { answer } = await globalThis.revio.askClaude(pull, asked)
       onChange({ ...asked, messages: [...asked.messages, { role: 'assistant', content: answer }] })
       // Kept above the answer, folded, so you can see how it came about.
-      setProgress((p) => p && finishedProgress(p, Date.now()))
-    } catch (e) {
+      setProgress((current) => current && finishProgress(current, Date.now()))
+    } catch (failure) {
       setProgress(null)
-      setError(errorMessage(e))
+      setError(readErrorMessage(failure))
       // Drop the unanswered question so it can be retried or edited.
       onChange(thread)
       setQuestion(text)

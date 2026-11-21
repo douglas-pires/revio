@@ -3,10 +3,10 @@ import type { Stack } from '@shared/inbox.types.ts'
 import type { PullDetail, PullLocalState, PullRef } from '@shared/pull.types.ts'
 import { MS_PER_MINUTE } from '@shared/time.util.ts'
 import { useCallback, useEffect, useRef, useState } from 'react'
-import { errorMessage } from '../common/format.util.ts'
+import { readErrorMessage } from '../common/format.util.ts'
 import { createVisibleRefresher } from './live-refresh.util.ts'
 import { hasSameContent } from './pull-content.util.ts'
-import { knownStackOf, rememberStack } from './stack-memory.util.ts'
+import { findKnownStack, rememberStack } from './stack-memory.util.ts'
 
 /** A prefetched copy this recent is shown immediately. */
 const PREFETCH_MAX_AGE_MS = 2 * MS_PER_MINUTE
@@ -28,7 +28,7 @@ function keepIfSame(prev: PullDetail | null, next: PullDetail) {
  * from the stack you came from, so its bar shows at once instead of after the lookup.
  */
 function usePullStack(pull: PullRef) {
-  const [stack, setStack] = useState<Stack | null>(() => knownStackOf(pull))
+  const [stack, setStack] = useState<Stack | null>(() => findKnownStack(pull))
   useEffect(() => {
     globalThis.revio
       .getStack(pull)
@@ -94,23 +94,23 @@ export function usePullDetail(pull: PullRef, onLoaded: (pr: PullDetail, local: P
     async (maxAgeMs = 0) => {
       setError(null)
       try {
-        const [p, l] = await Promise.all([
+        const [loadedPull, loadedLocal] = await Promise.all([
           globalThis.revio.getPull(pull, maxAgeMs),
           globalThis.revio.getLocalState(pull),
         ])
-        setPr(p)
-        loaded.current(p, l)
+        setPr(loadedPull)
+        loaded.current(loadedPull, loadedLocal)
         setGuides(
           await globalThis.revio.resolveGuidelines(
             pull.repo,
-            p.files.map((f) => f.path),
+            loadedPull.files.map((file) => file.path),
           ),
         )
-        if (Date.now() - new Date(p.fetchedAt).getTime() > FRESH_ENOUGH_MS) {
+        if (Date.now() - new Date(loadedPull.fetchedAt).getTime() > FRESH_ENOUGH_MS) {
           refreshInBackground(pull, showPr)
         }
-      } catch (e) {
-        setError(errorMessage(e))
+      } catch (failure) {
+        setError(readErrorMessage(failure))
       }
     },
     [pull, showPr],

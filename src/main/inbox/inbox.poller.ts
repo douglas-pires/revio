@@ -1,4 +1,4 @@
-import { errorMessage } from '@shared/error.util.ts'
+import { readErrorMessage } from '@shared/error.util.ts'
 import type { Inbox, PullSummary } from '@shared/inbox.types.ts'
 import type { PullRef } from '@shared/pull.types.ts'
 import { MS_PER_MINUTE } from '@shared/time.util.ts'
@@ -8,17 +8,17 @@ import { showNotification } from '../alerts/notification.service.ts'
 import { InFlight } from '../common/in-flight.util.ts'
 import { store } from '../store/store.service.ts'
 
-const intervalMs = () => Math.max(1, store.settings().pollIntervalMinutes) * MS_PER_MINUTE
+const readPollIntervalMs = () => Math.max(1, store.settings().pollIntervalMinutes) * MS_PER_MINUTE
 
 /** After a failed poll: the last good inbox with the error, or an empty one carrying it. */
 function keepLatest(latest: Inbox | null, error: string): Inbox {
   if (latest) {
     return { ...latest, error }
   }
-  return emptyInbox(error)
+  return buildEmptyInbox(error)
 }
 
-const emptyInbox = (error: string): Inbox => ({
+const buildEmptyInbox = (error: string): Inbox => ({
   viewer: '',
   requested: [],
   reviewed: [],
@@ -55,7 +55,7 @@ export class InboxPoller {
 
   /** Re-arms the timer after the interval setting changes. */
   reschedule() {
-    this.#schedule(intervalMs())
+    this.#schedule(readPollIntervalMs())
   }
 
   /** Fetches now; concurrent callers share one request. */
@@ -71,7 +71,7 @@ export class InboxPoller {
       await this.poll().catch(() => {
         // #fetch already turned the failure into an inbox with an error; nothing else to do.
       })
-      this.#schedule(intervalMs())
+      this.#schedule(readPollIntervalMs())
     }, delay)
   }
 
@@ -85,8 +85,8 @@ export class InboxPoller {
         notify: (title, body, pr) => this.#notify(title, body, pr),
       })
       store.saveAlerts()
-    } catch (err) {
-      const message = errorMessage(err)
+    } catch (failure) {
+      const message = readErrorMessage(failure)
       console.error('[revio] poll failed:', message)
       inbox = keepLatest(this.#latest, message)
     }

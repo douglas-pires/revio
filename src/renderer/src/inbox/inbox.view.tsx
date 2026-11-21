@@ -1,13 +1,11 @@
 import type { Inbox as InboxData, PullSummary } from '@shared/inbox.types.ts'
 import { useMemo, useState } from 'react'
-import { EmptyState } from '../common/empty-state.component.tsx'
 import { ErrorBanner } from '../common/error-banner.component.tsx'
 import { EMPTY } from '../common/group.util.ts'
 import { ListSkeleton } from '../common/list-skeleton.component.tsx'
 import type { OpenPull } from '../common/navigation.types.ts'
 import { RefreshControl } from '../common/refresh-control.component.tsx'
 import { Screen, ScreenBody, ScreenHeader } from '../common/screen.component.tsx'
-import { SectionHeading } from '../common/section-heading.component.tsx'
 import { SegmentedControl } from '../common/segmented-control.component.tsx'
 import { useAsyncAction } from '../common/use-async-action.hook.ts'
 import { countWaitingOnYou } from '../threads/thread-edits.util.ts'
@@ -16,18 +14,18 @@ import { useThreads } from '../threads/use-threads.hook.ts'
 import { AudienceBar } from './audience-bar.component.tsx'
 import {
   applyAudience,
+  convertStackPrToSearchable,
+  convertSummaryToSearchable,
+  convertThreadToSearchable,
   type InboxQuery,
   isEmptyQuery,
   matchesQuery,
   parseQuery,
   type ReviewAudience,
   readAudience,
-  stackPrToSearchable,
-  summaryToSearchable,
-  threadToSearchable,
 } from './inbox-query.util.ts'
-import { InboxRow } from './inbox-row.component.tsx'
 import { InboxSearch } from './inbox-search.component.tsx'
+import { InboxSection } from './inbox-section.component.tsx'
 import { StackList } from './stack-list.component.tsx'
 
 type Mode = 'queue' | 'stacks' | 'threads'
@@ -44,9 +42,9 @@ function ModeSwitch({
   labels: { stacks: number; waitingOnYou: number }
   onChange: (mode: Mode) => void
 }) {
-  const segments = (['queue', 'stacks', 'threads'] as const).map((m) => ({
-    value: m,
-    label: labelMode(m, labels.stacks, labels.waitingOnYou),
+  const segments = (['queue', 'stacks', 'threads'] as const).map((segmentMode) => ({
+    value: segmentMode,
+    label: describeMode(segmentMode, labels.stacks, labels.waitingOnYou),
   }))
   return <SegmentedControl segments={segments} value={mode} onChange={onChange} />
 }
@@ -63,7 +61,8 @@ function ThreadsMode({
   onOpen: OpenPull
 }) {
   const threads = useMemo(
-    () => (state.threads ?? EMPTY).filter((t) => !filtering || matchesQuery(threadToSearchable(t), query)),
+    () =>
+      (state.threads ?? EMPTY).filter((thread) => !filtering || matchesQuery(convertThreadToSearchable(thread), query)),
     [state.threads, query, filtering],
   )
   return (
@@ -130,12 +129,12 @@ function QueueSections(props: {
   onOpen: OpenPull
   onStack: (id: string) => void
 }) {
-  const stale = props.requested.filter((p) => p.stale)
-  const fresh = props.requested.filter((p) => !p.stale)
-  const empty = emptyQueueText(stale.length > 0, props.filtering)
+  const stale = props.requested.filter((pull) => pull.stale)
+  const fresh = props.requested.filter((pull) => !pull.stale)
+  const empty = describeEmptyQueue(stale.length > 0, props.filtering)
   return (
     <>
-      <Section
+      <InboxSection
         title="Stale"
         hint="waiting longer than your stale threshold"
         tone="danger"
@@ -143,8 +142,14 @@ function QueueSections(props: {
         onOpen={props.onOpen}
         onStack={props.onStack}
       />
-      <Section title="Needs your review" items={fresh} onOpen={props.onOpen} onStack={props.onStack} empty={empty} />
-      <Section
+      <InboxSection
+        title="Needs your review"
+        items={fresh}
+        onOpen={props.onOpen}
+        onStack={props.onStack}
+        empty={empty}
+      />
+      <InboxSection
         title="You reviewed · still open"
         hint="re-review when they push"
         items={props.reviewed}
@@ -156,18 +161,18 @@ function QueueSections(props: {
   )
 }
 
-function labelMode(mode: Mode, stacks: number, waitingOnYou: number) {
+function describeMode(mode: Mode, stacks: number, waitingOnYou: number) {
   if (mode === 'queue') {
     return 'Queue'
   }
   if (mode === 'stacks') {
-    return withCount('Stacks', stacks)
+    return appendCount('Stacks', stacks)
   }
-  return withCount('Threads', waitingOnYou)
+  return appendCount('Threads', waitingOnYou)
 }
 
 /** A label with its count, or the bare label when there are none. */
-function withCount(label: string, count: number) {
+function appendCount(label: string, count: number) {
   if (count === 0) {
     return label
   }
@@ -175,7 +180,7 @@ function withCount(label: string, count: number) {
 }
 
 /** What "Needs your review" says when it is empty; nothing while stale PRs show above it. */
-function emptyQueueText(hasStale: boolean, filtering: boolean) {
+function describeEmptyQueue(hasStale: boolean, filtering: boolean) {
   if (hasStale) {
     return
   }
@@ -193,42 +198,14 @@ function filterInbox(inbox: InboxData | null, query: InboxQuery) {
   if (isEmptyQuery(query)) {
     return inbox
   }
-  const rows = new Map([...inbox.requested, ...inbox.reviewed].map((p) => [p.id, p]))
+  const rows = new Map([...inbox.requested, ...inbox.reviewed].map((pull) => [pull.id, pull]))
   return {
-    requested: inbox.requested.filter((p) => matchesQuery(summaryToSearchable(p, true), query)),
-    reviewed: inbox.reviewed.filter((p) => matchesQuery(summaryToSearchable(p, false), query)),
-    stacks: inbox.stacks.filter((st) =>
-      st.nodes.some((n) => matchesQuery(stackPrToSearchable(n.pr, rows.get(n.pr.id)), query)),
+    requested: inbox.requested.filter((pull) => matchesQuery(convertSummaryToSearchable(pull, true), query)),
+    reviewed: inbox.reviewed.filter((pull) => matchesQuery(convertSummaryToSearchable(pull, false), query)),
+    stacks: inbox.stacks.filter((stack) =>
+      stack.nodes.some((node) => matchesQuery(convertStackPrToSearchable(node.pr, rows.get(node.pr.id)), query)),
     ),
   }
-}
-
-function Section(props: {
-  title: string
-  hint?: string | undefined
-  items: readonly PullSummary[]
-  onOpen: OpenPull
-  onStack: (id: string) => void
-  tone?: 'danger' | undefined
-  muted?: boolean | undefined
-  empty?: string | undefined
-}) {
-  if (!(props.items.length > 0 || props.empty)) {
-    return null
-  }
-  return (
-    <section className="mb-6">
-      <SectionHeading title={props.title} count={props.items.length} hint={props.hint} tone={props.tone} />
-      {props.items.length > 0 && (
-        <ul className="card">
-          {props.items.map((p) => (
-            <InboxRow key={p.id} pr={p} onOpen={props.onOpen} onStack={props.onStack} muted={props.muted} />
-          ))}
-        </ul>
-      )}
-      {props.items.length === 0 && <EmptyState>{props.empty}</EmptyState>}
-    </section>
-  )
 }
 
 export function Inbox({
@@ -289,7 +266,7 @@ export function Inbox({
             query={query}
             filtering={filtering}
             focusStack={focusStack}
-            onAudience={(a) => onSearch(applyAudience(search, a))}
+            onAudience={(audience) => onSearch(applyAudience(search, audience))}
             onOpen={onOpen}
             onStack={openStack}
           />

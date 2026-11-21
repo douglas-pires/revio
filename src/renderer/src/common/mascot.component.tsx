@@ -1,4 +1,4 @@
-import { cx } from './format.util.ts'
+import { joinClassNames } from './format.util.ts'
 import './mascot.css'
 
 /**
@@ -8,7 +8,7 @@ import './mascot.css'
  */
 export function Mascot({ className }: { className?: string }) {
   return (
-    <svg viewBox="0 0 120 104" className={cx('mascot', className)} aria-hidden={true}>
+    <svg viewBox="0 0 120 104" className={joinClassNames('mascot', className)} aria-hidden={true}>
       <ellipse className="mascot-shadow" cx="60" cy="98" rx="26" ry="4" />
       <g className="mascot-body">
         <g className="mascot-antenna">

@@ -1,8 +1,9 @@
 import type { FocusItem } from '@shared/claude.types.ts'
 import type { DraftComment, PullFile, ReviewComment } from '@shared/pull.types.ts'
 import { EMPTY } from '../common/group.util.ts'
-import { DiffFile, type DiffFileProps, type DiffView } from './diff-file.component.tsx'
-import { filePathAt } from './file-in-view.util.ts'
+import { DiffFile } from './diff-file.component.tsx'
+import type { DiffFileProps, DiffView } from './diff-file.types.ts'
+import { findFilePathAt } from './file-in-view.util.ts'
 
 type FileCallbacks = Pick<
   DiffFileProps,
@@ -40,29 +41,29 @@ export function FilesTab(
     <div
       data-find-scope={true}
       className="space-y-3 p-4"
-      onPointerDown={(e) => {
-        const path = filePathAt(e.target as Element)
+      onPointerDown={(event) => {
+        const path = findFilePathAt(event.target as Element)
         if (path !== null && path !== props.current) {
           props.onSelectFile(path)
         }
       }}
     >
-      {props.files.map((f) => (
+      {props.files.map((file) => (
         <DiffFile
-          key={f.path}
-          file={f}
+          key={file.path}
+          file={file}
           view={props.view}
           repo={props.repo}
           headSha={props.headSha}
           blame={props.blame}
           onShowHistory={props.onShowHistory}
-          comments={props.commentsByPath.get(f.path) ?? EMPTY}
-          drafts={props.draftsByPath.get(f.path) ?? EMPTY}
-          focus={props.focusByPath.get(f.path) ?? EMPTY}
-          ignoreReason={props.ignoreByPath.get(f.path)}
-          viewed={props.viewed[f.path] === f.sha}
-          collapsed={Boolean(props.collapsed[f.path])}
-          current={props.current === f.path}
+          comments={props.commentsByPath.get(file.path) ?? EMPTY}
+          drafts={props.draftsByPath.get(file.path) ?? EMPTY}
+          focus={props.focusByPath.get(file.path) ?? EMPTY}
+          ignoreReason={props.ignoreByPath.get(file.path)}
+          viewed={props.viewed[file.path] === file.sha}
+          collapsed={Boolean(props.collapsed[file.path])}
+          current={props.current === file.path}
           onToggleCollapsed={props.onToggleCollapsed}
           onToggleViewed={props.onToggleViewed}
           onAddDraft={props.onAddDraft}

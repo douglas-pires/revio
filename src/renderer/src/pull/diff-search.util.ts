@@ -16,7 +16,7 @@ function matchesInRow(path: string, row: LineRow, query: string, options: Search
   if (line === null) {
     return []
   }
-  return occurrences(row.text, query, options).map((_, nth) => ({ path, side, line, nth }))
+  return findOccurrences(row.text, query, options).map((_, nth) => ({ path, side, line, nth }))
 }
 
 /** One occurrence of the search text in a diff line. */
@@ -37,18 +37,18 @@ export interface SearchOptions {
 export const MAX_MATCHES = 1000
 
 /** Start offsets of `query` in `text`, without overlaps. */
-export function occurrences(text: string, query: string, { caseSensitive }: SearchOptions): number[] {
+export function findOccurrences(text: string, query: string, { caseSensitive }: SearchOptions): number[] {
   if (!query) {
     return []
   }
-  let hay = text.toLowerCase()
+  let haystack = text.toLowerCase()
   let needle = query.toLowerCase()
   if (caseSensitive) {
-    hay = text
+    haystack = text
     needle = query
   }
   const found: number[] = []
-  for (let at = hay.indexOf(needle); at >= 0; at = hay.indexOf(needle, at + needle.length)) {
+  for (let at = haystack.indexOf(needle); at >= 0; at = haystack.indexOf(needle, at + needle.length)) {
     found.push(at)
   }
   return found
@@ -62,7 +62,7 @@ export function searchDiffs(
 ): DiffMatch[] {
   const matches: DiffMatch[] = []
   for (const { path, rows } of files) {
-    for (const row of rows.filter((r): r is LineRow => r.kind !== 'hunk')) {
+    for (const row of rows.filter((candidate): candidate is LineRow => candidate.kind !== 'hunk')) {
       matches.push(...matchesInRow(path, row, query, options))
       if (matches.length >= MAX_MATCHES) {
         return matches.slice(0, MAX_MATCHES)

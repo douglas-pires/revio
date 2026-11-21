@@ -1,6 +1,6 @@
 import type { Stack, StackPr } from '@shared/inbox.types.ts'
 import { EmptyState } from '../common/empty-state.component.tsx'
-import { cx } from '../common/format.util.ts'
+import { joinClassNames } from '../common/format.util.ts'
 import type { OpenPull } from '../common/navigation.types.ts'
 import { usePrefetchOnHover } from './use-prefetch-on-hover.hook.ts'
 
@@ -9,7 +9,7 @@ const INDENT_BASE_PX = 12
 const INDENT_STEP_PX = 20
 
 /** Where a stack member stands for you: the dot's look and what it means. */
-function statusOf(pr: StackPr): { dot: string; title: string } {
+function describeStatus(pr: StackPr): { dot: string; title: string } {
   if (pr.inbox === 'requested' && pr.stale) {
     return { dot: 'border-danger bg-danger', title: 'Waiting on your review' }
   }
@@ -45,14 +45,14 @@ function MemberChips({ pr }: { pr: StackPr }) {
 /** One PR of a stack, indented by depth, numbered in review order. Opens the PR. */
 function StackMember({ pr, depth, order, onOpen }: { pr: StackPr; depth: number; order: number; onOpen: OpenPull }) {
   const prefetch = usePrefetchOnHover()
-  const status = statusOf(pr)
+  const status = describeStatus(pr)
   return (
     <li className="border-b border-line last:border-b-0">
       <button
         type="button"
         {...prefetch(pr)}
         onClick={() => onOpen(pr)}
-        className={cx(
+        className={joinClassNames(
           'flex w-full cursor-pointer items-center gap-3 py-2 pr-4 text-left hover:bg-hover',
           pr.inbox === null && 'opacity-70',
         )}
@@ -62,7 +62,7 @@ function StackMember({ pr, depth, order, onOpen }: { pr: StackPr; depth: number;
         <span className="w-4 shrink-0 text-center font-mono text-muted" aria-hidden={true}>
           {depth > 0 && '↳'}
         </span>
-        <span title={status.title} className={cx('size-2.5 shrink-0 rounded-full border-2', status.dot)} />
+        <span title={status.title} className={joinClassNames('size-2.5 shrink-0 rounded-full border-2', status.dot)} />
         <img
           src={pr.authorAvatar}
           alt=""
@@ -89,11 +89,11 @@ function StackMember({ pr, depth, order, onOpen }: { pr: StackPr; depth: number;
 }
 
 function StackCard({ stack, focused, onOpen }: { stack: Stack; focused: boolean; onOpen: OpenPull }) {
-  const waiting = stack.nodes.filter((n) => n.pr.inbox === 'requested').length
+  const waiting = stack.nodes.filter((node) => node.pr.inbox === 'requested').length
   return (
     <section
       id={`stack-${stack.id}`}
-      className={cx(
+      className={joinClassNames(
         'overflow-hidden rounded-lg border bg-panel',
         focused && 'border-accent ring-1 ring-accent/40',
         !focused && 'border-line',
@@ -108,8 +108,8 @@ function StackCard({ stack, focused, onOpen }: { stack: Stack; focused: boolean;
         {waiting > 0 && <span className="chip bg-accent/15 text-accent">{waiting} waiting on you</span>}
       </header>
       <ol>
-        {stack.nodes.map(({ pr, depth }, i) => (
-          <StackMember key={pr.id} pr={pr} depth={depth} order={i + 1} onOpen={onOpen} />
+        {stack.nodes.map(({ pr, depth }, index) => (
+          <StackMember key={pr.id} pr={pr} depth={depth} order={index + 1} onOpen={onOpen} />
         ))}
       </ol>
     </section>
@@ -143,8 +143,8 @@ export function StackList({
         Stacks read bottom-up: review the PR closest to <code>{stacks[0]?.base ?? 'main'}</code> first, since everything
         above builds on it.
       </p>
-      {stacks.map((st) => (
-        <StackCard key={st.id} stack={st} focused={focus === st.id} onOpen={onOpen} />
+      {stacks.map((stack) => (
+        <StackCard key={stack.id} stack={stack} focused={focus === stack.id} onOpen={onOpen} />
       ))}
     </div>
   )

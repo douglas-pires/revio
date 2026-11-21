@@ -13,7 +13,7 @@ const EXAMPLES: [string, string][] = [
 ]
 
 /** The query with `qualifier` added at the end; a bare `key:` waits for its value, anything else gets a space. */
-function withQualifier(value: string, qualifier: string) {
+function toggleQualifier(value: string, qualifier: string) {
   const parts = [value.trim(), qualifier].filter(Boolean)
   if (qualifier.endsWith(':')) {
     return parts.join(' ')
@@ -28,7 +28,7 @@ export function InboxSearch({ value, onChange }: { value: string; onChange: (tex
   useSlashToFocus(input)
 
   const insert = (qualifier: string) => {
-    onChange(withQualifier(value, qualifier))
+    onChange(toggleQualifier(value, qualifier))
     requestAnimationFrame(() => input.current?.focus())
   }
 
@@ -40,11 +40,11 @@ export function InboxSearch({ value, onChange }: { value: string; onChange: (tex
         placeholder="Search or filter, e.g. team-review-requested:web"
         spellCheck={false}
         value={value}
-        onChange={(e) => onChange(e.target.value)}
+        onChange={(event) => onChange(event.target.value)}
         onFocus={() => setFocused(true)}
         onBlur={() => setFocused(false)}
-        onKeyDown={(e) => {
-          if (e.key !== 'Escape') {
+        onKeyDown={(event) => {
+          if (event.key !== 'Escape') {
             return
           }
           onChange('')
@@ -62,7 +62,7 @@ export function InboxSearch({ value, onChange }: { value: string; onChange: (tex
                 type="button"
                 className="flex w-full items-baseline gap-3 px-3 py-1 text-left hover:bg-hover"
                 // Keep focus in the field so the click lands before the list closes.
-                onMouseDown={(e) => e.preventDefault()}
+                onMouseDown={(event) => event.preventDefault()}
                 onClick={() => insert(qualifier)}
               >
                 <code className="shrink-0 text-[12px] text-fg">{qualifier}</code>

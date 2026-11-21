@@ -1,8 +1,6 @@
 import type { PullDetail, ReviewEvent } from '@shared/pull.types.ts'
-
 import { useState } from 'react'
-
-import { cx, errorMessage } from '../common/format.util.ts'
+import { joinClassNames, readErrorMessage } from '../common/format.util.ts'
 
 type ReviewState = NonNullable<PullDetail['myReview']>['state']
 
@@ -32,7 +30,7 @@ const EVENTS: readonly { value: ReviewEvent; label: string; hint: string; submit
 ]
 
 /** When you submitted the review, for its tooltip. */
-function submittedTitle(submittedAt: string) {
+function describeSubmission(submittedAt: string) {
   if (!submittedAt) {
     return
   }
@@ -44,18 +42,18 @@ function submitLabel(event: ReviewEvent, busy: boolean) {
   if (busy) {
     return 'Submitting…'
   }
-  return EVENTS.find((e) => e.value === event)?.submit ?? 'Submit review'
+  return EVENTS.find((choice) => choice.value === event)?.submit ?? 'Submit review'
 }
 
 /** Authors can only comment on their own pull request; others start from the event they picked. */
-function startingEvent(isAuthor: boolean, picked: ReviewEvent): ReviewEvent {
+function pickStartingEvent(isAuthor: boolean, picked: ReviewEvent): ReviewEvent {
   if (isAuthor) {
     return 'COMMENT'
   }
   return picked
 }
 
-function placeholderFor(event: ReviewEvent) {
+function describeSummaryPlaceholder(event: ReviewEvent) {
   if (event === 'APPROVE') {
     return 'Optional comment, e.g. LGTM 🚀'
   }
@@ -74,12 +72,12 @@ function EventChoices({
 }) {
   return (
     <div className="space-y-1">
-      {EVENTS.map((o) => {
-        const blocked = isAuthor && o.value !== 'COMMENT'
+      {EVENTS.map((choice) => {
+        const blocked = isAuthor && choice.value !== 'COMMENT'
         return (
           <label
-            key={o.value}
-            className={cx(
+            key={choice.value}
+            className={joinClassNames(
               'flex gap-2 rounded px-1 py-1',
               blocked && 'cursor-not-allowed opacity-50',
               !blocked && 'cursor-pointer hover:bg-hover',
@@ -88,15 +86,15 @@ function EventChoices({
             <input
               type="radio"
               name="event"
-              checked={event === o.value}
+              checked={event === choice.value}
               disabled={blocked}
-              onChange={() => onChange(o.value)}
+              onChange={() => onChange(choice.value)}
             />
             <span>
-              <span className={cx('font-medium', o.tone)}>{o.label}</span>
+              <span className={joinClassNames('font-medium', choice.tone)}>{choice.label}</span>
               <span className="block text-[12px] text-muted">
                 {Boolean(blocked) && "You can't approve or block your own pull request."}
-                {!blocked && o.hint}
+                {!blocked && choice.hint}
               </span>
             </span>
           </label>
@@ -115,8 +113,8 @@ function useSubmitReview(onSubmit: (event: ReviewEvent) => Promise<string>) {
     setError(null)
     try {
       await onSubmit(event)
-    } catch (e) {
-      setError(errorMessage(e))
+    } catch (failure) {
+      setError(readErrorMessage(failure))
     } finally {
       setBusy(false)
     }
@@ -127,7 +125,10 @@ function useSubmitReview(onSubmit: (event: ReviewEvent) => Promise<string>) {
 export function MyReviewChip({ review }: { review: NonNullable<PullDetail['myReview']> }) {
   const look = MY_REVIEW_LOOK[review.state]
   return (
-    <span className={cx('chip no-drag whitespace-nowrap', look.tone)} title={submittedTitle(review.submittedAt)}>
+    <span
+      className={joinClassNames('chip no-drag whitespace-nowrap', look.tone)}
+      title={describeSubmission(review.submittedAt)}
+    >
       {look.label}
       {Boolean(review.stale) && <span className="opacity-75">· new commits since</span>}
     </span>
@@ -138,12 +139,12 @@ export function ReviewPopover(props: {
   initialEvent: ReviewEvent
   isAuthor: boolean
   body: string
-  setBody: (b: string) => void
+  setBody: (body: string) => void
   draftCount: number
   onClose: () => void
   onSubmit: (event: ReviewEvent) => Promise<string>
 }) {
-  const [event, setEvent] = useState(() => startingEvent(props.isAuthor, props.initialEvent))
+  const [event, setEvent] = useState(() => pickStartingEvent(props.isAuthor, props.initialEvent))
   const { busy, error, submit } = useSubmitReview(props.onSubmit)
   // A plain comment review needs something to say: a summary or at least one pending comment.
   const empty = event === 'COMMENT' && !props.body.trim() && props.draftCount === 0
@@ -159,14 +160,14 @@ export function ReviewPopover(props: {
         // biome-ignore lint/a11y/noAutofocus: the popover opens because the reviewer chose to finish the review; focus goes where they type.
         autoFocus={true}
         className="input mb-2 min-h-28 resize-y"
-        placeholder={placeholderFor(event)}
+        placeholder={describeSummaryPlaceholder(event)}
         value={props.body}
-        onChange={(e) => props.setBody(e.target.value)}
-        onKeyDown={(e) => {
-          if (e.key === 'Enter' && e.metaKey) {
+        onChange={(changeEvent) => props.setBody(changeEvent.target.value)}
+        onKeyDown={(keyEvent) => {
+          if (keyEvent.key === 'Enter' && keyEvent.metaKey) {
             submitIfReady()
           }
-          if (e.key === 'Escape') {
+          if (keyEvent.key === 'Escape') {
             props.onClose()
           }
         }}

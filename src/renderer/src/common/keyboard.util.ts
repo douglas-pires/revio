@@ -11,11 +11,11 @@ export const isTyping = (target: EventTarget | null) =>
  * a <button> (one holding other buttons); ignores presses that started on a control inside it.
  */
 export function onActivateKey(activate: () => void) {
-  return (e: KeyboardEvent) => {
-    if (e.target !== e.currentTarget || (e.key !== 'Enter' && e.key !== ' ')) {
+  return (event: KeyboardEvent) => {
+    if (event.target !== event.currentTarget || (event.key !== 'Enter' && event.key !== ' ')) {
       return
     }
-    e.preventDefault()
+    event.preventDefault()
     activate()
   }
 }

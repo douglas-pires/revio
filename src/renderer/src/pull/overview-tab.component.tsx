@@ -16,7 +16,9 @@ function GuidesSection(props: {
   onEdit: (repo: string, path?: string) => void
 }) {
   const { repo, guides } = props
-  const folders = suggestFolders(props.paths).filter((p) => !guides.some((g) => g.repo === repo && g.path === p))
+  const folders = suggestFolders(props.paths).filter(
+    (folder) => !guides.some((guide) => guide.repo === repo && guide.path === folder),
+  )
   return (
     <section>
       <SectionHeading
@@ -28,24 +30,30 @@ function GuidesSection(props: {
         }
       />
       <div className="flex flex-wrap gap-2">
-        {guides.map((g) => (
-          <button type="button" key={g.id} className="btn" title={g.body} onClick={() => props.onEdit(g.repo, g.path)}>
-            <span className="font-mono text-muted">
-              {g.repo === '*' && '*'}
-              {g.repo !== '*' && (g.path || '/')}
-            </span>{' '}
-            {g.title}
-            {Boolean(g.path) && <span className="text-muted">· {g.matchedFiles} files</span>}
-          </button>
-        ))}
-        {folders.slice(0, MAX_FOLDER_SUGGESTIONS).map((p) => (
+        {guides.map((guide) => (
           <button
             type="button"
-            key={p}
-            className="btn btn-ghost border-dashed border-line text-muted"
-            onClick={() => props.onEdit(repo, p)}
+            key={guide.id}
+            className="btn"
+            title={guide.body}
+            onClick={() => props.onEdit(guide.repo, guide.path)}
           >
-            + guide for <span className="font-mono">{p}</span>
+            <span className="font-mono text-muted">
+              {guide.repo === '*' && '*'}
+              {guide.repo !== '*' && (guide.path || '/')}
+            </span>{' '}
+            {guide.title}
+            {Boolean(guide.path) && <span className="text-muted">· {guide.matchedFiles} files</span>}
+          </button>
+        ))}
+        {folders.slice(0, MAX_FOLDER_SUGGESTIONS).map((folder) => (
+          <button
+            type="button"
+            key={folder}
+            className="btn btn-ghost border-dashed border-line text-muted"
+            onClick={() => props.onEdit(repo, folder)}
+          >
+            + guide for <span className="font-mono">{folder}</span>
           </button>
         ))}
       </div>
@@ -68,7 +76,7 @@ export function OverviewTab(props: {
       {props.briefing}
       <GuidesSection
         repo={pr.repo}
-        paths={pr.files.map((f) => f.path)}
+        paths={pr.files.map((file) => file.path)}
         guides={props.guides}
         onEdit={props.onEditGuidelines}
       />

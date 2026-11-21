@@ -1,4 +1,4 @@
-import { errorMessage } from '@shared/error.util.ts'
+import { readErrorMessage } from '@shared/error.util.ts'
 import type { MentionsInbox } from '@shared/mention.types.ts'
 import { isSamePull, type PullRef } from '@shared/pull.types.ts'
 import { InFlight } from '../common/in-flight.util.ts'
@@ -31,7 +31,7 @@ export class MentionWatcher {
 
   /** Marks the PR's GitHub notification read and clears its "new" mentions. */
   async markRead(ref: PullRef) {
-    const mention = this.#latest?.mentions.find((m) => isSamePull(m, ref))
+    const mention = this.#latest?.mentions.find((candidate) => isSamePull(candidate, ref))
     if (mention?.notificationId) {
       await this.#deps.markRead(mention.notificationId)
     }
@@ -45,8 +45,8 @@ export class MentionWatcher {
     let inbox: MentionsInbox
     try {
       inbox = await this.#deps.load()
-    } catch (err) {
-      const error = errorMessage(err)
+    } catch (failure) {
+      const error = readErrorMessage(failure)
       console.error('[revio] mentions failed:', error)
       inbox = this.#withError(error)
     }

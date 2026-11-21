@@ -1,5 +1,5 @@
 import type { PullDetail, PullRef } from '@shared/pull.types.ts'
-import { pullKey } from '@shared/pull.types.ts'
+import { buildPullKey } from '@shared/pull.types.ts'
 import { InFlight } from '../common/in-flight.util.ts'
 
 type Fetch = (ref: PullRef) => Promise<PullDetail>
@@ -19,7 +19,7 @@ export class PullCache {
 
   /** A cached copy no older than `maxAgeMs`, otherwise a fresh fetch (0 always fetches). */
   get(ref: PullRef, maxAgeMs = 0): Promise<PullDetail> {
-    const key = pullKey(ref)
+    const key = buildPullKey(ref)
     const hit = this.#entries.get(key)
     if (hit && maxAgeMs > 0 && Date.now() - hit.at <= maxAgeMs) {
       return Promise.resolve(hit.pr)
@@ -33,11 +33,11 @@ export class PullCache {
 
   /** Drops the cached copy, e.g. after a change the copy does not show yet. */
   forget(ref: PullRef): void {
-    this.#entries.delete(pullKey(ref))
+    this.#entries.delete(buildPullKey(ref))
   }
 
   /** The last fetched copy, if any, without hitting the network. */
   peek(ref: PullRef): PullDetail | undefined {
-    return this.#entries.get(pullKey(ref))?.pr
+    return this.#entries.get(buildPullKey(ref))?.pr
   }
 }

@@ -1,7 +1,7 @@
-import { errorMessage } from '@shared/error.util.ts'
+import { readErrorMessage } from '@shared/error.util.ts'
 import type { Stack, StackPrComments } from '@shared/inbox.types.ts'
-import { type PullRef, pullKey } from '@shared/pull.types.ts'
-import { gh, viewerLogin } from '../github/github.client.ts'
+import { buildPullKey, type PullRef } from '@shared/pull.types.ts'
+import { getGithubClient, getViewerLogin } from '../github/github.client.ts'
 import { splitRepo } from '../github/repo-name.util.ts'
 import { type RawStackThread, summarizeYourThreads } from './stack-comments.util.ts'
 
@@ -31,13 +31,13 @@ function buildStackThreadsQuery(pulls: readonly PullRef[]) {
 async function loadStackComments(stack: Stack): Promise<StackPrComments[]> {
   const pulls = stack.nodes.slice(0, MAX_PULLS).map((node) => ({ repo: node.pr.repo, number: node.pr.number }))
   try {
-    const [octokit, viewer] = await Promise.all([gh(), viewerLogin()])
+    const [octokit, viewer] = await Promise.all([getGithubClient(), getViewerLogin()])
     const response = await octokit.graphql<StackThreadsResponse>(buildStackThreadsQuery(pulls))
     return pulls.map((pull, index) =>
       summarizeYourThreads(pull, response[`p${index}`]?.pullRequest?.reviewThreads.nodes ?? [], viewer),
     )
-  } catch (err) {
-    console.error('[revio] stack comments lookup failed:', errorMessage(err))
+  } catch (failure) {
+    console.error('[revio] stack comments lookup failed:', readErrorMessage(failure))
     return []
   }
 }
@@ -47,7 +47,7 @@ const recentLookups = new Map<string, { startedAt: number; result: Promise<Stack
 
 /** Where you commented across the stack; empty when GitHub would not say. Shared for a short while per stack. */
 export function fetchStackComments(stack: Stack): Promise<StackPrComments[]> {
-  const stackKey = stack.nodes.map((node) => pullKey(node.pr)).join(',')
+  const stackKey = stack.nodes.map((node) => buildPullKey(node.pr)).join(',')
   const recentLookup = recentLookups.get(stackKey)
   if (recentLookup && Date.now() - recentLookup.startedAt < SHARED_LOOKUP_MS) {
     return recentLookup.result

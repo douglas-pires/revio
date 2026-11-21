@@ -9,8 +9,8 @@ interface FoldState {
 }
 
 const EMPTY_SET: ReadonlySet<number> = new Set()
-const withAdded = (set: ReadonlySet<number>, id: number) => new Set([...set, id])
-const without = (set: ReadonlySet<number>, ids: readonly number[]) =>
+const addToSet = (set: ReadonlySet<number>, id: number) => new Set([...set, id])
+const removeFromSet = (set: ReadonlySet<number>, ids: readonly number[]) =>
   new Set([...set].filter((id) => !ids.includes(id)))
 
 /**
@@ -29,7 +29,7 @@ export interface ThreadFold {
 }
 
 /** Whether a thread is minimised: the overall choice, unless set otherwise or jumped to. */
-export function threadFolded(state: FoldState, ids: readonly number[]): boolean {
+export function isThreadFolded(state: FoldState, ids: readonly number[]): boolean {
   const [root] = ids
   if (root === undefined || ids.some((id) => state.revealed.has(id))) {
     return false
@@ -38,28 +38,31 @@ export function threadFolded(state: FoldState, ids: readonly number[]): boolean 
 }
 
 /** The state after you minimise or open one thread. */
-export function withThreadFolded(state: FoldState, ids: readonly number[], folded: boolean): FoldState {
+export function setThreadFolded(state: FoldState, ids: readonly number[], folded: boolean): FoldState {
   const [root] = ids
   if (root === undefined) {
     return state
   }
-  const flipped = without(state.flipped, [root])
+  const flipped = removeFromSet(state.flipped, [root])
   if (folded !== state.all) {
     flipped.add(root)
   }
-  return { all: state.all, flipped, revealed: without(state.revealed, ids) }
+  return { all: state.all, flipped, revealed: removeFromSet(state.revealed, ids) }
 }
 
 export function useThreadFoldState(): ThreadFold {
   const [state, setState] = useState<FoldState>({ all: false, flipped: EMPTY_SET, revealed: EMPTY_SET })
   const setAll = useCallback((all: boolean) => setState({ all, flipped: EMPTY_SET, revealed: EMPTY_SET }), [])
   const setFolded = useCallback(
-    (ids: readonly number[], folded: boolean) => setState((s) => withThreadFolded(s, ids, folded)),
+    (ids: readonly number[], folded: boolean) => setState((current) => setThreadFolded(current, ids, folded)),
     [],
   )
-  const reveal = useCallback((id: number) => setState((s) => ({ ...s, revealed: withAdded(s.revealed, id) })), [])
+  const reveal = useCallback(
+    (id: number) => setState((current) => ({ ...current, revealed: addToSet(current.revealed, id) })),
+    [],
+  )
   return useMemo(
-    () => ({ all: state.all, setAll, isFolded: (ids) => threadFolded(state, ids), setFolded, reveal }),
+    () => ({ all: state.all, setAll, isFolded: (ids) => isThreadFolded(state, ids), setFolded, reveal }),
     [state, setAll, setFolded, reveal],
   )
 }

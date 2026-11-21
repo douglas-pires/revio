@@ -1,5 +1,5 @@
 import { useContext } from 'react'
-import { cx } from './format.util.ts'
+import { joinClassNames } from './format.util.ts'
 import { HistoryContext } from './history.context.ts'
 
 const BACK_PATH = 'M15 6l-6 6 6 6'
@@ -13,7 +13,7 @@ function Arrow({ label, enabled, onClick, d }: { label: string; enabled: boolean
       title={label}
       disabled={!enabled}
       onClick={onClick}
-      className={cx(
+      className={joinClassNames(
         'no-drag flex size-6 items-center justify-center rounded text-muted',
         'hover:bg-hover hover:text-fg disabled:opacity-30 disabled:hover:bg-transparent',
       )}

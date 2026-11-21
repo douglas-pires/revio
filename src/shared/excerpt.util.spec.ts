@@ -16,9 +16,9 @@ describe('summarizeAround', () => {
 
   it('jumps to the mention in a long comment', () => {
     const body = `${'word '.repeat(100)}cc @Me please check`
-    const out = summarizeAround(body, 'me', 60)
-    expect(out.startsWith('…')).toBe(true)
-    expect(out).toContain('@Me please check')
+    const output = summarizeAround(body, 'me', 60)
+    expect(output.startsWith('…')).toBe(true)
+    expect(output).toContain('@Me please check')
   })
 })
 

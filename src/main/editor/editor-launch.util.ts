@@ -1,7 +1,12 @@
 /** Characters encodeURI leaves alone that would end a file URL's path. */
 const URL_RESERVED = /[#?]/gu
 
-const jetbrains = (id: string, app: string): EditorSpec => ({ id, name: app, app, launch: { kind: 'jetbrains' } })
+const makeJetbrainsEditor = (id: string, app: string): EditorSpec => ({
+  id,
+  name: app,
+  app,
+  launch: { kind: 'jetbrains' },
+})
 
 /** How an editor opens a file at a line. */
 export type LaunchStyle =
@@ -34,17 +39,17 @@ export const EDITORS: readonly EditorSpec[] = [
   },
   { id: 'windsurf', name: 'Windsurf', app: 'Windsurf', launch: { kind: 'url', scheme: 'windsurf' } },
   { id: 'zed', name: 'Zed', app: 'Zed', launch: { kind: 'bundled-cli', cli: 'Contents/MacOS/cli' } },
-  jetbrains('intellij', 'IntelliJ IDEA'),
-  jetbrains('intellij-ce', 'IntelliJ IDEA CE'),
-  jetbrains('webstorm', 'WebStorm'),
-  jetbrains('pycharm', 'PyCharm'),
-  jetbrains('pycharm-ce', 'PyCharm CE'),
-  jetbrains('goland', 'GoLand'),
-  jetbrains('phpstorm', 'PhpStorm'),
-  jetbrains('rubymine', 'RubyMine'),
-  jetbrains('rider', 'Rider'),
-  jetbrains('clion', 'CLion'),
-  jetbrains('rustrover', 'RustRover'),
+  makeJetbrainsEditor('intellij', 'IntelliJ IDEA'),
+  makeJetbrainsEditor('intellij-ce', 'IntelliJ IDEA CE'),
+  makeJetbrainsEditor('webstorm', 'WebStorm'),
+  makeJetbrainsEditor('pycharm', 'PyCharm'),
+  makeJetbrainsEditor('pycharm-ce', 'PyCharm CE'),
+  makeJetbrainsEditor('goland', 'GoLand'),
+  makeJetbrainsEditor('phpstorm', 'PhpStorm'),
+  makeJetbrainsEditor('rubymine', 'RubyMine'),
+  makeJetbrainsEditor('rider', 'Rider'),
+  makeJetbrainsEditor('clion', 'CLion'),
+  makeJetbrainsEditor('rustrover', 'RustRover'),
   {
     id: 'sublime',
     name: 'Sublime Text',

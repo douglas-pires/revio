@@ -1,7 +1,5 @@
 import { createHighlighterCore, type HighlighterCore } from 'shiki/core'
-
 import { createJavaScriptRegexEngine } from 'shiki/engine/javascript'
-
 import { bundledLanguages, bundledLanguagesAlias } from 'shiki/langs'
 
 const EXT: Record<string, string> = {
@@ -74,10 +72,10 @@ const loaders = {
 
 const THEMES = { dark: 'github-dark-default', light: 'github-light-default' } as const
 
-function tokenLines(core: HighlighterCore, code: string, lang: string): Tok[][] {
+function tokenizeLines(core: HighlighterCore, code: string, lang: string): Tok[][] {
   return core
     .codeToTokens(code, { lang, themes: THEMES, defaultColor: false })
-    .tokens.map((line) => line.map((t) => ({ text: t.content, style: t.htmlStyle })))
+    .tokens.map((line) => line.map((token) => ({ text: token.content, style: token.htmlStyle })))
 }
 
 /** Owns one Shiki instance and the languages loaded into it. */
@@ -105,7 +103,7 @@ export interface TokenRow {
   text: string
 }
 
-export function languageFor(path: string): string | null {
+export function detectLanguage(path: string): string | null {
   const name = path.slice(path.lastIndexOf('/') + 1)
   if (FILENAMES[name]) {
     return FILENAMES[name]
@@ -113,11 +111,11 @@ export function languageFor(path: string): string | null {
   if (name.startsWith('Dockerfile')) {
     return 'docker'
   }
-  let ext = ''
+  let extension = ''
   if (name.includes('.')) {
-    ext = name.slice(name.lastIndexOf('.') + 1).toLowerCase()
+    extension = name.slice(name.lastIndexOf('.') + 1).toLowerCase()
   }
-  const lang = EXT[ext] ?? ext
+  const lang = EXT[extension] ?? extension
   if (!(lang in loaders)) {
     return null
   }
@@ -125,7 +123,7 @@ export function languageFor(path: string): string | null {
 }
 
 /** The Shiki language for a fence's info string (```ts, ```typescript, ```py…), or null when unknown. */
-export function languageNamed(name: string): string | null {
+export function findLanguageByName(name: string): string | null {
   const key = name.trim().toLowerCase()
   if (!key) {
     return null
@@ -133,7 +131,7 @@ export function languageNamed(name: string): string | null {
   if (key in loaders) {
     return key
   }
-  return languageFor(`file.${key}`)
+  return detectLanguage(`file.${key}`)
 }
 
 export class TokenHighlighter {
@@ -161,7 +159,7 @@ export class TokenHighlighter {
 
   /** Tokens per line of a code block, or null when the language is unknown or the code is too large. */
   async tokenizeCode(language: string, code: string): Promise<Tok[][] | null> {
-    const lang = languageNamed(language)
+    const lang = findLanguageByName(language)
     if (!lang || code.length > MAX_PATCH) {
       return null
     }
@@ -170,7 +168,7 @@ export class TokenHighlighter {
       return null
     }
     try {
-      return tokenLines(core, code, lang)
+      return tokenizeLines(core, code, lang)
     } catch {
       return null
     }
@@ -182,7 +180,7 @@ export class TokenHighlighter {
    * blob, so multi-line strings and comments color correctly within a hunk.
    */
   async tokenizeRows(path: string, rows: readonly TokenRow[], patchLength: number): Promise<Map<number, Tok[]> | null> {
-    const lang = languageFor(path)
+    const lang = detectLanguage(path)
     if (!lang || patchLength > MAX_PATCH) {
       return null
     }
@@ -191,20 +189,20 @@ export class TokenHighlighter {
       return null
     }
 
-    const out = new Map<number, Tok[]>()
+    const output = new Map<number, Tok[]>()
     const tokenize = (indices: number[], keep: (row: TokenRow) => boolean) => {
-      const kept = (i: number) => {
-        const row = rows[i]
+      const isKept = (rowIndex: number) => {
+        const row = rows[rowIndex]
         return row !== undefined && keep(row)
       }
-      if (!indices.some(kept)) {
+      if (!indices.some(isKept)) {
         return
       }
       try {
-        const lines = tokenLines(core, indices.map((i) => rows[i]?.text).join('\n'), lang)
-        for (const [n, rowIdx] of indices.entries()) {
-          if (kept(rowIdx)) {
-            out.set(rowIdx, lines[n] ?? [])
+        const lines = tokenizeLines(core, indices.map((index) => rows[index]?.text).join('\n'), lang)
+        for (const [position, rowIdx] of indices.entries()) {
+          if (isKept(rowIdx)) {
+            output.set(rowIdx, lines[position] ?? [])
           }
         }
       } catch {
@@ -215,23 +213,23 @@ export class TokenHighlighter {
     let oldSide: number[] = []
     let newSide: number[] = []
     const flush = () => {
-      tokenize(newSide, (r) => r.kind !== 'del')
-      tokenize(oldSide, (r) => r.kind === 'del')
+      tokenize(newSide, (row) => row.kind !== 'del')
+      tokenize(oldSide, (row) => row.kind === 'del')
       oldSide = []
       newSide = []
     }
-    for (const [i, r] of rows.entries()) {
-      if (r.kind === 'hunk') {
+    for (const [rowIndex, row] of rows.entries()) {
+      if (row.kind === 'hunk') {
         flush()
       }
-      if (r.kind === 'del' || r.kind === 'ctx') {
-        oldSide.push(i)
+      if (row.kind === 'del' || row.kind === 'ctx') {
+        oldSide.push(rowIndex)
       }
-      if (r.kind === 'add' || r.kind === 'ctx') {
-        newSide.push(i)
+      if (row.kind === 'add' || row.kind === 'ctx') {
+        newSide.push(rowIndex)
       }
     }
     flush()
-    return out
+    return output
   }
 }

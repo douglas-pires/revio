@@ -13,11 +13,11 @@ const octokit = {
   graphql: vi.fn(async () => ({})),
 }
 vi.mock('../github/github.client', () => ({
-  gh: async () => octokit,
-  smallAvatar: (u: string) => u,
-  viewerLogin: async () => 'me',
+  getGithubClient: async () => octokit,
+  buildSmallAvatarUrl: (url: string) => url,
+  getViewerLogin: async () => 'me',
 }))
-const { submitReview } = await import('./pull.service.ts')
+const { submitReview } = await import('./review-submit.service.ts')
 
 const input: SubmitReviewInput = { repo: 'acme/web', number: 7, headSha: 'sha', event: 'APPROVE', body: 'LGTM' }
 const makeDraft = (over: Partial<DraftComment>): DraftComment => ({

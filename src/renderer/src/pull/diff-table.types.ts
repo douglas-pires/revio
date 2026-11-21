@@ -14,7 +14,7 @@ export interface DiffTableProps {
   commented: (anchor: Anchor | null) => boolean
   /** Comments and the comment box under a line, or null when there are none. */
   notesFor: (keys: string[], anchor: Anchor | null) => ReactNode
-  onMouseUp: (e: React.MouseEvent) => void
+  onMouseUp: (event: React.MouseEvent) => void
   /** Shown after a line's code on hover, e.g. its blame. */
   noteFor?: ((row: LineRow) => ReactNode) | undefined
   /** Shows more of the file around the hunks; without it, separators have no buttons. */

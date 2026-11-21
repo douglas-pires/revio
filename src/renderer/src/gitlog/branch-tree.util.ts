@@ -33,7 +33,7 @@ export function buildBranchTree(branches: readonly Branch[], name = '', path = '
     }
   }
   const folders = [...byFolder]
-    .sort(([a], [b]) => a.localeCompare(b))
+    .sort(([leftFolder], [rightFolder]) => leftFolder.localeCompare(rightFolder))
     .map(([folder, inside]) => buildBranchTree(inside, folder, `${prefix}${folder}`))
   return { name, path, folders, branches: direct.sort((left, right) => left.name.localeCompare(right.name)) }
 }

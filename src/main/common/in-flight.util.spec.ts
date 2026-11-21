@@ -5,8 +5,8 @@ describe('InFlight', () => {
   it('shares a running job per key and starts a new one once it settles', async () => {
     const shared = new InFlight<number>()
     const job = vi.fn(async () => 1)
-    const [a, b] = await Promise.all([shared.run('k', job), shared.run('k', job)])
-    expect([a, b, job.mock.calls.length]).toEqual([1, 1, 1])
+    const [first, second] = await Promise.all([shared.run('k', job), shared.run('k', job)])
+    expect([first, second, job.mock.calls.length]).toEqual([1, 1, 1])
     await shared.run('k', job)
     expect(job).toHaveBeenCalledTimes(2)
   })

@@ -1,6 +1,6 @@
 import type { DiffSide } from '@shared/pull.types.ts'
 import { type ReactNode, useMemo } from 'react'
-import { anchorFor, type DiffRow, type HunkHeader, keysOf, type LineRow, toSplit } from './diff.util.ts'
+import { type DiffRow, findRowAnchor, type HunkHeader, type LineRow, listRowKeys, toSplit } from './diff.util.ts'
 import { EmptyHalf, Half, RowGroup } from './diff-cells.component.tsx'
 import type { DiffTableProps } from './diff-table.types.ts'
 import { HunkRow } from './hunk-row.component.tsx'
@@ -18,18 +18,18 @@ interface SideLine {
 }
 
 /** The line on one side of a split row, or null where that side has none. */
-function sideLine(
+function renderSideLine(
   rows: readonly DiffRow[],
-  idx: number | null,
+  index: number | null,
   side: DiffSide,
   notesFor: DiffTableProps['notesFor'],
 ): SideLine | null {
-  if (idx === null) {
+  if (index === null) {
     return null
   }
-  const row = rows[idx] as LineRow
-  const anchor = anchorFor(row, side)
-  return { row, idx, anchor, notes: notesFor(keysOf(row, side), anchor) }
+  const row = rows[index] as LineRow
+  const anchor = findRowAnchor(row, side)
+  return { row, idx: index, anchor, notes: notesFor(listRowKeys(row, side), anchor) }
 }
 
 /** Line number, sign and code, for the old side then the new. */
@@ -77,21 +77,21 @@ export function SplitDiff({
     <table onMouseUp={onMouseUp} className="w-full table-fixed border-collapse font-mono text-[12px] leading-[20px]">
       <SplitColumns />
       <tbody>
-        {split.map((sr) => {
-          if (sr.kind === 'hunk') {
+        {split.map((splitRow) => {
+          if (splitRow.kind === 'hunk') {
             return (
               <HunkRow
-                key={`hunk-${sr.idx}`}
-                row={rows[sr.idx] as HunkHeader}
+                key={`hunk-${splitRow.idx}`}
+                row={rows[splitRow.idx] as HunkHeader}
                 span={2 * SIDE_COLUMNS}
                 onExpand={onExpand}
               />
             )
           }
-          const left = sideLine(rows, sr.left, 'LEFT', notesFor)
-          const right = sideLine(rows, sr.right, 'RIGHT', notesFor)
+          const left = renderSideLine(rows, splitRow.left, 'LEFT', notesFor)
+          const right = renderSideLine(rows, splitRow.right, 'RIGHT', notesFor)
           return (
-            <RowGroup key={`line-${sr.left}-${sr.right}`}>
+            <RowGroup key={`line-${splitRow.left}-${splitRow.right}`}>
               <tr data-new-line={right?.row.newNo ?? undefined} data-old-line={left?.row.oldNo ?? undefined}>
                 {left !== null && (
                   <Half

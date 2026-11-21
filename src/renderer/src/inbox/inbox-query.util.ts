@@ -8,16 +8,16 @@ interface Filter {
   negated: boolean
 }
 
-const toLower = (s: string) => s.toLowerCase()
+const toLower = (text: string) => text.toLowerCase()
 
 const LEADING_AT = /^@/u
 const LEADING_MINUS = /^-/u
 const QUOTES = /^"|"$/gu
 
-const stripAt = (s: string) => s.replace(LEADING_AT, '')
+const stripAt = (text: string) => text.replace(LEADING_AT, '')
 
 /** "acme/web" and "web" both name the team slug "web"; GitHub writes team qualifiers as org/slug. */
-const toTeamSlug = (s: string) => toLower(stripAt(s)).split('/').at(-1) ?? ''
+const toTeamSlug = (text: string) => toLower(stripAt(text)).split('/').at(-1) ?? ''
 
 const IS: Record<string, (pr: Searchable) => boolean> = {
   draft: (pr) => pr.isDraft,
@@ -30,16 +30,16 @@ const IS: Record<string, (pr: Searchable) => boolean> = {
 
 /** One predicate per qualifier (Strategy as plain functions). */
 const QUALIFIERS = {
-  repo: (pr: Searchable, v: string) =>
-    toLower(pr.repo) === toLower(v) || toLower(pr.repo.split('/')[1] ?? '') === toLower(v),
-  author: (pr: Searchable, v: string) => toLower(pr.author) === toLower(stripAt(v)),
-  head: (pr: Searchable, v: string) => pr.headRef === v,
-  base: (pr: Searchable, v: string) => pr.baseRef === v,
-  is: (pr: Searchable, v: string) => IS[toLower(v)]?.(pr) ?? false,
+  repo: (pr: Searchable, value: string) =>
+    toLower(pr.repo) === toLower(value) || toLower(pr.repo.split('/')[1] ?? '') === toLower(value),
+  author: (pr: Searchable, value: string) => toLower(pr.author) === toLower(stripAt(value)),
+  head: (pr: Searchable, value: string) => pr.headRef === value,
+  base: (pr: Searchable, value: string) => pr.baseRef === value,
+  is: (pr: Searchable, value: string) => IS[toLower(value)]?.(pr) ?? false,
   'review-requested': (pr: Searchable) => pr.requested,
   'user-review-requested': (pr: Searchable) => pr.requested && !pr.viaTeam,
-  'team-review-requested': (pr: Searchable, v: string) =>
-    pr.requested && pr.viaTeam !== null && (v === '*' || toLower(pr.viaTeam) === toTeamSlug(v)),
+  'team-review-requested': (pr: Searchable, value: string) =>
+    pr.requested && pr.viaTeam !== null && (value === '*' || toLower(pr.viaTeam) === toTeamSlug(value)),
 } satisfies Record<string, (pr: Searchable, value: string) => boolean>
 
 type FilterKey = keyof typeof QUALIFIERS
@@ -96,53 +96,53 @@ export interface Searchable {
 
 export function parseQuery(text: string): InboxQuery {
   const query: InboxQuery = { terms: [], filters: [] }
-  for (const m of text.matchAll(TOKEN)) {
-    const { minus, key, value, quoted, word } = m.groups ?? {}
+  for (const match of text.matchAll(TOKEN)) {
+    const { minus, key, value, quoted, word } = match.groups ?? {}
     if (key && value && isFilterKey(toLower(key))) {
       query.filters.push({ key: toLower(key) as FilterKey, value: value.replace(QUOTES, ''), negated: minus === '-' })
     } else {
-      query.terms.push(toLower(quoted ?? word ?? m[0]))
+      query.terms.push(toLower(quoted ?? word ?? match[0]))
     }
   }
   return query
 }
 
-export const isEmptyQuery = (q: InboxQuery) => !(q.terms.length > 0 || q.filters.length > 0)
+export const isEmptyQuery = (query: InboxQuery) => !(query.terms.length > 0 || query.filters.length > 0)
 
 export function matchesQuery(pr: Searchable, query: InboxQuery): boolean {
   const haystack = toLower(`${pr.repo} ${pr.title} ${pr.author} #${pr.number} ${pr.headRef} ${pr.text ?? ''}`)
-  if (!query.terms.every((t) => haystack.includes(t))) {
+  if (!query.terms.every((term) => haystack.includes(term))) {
     return false
   }
-  return query.filters.every((f) => QUALIFIERS[f.key](pr, f.value) !== f.negated)
+  return query.filters.every((filter) => QUALIFIERS[filter.key](pr, filter.value) !== filter.negated)
 }
 
-export function summaryToSearchable(pr: PullSummary, requested: boolean): Searchable {
+export function convertSummaryToSearchable(pr: PullSummary, requested: boolean): Searchable {
   return { ...pr, stacked: Boolean(pr.stack), requested, viaTeam: pr.viaTeam }
 }
 
 /** Stack members outside your inbox have no request; members inside it reuse the inbox row's team. */
-export function stackPrToSearchable(pr: StackPr, inboxRow: PullSummary | undefined): Searchable {
+export function convertStackPrToSearchable(pr: StackPr, inboxRow: PullSummary | undefined): Searchable {
   return { ...pr, stacked: true, requested: pr.inbox === 'requested', viaTeam: inboxRow?.viaTeam ?? null }
 }
 
 /** A thread searches by its PR's fields plus its file path and comments. Review-request qualifiers never match. */
-export function threadToSearchable(t: OpenThread): Searchable {
+export function convertThreadToSearchable(thread: OpenThread): Searchable {
   return {
-    repo: t.repo,
-    title: t.prTitle,
-    author: t.prAuthor,
-    number: t.number,
+    repo: thread.repo,
+    title: thread.prTitle,
+    author: thread.prAuthor,
+    number: thread.number,
     headRef: '',
     baseRef: '',
-    isDraft: t.isDraft,
+    isDraft: thread.isDraft,
     stale: false,
     reviewDecision: null,
     stacked: false,
     requested: false,
     viaTeam: null,
-    bot: Boolean(t.comments.at(-1)?.bot),
-    text: [t.path, ...t.comments.map((c) => `${c.author} ${c.body}`)].join(' '),
+    bot: Boolean(thread.comments.at(-1)?.bot),
+    text: [thread.path, ...thread.comments.map((comment) => `${comment.author} ${comment.body}`)].join(' '),
   }
 }
 
@@ -151,7 +151,7 @@ export type ReviewAudience = { kind: 'all' } | { kind: 'me' } | { kind: 'team'; 
 
 /** Replaces the review-request qualifiers in the query text, keeping everything else the user typed. */
 export function applyAudience(text: string, audience: ReviewAudience): string {
-  const kept = [...text.matchAll(TOKEN)].map((m) => m[0]).filter((token) => !isReviewToken(token))
+  const kept = [...text.matchAll(TOKEN)].map((match) => match[0]).filter((token) => !isReviewToken(token))
   const tokens = [toAudienceQualifier(audience), ...kept].filter(isPresent)
   if (tokens.length === 0) {
     return ''
@@ -162,7 +162,7 @@ export function applyAudience(text: string, audience: ReviewAudience): string {
 
 /** The audience the query currently selects, so the buttons can show which one is active. */
 export function readAudience(query: InboxQuery): ReviewAudience | null {
-  const review = query.filters.filter((f) => REVIEW_KEYS.includes(f.key))
+  const review = query.filters.filter((filter) => REVIEW_KEYS.includes(filter.key))
   if (review.length === 0) {
     return { kind: 'all' }
   }
@@ -187,5 +187,5 @@ export function countTeams(requested: readonly PullSummary[]): [string, number][
       counts.set(pr.viaTeam, (counts.get(pr.viaTeam) ?? 0) + 1)
     }
   }
-  return [...counts].sort((a, b) => b[1] - a[1] || a[0].localeCompare(b[0]))
+  return [...counts].sort((left, right) => right[1] - left[1] || left[0].localeCompare(right[0]))
 }

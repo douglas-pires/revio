@@ -1,7 +1,7 @@
 import type { Guideline } from '@shared/guideline.types.ts'
 import { describe, expect, it } from 'vitest'
-import { hasUnsavedChanges, parseGuideDrafts, withDraft, withoutDraft } from '@/guidelines/guide-drafts.util.ts'
-import { newDraft, TEMPLATE } from '@/guidelines/guidelines.util.ts'
+import { applyDraft, hasUnsavedChanges, parseGuideDrafts, removeDraft } from '@/guidelines/guide-drafts.util.ts'
+import { makeNewDraft, TEMPLATE } from '@/guidelines/guidelines.util.ts'
 
 const saved: Guideline = {
   id: 'g1',
@@ -21,21 +21,21 @@ describe('guide drafts', () => {
   })
 
   it('counts a new guide as unsaved once something is written', () => {
-    expect(hasUnsavedChanges(newDraft('acme/payments'), undefined)).toBe(false)
-    expect(hasUnsavedChanges({ ...newDraft('acme/payments'), body: `${TEMPLATE}- retries` }, undefined)).toBe(true)
-    expect(hasUnsavedChanges({ ...newDraft('acme/payments'), title: 'Retries' }, undefined)).toBe(true)
+    expect(hasUnsavedChanges(makeNewDraft('acme/payments'), undefined)).toBe(false)
+    expect(hasUnsavedChanges({ ...makeNewDraft('acme/payments'), body: `${TEMPLATE}- retries` }, undefined)).toBe(true)
+    expect(hasUnsavedChanges({ ...makeNewDraft('acme/payments'), title: 'Retries' }, undefined)).toBe(true)
   })
 
   it('keeps a draft while it differs and drops it once it matches the saved guide again', () => {
-    const edited = withDraft({}, { ...saved, title: 'Payments service' }, saved)
+    const edited = applyDraft({}, { ...saved, title: 'Payments service' }, saved)
     expect(edited.g1?.title).toBe('Payments service')
-    expect(withDraft(edited, { ...saved }, saved)).toEqual({})
-    expect(withoutDraft(edited, 'g1')).toEqual({})
+    expect(applyDraft(edited, { ...saved }, saved)).toEqual({})
+    expect(removeDraft(edited, 'g1')).toEqual({})
   })
 
   it('keys a guide not saved yet as new', () => {
-    const d = { ...newDraft('acme/payments'), title: 'Retries' }
-    expect(Object.keys(withDraft({}, d, undefined))).toEqual(['new'])
+    const draft = { ...makeNewDraft('acme/payments'), title: 'Retries' }
+    expect(Object.keys(applyDraft({}, draft, undefined))).toEqual(['new'])
   })
 
   it('reads stored drafts, skipping anything malformed', () => {

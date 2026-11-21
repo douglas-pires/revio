@@ -4,11 +4,11 @@ import { isTyping } from '../common/keyboard.util.ts'
 /** "/" focuses the search box, as on GitHub. */
 export function useSlashToFocus(input: RefObject<HTMLInputElement | null>) {
   useEffect(() => {
-    const onKey = (e: KeyboardEvent) => {
-      if (e.key !== '/' || e.metaKey || e.ctrlKey || e.altKey || isTyping(e.target)) {
+    const onKey = (event: KeyboardEvent) => {
+      if (event.key !== '/' || event.metaKey || event.ctrlKey || event.altKey || isTyping(event.target)) {
         return
       }
-      e.preventDefault()
+      event.preventDefault()
       input.current?.focus()
       input.current?.select()
     }

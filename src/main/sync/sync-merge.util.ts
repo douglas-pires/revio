@@ -38,81 +38,84 @@ const FileSchema = z.object({
 })
 
 /** Milliseconds since the epoch; 0 for never or a date that cannot be read. */
-function timeOf(iso: string | null | undefined) {
-  const t = Date.parse(iso ?? '')
-  if (Number.isNaN(t)) {
+function readTime(iso: string | null | undefined) {
+  const time = Date.parse(iso ?? '')
+  if (Number.isNaN(time)) {
     return 0
   }
-  return t
+  return time
 }
 
 /**
  * The later of two changes. On a tie, including two values never changed, the remote one wins: the sync file is
  * the one place every Mac merges into, so preferring it makes every Mac settle on the same value.
  */
-function newer<T>(local: T, remote: T, at: (x: T) => string | null) {
-  if (timeOf(at(local)) > timeOf(at(remote))) {
+function pickNewer<T>(local: T, remote: T, at: (x: T) => string | null) {
+  if (readTime(at(local)) > readTime(at(remote))) {
     return local
   }
   return remote
 }
 
 function mergeSettings(local: StampedSettings, remote: StampedSettings): StampedSettings {
-  const out: Record<string, Stamped<unknown>> = {}
-  const l = local as Record<string, Stamped<unknown> | undefined>
-  const r = remote as Record<string, Stamped<unknown> | undefined>
+  const output: Record<string, Stamped<unknown>> = {}
+  const localByKey = local as Record<string, Stamped<unknown> | undefined>
+  const remoteByKey = remote as Record<string, Stamped<unknown> | undefined>
   for (const key of SYNCED_SETTING_KEYS) {
-    const a = l[key]
-    const b = r[key]
-    if (a && b) {
-      out[key] = newer(a, b, (s) => s.updatedAt)
-    } else if (a ?? b) {
-      out[key] = (a ?? b) as Stamped<unknown>
+    const localValue = localByKey[key]
+    const remoteValue = remoteByKey[key]
+    if (localValue && remoteValue) {
+      output[key] = pickNewer(localValue, remoteValue, (stamped) => stamped.updatedAt)
+    } else if (localValue ?? remoteValue) {
+      output[key] = (localValue ?? remoteValue) as Stamped<unknown>
     }
   }
-  return out as StampedSettings
+  return output as StampedSettings
 }
 
 /** Each deletion once, at its latest time, forgetting the ones older than the keep window. */
 function mergeDeletions(local: Record<string, string>, remote: Record<string, string>, now: number) {
   const oldest = now - KEEP_DELETIONS_DAYS * MS_PER_DAY
-  const out: Record<string, string> = {}
+  const output: Record<string, string> = {}
   for (const [id, at] of [...Object.entries(local), ...Object.entries(remote)]) {
-    if (timeOf(at) >= oldest && timeOf(at) >= timeOf(out[id])) {
-      out[id] = at
+    if (readTime(at) >= oldest && readTime(at) >= readTime(output[id])) {
+      output[id] = at
     }
   }
-  return out
+  return output
 }
 
 /** Every guide from both sides, the latest edit of each, minus the ones deleted after their last edit. */
 function mergeGuidelines(local: Guideline[], remote: Guideline[], deleted: Record<string, string>) {
   const byId = new Map<string, Guideline>()
-  for (const g of local) {
-    byId.set(g.id, g)
+  for (const guideline of local) {
+    byId.set(guideline.id, guideline)
   }
-  for (const g of remote) {
-    const mine = byId.get(g.id)
+  for (const guideline of remote) {
+    const mine = byId.get(guideline.id)
     if (mine) {
       byId.set(
-        g.id,
-        newer(mine, g, (x) => x.updatedAt),
+        guideline.id,
+        pickNewer(mine, guideline, (version) => version.updatedAt),
       )
     } else {
-      byId.set(g.id, g)
+      byId.set(guideline.id, guideline)
     }
   }
-  return [...byId.values()].filter((g) => !(g.id in deleted && timeOf(deleted[g.id]) >= timeOf(g.updatedAt)))
+  return [...byId.values()].filter(
+    (guideline) => !(guideline.id in deleted && readTime(deleted[guideline.id]) >= readTime(guideline.updatedAt)),
+  )
 }
 
-const sortedEntries = (o: object) => Object.entries(o).sort(([a], [b]) => a.localeCompare(b))
+const listSortedEntries = (record: object) =>
+  Object.entries(record).sort(([leftKey], [rightKey]) => leftKey.localeCompare(rightKey))
 
 /** The snapshot in one fixed order, so two that hold the same things compare equal. */
-function canonical(s: SyncSnapshot) {
+function serializeCanonically(snapshot: SyncSnapshot) {
   return JSON.stringify([
-    sortedEntries(s.settings),
-    [...s.guidelines].sort((a, b) => a.id.localeCompare(b.id)).map(sortedEntries),
-    sortedEntries(s.deletedGuidelines),
+    listSortedEntries(snapshot.settings),
+    [...snapshot.guidelines].sort((left, right) => left.id.localeCompare(right.id)).map(listSortedEntries),
+    listSortedEntries(snapshot.deletedGuidelines),
   ])
 }
 
@@ -120,14 +123,14 @@ const StampSchema = z.object({ value: z.unknown(), updatedAt: z.string().nullabl
 
 /** The settings in a sync file that this Revio knows and that hold a valid value; anything else is dropped. */
 function parseSettings(raw: Record<string, unknown>): StampedSettings {
-  const out: Record<string, Stamped<unknown>> = {}
+  const output: Record<string, Stamped<unknown>> = {}
   for (const key of SYNCED_SETTING_KEYS) {
     const stamp = StampSchema.safeParse(raw[key])
     if (stamp.success && SETTING_SCHEMAS[key].safeParse(stamp.data.value).success) {
-      out[key] = { value: stamp.data.value, updatedAt: stamp.data.updatedAt }
+      output[key] = { value: stamp.data.value, updatedAt: stamp.data.updatedAt }
     }
   }
-  return out as StampedSettings
+  return output as StampedSettings
 }
 
 /** The shape of the sync file. A file with a higher number was written by a newer Revio and is left alone. */
@@ -150,7 +153,8 @@ export function mergeSnapshots(local: SyncSnapshot, remote: SyncSnapshot, now = 
   }
 }
 
-export const sameSnapshot = (a: SyncSnapshot, b: SyncSnapshot) => canonical(a) === canonical(b)
+export const sameSnapshot = (left: SyncSnapshot, right: SyncSnapshot) =>
+  serializeCanonically(left) === serializeCanonically(right)
 
 /** Reads a sync file's JSON, keeping every valid part of it. */
 export function parseSyncFile(text: string): ParsedSyncFile {
@@ -171,8 +175,8 @@ export function parseSyncFile(text: string): ParsedSyncFile {
       replaceable: false,
     }
   }
-  const guidelines = file.data.guidelines.flatMap((g) => {
-    const parsed = GuidelineSchema.safeParse(g)
+  const guidelines = file.data.guidelines.flatMap((guideline) => {
+    const parsed = GuidelineSchema.safeParse(guideline)
     if (parsed.success) {
       return [parsed.data]
     }

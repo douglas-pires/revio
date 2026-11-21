@@ -1,14 +1,12 @@
 import type { PullDetail, PullLocalState } from '@shared/pull.types.ts'
-
 import { isGenerated } from '../common/format.util.ts'
-
 import { parsePatch } from './diff.util.ts'
 
 /** Roots whose second level is the unit people own, as in a monorepo. */
 const MONOREPO_ROOTS = new Set(['apps', 'packages', 'services', 'libs', 'modules'])
 
 /** The folder a file suggests a guide for: its top-level folder, or two levels under a monorepo root. */
-function suggestedFolderOf(parts: readonly string[]) {
+function suggestFolder(parts: readonly string[]) {
   const [top, second] = parts
   if (parts.length < 2 || top === undefined) {
     return null
@@ -20,53 +18,56 @@ function suggestedFolderOf(parts: readonly string[]) {
 }
 
 export function groupByDir<T extends { path: string }>(files: T[]): [string, T[]][] {
-  const m = new Map<string, T[]>()
-  for (const f of files) {
-    const dir = f.path.slice(0, f.path.lastIndexOf('/') + 1)
-    m.set(dir, [...(m.get(dir) ?? []), f])
+  const groups = new Map<string, T[]>()
+  for (const file of files) {
+    const directory = file.path.slice(0, file.path.lastIndexOf('/') + 1)
+    groups.set(directory, [...(groups.get(directory) ?? []), file])
   }
-  return [...m.entries()]
+  return [...groups.entries()]
 }
 
 /** Top-level folders a PR touches, two levels deep for monorepo-style roots (apps/, packages/, services/…). */
 export function suggestFolders(paths: string[]) {
-  const out = new Set<string>()
-  for (const parts of paths.map((p) => p.split('/'))) {
-    const folder = suggestedFolderOf(parts)
+  const output = new Set<string>()
+  for (const parts of paths.map((path) => path.split('/'))) {
+    const folder = suggestFolder(parts)
     if (folder) {
-      out.add(folder)
+      output.add(folder)
     }
   }
-  return [...out]
+  return [...output]
 }
 
 /** Files start collapsed when already viewed at this version, marked skippable by Claude, or generated. */
-export function initialCollapsed(pr: PullDetail, local: PullLocalState): Record<string, boolean> {
-  const ignore = new Set(local.briefing?.briefing.ignore.map((i) => i.path))
+export function computeInitialCollapsed(pr: PullDetail, local: PullLocalState): Record<string, boolean> {
+  const ignore = new Set(local.briefing?.briefing.ignore.map((skipped) => skipped.path))
   return Object.fromEntries(
-    pr.files.map((f) => [f.path, local.viewed[f.path] === f.sha || ignore.has(f.path) || isGenerated(f.path)]),
+    pr.files.map((file) => [
+      file.path,
+      local.viewed[file.path] === file.sha || ignore.has(file.path) || isGenerated(file.path),
+    ]),
   )
 }
 
 /** New-side line numbers present in each file's diff: where a RIGHT-side comment can attach. */
-export function newSideLinesByPath(pr: PullDetail | null): Map<string, Set<number>> {
+export function collectNewSideLines(pr: PullDetail | null): Map<string, Set<number>> {
   const lines = new Map<string, Set<number>>()
-  for (const f of pr?.files ?? []) {
+  for (const file of pr?.files ?? []) {
     const set = new Set<number>()
-    if (f.patch) {
-      for (const r of parsePatch(f.patch)) {
-        if (r.kind !== 'hunk' && r.newNo !== null) {
-          set.add(r.newNo)
+    if (file.patch) {
+      for (const row of parsePatch(file.patch)) {
+        if (row.kind !== 'hunk' && row.newNo !== null) {
+          set.add(row.newNo)
         }
       }
     }
-    lines.set(f.path, set)
+    lines.set(file.path, set)
   }
   return lines
 }
 
 /** A file's path, with where it came from when it was renamed. */
-export function renameTitle(file: { path: string; previousPath?: string | undefined }) {
+export function describeRename(file: { path: string; previousPath?: string | undefined }) {
   if (!file.previousPath) {
     return file.path
   }

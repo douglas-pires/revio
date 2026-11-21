@@ -9,10 +9,10 @@ export function FocusReasons({ focus }: { focus: readonly FocusItem[] }) {
   }
   return (
     <div className="border-b border-line bg-focus/5 px-4 py-2 text-[12px]">
-      {focus.map((f) => (
-        <div key={`${f.lines}:${f.reason}`} className="flex gap-2">
-          <span className="font-mono text-focus">{f.lines || 'file'}</span>
-          <span className="text-muted">{f.reason}</span>
+      {focus.map((focusItem) => (
+        <div key={`${focusItem.lines}:${focusItem.reason}`} className="flex gap-2">
+          <span className="font-mono text-focus">{focusItem.lines || 'file'}</span>
+          <span className="text-muted">{focusItem.reason}</span>
         </div>
       ))}
     </div>
@@ -38,8 +38,8 @@ export function OutdatedComments({
     <details className="border-b border-line px-4 py-2 text-[12px]">
       <summary className="cursor-pointer text-muted">{threads.length} outdated comment thread(s)</summary>
       <div className="mt-2 max-w-3xl space-y-2">
-        {threads.map((t) => (
-          <ReviewThread key={t[0]?.id} path={path} thread={t} allDrafts={allDrafts} actions={actions} />
+        {threads.map((thread) => (
+          <ReviewThread key={thread[0]?.id} path={path} thread={thread} allDrafts={allDrafts} actions={actions} />
         ))}
       </div>
     </details>

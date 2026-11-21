@@ -1,7 +1,7 @@
 import { readFileSync } from 'node:fs'
 import { parseEnv } from 'node:util'
 import { Octokit } from '@octokit/rest'
-import { errorMessage } from '@shared/error.util.ts'
+import { readErrorMessage } from '@shared/error.util.ts'
 import type { GithubAuthStatus, GithubTokenSource } from '@shared/settings.types.ts'
 import { MS_PER_MINUTE } from '@shared/time.util.ts'
 
@@ -11,24 +11,24 @@ type Candidate = [GithubTokenSource, () => string | undefined | Promise<string |
 
 /** Who a token belongs to and what it may do. Throws when GitHub rejects it. */
 async function inspectToken(token: string): Promise<Pick<GithubAuthStatus, 'login' | 'scopes' | 'canSeeTeams'>> {
-  const res = await new Octokit({ auth: token, userAgent: 'revio' }).request('GET /user')
-  const scopes = parseScopes(res.headers['x-oauth-scopes'])
+  const response = await new Octokit({ auth: token, userAgent: 'revio' }).request('GET /user')
+  const scopes = parseScopes(response.headers['x-oauth-scopes'])
   return {
-    login: res.data.login,
+    login: response.data.login,
     scopes,
-    canSeeTeams: scopes?.some((s) => ORG_SCOPE.test(s)) ?? null,
+    canSeeTeams: scopes?.some((scope) => ORG_SCOPE.test(scope)) ?? null,
   }
 }
 
 const isResolvedToken = (value: unknown): value is ResolvedToken =>
   typeof value === 'object' && value !== null && 'token' in value
 
-const failedStatus = (source: GithubTokenSource, err: unknown): GithubAuthStatus => ({
+const buildFailedStatus = (source: GithubTokenSource, failure: unknown): GithubAuthStatus => ({
   source,
   login: null,
   scopes: null,
   canSeeTeams: null,
-  error: errorMessage(err),
+  error: readErrorMessage(failure),
 })
 
 export interface ResolvedToken {
@@ -76,13 +76,13 @@ export class GithubTokens {
   }
 
   async describe(): Promise<GithubAuthStatus> {
-    const resolved = await this.resolve().catch((err: unknown) => err)
+    const resolved = await this.resolve().catch((failure: unknown) => failure)
     if (!isResolvedToken(resolved)) {
-      return failedStatus('none', resolved)
+      return buildFailedStatus('none', resolved)
     }
     return inspectToken(resolved.token).then(
       (details) => ({ source: resolved.source, ...details }),
-      (err: unknown) => failedStatus(resolved.source, err),
+      (failure: unknown) => buildFailedStatus(resolved.source, failure),
     )
   }
 
@@ -92,19 +92,19 @@ export class GithubTokens {
     if (!token) {
       throw new Error('Paste a token first.')
     }
-    await inspectToken(token).catch((err: unknown) => {
-      throw new Error(`GitHub rejected this token: ${errorMessage(err)}`)
+    await inspectToken(token).catch((failure: unknown) => {
+      throw new Error(`GitHub rejected this token: ${readErrorMessage(failure)}`)
     })
     this.#sources.save(token)
   }
 
   #candidates(): Candidate[] {
-    const s = this.#sources
+    const sources = this.#sources
     return [
-      ['settings', s.readSaved],
-      ['dotenv', () => readDotEnvToken(s.dotEnvPath)],
-      ['GH_TOKEN', () => s.env.GH_TOKEN],
-      ['GITHUB_TOKEN', () => s.env.GITHUB_TOKEN],
+      ['settings', sources.readSaved],
+      ['dotenv', () => readDotEnvToken(sources.dotEnvPath)],
+      ['GH_TOKEN', () => sources.env.GH_TOKEN],
+      ['GITHUB_TOKEN', () => sources.env.GITHUB_TOKEN],
       ['gh-cli', () => this.#readCliToken()],
     ]
   }
@@ -145,6 +145,6 @@ export function parseScopes(header: string | undefined): string[] | null {
   }
   return header
     .split(',')
-    .map((s) => s.trim())
+    .map((scope) => scope.trim())
     .filter(Boolean)
 }

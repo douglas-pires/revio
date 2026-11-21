@@ -39,7 +39,7 @@ const COMMENT_FIELDS = 'author { __typename login avatarUrl(size: 64) } body cre
 
 export async function fetchThreads(octokit: Octokit): Promise<ThreadsInbox> {
   const data = await octokit.graphql<Result>(THREADS_QUERY, { q: SEARCH })
-  const prs = data.search.nodes.filter((n): n is RawThreadPr => n !== null && 'reviewThreads' in n)
+  const prs = data.search.nodes.filter((node): node is RawThreadPr => node !== null && 'reviewThreads' in node)
   return { threads: triageThreads(prs, data.viewer.login), fetchedAt: new Date().toISOString() }
 }
 

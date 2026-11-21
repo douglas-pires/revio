@@ -14,42 +14,57 @@ export interface Anchor {
 
 /** Gutter selection: press to start, drag or shift-press to extend. The composer opens under the last line once the drag ends. */
 export function useLineSelection() {
-  const [sel, setSel] = useState<LineSelection | null>(null)
+  const [selection, setSel] = useState<LineSelection | null>(null)
   const [dragging, setDragging] = useState<{ side: DiffSide; origin: number } | null>(null)
 
   useEffect(() => {
     if (!dragging) {
       return
     }
-    const up = () => setDragging(null)
-    globalThis.addEventListener('mouseup', up)
-    return () => globalThis.removeEventListener('mouseup', up)
+    const endDrag = () => setDragging(null)
+    globalThis.addEventListener('mouseup', endDrag)
+    return () => globalThis.removeEventListener('mouseup', endDrag)
   }, [dragging])
 
-  const press = (a: Anchor | null, shift: boolean) => {
-    if (!a) {
+  const press = (anchor: Anchor | null, shift: boolean) => {
+    if (!anchor) {
       return
     }
-    if (shift && sel && sel.side === a.side) {
-      setSel({ side: a.side, start: Math.min(sel.start, a.line), end: Math.max(sel.end, a.line) })
+    if (shift && selection && selection.side === anchor.side) {
+      setSel({
+        side: anchor.side,
+        start: Math.min(selection.start, anchor.line),
+        end: Math.max(selection.end, anchor.line),
+      })
       return
     }
-    setSel({ side: a.side, start: a.line, end: a.line })
-    setDragging({ side: a.side, origin: a.line })
+    setSel({ side: anchor.side, start: anchor.line, end: anchor.line })
+    setDragging({ side: anchor.side, origin: anchor.line })
   }
 
-  const over = (a: Anchor | null) => {
-    if (!(dragging && a) || a.side !== dragging.side) {
+  const hoverAnchor = (anchor: Anchor | null) => {
+    if (!(dragging && anchor) || anchor.side !== dragging.side) {
       return
     }
-    setSel({ side: a.side, start: Math.min(dragging.origin, a.line), end: Math.max(dragging.origin, a.line) })
+    setSel({
+      side: anchor.side,
+      start: Math.min(dragging.origin, anchor.line),
+      end: Math.max(dragging.origin, anchor.line),
+    })
   }
 
-  const contains = (a: Anchor | null) =>
-    Boolean(a && sel && a.side === sel.side && a.line >= sel.start && a.line <= sel.end)
-  const composerAt = (a: Anchor | null) => Boolean(!dragging && a && sel && sel.side === a.side && sel.end === a.line)
+  const contains = (anchor: Anchor | null) =>
+    Boolean(
+      anchor &&
+        selection &&
+        anchor.side === selection.side &&
+        anchor.line >= selection.start &&
+        anchor.line <= selection.end,
+    )
+  const isComposerAt = (anchor: Anchor | null) =>
+    Boolean(!dragging && anchor && selection && selection.side === anchor.side && selection.end === anchor.line)
 
-  return { sel, clear: () => setSel(null), press, over, contains, composerAt }
+  return { sel: selection, clear: () => setSel(null), press, over: hoverAnchor, contains, composerAt: isComposerAt }
 }
 
 export type LineSelectionApi = ReturnType<typeof useLineSelection>
