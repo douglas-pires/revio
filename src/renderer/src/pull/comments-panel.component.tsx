@@ -320,21 +320,6 @@ export const CommentsPanel = memo(function CommentsPanelView(props: {
             )}
           </span>
         }
-        actions={
-          <>
-            {yourThreadCount > 0 && (
-              <ToggleButton on={onlyYours} onToggle={() => setOnlyYours(!onlyYours)}>
-                Mine {yourThreadCount}
-              </ToggleButton>
-            )}
-            {settledCount > 0 && (
-              <ToggleButton on={showResolved} onToggle={() => setShowResolved(!showResolved)}>
-                {Boolean(showResolved) && 'Hide'}
-                {!showResolved && 'Show'} {settledCount} resolved
-              </ToggleButton>
-            )}
-          </>
-        }
         onClose={props.onClose}
         closeLabel="Hide comments"
       />
@@ -343,6 +328,22 @@ export const CommentsPanel = memo(function CommentsPanelView(props: {
         onChange={setQuery}
         matches={matchCount(searching, visible.length + drafts.length)}
       />
+      {(yourThreadCount > 0 || settledCount > 0) && (
+        // The filters get their own row: beside the title and counts they overflow the panel's width.
+        <div className="flex flex-wrap gap-1 px-2 pb-2">
+          {yourThreadCount > 0 && (
+            <ToggleButton on={onlyYours} onToggle={() => setOnlyYours(!onlyYours)}>
+              Mine {yourThreadCount}
+            </ToggleButton>
+          )}
+          {settledCount > 0 && (
+            <ToggleButton on={showResolved} onToggle={() => setShowResolved(!showResolved)}>
+              {Boolean(showResolved) && 'Hide'}
+              {!showResolved && 'Show'} {settledCount} resolved
+            </ToggleButton>
+          )}
+        </div>
+      )}
       <div className="min-h-0 flex-1 overflow-y-auto px-1.5 pb-3">
         {drafts.length > 0 && <Drafts drafts={drafts} query={query} onJump={props.onJump} />}
         {!(visible.length > 0 || drafts.length > 0) && (
