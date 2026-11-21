@@ -66,6 +66,7 @@ export function makeDetail(over: Partial<PullDetail> = {}): PullDetail {
     commitCount: 1,
     files: [makeFile()],
     comments: [],
+    conversation: [],
     threads: [],
     ...over,
   }

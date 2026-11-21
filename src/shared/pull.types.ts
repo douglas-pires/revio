@@ -70,8 +70,20 @@ export interface PullDetail {
   commitCount: number
   files: PullFile[]
   comments: ReviewComment[]
+  /** The PR's conversation, oldest first: plain comments and the summaries of submitted reviews. */
+  conversation: ConversationComment[]
   /** Review thread status, keyed by the thread's first comment. Empty if GitHub would not say. */
   threads: PullThreadStatus[]
+}
+/** A comment in the PR's conversation, not on code: a plain comment, or the summary of a submitted review. */
+export interface ConversationComment {
+  id: string
+  kind: 'comment' | 'review'
+  author: string
+  authorAvatar: string
+  body: string
+  url: string
+  createdAt: string
 }
 export interface PullThreadStatus {
   id: string
