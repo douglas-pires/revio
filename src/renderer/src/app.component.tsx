@@ -5,6 +5,7 @@ import { buildPullKey } from '@shared/pull.types.ts'
 import { lazy, Suspense, useEffect, useState } from 'react'
 import { joinClassNames } from './common/format.util.ts'
 import { HistoryContext } from './common/history.context.ts'
+import { MascotLoading } from './common/mascot-loading.component.tsx'
 import type { OpenPull } from './common/navigation.types.ts'
 import { useRouteHistory } from './common/use-route-history.hook.ts'
 import { HighlighterContext, WorkerHighlighter } from './highlight/highlight.service.ts'
@@ -184,7 +185,7 @@ function Screen({
     }
   }
   return (
-    <Suspense fallback={<div className="flex h-full items-center justify-center text-muted">Loading…</div>}>
+    <Suspense fallback={<MascotLoading label="Loading…" />}>
       {route.view === 'inbox' && (
         <Inbox inbox={inbox} search={inboxSearch[0]} onSearch={inboxSearch[1]} onOpen={openPull} />
       )}

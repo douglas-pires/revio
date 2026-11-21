@@ -3,6 +3,7 @@ import { useMemo, useState } from 'react'
 import { ErrorBanner } from '../common/error-banner.component.tsx'
 import { EMPTY } from '../common/group.util.ts'
 import { ListSkeleton } from '../common/list-skeleton.component.tsx'
+import { MascotLoading } from '../common/mascot-loading.component.tsx'
 import type { OpenPull } from '../common/navigation.types.ts'
 import { RefreshControl } from '../common/refresh-control.component.tsx'
 import { Screen, ScreenBody, ScreenHeader } from '../common/screen.component.tsx'
@@ -234,6 +235,8 @@ export function Inbox({
     )
   }
   const refresh = () => refreshAction.run(() => Promise.all([globalThis.revio.refreshInbox(), threadsState.reload()]))
+  // The first load fills the screen with the mascot; once there is an inbox (or an error to show), the body takes over.
+  const loadingFirstInbox = mode !== 'threads' && inbox === null && refreshAction.error === null
   const labels = {
     stacks: inbox?.stacks.length ?? 0,
     waitingOnYou: countWaitingOnYou(threadsState.threads ?? EMPTY, threadsState.resolved),
@@ -256,22 +259,27 @@ export function Inbox({
         </ScreenHeader>
       }
     >
-      <ScreenBody>
-        <ErrorBanner className="mb-4">{refreshAction.error || inbox?.error}</ErrorBanner>
-        {mode === 'threads' && <ThreadsMode state={threadsState} query={query} filtering={filtering} onOpen={onOpen} />}
-        {mode !== 'threads' && (
-          <PullsMode
-            mode={mode}
-            inbox={inbox}
-            query={query}
-            filtering={filtering}
-            focusStack={focusStack}
-            onAudience={(audience) => onSearch(applyAudience(search, audience))}
-            onOpen={onOpen}
-            onStack={openStack}
-          />
-        )}
-      </ScreenBody>
+      {Boolean(loadingFirstInbox) && <MascotLoading label="Loading your inbox…" />}
+      {!loadingFirstInbox && (
+        <ScreenBody>
+          <ErrorBanner className="mb-4">{refreshAction.error || inbox?.error}</ErrorBanner>
+          {mode === 'threads' && (
+            <ThreadsMode state={threadsState} query={query} filtering={filtering} onOpen={onOpen} />
+          )}
+          {mode !== 'threads' && (
+            <PullsMode
+              mode={mode}
+              inbox={inbox}
+              query={query}
+              filtering={filtering}
+              focusStack={focusStack}
+              onAudience={(audience) => onSearch(applyAudience(search, audience))}
+              onOpen={onOpen}
+              onStack={openStack}
+            />
+          )}
+        </ScreenBody>
+      )}
     </Screen>
   )
 }

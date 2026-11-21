@@ -2,11 +2,11 @@ import type { Stack } from '@shared/inbox.types.ts'
 import type { PullRef } from '@shared/pull.types.ts'
 import { InnerTabs } from '../common/inner-tabs.component.tsx'
 import { ListSkeleton } from '../common/list-skeleton.component.tsx'
+import { MascotLoading } from '../common/mascot-loading.component.tsx'
 import type { OpenPull } from '../common/navigation.types.ts'
 import { PanelHeader } from '../common/panel-header.component.tsx'
 import { ScreenHeader } from '../common/screen.component.tsx'
 import { BranchNames } from './branch-names.component.tsx'
-import { CodeLoading } from './code-loading.component.tsx'
 import type { PullTab } from './pull-tabs.util.ts'
 import { listPullTabs } from './pull-tabs.util.ts'
 import { StackBar } from './stack-bar.component.tsx'
@@ -70,7 +70,7 @@ export function PullLoading(props: {
         </aside>
         <div className="flex min-w-0 flex-1 flex-col">
           <InnerTabs tabs={listPullTabs(undefined)} value={props.tab} onChange={props.onTab} />
-          <CodeLoading label={`Reading #${props.pull.number}…`} />
+          <MascotLoading label={`Reading #${props.pull.number}…`} />
         </div>
       </div>
     </div>
