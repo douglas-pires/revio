@@ -9,6 +9,7 @@ import type { AskSelection, DiffView } from './diff-file.component.tsx'
 import { groupByDir, initialCollapsed, newSideLinesByPath } from './files.util.ts'
 import type { PullTab } from './pull-tabs.util.ts'
 import { fileTargetOf, quoteOf, replyIdOf } from './pull-view.util.ts'
+import type { QuotedConversation } from './quoted-comment.component.tsx'
 import { rememberStackTab, stackTabFor } from './stack-memory.util.ts'
 
 import { useBriefing } from './use-briefing.hook.ts'
@@ -113,13 +114,22 @@ function useAskState() {
   return { thread, setThread, start, addContext }
 }
 
+/** The conversation comment the PR was opened from (a mention), to quote on the overview; null for none. */
+function quoteFromMention(target: PullTarget | undefined): QuotedConversation | null {
+  const quote = quoteOf(target)
+  if (!quote) {
+    return null
+  }
+  return { quote, openedFrom: 'mention' }
+}
+
 /** Where the PR opened: a conversation comment to quote, a place in the diff, and a reply box to open once. */
 function useArrival(initialTarget: PullTarget | undefined) {
-  const [quote, setQuote] = useState(() => quoteOf(initialTarget))
+  const [quoted, setQuoted] = useState(() => quoteFromMention(initialTarget))
   const fileTarget = fileTargetOf(initialTarget)
   const [replyToId, setReplyToId] = useState(() => replyIdOf(fileTarget))
   const replyTarget = useMemo(() => ({ commentId: replyToId, consume: () => setReplyToId(null) }), [replyToId])
-  return { quote, setQuote, fileTarget, replyTarget }
+  return { quoted, setQuoted, fileTarget, replyTarget }
 }
 
 /** The PR as a stable reference for hooks; the props object may be recreated by the parent. */
