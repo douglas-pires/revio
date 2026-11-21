@@ -55,7 +55,10 @@ function OpenAndNewCounts({ openCount, newCount }: { openCount: number; newCount
   )
 }
 
-/** The panel's toggles: only your threads, and resolved threads shown or hidden. Each shows only when it matters. */
+/**
+ * The panel's filters, in their own row under the search (beside the title and counts they overflow the panel's
+ * width): only your threads, and resolved threads shown or hidden. Each shows only when it matters.
+ */
 function PanelToggles(props: {
   yourThreadCount: number
   onlyYours: boolean
@@ -64,8 +67,11 @@ function PanelToggles(props: {
   showResolved: boolean
   onToggleResolved: () => void
 }) {
+  if (props.yourThreadCount === 0 && props.settledCount === 0) {
+    return null
+  }
   return (
-    <>
+    <div className="flex flex-wrap gap-1 px-2 pb-2">
       {props.yourThreadCount > 0 && (
         <ToggleButton on={props.onlyYours} onToggle={props.onToggleYours}>
           Mine {props.yourThreadCount}
@@ -77,7 +83,7 @@ function PanelToggles(props: {
           {!props.showResolved && 'Show'} {props.settledCount} resolved
         </ToggleButton>
       )}
-    </>
+    </div>
   )
 }
 
@@ -143,20 +149,18 @@ export const CommentsPanel = memo(function CommentsPanelView(props: {
             newCount={props.threads.reduce((total, thread) => total + findNewComments(thread, reviewed).length, 0)}
           />
         }
-        actions={
-          <PanelToggles
-            yourThreadCount={props.threads.filter((thread) => hasYourComment(thread, reviewed.viewer)).length}
-            onlyYours={onlyYours}
-            onToggleYours={() => setOnlyYours(!onlyYours)}
-            settledCount={props.threads.filter((thread) => isSettled(thread, reviewed)).length}
-            showResolved={showResolved}
-            onToggleResolved={() => setShowResolved(!showResolved)}
-          />
-        }
         onClose={props.onClose}
         closeLabel="Hide comments"
       />
       <CommentSearch query={query} onChange={setQuery} matches={countMatchesShown(query.trim() !== '', shownCount)} />
+      <PanelToggles
+        yourThreadCount={props.threads.filter((thread) => hasYourComment(thread, reviewed.viewer)).length}
+        onlyYours={onlyYours}
+        onToggleYours={() => setOnlyYours(!onlyYours)}
+        settledCount={props.threads.filter((thread) => isSettled(thread, reviewed)).length}
+        showResolved={showResolved}
+        onToggleResolved={() => setShowResolved(!showResolved)}
+      />
       <div className="min-h-0 flex-1 overflow-y-auto px-1.5 pb-3">
         {drafts.length > 0 && <PendingDrafts drafts={drafts} query={query} onJump={props.onJump} />}
         <ConversationList comments={conversation} query={query} onOpen={props.onOpenConversation} />
