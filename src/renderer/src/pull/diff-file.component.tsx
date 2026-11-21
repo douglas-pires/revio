@@ -2,7 +2,7 @@ import type { FocusItem } from '@shared/claude.types.ts'
 import type { BlameRange } from '@shared/history.types.ts'
 import { findBlameAt } from '@shared/history.util.ts'
 import { isPresent } from '@shared/presence.util.ts'
-import type { DiffSide, DraftComment, PullFile, ReviewComment } from '@shared/pull.types.ts'
+import type { DiffSide, DraftComment, PullFile } from '@shared/pull.types.ts'
 import { memo, useMemo, useRef, useState } from 'react'
 import { joinClassNames } from '../common/format.util.ts'
 import { AskClaudeButton } from './ask-claude-button.component.tsx'
@@ -16,6 +16,7 @@ import {
   parsePatch,
   parseRange,
 } from './diff.util.ts'
+import type { AskSelection, DiffFileProps, DiffView } from './diff-file.types.ts'
 import { findEditorLine, isInFocus } from './diff-file.util.ts'
 import { DiffFileHeader } from './diff-file-header.component.tsx'
 import type { DiffTableProps } from './diff-table.types.ts'
@@ -106,44 +107,6 @@ function useCommentActions(props: CommentActions): CommentActions {
     () => ({ onAddDraft, onUpdateDraft, onDeleteDraft, onReplyNow }),
     [onAddDraft, onUpdateDraft, onDeleteDraft, onReplyNow],
   )
-}
-
-export type DiffView = 'unified' | 'split'
-
-export interface AskSelection {
-  path: string
-  side: DiffSide
-  startLine: number
-  endLine: number
-  snippet: string
-}
-
-export interface DiffFileProps {
-  file: PullFile
-  /** Where the file lives, for blame and history. */
-  repo: string
-  headSha: string
-  /** Show who last changed each line on hover. */
-  blame: boolean
-  onShowHistory: (path: string) => void
-  view: DiffView
-  comments: readonly ReviewComment[]
-  drafts: readonly DraftComment[]
-  focus: readonly FocusItem[]
-  ignoreReason?: string | undefined
-  viewed: boolean
-  /** The file j/k navigation is on. */
-  current?: boolean
-  collapsed: boolean
-  onToggleCollapsed: (path: string, collapsed: boolean) => void
-  onToggleViewed: (path: string, sha: string, viewed: boolean) => void
-  onAddDraft: (draft: Omit<DraftComment, 'id'>) => void
-  onUpdateDraft: (id: string, body: string) => void
-  onDeleteDraft: (id: string) => void
-  onReplyNow: (commentId: number, body: string) => Promise<void>
-  onAsk: (selection: AskSelection) => void
-  /** Set while a Claude chat is open: adds selected lines to it. */
-  onAddToChat?: ((selection: AskSelection) => void) | undefined
 }
 
 // biome-ignore lint/complexity/noExcessiveLinesPerFunction: one file's diff wires together its hooks (viewport, rows, comments, selection, blame); each piece lives in its own module.

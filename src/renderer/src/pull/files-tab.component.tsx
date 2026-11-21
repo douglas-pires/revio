@@ -1,7 +1,8 @@
 import type { FocusItem } from '@shared/claude.types.ts'
 import type { DraftComment, PullFile, ReviewComment } from '@shared/pull.types.ts'
 import { EMPTY } from '../common/group.util.ts'
-import { DiffFile, type DiffFileProps, type DiffView } from './diff-file.component.tsx'
+import { DiffFile } from './diff-file.component.tsx'
+import type { DiffFileProps, DiffView } from './diff-file.types.ts'
 import { findFilePathAt } from './file-in-view.util.ts'
 
 type FileCallbacks = Pick<

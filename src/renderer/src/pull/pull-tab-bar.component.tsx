@@ -1,7 +1,7 @@
 import { InnerTabs } from '../common/inner-tabs.component.tsx'
 import { SegmentedControl } from '../common/segmented-control.component.tsx'
 import { ToggleButton } from '../common/toggle-button.component.tsx'
-import type { DiffView } from './diff-file.component.tsx'
+import type { DiffView } from './diff-file.types.ts'
 import { listPullTabs, type PullTab } from './pull-tabs.util.ts'
 
 /** Tooltips for the toggles, by whether they are on. */
