@@ -58,10 +58,14 @@ export interface AlertState {
   staleAlertedAt: Record<string, string>
   /** False until the first successful poll, so a fresh install does not alert on the whole backlog. */
   seeded: boolean
-  /** Mentions already alerted, by comment URL, with when they were written (to prune old ones). */
-  mentionsAlerted: Record<string, string>
+  /**
+   * Mentions already seen, by comment URL, with when they were written (to prune old ones). Replaces the old
+   * `mentionsAlerted`, which held only unread mentions: a fresh key means the first fetch after upgrading records
+   * the backlog silently instead of alerting on every mention in the window.
+   */
+  seenMentions: Record<string, string>
   /** False until the first mentions fetch, which records existing mentions silently. */
-  mentionsSeeded: boolean
+  seenMentionsRecorded: boolean
 }
 
 export type AlertSettings = Pick<
@@ -151,33 +155,34 @@ export function formatHours(h: number) {
   return `${Math.round(h / 24)}d`
 }
 
-/** New (unread) mentions not alerted before. Empty until the first fetch has been recorded. Does not change state. */
+/**
+ * Mentions not seen before. Empty until the first fetch has been recorded. Does not change state.
+ * This does not wait for GitHub to call a mention unread: that needs the notifications API, which fine-grained
+ * tokens cannot read, so mentions would never alert with one.
+ */
 export function findUnalertedMentions(inbox: MentionsInbox, state: AlertState): MentionAlert[] {
-  if (!state.mentionsSeeded) {
+  if (!state.seenMentionsRecorded) {
     return []
   }
   return inbox.mentions.flatMap((mention) =>
-    mention.snippets.filter((s) => s.isNew && !state.mentionsAlerted[s.id]).map((snippet) => ({ mention, snippet })),
+    mention.snippets.filter((snippet) => !state.seenMentions[snippet.id]).map((snippet) => ({ mention, snippet })),
   )
 }
 
 /**
- * Remembers every new mention as alerted, forgets mentions that left the fetched window, and marks the
+ * Remembers every mention as seen, forgets mentions that left the fetched window, and marks the
  * first fetch as recorded (so a fresh install does not alert on the backlog). Mutates `state`.
  */
 export function recordMentionAlerts(inbox: MentionsInbox, state: AlertState) {
-  const live = new Set(inbox.mentions.flatMap((m) => m.snippets.map((s) => s.id)))
-  for (const m of inbox.mentions) {
-    for (const s of m.snippets) {
-      if (s.isNew) {
-        state.mentionsAlerted[s.id] ??= s.createdAt
-      }
+  const snippets = inbox.mentions.flatMap((mention) => mention.snippets)
+  const inWindow = new Set(snippets.map((snippet) => snippet.id))
+  for (const snippet of snippets) {
+    state.seenMentions[snippet.id] ??= snippet.createdAt
+  }
+  for (const id of Object.keys(state.seenMentions)) {
+    if (!inWindow.has(id)) {
+      delete state.seenMentions[id]
     }
   }
-  for (const id of Object.keys(state.mentionsAlerted)) {
-    if (!live.has(id)) {
-      delete state.mentionsAlerted[id]
-    }
-  }
-  state.mentionsSeeded = true
+  state.seenMentionsRecorded = true
 }
