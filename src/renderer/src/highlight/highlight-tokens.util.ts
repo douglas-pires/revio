@@ -1,7 +1,5 @@
 import { createHighlighterCore, type HighlighterCore } from 'shiki/core'
-
 import { createJavaScriptRegexEngine } from 'shiki/engine/javascript'
-
 import { bundledLanguages, bundledLanguagesAlias } from 'shiki/langs'
 
 const EXT: Record<string, string> = {

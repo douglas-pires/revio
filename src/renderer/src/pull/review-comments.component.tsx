@@ -1,19 +1,11 @@
 import type { DraftComment, ReviewComment } from '@shared/pull.types.ts'
-
 import { useCallback, useState } from 'react'
-
 import { CopyButton } from '../common/copy-button.component.tsx'
-
 import { countOf, formatAge } from '../common/format.util.ts'
-
 import { Markdown } from '../common/markdown.component.tsx'
-
 import { Composer } from './composer.component.tsx'
-
 import { ReactionBar } from './reaction-bar.component.tsx'
-
 import { useOpenReplyIfTarget } from './use-reply-target.hook.ts'
-
 import { useThreadFold } from './use-thread-fold.hook.ts'
 
 const AVATAR_PX = 20

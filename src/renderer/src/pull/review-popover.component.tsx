@@ -1,7 +1,5 @@
 import type { PullDetail, ReviewEvent } from '@shared/pull.types.ts'
-
 import { useState } from 'react'
-
 import { joinClassNames, readErrorMessage } from '../common/format.util.ts'
 
 type ReviewState = NonNullable<PullDetail['myReview']>['state']

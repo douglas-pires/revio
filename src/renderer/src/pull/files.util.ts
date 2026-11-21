@@ -1,7 +1,5 @@
 import type { PullDetail, PullLocalState } from '@shared/pull.types.ts'
-
 import { isGenerated } from '../common/format.util.ts'
-
 import { parsePatch } from './diff.util.ts'
 
 /** Roots whose second level is the unit people own, as in a monorepo. */

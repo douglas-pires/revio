@@ -1,11 +1,7 @@
 import type { PullSummary } from '@shared/inbox.types.ts'
-
 import { formatAge, formatDuration, joinClassNames } from '../common/format.util.ts'
-
 import { onActivateKey } from '../common/keyboard.util.ts'
-
 import type { OpenPull } from '../common/navigation.types.ts'
-
 import { usePrefetchOnHover } from './use-prefetch-on-hover.hook.ts'
 
 /** Size labels by changed lines (additions + deletions): below each limit, that label; XL above them all. */

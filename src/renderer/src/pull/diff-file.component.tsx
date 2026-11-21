@@ -1,23 +1,13 @@
 import type { FocusItem } from '@shared/claude.types.ts'
-
 import type { BlameRange } from '@shared/history.types.ts'
-
 import { findBlameAt } from '@shared/history.util.ts'
-
 import { isPresent } from '@shared/presence.util.ts'
-
 import type { DiffSide, DraftComment, PullFile, ReviewComment } from '@shared/pull.types.ts'
-
 import { memo, useMemo, useRef, useState } from 'react'
-
 import { joinClassNames } from '../common/format.util.ts'
-
 import { AskClaudeButton } from './ask-claude-button.component.tsx'
-
 import { BlameNote } from './blame-note.component.tsx'
-
 import { collectCommentedLines, type FileCommentIndex, indexFileComments } from './comment-threads.util.ts'
-
 import {
   buildAnchorKey,
   extractDiffSnippet,
@@ -26,37 +16,21 @@ import {
   parsePatch,
   parseRange,
 } from './diff.util.ts'
-
 import { findEditorLine, isInFocus } from './diff-file.util.ts'
-
 import { DiffFileHeader } from './diff-file-header.component.tsx'
-
 import type { DiffTableProps } from './diff-table.types.ts'
-
 import { FileComments } from './file-comments.component.tsx'
-
 import { FocusReasons, OutdatedComments } from './file-notes.component.tsx'
-
 import type { CommentActions } from './review-comments.component.tsx'
-
 import { SplitDiff } from './split-diff.component.tsx'
-
 import { UnifiedDiff } from './unified-diff.component.tsx'
-
 import { useBlame } from './use-blame.hook.ts'
-
 import { estimateBodyHeight, useBodyHeight } from './use-body-height.hook.ts'
-
 import { useExpandedContext } from './use-expanded-context.hook.ts'
-
 import { useLineNotes } from './use-line-notes.hook.tsx'
-
 import { useLineSelection } from './use-line-selection.hook.ts'
-
 import { useNearViewport } from './use-near-viewport.hook.ts'
-
 import { useRowTokens } from './use-row-tokens.hook.ts'
-
 import { useTextSelectionAsk } from './use-text-selection-ask.hook.ts'
 
 /** Blame notes on new-side lines, when blame is on and loaded. */
