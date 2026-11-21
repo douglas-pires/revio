@@ -1,16 +1,27 @@
 import type { Octokit } from '@octokit/rest'
 import { readErrorMessage } from '@shared/error.util.ts'
-import type { Branches, CiState, CommitDetail, LocalRepo, LogPage, LogQuery } from '@shared/git-log.types.ts'
-import { runWithInput } from '../common/shell.util.ts'
+import type {
+  Branches,
+  CiState,
+  CommitCheck,
+  CommitDetail,
+  LocalRepo,
+  LogPage,
+  LogQuery,
+  RawCheckContext,
+} from '@shared/git-log.types.ts'
 import type { EditorService } from '../editor/editor.service.ts'
 import { getGithubClient } from '../github/github.client.ts'
 import { splitRepo } from '../github/repo-name.util.ts'
+import { assertCommitHash, runGit } from './git-command.service.ts'
 import {
   BRANCH_FORMAT,
   buildLogArgs,
+  extractFilePatch,
   LOG_FORMAT,
   looksLikeHash,
   parseBranches,
+  parseCommitChecks,
   parseCommitDetail,
   parseLog,
   readCiState,
@@ -19,27 +30,17 @@ import {
 
 /** Commits per page of the log. */
 const PAGE_SIZE = 200
-const GIT_TIMEOUT_MS = 20_000
 /** Commits per GitHub query for CI states. */
 const CI_COMMITS_PER_QUERY = 50
-const COMMIT_HASH = /^[0-9a-f]{4,40}$/iu
+
+interface ChecksResponse {
+  repository: {
+    object: { statusCheckRollup: { contexts: { nodes: (RawCheckContext | null)[] } } | null } | null
+  } | null
+}
 
 interface CiResponse {
   repository: Record<string, { statusCheckRollup: { state: string } | null } | null> | null
-}
-
-/** Runs git in a clone and returns what it printed. Arguments go to git as they are, never through a shell. */
-function runGit(clonePath: string, args: string[]): Promise<string> {
-  return runWithInput('git', ['-c', 'core.quotepath=off', '-c', 'color.ui=never', ...args], '', {
-    cwd: clonePath,
-    timeoutMs: GIT_TIMEOUT_MS,
-  })
-}
-
-function assertCommitHash(hash: string) {
-  if (!COMMIT_HASH.test(hash)) {
-    throw new Error(`Not a commit hash: ${hash}`)
-  }
 }
 
 /** The commit a hash names, or none when no commit matches it. */
@@ -81,6 +82,33 @@ export async function fetchCommitCi(repo: string, hashes: string[]): Promise<Rec
   return states
 }
 
+/** The clone of `repo`; only repositories found on disk can be used, never a path from the page. */
+export function requireClone(editor: Pick<EditorService, 'findClone'>, repo: string): string {
+  const clonePath = editor.findClone(repo)
+  if (!clonePath) {
+    throw new Error(`No local clone of ${repo} found. Add the folder that holds it under Settings → Editor.`)
+  }
+  return clonePath
+}
+
+/** A commit's checks on GitHub, failing first; none for a commit GitHub does not know (not pushed). */
+export async function fetchCommitChecks(repo: string, hash: string): Promise<CommitCheck[]> {
+  assertCommitHash(hash)
+  const { owner, repo: name } = splitRepo(repo)
+  const octokit = await getGithubClient()
+  const response = await octokit.graphql<ChecksResponse>(
+    `query ($owner: String!, $name: String!, $oid: GitObjectID!) { repository(owner: $owner, name: $name) {
+      object(oid: $oid) { ... on Commit { statusCheckRollup { contexts(first: 100) { nodes {
+        __typename
+        ... on CheckRun { name status conclusion detailsUrl }
+        ... on StatusContext { context state targetUrl }
+      } } } } }
+    } }`,
+    { owner, name, oid: hash },
+  )
+  return parseCommitChecks(response.repository?.object?.statusCheckRollup?.contexts.nodes ?? [])
+}
+
 /** Reads the log of your local clones. */
 export class GitLogService {
   readonly #editor: EditorService
@@ -94,13 +122,8 @@ export class GitLogService {
     return this.#editor.listClones()
   }
 
-  /** The clone of `repo`; only repositories found on disk can be read, never a path from the page. */
   #requireClone(repo: string): string {
-    const clonePath = this.#editor.findClone(repo)
-    if (!clonePath) {
-      throw new Error(`No local clone of ${repo} found. Add the folder that holds it under Settings → Editor.`)
-    }
-    return clonePath
+    return requireClone(this.#editor, repo)
   }
 
   async readBranches(repo: string): Promise<Branches> {
@@ -118,6 +141,13 @@ export class GitLogService {
     }
     const commits = parseLog(await runGit(clonePath, buildLogArgs(query, PAGE_SIZE)))
     return { commits: commits.slice(0, PAGE_SIZE), more: commits.length > PAGE_SIZE }
+  }
+
+  /** One file's changes in a commit (for a merge, against its first parent); '' for a binary file. */
+  async readFilePatch(repo: string, hash: string, path: string): Promise<string> {
+    assertCommitHash(hash)
+    const args = ['show', '--format=', '--find-renames', '--diff-merges=first-parent', hash, '--', path]
+    return extractFilePatch(await runGit(this.#requireClone(repo), args))
   }
 
   async readCommit(repo: string, hash: string): Promise<CommitDetail> {
