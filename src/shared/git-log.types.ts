@@ -82,3 +82,16 @@ export interface CommitDetail {
 
 /** A commit's CI result on GitHub, from its status checks. */
 export type CiState = 'success' | 'failure' | 'pending' | 'none'
+
+/** One GitHub check on a commit: a check run (GitHub Actions and the like) or a commit status from other CI. */
+export interface CommitCheck {
+  name: string
+  state: CiState
+  /** Where the check's details are, when GitHub gives a link. */
+  url: string | null
+}
+
+/** A check context as GitHub's GraphQL `statusCheckRollup.contexts` returns it. */
+export type RawCheckContext =
+  | { __typename: 'CheckRun'; name: string; status: string; conclusion: string | null; detailsUrl: string | null }
+  | { __typename: 'StatusContext'; context: string; state: string; targetUrl: string | null }

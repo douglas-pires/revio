@@ -1,7 +1,7 @@
 import type { AskThread, BriefingRecord } from './claude.types.ts'
 import type { EditorInfo, EditorTarget } from './editor.types.ts'
 import type { MainEvent } from './event.types.ts'
-import type { Branches, CiState, CommitDetail, LocalRepo, LogPage, LogQuery } from './git-log.types.ts'
+import type { Branches, CiState, CommitCheck, CommitDetail, LocalRepo, LogPage, LogQuery } from './git-log.types.ts'
 import type { Guideline, ResolvedGuideline } from './guideline.types.ts'
 import type { BlameRange, CommitFile, CommitRef, FileAtCommit, FileHistoryEntry, PullCommit } from './history.types.ts'
 import type { Inbox, Stack, StackPrComments } from './inbox.types.ts'
@@ -97,6 +97,14 @@ export interface RevioApi {
   getCommit: (repo: string, hash: string) => Promise<CommitDetail>
   /** CI state on GitHub per commit hash. */
   getCommitCi: (repo: string, hashes: string[]) => Promise<Record<string, CiState>>
+  /** One file's patch in a commit of the local clone; '' for a binary file. */
+  getLocalCommitFilePatch: (repo: string, hash: string, path: string) => Promise<string>
+  /** Each GitHub check on a commit, failing first. */
+  getCommitChecks: (repo: string, hash: string) => Promise<CommitCheck[]>
+  /** Checks out a branch of the local clone (a remote one as a local branch tracking it). */
+  checkoutBranch: (repo: string, branch: string) => Promise<void>
+  /** Cherry-picks a commit onto the checked-out branch; aborted (nothing changed) on a conflict. */
+  cherryPick: (repo: string, hash: string) => Promise<void>
 
   openExternal: (url: string) => Promise<void>
   onEvent: (listener: (event: MainEvent) => void) => () => void

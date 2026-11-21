@@ -2,10 +2,12 @@ import type {
   Branch,
   CiState,
   Commit,
+  CommitCheck,
   CommitDetail,
   FileChange,
   FileChangeStatus,
   LogQuery,
+  RawCheckContext,
 } from '@shared/git-log.types.ts'
 
 /** Field and record separators in `git log` output: characters a commit message never holds. */
@@ -16,6 +18,8 @@ const TRACKING_COUNT = /(?<direction>ahead|behind) (?<count>\d+)/gu
 const CHANGE_STATUSES = new Set<string>(['A', 'M', 'D', 'R', 'C', 'T'])
 const HEAD_ARROW = /^HEAD -> /u
 const LEADING_NEWLINE = /^\n/u
+const FIRST_HUNK = /^@@ /mu
+const PASSED_CONCLUSIONS = new Set(['SUCCESS', 'NEUTRAL', 'SKIPPED'])
 const LOCAL_BRANCH_PREFIX = 'refs/heads/'
 const REMOTE_BRANCH_PREFIX = 'refs/remotes/'
 
@@ -131,6 +135,17 @@ function parseChangeLine(line: string): FileChange {
   return { status, path: firstPath }
 }
 
+/** A check run's result: running until completed, then passed (success, neutral, skipped) or failed. */
+function readCheckRunState(status: string, conclusion: string | null): CiState {
+  if (status !== 'COMPLETED') {
+    return 'pending'
+  }
+  if (PASSED_CONCLUSIONS.has(conclusion ?? '')) {
+    return 'success'
+  }
+  return 'failure'
+}
+
 /** The `--format` that `parseLog` reads: hash, parents, author, email, date, subject, refs. */
 export const LOG_FORMAT = `${['%H', '%P', '%an', '%ae', '%aI', '%s', '%D'].join('%x1f')}%x1e`
 
@@ -207,4 +222,31 @@ export function readCiState(rollup: string | null | undefined): CiState {
     return 'pending'
   }
   return 'none'
+}
+
+/** A file's patch from `git show --format= <hash> -- <path>`, from its first hunk on; '' when there is none (binary). */
+export function extractFilePatch(output: string): string {
+  const firstHunk = output.search(FIRST_HUNK)
+  if (firstHunk < 0) {
+    return ''
+  }
+  return output.slice(firstHunk).trimEnd()
+}
+
+/** The commit's checks as Revio shows them, failing ones first, then running, then passed, each by name. */
+export function parseCommitChecks(contexts: readonly (RawCheckContext | null)[]): CommitCheck[] {
+  const order: Record<CiState, number> = { failure: 0, pending: 1, success: 2, none: 3 }
+  return contexts
+    .filter((context): context is RawCheckContext => context !== null)
+    .map((context) => {
+      if (context.__typename === 'CheckRun') {
+        return {
+          name: context.name,
+          state: readCheckRunState(context.status, context.conclusion),
+          url: context.detailsUrl,
+        }
+      }
+      return { name: context.context, state: readCiState(context.state), url: context.targetUrl }
+    })
+    .sort((left, right) => order[left.state] - order[right.state] || left.name.localeCompare(right.name))
 }

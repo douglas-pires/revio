@@ -2,8 +2,10 @@ import type { LogQuery } from '@shared/git-log.types.ts'
 import { describe, expect, it } from 'vitest'
 import {
   buildLogArgs,
+  extractFilePatch,
   looksLikeHash,
   parseBranches,
+  parseCommitChecks,
   parseCommitDetail,
   parseLog,
   parseNameStatus,
@@ -132,5 +134,40 @@ describe('readCiState', () => {
     expect(readCiState('ERROR')).toBe('failure')
     expect(readCiState('EXPECTED')).toBe('pending')
     expect(readCiState(null)).toBe('none')
+  })
+})
+
+describe('extractFilePatch', () => {
+  it('keeps the patch from its first hunk, dropping the diff header', () => {
+    const output = 'diff --git a/x.ts b/x.ts\nindex 1..2 100644\n--- a/x.ts\n+++ b/x.ts\n@@ -1 +1 @@\n-old\n+new\n'
+    expect(extractFilePatch(output)).toBe('@@ -1 +1 @@\n-old\n+new')
+  })
+
+  it('is empty for a binary file, which has no hunks', () => {
+    expect(extractFilePatch('diff --git a/i.png b/i.png\nBinary files differ\n')).toBe('')
+  })
+})
+
+describe('parseCommitChecks', () => {
+  it('reads check runs and statuses, failing first, then running, then passed', () => {
+    const checks = parseCommitChecks([
+      {
+        __typename: 'CheckRun',
+        name: 'lint',
+        status: 'COMPLETED',
+        conclusion: 'SUCCESS',
+        detailsUrl: 'https://ci/lint',
+      },
+      { __typename: 'CheckRun', name: 'build', status: 'IN_PROGRESS', conclusion: null, detailsUrl: null },
+      { __typename: 'StatusContext', context: 'deploy', state: 'FAILURE', targetUrl: 'https://ci/deploy' },
+      { __typename: 'CheckRun', name: 'docs', status: 'COMPLETED', conclusion: 'SKIPPED', detailsUrl: null },
+      null,
+    ])
+    expect(checks).toEqual([
+      { name: 'deploy', state: 'failure', url: 'https://ci/deploy' },
+      { name: 'build', state: 'pending', url: null },
+      { name: 'docs', state: 'success', url: null },
+      { name: 'lint', state: 'success', url: 'https://ci/lint' },
+    ])
   })
 })

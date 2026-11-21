@@ -2,6 +2,7 @@ import type { Branch, Branches } from '@shared/git-log.types.ts'
 import { useState } from 'react'
 import { joinClassNames } from '../common/format.util.ts'
 import { type BranchFolder, buildBranchTree, filterBranches, readLeafName } from './branch-tree.util.ts'
+import { ConfirmAction } from './confirm-action.component.tsx'
 
 /** Indent per folder level. */
 const INDENT_PX = 12
@@ -115,7 +116,28 @@ function Section(props: { title: string; branches: Branch[]; picked: string; onP
 }
 
 /** Left pane: HEAD, local and remote branches as folders. Picking one shows its log; picking it again shows all. */
-export function BranchPanel(props: { branches: Branches | null; picked: string; onPick: (branch: string) => void }) {
+/** Under the branches: check out the branch picked, unless it is already checked out. */
+function CheckoutPicked(props: { picked: string; head: string | null; onCheckout: (branch: string) => Promise<void> }) {
+  if (!props.picked || props.picked === props.head) {
+    return null
+  }
+  return (
+    <div className="border-t border-line p-2">
+      <ConfirmAction
+        label={`Check out ${props.picked}`}
+        question={`Switch your local clone to ${props.picked}? Git refuses if your uncommitted changes would be lost.`}
+        onConfirm={() => props.onCheckout(props.picked)}
+      />
+    </div>
+  )
+}
+
+export function BranchPanel(props: {
+  branches: Branches | null
+  picked: string
+  onPick: (branch: string) => void
+  onCheckout: (branch: string) => Promise<void>
+}) {
   const [query, setQuery] = useState('')
   const matchingBranches = filterBranches(props.branches?.branches ?? [], query)
   // Picking the branch already shown goes back to every branch.
@@ -172,6 +194,7 @@ export function BranchPanel(props: { branches: Branches | null; picked: string; 
           onPick={toggleBranch}
         />
       </div>
+      <CheckoutPicked picked={props.picked} head={props.branches?.head ?? null} onCheckout={props.onCheckout} />
     </aside>
   )
 }
