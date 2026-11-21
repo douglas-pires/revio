@@ -24,10 +24,11 @@ function teamField(teamSlugs: boolean) {
 }
 
 const searchQuery = (teamSlugs: boolean) => /* GraphQL */ `
-  query ($requested: String!, $reviewed: String!) {
+  query ($requested: String!, $reviewed: String!, $authored: String!) {
     viewer { login }
     requested: search(query: $requested, type: ISSUE, first: 50) { nodes { ...pr } }
     reviewed: search(query: $reviewed, type: ISSUE, first: 30) { nodes { ...pr } }
+    authored: search(query: $authored, type: ISSUE, first: 50) { nodes { ...pr } }
   }
   fragment pr on PullRequest {
     id number title url isDraft createdAt updatedAt additions deletions changedFiles
@@ -122,7 +123,10 @@ interface InboxSearch {
   viewer: { login: string }
   requested: { nodes: (RawPr | null)[] }
   reviewed: { nodes: (RawPr | null)[] }
+  authored: { nodes: (RawPr | null)[] }
 }
+
+type InboxSearches = ReturnType<typeof buildInboxSearches>
 
 function buildInboxSearches(settings: Pick<Settings, 'includeTeamRequests' | 'ignoreDrafts'>) {
   let who = 'user-review-requested:@me'
@@ -136,11 +140,13 @@ function buildInboxSearches(settings: Pick<Settings, 'includeTeamRequests' | 'ig
   return {
     requested: `is:open is:pr archived:false ${who}${draft} sort:updated-desc`,
     reviewed: `is:open is:pr archived:false reviewed-by:@me -author:@me${draft} sort:updated-desc`,
+    // Your drafts are your work in progress, so they are listed whatever the drafts setting says.
+    authored: 'is:open is:pr archived:false author:@me sort:updated-desc',
   }
 }
 
 /** Team names need the read:org scope, which `gh` tokens often lack: on a scope error, retry without them. */
-async function searchInbox(octokit: Octokit, searches: { requested: string; reviewed: string }): Promise<InboxSearch> {
+async function searchInbox(octokit: Octokit, searches: InboxSearches): Promise<InboxSearch> {
   try {
     return await octokit.graphql<InboxSearch>(searchQuery(teamNamesAllowed()), searches)
   } catch (err) {
@@ -184,6 +190,7 @@ export async function fetchInbox(stackFinder: StackFinder): Promise<Inbox> {
   const data = await searchInbox(octokit, buildInboxSearches(settings))
   const viewer = data.viewer.login
   const { requested, reviewed } = sortInbox(data, viewer, settings.staleAfterHours)
+  const authored = data.authored.nodes.filter(isPr).map((pr) => toSummary(pr, settings.staleAfterHours, null, viewer))
   const stacks = await stackFinder.stacksForInbox(octokit, requested, reviewed)
-  return { viewer, requested, reviewed, stacks, fetchedAt: new Date().toISOString() }
+  return { viewer, requested, reviewed, authored, stacks, fetchedAt: new Date().toISOString() }
 }
