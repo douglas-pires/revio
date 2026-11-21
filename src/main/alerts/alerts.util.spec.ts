@@ -35,7 +35,7 @@ let state: AlertState
 const runAlerts = (inbox: Inbox, notify: Notify, now = NOW, alertSettings = settings) =>
   raiseAlerts(inbox, { settings: alertSettings, state, notify, now })
 beforeEach(() => {
-  state = { requested: {}, staleAlertedAt: {}, seeded: true, mentionsAlerted: {}, mentionsSeeded: true }
+  state = { requested: {}, staleAlertedAt: {}, seeded: true, seenMentions: {}, seenMentionsRecorded: true }
 })
 
 describe('raiseAlerts', () => {
@@ -192,18 +192,19 @@ describe('mention alerts', () => {
   const alertIds = (inbox: MentionsInbox) => findUnalertedMentions(inbox, state).map((a) => a.snippet.id)
 
   it('finds nothing before the first fetch is recorded, which is silent', () => {
-    state.mentionsSeeded = false
+    state.seenMentionsRecorded = false
     const inbox = makeMentions(mention(snippet('a', true)))
     expect(alertIds(inbox)).toEqual([])
     recordMentionAlerts(inbox, state)
-    expect(state.mentionsSeeded).toBe(true)
+    expect(state.seenMentionsRecorded).toBe(true)
     expect(alertIds(inbox)).toEqual([])
   })
 
-  it('finds each new mention once, never read ones, and finding does not record', () => {
+  it('finds each mention once, read or not, and finding does not record', () => {
+    // Without notifications access (fine-grained tokens) GitHub never says a mention is unread.
     const inbox = makeMentions(mention(snippet('a', true), snippet('b', false)))
-    expect(alertIds(inbox)).toEqual(['a'])
-    expect(alertIds(inbox)).toEqual(['a'])
+    expect(alertIds(inbox)).toEqual(['a', 'b'])
+    expect(alertIds(inbox)).toEqual(['a', 'b'])
     recordMentionAlerts(inbox, state)
     expect(alertIds(inbox)).toEqual([])
   })
@@ -211,7 +212,7 @@ describe('mention alerts', () => {
   it('forgets mentions that left the window', () => {
     recordMentionAlerts(makeMentions(mention(snippet('a', true))), state)
     recordMentionAlerts(makeMentions(), state)
-    expect(state.mentionsAlerted).toEqual({})
+    expect(state.seenMentions).toEqual({})
   })
 })
 
