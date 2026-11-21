@@ -1,43 +1,17 @@
-/** A GitHub repository with a clone on this Mac, which the log reads with git. */
-export interface LocalRepo {
-  /** `owner/name`, lowercased. */
-  repo: string
-  path: string
-}
-
-export type BranchKind = 'local' | 'remote'
-
-export interface Branch {
-  /** Short name: `main`, `douglas/fix-x`, `origin/main`. */
-  name: string
-  kind: BranchKind
-  /** Whether it is checked out (HEAD). */
-  current: boolean
-  /** Commits ahead of and behind its upstream, for local branches that track one. */
-  ahead: number
-  behind: number
-}
-
-export interface Branches {
-  /** The branch checked out, or null on a detached HEAD. */
-  head: string | null
-  branches: Branch[]
-}
-
-/** What the log shows: all branches or one, and the filters on top. Empty strings mean no filter. */
-export interface LogQuery {
-  /** Branch name, or '' for every branch. */
-  branch: string
-  /** Text in the commit message, or the start of a commit hash. */
-  text: string
-  /** Author name or email. */
+/** What a PR's git log shows: the history GitHub has from the PR's head, and the filters on it. */
+export interface PullLogQuery {
+  /** The commit the history starts from: the PR's head. */
+  sha: string
+  /** A commit hash (or its start) to find; '' to list the history. Messages are matched in Revio, not on GitHub. */
+  hash: string
+  /** GitHub login or email of the author; '' for anyone. */
   author: string
   /** Only commits after this many days ago; 0 for any time. */
   sinceDays: number
-  /** Only commits touching this path. */
+  /** Only commits touching this path; '' for all. */
   path: string
-  /** Commits already loaded, to load the next page after them. */
-  skip: number
+  /** The page to read, from 1. */
+  page: number
 }
 
 export interface Commit {
@@ -48,7 +22,7 @@ export interface Commit {
   /** ISO date the commit was authored. */
   date: string
   subject: string
-  /** Branch and tag names pointing at it, as `git log --decorate` shows them. */
+  /** Labels to show on it, such as the PR's branch on its head commit. */
   refs: string[]
 }
 
@@ -76,7 +50,7 @@ export interface CommitDetail {
   authorEmail: string
   date: string
   committer: string
-  /** Changed files; for a merge, against its first parent. */
+  /** Changed files, as GitHub lists them (up to 300). */
   files: FileChange[]
 }
 

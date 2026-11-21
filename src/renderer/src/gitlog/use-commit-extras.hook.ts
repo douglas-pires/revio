@@ -28,12 +28,12 @@ function useLoaded<T>(load: (() => Promise<T>) | null, inputs: readonly unknown[
   return loaded
 }
 
-/** Loads the file's patch, or nothing while no commit or file is picked. */
+/** Loads the file's patch from GitHub ('' when it has none: binary or too large), or nothing while none is picked. */
 function buildPatchLoader(repo: string, hash: string | null, path: string | null) {
   if (!(hash && path)) {
     return null
   }
-  return () => globalThis.revio.getLocalCommitFilePatch(repo, hash, path)
+  return async () => (await globalThis.revio.getCommitFilePatch({ repo, sha: hash, path })) ?? ''
 }
 
 /** Loads the commit's checks, or nothing while no commit is picked. */

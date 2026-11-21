@@ -1,37 +1,32 @@
 import type { Octokit } from '@octokit/rest'
+import { looksLikeHash } from '@shared/commit-hash.util.ts'
 import { readErrorMessage } from '@shared/error.util.ts'
 import type {
-  Branches,
   CiState,
   CommitCheck,
   CommitDetail,
-  LocalRepo,
   LogPage,
-  LogQuery,
+  PullLogQuery,
   RawCheckContext,
 } from '@shared/git-log.types.ts'
-import type { EditorService } from '../editor/editor.service.ts'
 import { getGithubClient } from '../github/github.client.ts'
 import { splitRepo } from '../github/repo-name.util.ts'
-import { assertCommitHash, runGit } from './git-command.service.ts'
 import {
-  BRANCH_FORMAT,
-  buildLogArgs,
-  extractFilePatch,
-  LOG_FORMAT,
-  looksLikeHash,
-  parseBranches,
+  assertCommitHash,
+  buildCommitFilters,
+  convertCommit,
+  convertCommitDetail,
+  type GithubCommit,
   parseCommitChecks,
-  parseCommitDetail,
-  parseLog,
   readCiState,
-  SHOW_FORMAT,
 } from './git-log.util.ts'
 
-/** Commits per page of the log. */
-const PAGE_SIZE = 200
+/** Commits per page of the log (GitHub's most per request). */
+const PAGE_SIZE = 100
 /** Commits per GitHub query for CI states. */
 const CI_COMMITS_PER_QUERY = 50
+/** Files GitHub lists for a commit at most. */
+const COMMIT_FILES_LIMIT = 300
 
 interface ChecksResponse {
   repository: {
@@ -43,11 +38,15 @@ interface CiResponse {
   repository: Record<string, { statusCheckRollup: { state: string } | null } | null> | null
 }
 
-/** The commit a hash names, or none when no commit matches it. */
-async function findCommitByHash(clonePath: string, hash: string) {
-  const args = ['log', `--format=${LOG_FORMAT}`, '--max-count=1', '--end-of-options', hash]
-  const output = await runGit(clonePath, args).catch(() => '')
-  return parseLog(output)
+/** The commit a hash (or the start of one) names, or none when GitHub knows no such commit. */
+async function findCommitByHash(octokit: Octokit, repo: string, hash: string): Promise<LogPage> {
+  const { owner, repo: name } = splitRepo(repo)
+  try {
+    const { data } = await octokit.repos.getCommit({ owner, repo: name, ref: hash, per_page: 1 })
+    return { commits: [convertCommit(data as GithubCommit)], more: false }
+  } catch {
+    return { commits: [], more: false }
+  }
 }
 
 /** One GitHub query for the CI state of up to `CI_COMMITS_PER_QUERY` commits, by hash. */
@@ -63,7 +62,33 @@ async function fetchCiBatch(octokit: Octokit, repo: string, hashes: readonly str
   return hashes.map((hash, index) => [hash, readCiState(response.repository?.[`c${index}`]?.statusCheckRollup?.state)])
 }
 
-/** Each commit's CI state on GitHub, by hash; commits GitHub does not know (not pushed) are 'none'. */
+/** A page of the history GitHub has from `query.sha`, filtered by path, author and date; or the one commit a hash names. */
+export async function fetchPullLog(octokit: Octokit, repo: string, query: PullLogQuery): Promise<LogPage> {
+  const hash = query.hash.trim()
+  if (looksLikeHash(hash)) {
+    return findCommitByHash(octokit, repo, hash)
+  }
+  const { owner, repo: name } = splitRepo(repo)
+  const { data } = await octokit.repos.listCommits({
+    owner,
+    repo: name,
+    sha: query.sha,
+    ...buildCommitFilters(query, new Date()),
+    per_page: PAGE_SIZE,
+    page: query.page,
+  })
+  return { commits: (data as GithubCommit[]).map(convertCommit), more: data.length === PAGE_SIZE }
+}
+
+/** A commit's message, author and changed files, from GitHub. */
+export async function fetchCommitDetail(octokit: Octokit, repo: string, hash: string): Promise<CommitDetail> {
+  assertCommitHash(hash)
+  const { owner, repo: name } = splitRepo(repo)
+  const { data } = await octokit.repos.getCommit({ owner, repo: name, ref: hash, per_page: COMMIT_FILES_LIMIT })
+  return convertCommitDetail(data as GithubCommit)
+}
+
+/** Each commit's CI state on GitHub, by hash; commits GitHub has no checks for are 'none'. */
 export async function fetchCommitCi(repo: string, hashes: string[]): Promise<Record<string, CiState>> {
   for (const hash of hashes) {
     assertCommitHash(hash)
@@ -82,16 +107,7 @@ export async function fetchCommitCi(repo: string, hashes: string[]): Promise<Rec
   return states
 }
 
-/** The clone of `repo`; only repositories found on disk can be used, never a path from the page. */
-export function requireClone(editor: Pick<EditorService, 'findClone'>, repo: string): string {
-  const clonePath = editor.findClone(repo)
-  if (!clonePath) {
-    throw new Error(`No local clone of ${repo} found. Add the folder that holds it under Settings → Editor.`)
-  }
-  return clonePath
-}
-
-/** A commit's checks on GitHub, failing first; none for a commit GitHub does not know (not pushed). */
+/** A commit's checks on GitHub, failing first. */
 export async function fetchCommitChecks(repo: string, hash: string): Promise<CommitCheck[]> {
   assertCommitHash(hash)
   const { owner, repo: name } = splitRepo(repo)
@@ -107,59 +123,4 @@ export async function fetchCommitChecks(repo: string, hash: string): Promise<Com
     { owner, name, oid: hash },
   )
   return parseCommitChecks(response.repository?.object?.statusCheckRollup?.contexts.nodes ?? [])
-}
-
-/** Reads the log of your local clones. */
-export class GitLogService {
-  readonly #editor: EditorService
-
-  constructor(editor: EditorService) {
-    this.#editor = editor
-  }
-
-  /** Repositories with a clone on this Mac. */
-  listRepos(): LocalRepo[] {
-    return this.#editor.listClones()
-  }
-
-  #requireClone(repo: string): string {
-    return requireClone(this.#editor, repo)
-  }
-
-  async readBranches(repo: string): Promise<Branches> {
-    const args = ['for-each-ref', `--format=${BRANCH_FORMAT}`, 'refs/heads', 'refs/remotes']
-    const branches = parseBranches(await runGit(this.#requireClone(repo), args))
-    return { head: branches.find((branch) => branch.current)?.name ?? null, branches }
-  }
-
-  /** A page of the log; a search for a hash finds that one commit, wherever it is. */
-  async readLog(repo: string, query: LogQuery): Promise<LogPage> {
-    const clonePath = this.#requireClone(repo)
-    const text = query.text.trim()
-    if (looksLikeHash(text)) {
-      return { commits: await findCommitByHash(clonePath, text), more: false }
-    }
-    const commits = parseLog(await runGit(clonePath, buildLogArgs(query, PAGE_SIZE)))
-    return { commits: commits.slice(0, PAGE_SIZE), more: commits.length > PAGE_SIZE }
-  }
-
-  /** One file's changes in a commit (for a merge, against its first parent); '' for a binary file. */
-  async readFilePatch(repo: string, hash: string, path: string): Promise<string> {
-    assertCommitHash(hash)
-    const args = ['show', '--format=', '--find-renames', '--diff-merges=first-parent', hash, '--', path]
-    return extractFilePatch(await runGit(this.#requireClone(repo), args))
-  }
-
-  async readCommit(repo: string, hash: string): Promise<CommitDetail> {
-    assertCommitHash(hash)
-    const args = [
-      'show',
-      `--format=${SHOW_FORMAT}`,
-      '--name-status',
-      '--find-renames',
-      '--diff-merges=first-parent',
-      hash,
-    ]
-    return parseCommitDetail(hash, await runGit(this.#requireClone(repo), args))
-  }
 }

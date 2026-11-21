@@ -237,7 +237,7 @@ export function registerApi(deps: ApiDeps) {
     testNotification: () => sendTestNotification(() => deps.window.show()),
     ...buildGuidelinesApi(deps.store, deps.poller),
     ...buildClaudeHandlers(deps),
-    ...buildGitLogApi(deps.editor),
+    ...buildGitLogApi(),
     listEditors: () => listInstalledEditors(),
     openInEditor: (target) => deps.editor.open(target),
     openExternal: async (url) => {
