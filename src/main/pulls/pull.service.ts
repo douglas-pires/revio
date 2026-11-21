@@ -1,16 +1,7 @@
 import type { Octokit } from '@octokit/rest'
 import { readErrorMessage } from '@shared/error.util.ts'
 import { isPresent } from '@shared/presence.util.ts'
-import type {
-  DraftComment,
-  PullDetail,
-  PullFile,
-  PullRef,
-  PullThreadStatus,
-  ReviewComment,
-  ReviewEvent,
-  SubmitReviewInput,
-} from '@shared/pull.types.ts'
+import type { PullDetail, PullFile, PullRef, PullThreadStatus, ReviewComment } from '@shared/pull.types.ts'
 import type { ReactionSummary } from '@shared/reaction.types.ts'
 import { type RawReactionGroup, toReactionSummaries } from '@shared/reaction.util.ts'
 import { MemoCache } from '../common/memo.cache.ts'
@@ -18,7 +9,6 @@ import { buildSmallAvatarUrl, getGithubClient, getViewerLogin } from '../github/
 import { splitRepo } from '../github/repo-name.util.ts'
 import { REACTION_GROUPS } from '../reactions/reactions.service.ts'
 import { buildConversation } from './conversation.util.ts'
-import { planReview, type ReviewPlan } from './review-plan.util.ts'
 
 /** Whole files are large, so only this many recent ones are kept. */
 const MAX_CACHED_FILES = 50
@@ -76,52 +66,6 @@ async function fetchThreadMeta(octokit: Octokit, ref: PullRef): Promise<ThreadMe
     console.error('[revio] thread status lookup failed:', readErrorMessage(err))
     return { threads: [], reactions: new Map() }
   }
-}
-
-// biome-ignore lint/style/useConsistentTypeDefinitions: a type alias, unlike an interface, fits Octokit's index-signature parameter type.
-type ReviewDraft = {
-  owner: string
-  repo: string
-  pull_number: number
-  commit_id: string
-  body?: string
-  comments: ReviewPlan['lineComments']
-}
-
-/**
- * File comments can only join a review through GraphQL: create the review pending, add each file as a
- * thread, then submit. A failure deletes the pending review so nothing is left half-posted.
- */
-async function submitWithFileComments(
-  octokit: Octokit,
-  review: ReviewDraft,
-  files: ReviewPlan['fileComments'],
-  event: ReviewEvent,
-) {
-  const pending = await octokit.pulls.createReview(review)
-  const ids = { owner: review.owner, repo: review.repo, pull_number: review.pull_number, review_id: pending.data.id }
-  try {
-    for (const fileComment of files) {
-      // biome-ignore lint/performance/noAwaitInLoops: threads are added one at a time so they keep the order they were drafted in.
-      await addFileThread(octokit, pending.data.node_id, fileComment)
-    }
-    const res = await octokit.pulls.submitReview({ ...ids, event, ...(review.body && { body: review.body }) })
-    return { url: res.data.html_url }
-  } catch (err) {
-    await octokit.pulls.deletePendingReview(ids).catch(() => {
-      // Best effort: the original error is the one worth reporting.
-    })
-    throw err
-  }
-}
-
-async function addFileThread(octokit: Octokit, reviewId: string, { path, body }: { path: string; body: string }) {
-  await octokit.graphql(
-    `mutation ($review: ID!, $path: String!, $body: String!) {
-      addPullRequestReviewThread(input: { pullRequestReviewId: $review, path: $path, body: $body, subjectType: FILE }) { thread { id } }
-    }`,
-    { review: reviewId, path, body },
-  )
 }
 
 /** Whole files are large, so only the most recent ones are kept; concurrent requests for one share a fetch. */
@@ -255,51 +199,6 @@ export async function fetchPull(ref: PullRef): Promise<PullDetail> {
     comments: comments.map((comment) => toReviewComment(comment, meta.reactions)),
     conversation: buildConversation(conversationComments, reviews, buildSmallAvatarUrl),
   }
-}
-
-export async function submitReview(input: SubmitReviewInput, drafts: DraftComment[]): Promise<{ url: string }> {
-  const octokit = await getGithubClient()
-  const { owner, repo } = splitRepo(input.repo)
-  const plan = planReview(drafts)
-  for (const reply of plan.replies) {
-    // biome-ignore lint/performance/noAwaitInLoops: replies are posted in the order they were written.
-    await octokit.pulls.createReplyForReviewComment({
-      owner,
-      repo,
-      pull_number: input.number,
-      comment_id: reply.commentId,
-      body: reply.body,
-    })
-  }
-  const review: ReviewDraft = {
-    owner,
-    repo,
-    pull_number: input.number,
-    commit_id: input.headSha,
-    comments: plan.lineComments,
-  }
-  if (input.body) {
-    review.body = input.body
-  }
-  if (plan.fileComments.length === 0) {
-    const res = await octokit.pulls.createReview({ ...review, event: input.event })
-    return { url: res.data.html_url }
-  }
-  return submitWithFileComments(octokit, review, plan.fileComments, input.event)
-}
-
-export async function replyToComment({ repo: repoFull, number }: PullRef, commentId: number, body: string) {
-  const octokit = await getGithubClient()
-  const { owner, repo } = splitRepo(repoFull)
-  await octokit.pulls.createReplyForReviewComment({ owner, repo, pull_number: number, comment_id: commentId, body })
-}
-
-/** Posts a comment in the PR conversation (not on code) and returns its link. */
-export async function commentOnPull({ repo: repoFull, number }: PullRef, body: string): Promise<{ url: string }> {
-  const octokit = await getGithubClient()
-  const { owner, repo } = splitRepo(repoFull)
-  const { data } = await octokit.issues.createComment({ owner, repo, issue_number: number, body })
-  return { url: data.html_url }
 }
 
 /** Raw file content at a commit, or null when missing/binary/too large. Cached per sha. */

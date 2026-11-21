@@ -11,12 +11,14 @@ import { listInstalledEditors } from '../editor/editor.service.ts'
 import { getGithubClient, resetClient } from '../github/github.client.ts'
 import type { GithubTokens } from '../github/github-tokens.service.ts'
 import { buildGitLogApi } from '../gitlog/git-log.api.ts'
-import { deleteGuideline, resolveGuidelines, saveGuideline } from '../guidelines/guidelines.service.ts'
+import { buildGuidelinesApi } from '../guidelines/guidelines.api.ts'
+import { resolveGuidelines } from '../guidelines/guidelines.service.ts'
 import type { HistoryCache } from '../history/history.cache.ts'
 import type { InboxPoller } from '../inbox/inbox.poller.ts'
 import type { MentionWatcher } from '../mentions/mentions.watcher.ts'
 import type { PullCache } from '../pulls/pull.cache.ts'
-import { commentOnPull, fetchFileAt, replyToComment, submitReview } from '../pulls/pull.service.ts'
+import { fetchFileAt } from '../pulls/pull.service.ts'
+import { commentOnPull, replyToComment, submitReview } from '../pulls/review-submit.service.ts'
 import { setReaction } from '../reactions/reactions.service.ts'
 import { fetchStackComments } from '../stacks/stack-comments.service.ts'
 import { fetchStack } from '../stacks/stacks.service.ts'
@@ -172,34 +174,6 @@ function buildHistoryHandlers({ history }: ApiDeps): Pick<ApiHandlers, HistoryMe
   }
 }
 
-function buildGuidelineHandlers({
-  store,
-  poller,
-}: ApiDeps): Pick<
-  ApiHandlers,
-  'listGuidelines' | 'saveGuideline' | 'deleteGuideline' | 'resolveGuidelines' | 'knownRepos'
-> {
-  return {
-    listGuidelines: () => store.guidelines(),
-    saveGuideline: (guideline) => saveGuideline(guideline),
-    deleteGuideline: (id) => deleteGuideline(id),
-    resolveGuidelines: (repo, paths) => resolveGuidelines(repo, paths),
-    knownRepos: () => {
-      const inbox = poller.latest
-      const repos = new Set(
-        store
-          .guidelines()
-          .map((guideline) => guideline.repo)
-          .filter((repo) => repo !== '*'),
-      )
-      for (const pull of [...(inbox?.requested ?? []), ...(inbox?.reviewed ?? [])]) {
-        repos.add(pull.repo)
-      }
-      return [...repos].sort((left, right) => left.localeCompare(right))
-    },
-  }
-}
-
 function buildClaudeHandlers({ store, pulls, window }: ApiDeps): Pick<ApiHandlers, 'generateBriefing' | 'askClaude'> {
   /** The PR (cached if recent) and the review guides that apply to its files. */
   const loadContext = async (ref: PullRef) => {
@@ -261,7 +235,7 @@ export function registerApi(deps: ApiDeps) {
     getUpdateStatus: () => deps.updates.status,
     checkForUpdates: () => deps.updates.check(),
     testNotification: () => sendTestNotification(() => deps.window.show()),
-    ...buildGuidelineHandlers(deps),
+    ...buildGuidelinesApi(deps.store, deps.poller),
     ...buildClaudeHandlers(deps),
     ...buildGitLogApi(deps.editor),
     listEditors: () => listInstalledEditors(),
