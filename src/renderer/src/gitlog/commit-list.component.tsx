@@ -1,6 +1,6 @@
 import { type GraphRow, layoutGraph } from '@shared/commit-graph.util.ts'
 import type { CiState, Commit } from '@shared/git-log.types.ts'
-import { useEffect, useMemo, useRef } from 'react'
+import { type ReactNode, useEffect, useMemo, useRef } from 'react'
 import { formatAge, joinClassNames } from '../common/format.util.ts'
 import { FuzzyInput } from '../common/fuzzy-input.component.tsx'
 import { matchFuzzy } from '../common/fuzzy-match.util.ts'
@@ -39,6 +39,8 @@ function FilterBar(props: {
   filters: LogFilters
   suggestions: FilterSuggestions
   onChange: (filters: LogFilters) => void
+  /** More controls at the end of the bar, such as following the open file. */
+  extras?: ReactNode
 }) {
   const { filters } = props
   const updateFilters = (patch: Partial<LogFilters>) => props.onChange({ ...filters, ...patch })
@@ -80,6 +82,7 @@ function FilterBar(props: {
         suggestions={props.suggestions.paths}
         onCommit={(path) => updateFilters({ path })}
       />
+      {props.extras}
     </div>
   )
 }
@@ -172,6 +175,7 @@ export function CommitList(props: {
   messageQuery: string
   filters: LogFilters
   suggestions: FilterSuggestions
+  filterExtras?: ReactNode
   onFilters: (filters: LogFilters) => void
   ci: Record<string, CiState>
   selected: string | null
@@ -191,7 +195,12 @@ export function CommitList(props: {
   const graphWidth = measureGraphWidth(Math.max(0, ...rows.map((row) => row.width)))
   return (
     <section className="flex min-w-0 flex-1 flex-col">
-      <FilterBar filters={props.filters} suggestions={props.suggestions} onChange={props.onFilters} />
+      <FilterBar
+        filters={props.filters}
+        suggestions={props.suggestions}
+        onChange={props.onFilters}
+        extras={props.filterExtras}
+      />
       <div ref={scroller} className="min-h-0 flex-1 overflow-auto">
         {props.commits.length === 0 && !props.loading && (
           <div className="px-4 py-10 text-center text-muted">No commits match these filters.</div>

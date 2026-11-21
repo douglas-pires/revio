@@ -1,4 +1,6 @@
+import { hasCommandModifier, matchesShortcut } from '@shared/shortcut.util.ts'
 import { useCallback, useEffect, useState } from 'react'
+import { isTyping } from '../common/keyboard.util.ts'
 import { clampPanelHeight, DEFAULT_PANEL_HEIGHT_PX } from './pull-git-log.util.ts'
 
 const PANEL_KEY = 'revio.pullGitLog'
@@ -25,8 +27,11 @@ function storeLayout(layout: PanelLayout) {
   }
 }
 
-/** Whether the panel is open and how tall, kept between PRs; Ctrl+G opens and closes it. */
-export function usePanelLayout() {
+/**
+ * Whether the panel is open and how tall, kept between PRs; `shortcut` (Ctrl+G unless changed) opens and closes it.
+ * Inside a text field it works only with Cmd, Ctrl or Alt, so a plain-letter shortcut never eats what you type.
+ */
+export function usePanelLayout(shortcut: string) {
   const [layout, setLayoutState] = useState(readStoredLayout)
   const setLayout = useCallback((update: (current: PanelLayout) => PanelLayout) => {
     setLayoutState((current) => {
@@ -42,13 +47,14 @@ export function usePanelLayout() {
   )
   useEffect(() => {
     const toggleOnShortcut = (event: KeyboardEvent) => {
-      if (event.ctrlKey && event.code === 'KeyG' && !(event.metaKey || event.altKey || event.shiftKey)) {
+      const allowedHere = !isTyping(event.target) || hasCommandModifier(shortcut)
+      if (!event.repeat && allowedHere && matchesShortcut(event, shortcut)) {
         event.preventDefault()
         toggle()
       }
     }
     globalThis.addEventListener('keydown', toggleOnShortcut)
     return () => globalThis.removeEventListener('keydown', toggleOnShortcut)
-  }, [toggle])
+  }, [toggle, shortcut])
   return { ...layout, toggle, resize }
 }

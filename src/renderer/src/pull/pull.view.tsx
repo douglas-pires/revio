@@ -33,7 +33,7 @@ function readOpenPath(view: PullViewState) {
   if (view.tab !== 'files') {
     return null
   }
-  return view.nav.current
+  return view.nav.current ?? null
 }
 
 /** The header, with the review popover that submits your review and its pending comments. */

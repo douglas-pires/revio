@@ -1,10 +1,13 @@
-import { type PointerEvent, useEffect, useMemo, useRef, useState } from 'react'
+import { DEFAULT_GIT_LOG_SHORTCUT, formatShortcut } from '@shared/shortcut.util.ts'
+import { type PointerEvent, type ReactNode, useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import { ErrorBanner } from '../common/error-banner.component.tsx'
 import { joinClassNames } from '../common/format.util.ts'
+import { ShortcutPopover } from '../common/shortcut-popover.component.tsx'
 import { CommitDetailPanel } from '../gitlog/commit-detail.component.tsx'
 import { CommitFileDiff } from '../gitlog/commit-file-diff.component.tsx'
 import { CommitList } from '../gitlog/commit-list.component.tsx'
 import { listPathSuggestions } from './pull-git-log.util.ts'
+import { useGitLogShortcut } from './use-git-log-shortcut.hook.ts'
 import { usePanelLayout } from './use-panel-layout.hook.ts'
 import { type CommitPick, type PullGitLogState, type PullLogSource, usePullGitLog } from './use-pull-git-log.hook.ts'
 
@@ -63,46 +66,95 @@ function ResizeHandle({ height, onResize }: { height: number; onResize: (height:
   )
 }
 
+type GitLogShortcut = ReturnType<typeof useGitLogShortcut>
+
 /** The file name the log follows, shown in the bar. */
 const readFileName = (path: string) => path.slice(path.lastIndexOf('/') + 1)
 
-/** The bar along the bottom: opens and closes the log, and says which file it follows. */
+/** The shortcut beside "Git log": click it to change it in a popover above the bar. */
+function ShortcutChip({ gitLogShortcut }: { gitLogShortcut: GitLogShortcut }) {
+  const [editing, setEditing] = useState(false)
+  const closeEditor = useCallback(() => setEditing(false), [])
+  return (
+    <span className="relative">
+      <button
+        type="button"
+        className="kbd cursor-pointer hover:border-accent hover:text-fg"
+        title="Change the git log shortcut"
+        aria-haspopup="dialog"
+        aria-expanded={editing}
+        onClick={() => setEditing(!editing)}
+      >
+        {formatShortcut(gitLogShortcut.shortcut) || 'Set shortcut'}
+      </button>
+      {Boolean(editing) && (
+        <ShortcutPopover
+          className="bottom-full left-0 mb-2"
+          title="Git log shortcut"
+          value={gitLogShortcut.shortcut}
+          defaultValue={DEFAULT_GIT_LOG_SHORTCUT}
+          findConflict={gitLogShortcut.findConflict}
+          onSave={gitLogShortcut.save}
+          onClose={closeEditor}
+        />
+      )}
+    </span>
+  )
+}
+
+/**
+ * The bar along the bottom of the PR: the Git log toggle with its shortcut and the file it follows. The rest of the
+ * bar is left free for other tools to dock here.
+ */
 function PanelBar(props: {
   open: boolean
   onToggle: () => void
-  openPath: string | null
-  followPath: boolean
-  onFollowPath: (follow: boolean) => void
+  gitLogShortcut: GitLogShortcut
+  followedPath: string | null
 }) {
-  const followedPath = props.followPath && props.openPath
+  const shortcutHint = formatShortcut(props.gitLogShortcut.shortcut)
+  let title = 'Show or hide the git log'
+  if (shortcutHint) {
+    title = `${title} (${shortcutHint})`
+  }
   return (
-    <div className="flex h-8 shrink-0 items-center gap-3 px-3 text-[12px] text-muted">
+    <div className="flex h-8 shrink-0 items-center gap-2 px-3 text-[12px] text-muted">
       <button
         type="button"
         className="flex items-center gap-1.5 rounded px-1.5 py-0.5 font-semibold text-fg hover:bg-hover"
         aria-expanded={props.open}
-        title="Show or hide the git log (Ctrl+G)"
+        title={title}
         onClick={props.onToggle}
       >
         <span className={joinClassNames('text-[10px] transition', !props.open && 'rotate-180')}>▾</span>
         Git log
       </button>
-      {Boolean(followedPath) && (
-        <span className="min-w-0 truncate" title={props.openPath ?? ''}>
-          history of <span className="font-mono text-fg">{readFileName(props.openPath ?? '')}</span>
+      <ShortcutChip gitLogShortcut={props.gitLogShortcut} />
+      {props.followedPath !== null && (
+        <span className="ml-2 min-w-0 truncate" title={props.followedPath}>
+          history of <span className="font-mono text-fg">{readFileName(props.followedPath)}</span>
         </span>
       )}
-      <div className="flex-1" />
-      <label className="flex items-center gap-1.5" title="Filter the log to the file open in Files changed">
-        <input
-          type="checkbox"
-          checked={props.followPath}
-          onChange={(event) => props.onFollowPath(event.target.checked)}
-        />
-        Follow open file
-      </label>
-      <span className="kbd">⌃G</span>
     </div>
+  )
+}
+
+/** Inside the log, beside its filters: whether the path filter follows the file open in Files changed. */
+function FollowFileToggle({
+  followPath,
+  onFollowPath,
+}: {
+  followPath: boolean
+  onFollowPath: (follow: boolean) => void
+}) {
+  return (
+    <label
+      className="flex items-center gap-1.5 text-[12px] text-muted"
+      title="Filter the log to the file open in Files changed"
+    >
+      <input type="checkbox" checked={followPath} onChange={(event) => onFollowPath(event.target.checked)} />
+      Follow open file
+    </label>
   )
 }
 
@@ -111,6 +163,7 @@ function LogPane(props: {
   repo: string
   gitLog: PullGitLogState
   pathSuggestions: readonly string[]
+  filterExtras: ReactNode
   openFile: string | null
   onCloseFile: () => void
 }) {
@@ -131,6 +184,7 @@ function LogPane(props: {
       messageQuery={gitLog.messageQuery}
       filters={gitLog.filters}
       suggestions={{ authors: gitLog.authors, paths: props.pathSuggestions }}
+      filterExtras={props.filterExtras}
       onFilters={gitLog.setFilters}
       ci={gitLog.ci}
       selected={gitLog.commit.selected}
@@ -143,7 +197,7 @@ function LogPane(props: {
 }
 
 /** The log itself, from GitHub: the commits (or a file's diff) and the picked commit, side by side. */
-function PullGitLogBody(props: PullGitLogProps & { followPath: boolean }) {
+function PullGitLogBody(props: PullGitLogProps & { followPath: boolean; onFollowPath: (follow: boolean) => void }) {
   const gitLog = usePullGitLog(props, props.openPath, props.followPath)
   const [openFile, setOpenFile] = useOpenFile(gitLog.commit.selected)
   const pathSuggestions = useMemo(() => listPathSuggestions(props.files.map((file) => file.path)), [props.files])
@@ -161,6 +215,7 @@ function PullGitLogBody(props: PullGitLogProps & { followPath: boolean }) {
           repo={props.repo}
           gitLog={gitLog}
           pathSuggestions={pathSuggestions}
+          filterExtras={<FollowFileToggle followPath={props.followPath} onFollowPath={props.onFollowPath} />}
           openFile={openFile}
           onCloseFile={() => setOpenFile(null)}
         />
@@ -184,8 +239,13 @@ function PullGitLogBody(props: PullGitLogProps & { followPath: boolean }) {
  * opened, then keeps its place while closed.
  */
 export function GitLogPanel(props: PullGitLogProps) {
-  const layout = usePanelLayout()
+  const gitLogShortcut = useGitLogShortcut()
+  const layout = usePanelLayout(gitLogShortcut.shortcut)
   const [followPath, setFollowPath] = useState(true)
+  let followedPath: string | null = null
+  if (followPath && props.openPath) {
+    followedPath = props.openPath
+  }
   const [mounted, setMounted] = useState(layout.open)
   useEffect(() => {
     if (layout.open) {
@@ -198,9 +258,8 @@ export function GitLogPanel(props: PullGitLogProps) {
       <PanelBar
         open={layout.open}
         onToggle={layout.toggle}
-        openPath={props.openPath}
-        followPath={followPath}
-        onFollowPath={setFollowPath}
+        gitLogShortcut={gitLogShortcut}
+        followedPath={followedPath}
       />
       {Boolean(mounted) && (
         <div
@@ -209,7 +268,7 @@ export function GitLogPanel(props: PullGitLogProps) {
           style={{ height: layout.height }}
           className="flex min-h-0 flex-col border-t border-line bg-bg"
         >
-          <PullGitLogBody {...props} followPath={followPath} />
+          <PullGitLogBody {...props} followPath={followPath} onFollowPath={setFollowPath} />
         </div>
       )}
     </section>

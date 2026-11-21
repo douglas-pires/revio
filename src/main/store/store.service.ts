@@ -3,7 +3,7 @@ import { join } from 'node:path'
 import type { Guideline } from '@shared/guideline.types.ts'
 import type { PullLocalState } from '@shared/pull.types.ts'
 import type { Settings } from '@shared/settings.types.ts'
-import { DEFAULT_OPEN_IN_EDITOR_SHORTCUT } from '@shared/shortcut.util.ts'
+import { DEFAULT_GIT_LOG_SHORTCUT, DEFAULT_OPEN_IN_EDITOR_SHORTCUT } from '@shared/shortcut.util.ts'
 import { app, safeStorage } from 'electron'
 import type { AlertState } from '../alerts/alerts.util.ts'
 import { pruneStalePulls } from '../pulls/pull-state.util.ts'
@@ -49,6 +49,7 @@ const DEFAULT_SETTINGS: StoredSettings = {
   claudeModel: 'claude-opus-5-5',
   editor: '',
   openInEditorShortcut: DEFAULT_OPEN_IN_EDITOR_SHORTCUT,
+  gitLogShortcut: DEFAULT_GIT_LOG_SHORTCUT,
   codeFolders: [],
   syncViaIcloud: false,
 }

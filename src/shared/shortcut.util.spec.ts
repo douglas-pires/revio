@@ -1,5 +1,12 @@
 import { describe, expect, it } from 'vitest'
-import { formatShortcut, hasCommandModifier, type KeyPress, matchesShortcut, readShortcut } from './shortcut.util.ts'
+import {
+  findShortcutConflict,
+  formatShortcut,
+  hasCommandModifier,
+  type KeyPress,
+  matchesShortcut,
+  readShortcut,
+} from './shortcut.util.ts'
 
 const press = (over: Partial<KeyPress>): KeyPress => ({
   key: 'o',
@@ -59,5 +66,20 @@ describe('formatShortcut', () => {
     expect(formatShortcut('Alt+Enter')).toBe('⌥↩')
     expect(formatShortcut('Cmd++')).toBe('⌘+')
     expect(formatShortcut('')).toBe('')
+  })
+})
+
+describe('findShortcutConflict', () => {
+  const taken = [{ shortcut: 'Cmd+O', action: 'Open in editor' }]
+
+  it('names what a shortcut clashes with: one you set, or one of Revio or macOS', () => {
+    expect(findShortcutConflict('Cmd+O', taken)).toBe('Open in editor')
+    expect(findShortcutConflict('Cmd+F', taken)).toBe('Find in the changed files')
+    expect(findShortcutConflict('Cmd+Q', taken)).toBe('Quit Revio')
+  })
+
+  it('is null for a free shortcut or none at all', () => {
+    expect(findShortcutConflict('Ctrl+G', taken)).toBeNull()
+    expect(findShortcutConflict('', taken)).toBeNull()
   })
 })
