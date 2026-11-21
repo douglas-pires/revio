@@ -93,7 +93,7 @@ export function makeGuideline(id: string, repo: string, path = '', enabled = tru
 }
 
 /** The value, or a failed test saying what was missing; use instead of a non-null assertion. */
-export function expectPresent<T>(value: T | null | undefined, what = 'value'): T {
+export function assertPresent<T>(value: T | null | undefined, what = 'value'): T {
   if (value === null || value === undefined) {
     throw new Error(`Expected a ${what}, got ${String(value)}`)
   }

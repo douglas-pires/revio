@@ -16,15 +16,15 @@ import { useThreads } from '../threads/use-threads.hook.ts'
 import { AudienceBar } from './audience-bar.component.tsx'
 import {
   applyAudience,
+  convertStackPrToSearchable,
+  convertSummaryToSearchable,
+  convertThreadToSearchable,
   type InboxQuery,
   isEmptyQuery,
   matchesQuery,
   parseQuery,
   type ReviewAudience,
   readAudience,
-  stackPrToSearchable,
-  summaryToSearchable,
-  threadToSearchable,
 } from './inbox-query.util.ts'
 import { InboxRow } from './inbox-row.component.tsx'
 import { InboxSearch } from './inbox-search.component.tsx'
@@ -46,7 +46,7 @@ function ModeSwitch({
 }) {
   const segments = (['queue', 'stacks', 'threads'] as const).map((segmentMode) => ({
     value: segmentMode,
-    label: labelMode(segmentMode, labels.stacks, labels.waitingOnYou),
+    label: describeMode(segmentMode, labels.stacks, labels.waitingOnYou),
   }))
   return <SegmentedControl segments={segments} value={mode} onChange={onChange} />
 }
@@ -63,7 +63,8 @@ function ThreadsMode({
   onOpen: OpenPull
 }) {
   const threads = useMemo(
-    () => (state.threads ?? EMPTY).filter((thread) => !filtering || matchesQuery(threadToSearchable(thread), query)),
+    () =>
+      (state.threads ?? EMPTY).filter((thread) => !filtering || matchesQuery(convertThreadToSearchable(thread), query)),
     [state.threads, query, filtering],
   )
   return (
@@ -132,7 +133,7 @@ function QueueSections(props: {
 }) {
   const stale = props.requested.filter((pull) => pull.stale)
   const fresh = props.requested.filter((pull) => !pull.stale)
-  const empty = emptyQueueText(stale.length > 0, props.filtering)
+  const empty = describeEmptyQueue(stale.length > 0, props.filtering)
   return (
     <>
       <Section
@@ -156,18 +157,18 @@ function QueueSections(props: {
   )
 }
 
-function labelMode(mode: Mode, stacks: number, waitingOnYou: number) {
+function describeMode(mode: Mode, stacks: number, waitingOnYou: number) {
   if (mode === 'queue') {
     return 'Queue'
   }
   if (mode === 'stacks') {
-    return withCount('Stacks', stacks)
+    return appendCount('Stacks', stacks)
   }
-  return withCount('Threads', waitingOnYou)
+  return appendCount('Threads', waitingOnYou)
 }
 
 /** A label with its count, or the bare label when there are none. */
-function withCount(label: string, count: number) {
+function appendCount(label: string, count: number) {
   if (count === 0) {
     return label
   }
@@ -175,7 +176,7 @@ function withCount(label: string, count: number) {
 }
 
 /** What "Needs your review" says when it is empty; nothing while stale PRs show above it. */
-function emptyQueueText(hasStale: boolean, filtering: boolean) {
+function describeEmptyQueue(hasStale: boolean, filtering: boolean) {
   if (hasStale) {
     return
   }
@@ -195,10 +196,10 @@ function filterInbox(inbox: InboxData | null, query: InboxQuery) {
   }
   const rows = new Map([...inbox.requested, ...inbox.reviewed].map((pull) => [pull.id, pull]))
   return {
-    requested: inbox.requested.filter((pull) => matchesQuery(summaryToSearchable(pull, true), query)),
-    reviewed: inbox.reviewed.filter((pull) => matchesQuery(summaryToSearchable(pull, false), query)),
+    requested: inbox.requested.filter((pull) => matchesQuery(convertSummaryToSearchable(pull, true), query)),
+    reviewed: inbox.reviewed.filter((pull) => matchesQuery(convertSummaryToSearchable(pull, false), query)),
     stacks: inbox.stacks.filter((st) =>
-      st.nodes.some((node) => matchesQuery(stackPrToSearchable(node.pr, rows.get(node.pr.id)), query)),
+      st.nodes.some((node) => matchesQuery(convertStackPrToSearchable(node.pr, rows.get(node.pr.id)), query)),
     ),
   }
 }

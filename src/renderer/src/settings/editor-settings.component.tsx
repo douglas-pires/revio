@@ -5,7 +5,7 @@ import { useEffect, useState } from 'react'
 
 /** Which editor "Open in editor" uses, and where to look for local clones. */
 /** The "Automatic" choice, naming the editor it currently picks when one is installed. */
-function automaticLabel(firstInstalled: string | undefined) {
+function describeAutomaticChoice(firstInstalled: string | undefined) {
   if (!firstInstalled) {
     return 'Automatic'
   }
@@ -93,7 +93,7 @@ export function EditorSettings({
       <div className="px-4 py-3">
         <div className="mb-1.5 font-medium">Editor</div>
         <select className="input" value={settings.editor} onChange={(event) => update({ editor: event.target.value })}>
-          <option value="">{automaticLabel(editors?.[0]?.name)}</option>
+          <option value="">{describeAutomaticChoice(editors?.[0]?.name)}</option>
           {editors?.map((editor) => (
             <option key={editor.id} value={editor.id}>
               {editor.name}

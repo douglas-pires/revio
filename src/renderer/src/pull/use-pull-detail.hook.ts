@@ -3,9 +3,9 @@ import type { Stack } from '@shared/inbox.types.ts'
 import type { PullDetail, PullLocalState, PullRef } from '@shared/pull.types.ts'
 import { MS_PER_MINUTE } from '@shared/time.util.ts'
 import { useCallback, useEffect, useRef, useState } from 'react'
-import { errorMessage } from '../common/format.util.ts'
+import { readErrorMessage } from '../common/format.util.ts'
 import { hasSameContent } from './pull-content.util.ts'
-import { knownStackOf, rememberStack } from './stack-memory.util.ts'
+import { findKnownStack, rememberStack } from './stack-memory.util.ts'
 
 /** A prefetched copy this recent is shown immediately. */
 const PREFETCH_MAX_AGE_MS = 2 * MS_PER_MINUTE
@@ -27,7 +27,7 @@ function keepIfSame(prev: PullDetail | null, next: PullDetail) {
  * from the stack you came from, so its bar shows at once instead of after the lookup.
  */
 function usePullStack(pull: PullRef) {
-  const [stack, setStack] = useState<Stack | null>(() => knownStackOf(pull))
+  const [stack, setStack] = useState<Stack | null>(() => findKnownStack(pull))
   useEffect(() => {
     globalThis.revio
       .getStack(pull)
@@ -122,7 +122,7 @@ export function usePullDetail(pull: PullRef, onLoaded: (pr: PullDetail, local: P
           refreshInBackground(pull, showPr)
         }
       } catch (failure) {
-        setError(errorMessage(failure))
+        setError(readErrorMessage(failure))
       }
     },
     [pull, showPr],

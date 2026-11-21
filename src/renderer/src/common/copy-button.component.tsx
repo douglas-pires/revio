@@ -1,5 +1,5 @@
 import { useEffect, useState } from 'react'
-import { cx } from './format.util.ts'
+import { joinClassNames } from './format.util.ts'
 
 type CopyState = 'idle' | 'copied' | 'failed'
 
@@ -27,7 +27,7 @@ export function CopyButton(props: { text: string; title: string; className?: str
       type="button"
       title={props.title}
       aria-label={props.title}
-      className={cx('no-drag', props.className)}
+      className={joinClassNames('no-drag', props.className)}
       onClick={() =>
         navigator.clipboard.writeText(props.text).then(
           () => setState('copied'),

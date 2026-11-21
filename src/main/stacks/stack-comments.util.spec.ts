@@ -9,7 +9,7 @@ function commentBy(login: string | null) {
   return { author: { login } }
 }
 
-const thread = (authors: (string | null)[], isResolved = false): RawStackThread => ({
+const makeThread = (authors: (string | null)[], isResolved = false): RawStackThread => ({
   isResolved,
   comments: { nodes: authors.map(commentBy) },
 })
@@ -17,14 +17,14 @@ const PR = { repo: 'acme/web', number: 7 }
 
 describe('summarizeYourThreads', () => {
   it('counts the threads you commented in', () => {
-    const summary = summarizeYourThreads(PR, [thread(['me']), thread(['bo', 'me']), thread(['bo'])], 'me')
+    const summary = summarizeYourThreads(PR, [makeThread(['me']), makeThread(['bo', 'me']), makeThread(['bo'])], 'me')
     expect(summary).toEqual({ repo: 'acme/web', number: 7, yourThreads: 2, awaitingYou: 0 })
   })
 
   it('marks open threads where someone answered after you as waiting on you', () => {
     const summary = summarizeYourThreads(
       PR,
-      [thread(['me', 'bo']), thread(['me', 'bo'], true), thread(['bo', 'me', 'bo'])],
+      [makeThread(['me', 'bo']), makeThread(['me', 'bo'], true), makeThread(['bo', 'me', 'bo'])],
       'me',
     )
     expect(summary.yourThreads).toBe(3)
@@ -32,7 +32,7 @@ describe('summarizeYourThreads', () => {
   })
 
   it('skips missing threads and comments by deleted accounts', () => {
-    const summary = summarizeYourThreads(PR, [null, thread(['me', null])], 'me')
+    const summary = summarizeYourThreads(PR, [null, makeThread(['me', null])], 'me')
     expect(summary).toEqual({ repo: 'acme/web', number: 7, yourThreads: 1, awaitingYou: 1 })
   })
 })

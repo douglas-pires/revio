@@ -1,8 +1,8 @@
 import { describe, expect, it } from 'vitest'
-import { duration, isGenerated } from '@/common/format.util.ts'
+import { formatDuration, isGenerated } from '@/common/format.util.ts'
 import { EMPTY, groupBy } from '@/common/group.util.ts'
-import { groupByDir, initialCollapsed, newSideLinesByPath, suggestFolders } from '@/pull/files.util.ts'
-import { expectPresent, makeDetail, makeFile } from '../../../../test/fixtures.ts'
+import { collectNewSideLines, computeInitialCollapsed, groupByDir, suggestFolders } from '@/pull/files.util.ts'
+import { assertPresent, makeDetail, makeFile } from '../../../../test/fixtures.ts'
 
 describe('groupByDir', () => {
   it('groups by containing folder, root files under ""', () => {
@@ -46,7 +46,7 @@ describe('initialCollapsed', () => {
       questions: [],
       guidelineChecks: [],
     }
-    const collapsed = initialCollapsed(pr, {
+    const collapsed = computeInitialCollapsed(pr, {
       drafts: [],
       viewed: { 'viewed.ts': 'v1', 'changed-since.ts': 'old' },
       briefing: { briefing, headSha: 'h', createdAt: '', backend: 'api', model: 'claude-opus-5-5', omittedFiles: [] },
@@ -70,8 +70,8 @@ describe('newSideLinesByPath', () => {
         makeFile({ path: 'img.png', patch: undefined }),
       ],
     })
-    const lines = newSideLinesByPath(pr)
-    expect([...expectPresent(lines.get('a.ts'))]).toEqual([1, 2])
+    const lines = collectNewSideLines(pr)
+    expect([...assertPresent(lines.get('a.ts'))]).toEqual([1, 2])
     expect(lines.get('img.png')?.size).toBe(0)
   })
 })
@@ -93,7 +93,7 @@ describe('duration', () => {
     [5.4, '5h'],
     [47, '47h'],
     [72, '3d'],
-  ])('%d hours → %s', (hours, expected) => expect(duration(hours)).toBe(expected))
+  ])('%d hours → %s', (hours, expected) => expect(formatDuration(hours)).toBe(expected))
 })
 
 describe('groupBy', () => {

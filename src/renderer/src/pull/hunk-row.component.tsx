@@ -2,7 +2,7 @@ import type { GapMarker, HunkHeader } from './diff.util.ts'
 
 import { EXPAND_STEP, type ExpandDirection } from './diff-expand.util.ts'
 
-function hiddenLines(count: number | null) {
+function formatHiddenLines(count: number | null) {
   if (count === 1) {
     return 'the hidden line'
   }
@@ -12,11 +12,11 @@ function hiddenLines(count: number | null) {
 const ARROWS: Record<ExpandDirection, { icon: string; title: (hiddenCount: number | null) => string }> = {
   up: { icon: '↑', title: () => `Show ${EXPAND_STEP} more lines above` },
   down: { icon: '↓', title: () => `Show ${EXPAND_STEP} more lines below` },
-  all: { icon: '↕', title: (count) => `Show ${hiddenLines(count)}` },
+  all: { icon: '↕', title: (count) => `Show ${formatHiddenLines(count)}` },
 }
 
 /** Which buttons a separator offers: one when little is hidden, else the directions that make sense where it sits. */
-function directionsFor(gap: NonNullable<HunkHeader['gap']>): ExpandDirection[] {
+function listExpandDirections(gap: NonNullable<HunkHeader['gap']>): ExpandDirection[] {
   if (gap.hidden !== null && gap.hidden <= EXPAND_STEP) {
     return ['all']
   }
@@ -30,7 +30,7 @@ function directionsFor(gap: NonNullable<HunkHeader['gap']>): ExpandDirection[] {
 }
 
 /** What a gap row says when it has no hunk header: how many lines it hides. */
-function hiddenLabel(gap: GapMarker | undefined) {
+function describeHiddenLines(gap: GapMarker | undefined) {
   if (gap === undefined) {
     return ''
   }
@@ -52,7 +52,7 @@ function ExpandButtons({
 }) {
   return (
     <span className="flex shrink-0 flex-col border-r border-line select-none">
-      {directionsFor(gap).map((direction) => (
+      {listExpandDirections(gap).map((direction) => (
         <button
           type="button"
           key={direction}
@@ -83,7 +83,9 @@ export function HunkRow({
       <td colSpan={span} className="py-0 select-text">
         <div className="flex items-stretch">
           {row.gap !== undefined && onExpand !== undefined && <ExpandButtons gap={row.gap} onExpand={onExpand} />}
-          <span className="min-w-0 flex-1 self-center px-3 py-0.5">{row.text || hiddenLabel(onExpand && row.gap)}</span>
+          <span className="min-w-0 flex-1 self-center px-3 py-0.5">
+            {row.text || describeHiddenLines(onExpand && row.gap)}
+          </span>
         </div>
       </td>
     </tr>

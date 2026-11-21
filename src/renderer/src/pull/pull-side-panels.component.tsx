@@ -4,7 +4,7 @@ import { useMemo } from 'react'
 import { AskPanel } from './ask-panel.component.tsx'
 import { CommentsPanel } from './comments-panel.component.tsx'
 import { FileHistoryPanel } from './file-history-panel.component.tsx'
-import { askHistory, draftFromAsk, newSideOnly } from './pull-view.util.ts'
+import { askHistory, buildDraftFromAsk, keepNewSideOnly } from './pull-view.util.ts'
 import type { PullViewState } from './use-pull-view.hook.ts'
 
 /** The Claude conversation about a selection, with the earlier ones to switch to. */
@@ -28,10 +28,10 @@ function AskSidePanel({ view, thread }: { view: PullViewState; thread: AskThread
         view.saveThread(next)
       }}
       onClose={() => setThread(null)}
-      onJump={(path, line) => view.nav.goTo(path, newSideOnly(thread.side, line))}
+      onJump={(path, line) => view.nav.goTo(path, keepNewSideOnly(thread.side, line))}
       onUseAsDraft={(askThread, body) => {
-        view.addDraft(draftFromAsk(askThread, body))
-        view.nav.goTo(askThread.path, newSideOnly(askThread.side, askThread.endLine))
+        view.addDraft(buildDraftFromAsk(askThread, body))
+        view.nav.goTo(askThread.path, keepNewSideOnly(askThread.side, askThread.endLine))
       }}
     />
   )

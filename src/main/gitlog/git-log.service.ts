@@ -1,9 +1,9 @@
 import type { Octokit } from '@octokit/rest'
-import { errorMessage } from '@shared/error.util.ts'
+import { readErrorMessage } from '@shared/error.util.ts'
 import type { Branches, CiState, CommitDetail, LocalRepo, LogPage, LogQuery } from '@shared/git-log.types.ts'
 import { runWithInput } from '../common/shell.util.ts'
 import type { EditorService } from '../editor/editor.service.ts'
-import { gh } from '../github/github.client.ts'
+import { getGithubClient } from '../github/github.client.ts'
 import { splitRepo } from '../github/repo-name.util.ts'
 import {
   BRANCH_FORMAT,
@@ -69,14 +69,14 @@ export async function fetchCommitCi(repo: string, hashes: string[]): Promise<Rec
   }
   const states: Record<string, CiState> = {}
   try {
-    const octokit = await gh()
+    const octokit = await getGithubClient()
     for (let start = 0; start < hashes.length; start += CI_COMMITS_PER_QUERY) {
       // biome-ignore lint/performance/noAwaitInLoops: one batch at a time, to stay under GitHub's rate limits.
       const batch = await fetchCiBatch(octokit, repo, hashes.slice(start, start + CI_COMMITS_PER_QUERY))
       Object.assign(states, Object.fromEntries(batch))
     }
   } catch (err) {
-    console.error('[revio] CI lookup failed:', errorMessage(err))
+    console.error('[revio] CI lookup failed:', readErrorMessage(err))
   }
   return states
 }

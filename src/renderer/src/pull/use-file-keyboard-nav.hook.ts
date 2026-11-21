@@ -1,7 +1,7 @@
 import type { PullFile } from '@shared/pull.types.ts'
 import { useEffect, useRef } from 'react'
 import { isTyping } from '../common/keyboard.util.ts'
-import { fileInView } from './file-in-view.util.ts'
+import { findFileInView } from './file-in-view.util.ts'
 import { useOpenInEditorShortcut } from './use-open-in-editor-shortcut.hook.ts'
 
 interface NavState {
@@ -36,7 +36,7 @@ function toggleViewedAndMove(state: NavState, index: number) {
     state.goTo(file.path, true)
     return
   }
-  const after = nextUnviewed(state.files, index, state.viewed)
+  const after = findNextUnviewed(state.files, index, state.viewed)
   state.goTo((after ?? file).path, Boolean(after))
 }
 
@@ -49,7 +49,7 @@ function stepIndex(index: number, key: 'j' | 'k', length: number) {
 }
 
 /** The first unviewed file after `index`, wrapping around. */
-function nextUnviewed(files: PullFile[], index: number, viewed: Record<string, string>) {
+function findNextUnviewed(files: PullFile[], index: number, viewed: Record<string, string>) {
   const rotated = [...files.slice(index + 1), ...files.slice(0, Math.max(0, index))]
   return rotated.find((file) => viewed[file.path] !== file.sha)
 }
@@ -83,7 +83,7 @@ export function useFileKeyboardNav(state: NavState) {
       }
       event.preventDefault()
       if (event.key === 'v') {
-        toggleViewedAndMove(navState, indexOfPath(navState, fileInView(navState.current)))
+        toggleViewedAndMove(navState, indexOfPath(navState, findFileInView(navState.current)))
         return
       }
       const index = indexOfPath(navState, navState.current)

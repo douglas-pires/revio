@@ -1,8 +1,8 @@
 import type { Guideline } from '@shared/guideline.types.ts'
-import { cx } from '../common/format.util.ts'
+import { joinClassNames } from '../common/format.util.ts'
 import { SectionHeading } from '../common/section-heading.component.tsx'
 import type { GuideDrafts } from './guide-drafts.util.ts'
-import { type Draft, defaultTitle, groupGuides } from './guidelines.util.ts'
+import { buildDefaultTitle, type Draft, groupGuides } from './guidelines.util.ts'
 
 function DraftChip() {
   return <span className="chip ml-auto shrink-0 bg-warn/20 py-0 text-[10px] text-warn">draft</span>
@@ -29,13 +29,13 @@ export function GuideList({
           <button
             type="button"
             onClick={() => onSelect(newGuide)}
-            className={cx(
+            className={joinClassNames(
               'mb-3 flex w-full items-center gap-2 rounded-md px-2 py-1.5 text-left',
               selectedId === undefined && 'bg-hover',
               selectedId !== undefined && 'hover:bg-hover/60',
             )}
           >
-            <span className="truncate italic">{newGuide.title || defaultTitle(newGuide)}</span>
+            <span className="truncate italic">{newGuide.title || buildDefaultTitle(newGuide)}</span>
             <DraftChip />
           </button>
         )}
@@ -47,7 +47,7 @@ export function GuideList({
                 type="button"
                 key={guideline.id}
                 onClick={() => onSelect(guideline)}
-                className={cx(
+                className={joinClassNames(
                   'flex w-full items-center gap-2 rounded-md px-2 py-1.5 text-left',
                   selectedId === guideline.id && 'bg-hover',
                   selectedId !== guideline.id && 'hover:bg-hover/60',

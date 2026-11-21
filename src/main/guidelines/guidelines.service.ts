@@ -24,7 +24,7 @@ function countMatches(guideline: Guideline, paths: string[]) {
 }
 
 /** A guideline for every repository covers whole repositories, never a folder. */
-function folderFor(repo: string, path: string) {
+function buildGuidelineFolder(repo: string, path: string) {
   if (repo === '*') {
     return ''
   }
@@ -53,7 +53,7 @@ export function saveGuideline(input: Omit<Guideline, 'id' | 'updatedAt'> & { id?
   const guideline: Guideline = {
     ...input,
     repo,
-    path: folderFor(repo, input.path),
+    path: buildGuidelineFolder(repo, input.path),
     id: input.id ?? randomUUID(),
     updatedAt: new Date().toISOString(),
   }
@@ -88,7 +88,7 @@ export function matchGuidelines(guidelines: readonly Guideline[], repo: string, 
 }
 
 /** Where a guideline applies, in words: all repositories, a repository, or a folder in one. */
-export function scopeLabel(guideline: Guideline) {
+export function describeScope(guideline: Guideline) {
   if (guideline.repo === '*') {
     return 'All repositories'
   }

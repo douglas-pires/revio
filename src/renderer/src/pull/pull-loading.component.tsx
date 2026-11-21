@@ -8,16 +8,16 @@ import { ScreenHeader } from '../common/screen.component.tsx'
 import { BranchNames } from './branch-names.component.tsx'
 import { CodeLoading } from './code-loading.component.tsx'
 import type { PullTab } from './pull-tabs.util.ts'
-import { pullTabs } from './pull-tabs.util.ts'
+import { listPullTabs } from './pull-tabs.util.ts'
 import { StackBar } from './stack-bar.component.tsx'
-import { knownStackPr } from './stack-memory.util.ts'
+import { findKnownStackPr } from './stack-memory.util.ts'
 
 const AVATAR_PX = 28
 const FILE_ROWS = 5
 
 /** The header from what the stack already says about this PR (title, author, branches), else its number. */
 function LoadingHeader({ pull }: { pull: PullRef }) {
-  const known = knownStackPr(pull)
+  const known = findKnownStackPr(pull)
   if (!known) {
     return <ScreenHeader title={`${pull.repo}#${pull.number}`} subtitle="Loading…" />
   }
@@ -69,7 +69,7 @@ export function PullLoading(props: {
           </div>
         </aside>
         <div className="flex min-w-0 flex-1 flex-col">
-          <InnerTabs tabs={pullTabs(undefined)} value={props.tab} onChange={props.onTab} />
+          <InnerTabs tabs={listPullTabs(undefined)} value={props.tab} onChange={props.onTab} />
           <CodeLoading label={`Reading #${props.pull.number}…`} />
         </div>
       </div>

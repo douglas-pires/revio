@@ -11,9 +11,9 @@ const api = new Proxy({} as RevioApi, {
   get(_t, prop: string) {
     if (prop === 'onEvent') {
       return (listener: (event: MainEvent) => void) => {
-        const wrapped = (_: unknown, event: MainEvent) => listener(event)
-        ipcRenderer.on(IPC.event, wrapped)
-        return () => ipcRenderer.removeListener(IPC.event, wrapped)
+        const wrapHandler = (_: unknown, event: MainEvent) => listener(event)
+        ipcRenderer.on(IPC.event, wrapHandler)
+        return () => ipcRenderer.removeListener(IPC.event, wrapHandler)
       }
     }
     return invoke(prop)

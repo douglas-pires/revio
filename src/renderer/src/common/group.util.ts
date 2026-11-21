@@ -17,7 +17,7 @@ export function groupBy<T, K>(items: readonly T[], keyOf: (item: T) => K): Map<K
 export const EMPTY: readonly never[] = Object.freeze([])
 
 /** The set with `item` added, or removed when it was there. */
-export function toggledIn<T>(set: ReadonlySet<T>, item: T): Set<T> {
+export function toggleInSet<T>(set: ReadonlySet<T>, item: T): Set<T> {
   const next = new Set(set)
   if (next.has(item)) {
     next.delete(item)
@@ -28,7 +28,7 @@ export function toggledIn<T>(set: ReadonlySet<T>, item: T): Set<T> {
 }
 
 /** For lists where one item is open at a time: opens `id`, or closes it when it is the open one. */
-export function toggledOpen<T>(open: T | null, id: T): T | null {
+export function toggleOpen<T>(open: T | null, id: T): T | null {
   if (open === id) {
     return null
   }

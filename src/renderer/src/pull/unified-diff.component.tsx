@@ -1,7 +1,7 @@
-import { cx } from '../common/format.util.ts'
-import { anchorFor, keysOf } from './diff.util.ts'
+import { joinClassNames } from '../common/format.util.ts'
+import { findRowAnchor, listRowKeys } from './diff.util.ts'
 import { Code, Gutter, RowGroup, Sign } from './diff-cells.component.tsx'
-import { rowBg, rowKey } from './diff-look.util.ts'
+import { buildRowKey, pickRowBackground } from './diff-look.util.ts'
 import type { DiffTableProps } from './diff-table.types.ts'
 import { HunkRow } from './hunk-row.component.tsx'
 
@@ -25,19 +25,19 @@ export function UnifiedDiff({
       <tbody>
         {rows.map((row, index) => {
           if (row.kind === 'hunk') {
-            return <HunkRow key={rowKey(row)} row={row} span={COLUMNS} onExpand={onExpand} />
+            return <HunkRow key={buildRowKey(row)} row={row} span={COLUMNS} onExpand={onExpand} />
           }
-          const anchor = anchorFor(row)
-          const notes = notesFor(keysOf(row), anchor)
+          const anchor = findRowAnchor(row)
+          const notes = notesFor(listRowKeys(row), anchor)
           return (
-            <RowGroup key={rowKey(row)}>
+            <RowGroup key={buildRowKey(row)}>
               <tr
                 onMouseEnter={() => selection.over(anchor)}
                 data-new-line={row.newNo ?? undefined}
                 data-old-line={row.oldNo ?? undefined}
-                className={cx(
+                className={joinClassNames(
                   'group',
-                  rowBg(row.kind),
+                  pickRowBackground(row.kind),
                   commented(anchor) && 'commented-line',
                   selection.contains(anchor) && '!bg-accent/20',
                 )}

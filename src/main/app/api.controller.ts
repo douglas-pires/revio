@@ -1,16 +1,16 @@
 import { type ApiMethod, IPC, type RevioApi } from '@shared/api.contract.ts'
 import type { AskActivity } from '@shared/claude.types.ts'
-import { type PullRef, pullKey } from '@shared/pull.types.ts'
+import { buildPullKey, type PullRef } from '@shared/pull.types.ts'
 import { ipcMain, shell } from 'electron'
 import { sendTestNotification } from '../alerts/notification.service.ts'
 import { ask } from '../claude/ask.service.ts'
 import { generateBriefing } from '../claude/briefing.service.ts'
 import { isWebUrl } from '../common/web-url.util.ts'
 import type { EditorService } from '../editor/editor.service.ts'
-import { installedEditors } from '../editor/editor.service.ts'
-import { gh, resetClient } from '../github/github.client.ts'
+import { listInstalledEditors } from '../editor/editor.service.ts'
+import { getGithubClient, resetClient } from '../github/github.client.ts'
 import type { GithubTokens } from '../github/github-tokens.service.ts'
-import { gitLogApi } from '../gitlog/git-log.api.ts'
+import { buildGitLogApi } from '../gitlog/git-log.api.ts'
 import { deleteGuideline, resolveGuidelines, saveGuideline } from '../guidelines/guidelines.service.ts'
 import type { HistoryCache } from '../history/history.cache.ts'
 import type { InboxPoller } from '../inbox/inbox.poller.ts'
@@ -41,12 +41,12 @@ type SettingsMethods =
   | 'getSyncStatus'
   | 'syncNow'
 
-function settingsHandlers({ store, tokens, poller, sync }: ApiDeps): Pick<ApiHandlers, SettingsMethods> {
+function buildSettingsHandlers({ store, tokens, poller, sync }: ApiDeps): Pick<ApiHandlers, SettingsMethods> {
   return {
     getSettings: () => store.settings(),
     updateSettings: (patch) => {
       store.updateSettings(patch)
-      reactToSettings(
+      applySettingsChanges(
         poller,
         Object.keys(patch).filter((key) => patch[key as keyof typeof patch] !== undefined),
       )
@@ -77,7 +77,7 @@ type InboxMethods =
   | 'replyToThread'
   | 'setThreadResolved'
 
-function inboxHandlers({ poller, mentions, threads }: ApiDeps): Pick<ApiHandlers, InboxMethods> {
+function buildInboxHandlers({ poller, mentions, threads }: ApiDeps): Pick<ApiHandlers, InboxMethods> {
   return {
     getInbox: () => poller.latest,
     refreshInbox: () => poller.poll(),
@@ -86,12 +86,12 @@ function inboxHandlers({ poller, mentions, threads }: ApiDeps): Pick<ApiHandlers
     markMentionRead: (ref) => mentions.markRead(ref),
     getThreads: (maxAgeMs = 0) => threads.get(maxAgeMs),
     replyToThread: async (threadId, body) => {
-      const comment = await replyToThread(await gh(), threadId, body)
+      const comment = await replyToThread(await getGithubClient(), threadId, body)
       threads.forget()
       return comment
     },
     setThreadResolved: async (threadId, resolved) => {
-      await setThreadResolved(await gh(), threadId, resolved)
+      await setThreadResolved(await getGithubClient(), threadId, resolved)
       threads.forget()
     },
   }
@@ -110,18 +110,18 @@ type PullMethods =
   | 'commentOnPull'
   | 'saveAsks'
 
-function pullHandlers({ store, poller, pulls }: ApiDeps): Pick<ApiHandlers, PullMethods> {
+function buildPullHandlers({ store, poller, pulls }: ApiDeps): Pick<ApiHandlers, PullMethods> {
   return {
     getPull: (ref, maxAgeMs = 0) => pulls.get(ref, maxAgeMs),
     getStack: (ref) => fetchStack(ref, poller.latest),
     getStackComments: (stack) => fetchStackComments(stack),
-    getLocalState: (ref) => store.pull(pullKey(ref)),
+    getLocalState: (ref) => store.pull(buildPullKey(ref)),
     saveDrafts: (ref, drafts) =>
-      store.updatePull(pullKey(ref), (pullState) => {
+      store.updatePull(buildPullKey(ref), (pullState) => {
         pullState.drafts = drafts
       }),
     setViewed: (ref, path, sha) =>
-      store.updatePull(pullKey(ref), (pullState) => {
+      store.updatePull(buildPullKey(ref), (pullState) => {
         if (sha) {
           pullState.viewed[path] = sha
         } else {
@@ -129,7 +129,7 @@ function pullHandlers({ store, poller, pulls }: ApiDeps): Pick<ApiHandlers, Pull
         }
       }),
     submitReview: async (input) => {
-      const key = pullKey(input)
+      const key = buildPullKey(input)
       const result = await submitReview(input, store.pull(key).drafts)
       store.updatePull(key, (pullState) => {
         pullState.drafts = []
@@ -142,12 +142,12 @@ function pullHandlers({ store, poller, pulls }: ApiDeps): Pick<ApiHandlers, Pull
     replyToComment: (ref, id, body) => replyToComment(ref, id, body),
     commentOnPull: (ref, body) => commentOnPull(ref, body),
     setReaction: async (ref, subjectId, content, on) => {
-      const reactions = await setReaction(await gh(), subjectId, content, on)
+      const reactions = await setReaction(await getGithubClient(), subjectId, content, on)
       pulls.forget(ref)
       return reactions
     },
     saveAsks: (ref, asks) =>
-      store.updatePull(pullKey(ref), (pullState) => {
+      store.updatePull(buildPullKey(ref), (pullState) => {
         pullState.asks = asks
       }),
   }
@@ -161,7 +161,7 @@ type HistoryMethods =
   | 'getPullCommits'
   | 'getFileContent'
 
-function historyHandlers({ history }: ApiDeps): Pick<ApiHandlers, HistoryMethods> {
+function buildHistoryHandlers({ history }: ApiDeps): Pick<ApiHandlers, HistoryMethods> {
   return {
     getBlame: (at) => history.blame(at),
     getFileHistory: (ref, at) => history.fileHistory(ref, at),
@@ -172,7 +172,7 @@ function historyHandlers({ history }: ApiDeps): Pick<ApiHandlers, HistoryMethods
   }
 }
 
-function guidelineHandlers({
+function buildGuidelineHandlers({
   store,
   poller,
 }: ApiDeps): Pick<
@@ -200,7 +200,7 @@ function guidelineHandlers({
   }
 }
 
-function claudeHandlers({ store, pulls, window }: ApiDeps): Pick<ApiHandlers, 'generateBriefing' | 'askClaude'> {
+function buildClaudeHandlers({ store, pulls, window }: ApiDeps): Pick<ApiHandlers, 'generateBriefing' | 'askClaude'> {
   /** The PR (cached if recent) and the review guides that apply to its files. */
   const loadContext = async (ref: PullRef) => {
     const pr = pulls.peek(ref) ?? (await pulls.get(ref))
@@ -214,7 +214,7 @@ function claudeHandlers({ store, pulls, window }: ApiDeps): Pick<ApiHandlers, 'g
   }
   return {
     generateBriefing: async (ref) => {
-      const key = pullKey(ref)
+      const key = buildPullKey(ref)
       const { pr, guidelines } = await loadContext(ref)
       const record = await generateBriefing(pr, guidelines, (message) =>
         window.send({ type: 'briefing-progress', key, message }),
@@ -232,7 +232,7 @@ function claudeHandlers({ store, pulls, window }: ApiDeps): Pick<ApiHandlers, 'g
         onText: (text: string) => window.send({ type: 'ask-delta', threadId: thread.id, text }),
         onActivity,
       }
-      return { answer: await ask({ pr, guidelines, briefing: store.pull(pullKey(ref)).briefing, thread }, out) }
+      return { answer: await ask({ pr, guidelines, briefing: store.pull(buildPullKey(ref)).briefing, thread }, out) }
     },
   }
 }
@@ -254,17 +254,17 @@ export interface ApiDeps {
 /** Answers renderer calls on the single IPC channel by delegating to the services. */
 export function registerApi(deps: ApiDeps) {
   const handlers: ApiHandlers = {
-    ...settingsHandlers(deps),
-    ...inboxHandlers(deps),
-    ...pullHandlers(deps),
-    ...historyHandlers(deps),
+    ...buildSettingsHandlers(deps),
+    ...buildInboxHandlers(deps),
+    ...buildPullHandlers(deps),
+    ...buildHistoryHandlers(deps),
     getUpdateStatus: () => deps.updates.status,
     checkForUpdates: () => deps.updates.check(),
     testNotification: () => sendTestNotification(() => deps.window.show()),
-    ...guidelineHandlers(deps),
-    ...claudeHandlers(deps),
-    ...gitLogApi(deps.editor),
-    listEditors: () => installedEditors(),
+    ...buildGuidelineHandlers(deps),
+    ...buildClaudeHandlers(deps),
+    ...buildGitLogApi(deps.editor),
+    listEditors: () => listInstalledEditors(),
     openInEditor: (target) => deps.editor.open(target),
     openExternal: async (url) => {
       if (isWebUrl(url)) {
@@ -287,7 +287,7 @@ export function registerApi(deps: ApiDeps) {
 }
 
 /** Lets the inbox catch up with changed settings, whether changed here or synced from another Mac. */
-export function reactToSettings(poller: Pick<InboxPoller, 'reschedule' | 'poll'>, changed: readonly string[]) {
+export function applySettingsChanges(poller: Pick<InboxPoller, 'reschedule' | 'poll'>, changed: readonly string[]) {
   if (changed.includes('githubToken')) {
     resetClient()
   }

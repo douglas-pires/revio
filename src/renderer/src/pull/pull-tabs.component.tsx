@@ -5,7 +5,7 @@ import { FilesTab } from './files-tab.component.tsx'
 import { FindBar } from './find-bar.component.tsx'
 import { OverviewTab } from './overview-tab.component.tsx'
 import { PullTabBar } from './pull-tab-bar.component.tsx'
-import { appendSummaryLine, markedAsAi, toggled } from './pull-view.util.ts'
+import { appendSummaryLine, markAsAi, toggleBetween } from './pull-view.util.ts'
 import { QuotedComment } from './quoted-comment.component.tsx'
 import { TabPane } from './tab-pane.component.tsx'
 import { BLAME_STATES, PANEL_STATES, type PullViewState } from './use-pull-view.hook.ts'
@@ -22,7 +22,7 @@ function BriefingCard({ view, pr }: { view: PullViewState; pr: PullDetail }) {
       validLine={(path, line) => Boolean(view.rightLines.get(path)?.has(line))}
       patchOf={view.patchOf}
       onDraft={(path, line, body) => {
-        view.addDraft({ path, line, side: 'RIGHT', body: markedAsAi(body) })
+        view.addDraft({ path, line, side: 'RIGHT', body: markAsAi(body) })
         view.nav.goTo(path, line)
       }}
       onAddToSummary={(question) => view.review.setBody((summary) => appendSummaryLine(summary, question))}
@@ -120,10 +120,10 @@ export function PullTabs({
         commentsPanelOpen={view.commentsPanel === 'open'}
         onToggleCommentsPanel={() => {
           view.setHistoryPath(null)
-          view.setCommentsPanel(toggled(view.commentsPanel, PANEL_STATES))
+          view.setCommentsPanel(toggleBetween(view.commentsPanel, PANEL_STATES))
         }}
         blame={view.blame === 'on'}
-        onToggleBlame={() => view.setBlame(toggled(view.blame, BLAME_STATES))}
+        onToggleBlame={() => view.setBlame(toggleBetween(view.blame, BLAME_STATES))}
         threadsFolded={view.threadFold.all}
         onToggleThreadsFolded={() => view.threadFold.setAll(!view.threadFold.all)}
         view={view.view}

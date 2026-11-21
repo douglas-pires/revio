@@ -12,7 +12,7 @@ async function answer(req: HighlightRequest): Promise<HighlightResponse> {
 }
 
 /** The answer when tokenizing throws: the request's kind with nothing highlighted. */
-function failedAnswer(req: HighlightRequest): HighlightResponse {
+function buildFailedAnswer(req: HighlightRequest): HighlightResponse {
   if (req.kind === 'code') {
     return { id: req.id, kind: 'code', lines: null }
   }
@@ -21,7 +21,7 @@ function failedAnswer(req: HighlightRequest): HighlightResponse {
 
 globalThis.onmessage = async (event: MessageEvent<HighlightRequest>) => {
   const req = event.data
-  globalThis.postMessage(await answer(req).catch(() => failedAnswer(req)))
+  globalThis.postMessage(await answer(req).catch(() => buildFailedAnswer(req)))
 }
 
 /** Rows of a diff, tokenized per side, or a plain code block in a named language. */

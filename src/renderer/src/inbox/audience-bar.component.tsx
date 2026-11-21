@@ -4,7 +4,7 @@ import { FilterChips } from '../common/filter-chips.component.tsx'
 import { countTeams, type ReviewAudience } from './inbox-query.util.ts'
 
 /** "team" stands in for team names the token may not read (no read:org). */
-function teamTitle(team: string) {
+function describeTeam(team: string) {
   if (team === 'team') {
     return 'Requested from a team (grant read:org to see team names)'
   }
@@ -33,7 +33,7 @@ export const AudienceBar = memo(function AudienceBarView({
       audience: { kind: 'team', team } as const,
       label: `@${team}`,
       count,
-      title: teamTitle(team),
+      title: describeTeam(team),
     })),
   ]
   const chips = options.map(({ audience, label, count, title }) => ({

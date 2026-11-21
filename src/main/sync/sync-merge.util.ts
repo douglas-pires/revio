@@ -38,7 +38,7 @@ const FileSchema = z.object({
 })
 
 /** Milliseconds since the epoch; 0 for never or a date that cannot be read. */
-function timeOf(iso: string | null | undefined) {
+function readTime(iso: string | null | undefined) {
   const time = Date.parse(iso ?? '')
   if (Number.isNaN(time)) {
     return 0
@@ -50,8 +50,8 @@ function timeOf(iso: string | null | undefined) {
  * The later of two changes. On a tie, including two values never changed, the remote one wins: the sync file is
  * the one place every Mac merges into, so preferring it makes every Mac settle on the same value.
  */
-function newer<T>(local: T, remote: T, at: (x: T) => string | null) {
-  if (timeOf(at(local)) > timeOf(at(remote))) {
+function pickNewer<T>(local: T, remote: T, at: (x: T) => string | null) {
+  if (readTime(at(local)) > readTime(at(remote))) {
     return local
   }
   return remote
@@ -65,7 +65,7 @@ function mergeSettings(local: StampedSettings, remote: StampedSettings): Stamped
     const localValue = localByKey[key]
     const remoteValue = remoteByKey[key]
     if (localValue && remoteValue) {
-      out[key] = newer(localValue, remoteValue, (stamped) => stamped.updatedAt)
+      out[key] = pickNewer(localValue, remoteValue, (stamped) => stamped.updatedAt)
     } else if (localValue ?? remoteValue) {
       out[key] = (localValue ?? remoteValue) as Stamped<unknown>
     }
@@ -78,7 +78,7 @@ function mergeDeletions(local: Record<string, string>, remote: Record<string, st
   const oldest = now - KEEP_DELETIONS_DAYS * MS_PER_DAY
   const out: Record<string, string> = {}
   for (const [id, at] of [...Object.entries(local), ...Object.entries(remote)]) {
-    if (timeOf(at) >= oldest && timeOf(at) >= timeOf(out[id])) {
+    if (readTime(at) >= oldest && readTime(at) >= readTime(out[id])) {
       out[id] = at
     }
   }
@@ -96,26 +96,26 @@ function mergeGuidelines(local: Guideline[], remote: Guideline[], deleted: Recor
     if (mine) {
       byId.set(
         guideline.id,
-        newer(mine, guideline, (version) => version.updatedAt),
+        pickNewer(mine, guideline, (version) => version.updatedAt),
       )
     } else {
       byId.set(guideline.id, guideline)
     }
   }
   return [...byId.values()].filter(
-    (guideline) => !(guideline.id in deleted && timeOf(deleted[guideline.id]) >= timeOf(guideline.updatedAt)),
+    (guideline) => !(guideline.id in deleted && readTime(deleted[guideline.id]) >= readTime(guideline.updatedAt)),
   )
 }
 
-const sortedEntries = (record: object) =>
+const listSortedEntries = (record: object) =>
   Object.entries(record).sort(([leftKey], [rightKey]) => leftKey.localeCompare(rightKey))
 
 /** The snapshot in one fixed order, so two that hold the same things compare equal. */
-function canonical(snapshot: SyncSnapshot) {
+function serializeCanonically(snapshot: SyncSnapshot) {
   return JSON.stringify([
-    sortedEntries(snapshot.settings),
-    [...snapshot.guidelines].sort((left, right) => left.id.localeCompare(right.id)).map(sortedEntries),
-    sortedEntries(snapshot.deletedGuidelines),
+    listSortedEntries(snapshot.settings),
+    [...snapshot.guidelines].sort((left, right) => left.id.localeCompare(right.id)).map(listSortedEntries),
+    listSortedEntries(snapshot.deletedGuidelines),
   ])
 }
 
@@ -153,7 +153,8 @@ export function mergeSnapshots(local: SyncSnapshot, remote: SyncSnapshot, now = 
   }
 }
 
-export const sameSnapshot = (left: SyncSnapshot, right: SyncSnapshot) => canonical(left) === canonical(right)
+export const sameSnapshot = (left: SyncSnapshot, right: SyncSnapshot) =>
+  serializeCanonically(left) === serializeCanonically(right)
 
 /** Reads a sync file's JSON, keeping every valid part of it. */
 export function parseSyncFile(text: string): ParsedSyncFile {

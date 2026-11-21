@@ -74,7 +74,7 @@ const loaders = {
 
 const THEMES = { dark: 'github-dark-default', light: 'github-light-default' } as const
 
-function tokenLines(core: HighlighterCore, code: string, lang: string): Tok[][] {
+function tokenizeLines(core: HighlighterCore, code: string, lang: string): Tok[][] {
   return core
     .codeToTokens(code, { lang, themes: THEMES, defaultColor: false })
     .tokens.map((line) => line.map((token) => ({ text: token.content, style: token.htmlStyle })))
@@ -105,7 +105,7 @@ export interface TokenRow {
   text: string
 }
 
-export function languageFor(path: string): string | null {
+export function detectLanguage(path: string): string | null {
   const name = path.slice(path.lastIndexOf('/') + 1)
   if (FILENAMES[name]) {
     return FILENAMES[name]
@@ -125,7 +125,7 @@ export function languageFor(path: string): string | null {
 }
 
 /** The Shiki language for a fence's info string (```ts, ```typescript, ```py…), or null when unknown. */
-export function languageNamed(name: string): string | null {
+export function findLanguageByName(name: string): string | null {
   const key = name.trim().toLowerCase()
   if (!key) {
     return null
@@ -133,7 +133,7 @@ export function languageNamed(name: string): string | null {
   if (key in loaders) {
     return key
   }
-  return languageFor(`file.${key}`)
+  return detectLanguage(`file.${key}`)
 }
 
 export class TokenHighlighter {
@@ -161,7 +161,7 @@ export class TokenHighlighter {
 
   /** Tokens per line of a code block, or null when the language is unknown or the code is too large. */
   async tokenizeCode(language: string, code: string): Promise<Tok[][] | null> {
-    const lang = languageNamed(language)
+    const lang = findLanguageByName(language)
     if (!lang || code.length > MAX_PATCH) {
       return null
     }
@@ -170,7 +170,7 @@ export class TokenHighlighter {
       return null
     }
     try {
-      return tokenLines(core, code, lang)
+      return tokenizeLines(core, code, lang)
     } catch {
       return null
     }
@@ -182,7 +182,7 @@ export class TokenHighlighter {
    * blob, so multi-line strings and comments color correctly within a hunk.
    */
   async tokenizeRows(path: string, rows: readonly TokenRow[], patchLength: number): Promise<Map<number, Tok[]> | null> {
-    const lang = languageFor(path)
+    const lang = detectLanguage(path)
     if (!lang || patchLength > MAX_PATCH) {
       return null
     }
@@ -193,17 +193,17 @@ export class TokenHighlighter {
 
     const out = new Map<number, Tok[]>()
     const tokenize = (indices: number[], keep: (row: TokenRow) => boolean) => {
-      const kept = (rowIndex: number) => {
+      const isKept = (rowIndex: number) => {
         const row = rows[rowIndex]
         return row !== undefined && keep(row)
       }
-      if (!indices.some(kept)) {
+      if (!indices.some(isKept)) {
         return
       }
       try {
-        const lines = tokenLines(core, indices.map((index) => rows[index]?.text).join('\n'), lang)
+        const lines = tokenizeLines(core, indices.map((index) => rows[index]?.text).join('\n'), lang)
         for (const [position, rowIdx] of indices.entries()) {
-          if (kept(rowIdx)) {
+          if (isKept(rowIdx)) {
             out.set(rowIdx, lines[position] ?? [])
           }
         }

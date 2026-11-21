@@ -1,9 +1,9 @@
 import type { Inbox as InboxData } from '@shared/inbox.types.ts'
 import type { MentionsInbox } from '@shared/mention.types.ts'
-import { pullKey } from '@shared/pull.types.ts'
+import { buildPullKey } from '@shared/pull.types.ts'
 // biome-ignore lint/correctness/noUnresolvedImports: @types/react declares these through its namespace, which Biome's resolver does not follow.
 import { lazy, Suspense, useEffect, useState } from 'react'
-import { cx } from './common/format.util.ts'
+import { joinClassNames } from './common/format.util.ts'
 import { HistoryContext } from './common/history.context.ts'
 import type { OpenPull } from './common/navigation.types.ts'
 import { useRouteHistory } from './common/use-route-history.hook.ts'
@@ -39,7 +39,7 @@ function NavButton(props: {
     <button
       type="button"
       onClick={props.onClick}
-      className={cx(
+      className={joinClassNames(
         'no-drag relative flex w-14 flex-col items-center gap-1 rounded-lg py-2 text-[10.5px] transition',
         props.active && 'bg-hover text-fg',
         !props.active && 'text-muted hover:bg-hover/60 hover:text-fg',
@@ -60,7 +60,7 @@ function NavButton(props: {
       {props.label}
       {Boolean(props.badge) && (
         <span
-          className={cx(
+          className={joinClassNames(
             'absolute top-1 right-2 min-w-4 rounded-full px-1 text-center text-[10px] leading-4 font-semibold text-white',
             props.badgeTone === 'danger' && 'bg-danger',
             !(props.badgeTone === 'danger') && 'bg-accent',
@@ -190,7 +190,7 @@ function Screen({
       )}
       {route.view === 'pull' && (
         <PullView
-          key={pullKey(route.pull)}
+          key={buildPullKey(route.pull)}
           pull={route.pull}
           initialTarget={route.target}
           onBack={goBack}

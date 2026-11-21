@@ -4,8 +4,8 @@ const GITHUB_URL = /github\.com[:/](?<owner>[\w.-]+)\/(?<repo>[\w.-]+?)(?:\.git)
 const VERSION_PREFIX = /^v/iu
 
 /** owner/repo from a package.json `repository` (a URL string or { url }), when it is on GitHub. */
-function githubRepoOf(repository: unknown): ReleaseSource | null {
-  const url = repositoryUrlOf(repository)
+function readReleaseSourceFromRepository(repository: unknown): ReleaseSource | null {
+  const url = readRepositoryUrl(repository)
   if (url === undefined) {
     return null
   }
@@ -17,7 +17,7 @@ function githubRepoOf(repository: unknown): ReleaseSource | null {
 }
 
 /** A package.json `repository`'s URL: the field itself when it is a string, else its `url`. */
-function repositoryUrlOf(repository: unknown): string | undefined {
+function readRepositoryUrl(repository: unknown): string | undefined {
   if (typeof repository === 'string') {
     return repository
   }
@@ -39,7 +39,7 @@ function publishEntriesOf(publish: unknown): unknown[] {
   return []
 }
 
-const parts = (version: string) =>
+const splitVersion = (version: string) =>
   version
     .trim()
     .replace(VERSION_PREFIX, '')
@@ -72,7 +72,7 @@ export function releaseSourceOf(packageJson: unknown): ReleaseSource | null {
   if (github?.owner && github.repo) {
     return { owner: github.owner, repo: github.repo }
   }
-  return githubRepoOf(pkg?.repository)
+  return readReleaseSourceFromRepository(pkg?.repository)
 }
 
 /**
@@ -80,8 +80,8 @@ export function releaseSourceOf(packageJson: unknown): ReleaseSource | null {
  * release is newer than a pre-release of it (0.2.0 is newer than 0.2.0-dev.43), as in semver. "v" is ignored.
  */
 export function isNewerVersion(candidate: string, current: string): boolean {
-  const candidateParts = parts(candidate)
-  const currentParts = parts(current)
+  const candidateParts = splitVersion(candidate)
+  const currentParts = splitVersion(current)
   for (let position = 0; position < Math.max(candidateParts.length, currentParts.length); position += 1) {
     const difference = (candidateParts[position] ?? 0) - (currentParts[position] ?? 0)
     if (difference) {

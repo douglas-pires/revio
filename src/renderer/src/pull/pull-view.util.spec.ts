@@ -3,18 +3,18 @@ import { describe, expect, it } from 'vitest'
 import {
   appendSummaryLine,
   askHistory,
-  draftFromAsk,
-  fileTargetOf,
+  buildDraftFromAsk,
   hasSummaryLine,
-  markedAsAi,
-  newSideOnly,
+  keepNewSideOnly,
+  markAsAi,
   quoteOf,
+  readFileTarget,
   replyIdOf,
-  toggled,
+  toggleBetween,
 } from './pull-view.util.ts'
 
 const QUOTE = { kind: 'comment', author: 'bo', authorAvatar: '', body: 'hi', url: '', createdAt: '' } as const
-const thread = (over: Partial<AskThread> = {}): AskThread => ({
+const makeThread = (over: Partial<AskThread> = {}): AskThread => ({
   id: 't',
   path: 'a.ts',
   side: 'RIGHT',
@@ -29,8 +29,8 @@ const thread = (over: Partial<AskThread> = {}): AskThread => ({
 describe('targets', () => {
   it('tells a conversation quote from a place in the diff', () => {
     expect(quoteOf({ conversation: QUOTE })).toBe(QUOTE)
-    expect(fileTargetOf({ conversation: QUOTE })).toBeUndefined()
-    expect(fileTargetOf({ path: 'a.ts', line: 3 })).toEqual({ path: 'a.ts', line: 3 })
+    expect(readFileTarget({ conversation: QUOTE })).toBeUndefined()
+    expect(readFileTarget({ path: 'a.ts', line: 3 })).toEqual({ path: 'a.ts', line: 3 })
     expect(quoteOf(undefined)).toBeNull()
   })
 
@@ -53,30 +53,32 @@ describe('small helpers', () => {
   })
 
   it('keeps only new-side lines', () => {
-    expect(newSideOnly('RIGHT', 4)).toBe(4)
-    expect(newSideOnly('LEFT', 4)).toBeNull()
+    expect(keepNewSideOnly('RIGHT', 4)).toBe(4)
+    expect(keepNewSideOnly('LEFT', 4)).toBeNull()
   })
 
   it('drafts from a conversation, with a start line only for ranges', () => {
-    expect(draftFromAsk(thread(), 'x')).toEqual({ path: 'a.ts', side: 'RIGHT', line: 3, body: '🤖 x' })
-    expect(draftFromAsk(thread({ startLine: 1 }), 'x')).toMatchObject({ startLine: 1 })
+    expect(buildDraftFromAsk(makeThread(), 'x')).toEqual({ path: 'a.ts', side: 'RIGHT', line: 3, body: '🤖 x' })
+    expect(buildDraftFromAsk(makeThread({ startLine: 1 }), 'x')).toMatchObject({ startLine: 1 })
   })
 
   it('marks a comment Claude wrote with a robot, once', () => {
-    expect(markedAsAi('Retries skip status 0.')).toBe('🤖 Retries skip status 0.')
-    expect(markedAsAi(markedAsAi('Retries skip status 0.'))).toBe('🤖 Retries skip status 0.')
+    expect(markAsAi('Retries skip status 0.')).toBe('🤖 Retries skip status 0.')
+    expect(markAsAi(markAsAi('Retries skip status 0.'))).toBe('🤖 Retries skip status 0.')
   })
 
   it('lists an unsaved conversation first', () => {
-    const saved = [thread({ id: 's' })]
-    expect(askHistory(thread(), saved).map((savedThread) => savedThread.id)).toEqual(['t', 's'])
+    const saved = [makeThread({ id: 's' })]
+    expect(askHistory(makeThread(), saved).map((savedThread) => savedThread.id)).toEqual(['t', 's'])
     expect(
-      askHistory(thread({ messages: [{ role: 'user', content: 'q' }] }), saved).map((savedThread) => savedThread.id),
+      askHistory(makeThread({ messages: [{ role: 'user', content: 'q' }] }), saved).map(
+        (savedThread) => savedThread.id,
+      ),
     ).toEqual(['s'])
   })
 
   it('toggles between two states', () => {
-    expect(toggled('open', ['open', 'closed'])).toBe('closed')
-    expect(toggled('closed', ['open', 'closed'])).toBe('open')
+    expect(toggleBetween('open', ['open', 'closed'])).toBe('closed')
+    expect(toggleBetween('closed', ['open', 'closed'])).toBe('open')
   })
 })

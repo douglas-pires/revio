@@ -3,13 +3,13 @@ import type { PullRef } from '@shared/pull.types.ts'
 import { useEffect, useMemo, useRef, useState } from 'react'
 import { CopyButton } from '../common/copy-button.component.tsx'
 import { Markdown } from '../common/markdown.component.tsx'
-import { withPositions } from '../common/numbered-lines.util.ts'
+import { addPositions } from '../common/numbered-lines.util.ts'
 import { PanelHeader } from '../common/panel-header.component.tsx'
 import { ToggleButton } from '../common/toggle-button.component.tsx'
 import { FinishedActivity, PendingAnswer } from './ask-activity.component.tsx'
 import { PendingContext, SentContext } from './ask-context.component.tsx'
 import { AskHistory } from './ask-history.component.tsx'
-import { snippetRows } from './diff.util.ts'
+import { parseSnippetRows } from './diff.util.ts'
 import { StaticDiff } from './static-diff.component.tsx'
 import { useAskConversation } from './use-ask-conversation.hook.ts'
 import { useStickToBottom } from './use-stick-to-bottom.hook.ts'
@@ -22,14 +22,14 @@ const QUICK = [
 ]
 
 /** "12" or "12–14". */
-function linesOf(thread: AskThread) {
+function describeLines(thread: AskThread) {
   if (thread.startLine === thread.endLine) {
     return `${thread.startLine}`
   }
   return `${thread.startLine}–${thread.endLine}`
 }
 
-function placeholderFor(thread: AskThread) {
+function describeQuestionPlaceholder(thread: AskThread) {
   if (thread.messages.length > 0) {
     return 'Follow up…'
   }
@@ -68,10 +68,10 @@ function AskMessage({ message, onUseAsDraft }: { message: AskMessageType; onUseA
 /** The selected code with a link to it and a copy button. */
 function SelectionSnippet({ thread, onJump }: { thread: AskThread; onJump: (path: string, line: number) => void }) {
   const rows = useMemo(
-    () => snippetRows(thread.snippet, thread.side, thread.startLine),
+    () => parseSnippetRows(thread.snippet, thread.side, thread.startLine),
     [thread.snippet, thread.side, thread.startLine],
   )
-  const lines = linesOf(thread)
+  const lines = describeLines(thread)
   return (
     <>
       <button
@@ -128,7 +128,7 @@ function AskConversation({
       className="min-h-0 flex-1 space-y-3 overflow-x-hidden overflow-y-auto px-3 py-3"
     >
       <SelectionSnippet thread={thread} onJump={props.onJump} />
-      {withPositions(thread.messages).map(({ item, position }) => (
+      {addPositions(thread.messages).map(({ item, position }) => (
         <div key={position} className="space-y-2">
           {position === thread.messages.length && item.role === 'assistant' && (
             <FinishedActivity progress={chat.progress} threadId={thread.id} />
@@ -169,7 +169,7 @@ function QuestionBox({
         ref={input}
         aria-label="Question for Claude"
         className="input min-h-16 resize-none"
-        placeholder={placeholderFor(thread)}
+        placeholder={describeQuestionPlaceholder(thread)}
         value={chat.question}
         disabled={chat.pending !== null}
         onChange={(event) => chat.setQuestion(event.target.value)}

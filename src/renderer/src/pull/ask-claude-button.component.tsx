@@ -4,7 +4,7 @@ import type { FloatingAsk } from './use-text-selection-ask.hook.ts'
 const OFFSET_X_PX = 8
 const OFFSET_Y_PX = 10
 
-function lineLabel(at: FloatingAsk) {
+function describeLines(at: FloatingAsk) {
   if (at.start === at.end) {
     return `L${at.end}`
   }
@@ -25,7 +25,7 @@ export function AskClaudeButton({ at, onAsk }: { at: FloatingAsk; onAsk: () => v
         onAsk()
       }}
     >
-      ✦ Ask Claude · {lineLabel(at)}
+      ✦ Ask Claude · {describeLines(at)}
     </button>
   )
 }

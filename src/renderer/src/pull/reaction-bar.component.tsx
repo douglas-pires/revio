@@ -1,7 +1,7 @@
 import { REACTIONS, type ReactionContent, type ReactionSummary } from '@shared/reaction.types.ts'
 import { applyReaction } from '@shared/reaction.util.ts'
 import { useEffect, useRef, useState } from 'react'
-import { cx, errorMessage } from '../common/format.util.ts'
+import { joinClassNames, readErrorMessage } from '../common/format.util.ts'
 import { useSetReaction } from './use-reactions.hook.ts'
 
 const EMOJI = new Map<string, string>(REACTIONS.map((reaction) => [reaction.content, reaction.emoji]))
@@ -65,7 +65,7 @@ function ReactionPicker({
                 onPick(reaction.content, !reacted.has(reaction.content))
                 setOpen(false)
               }}
-              className={cx(
+              className={joinClassNames(
                 'size-7 rounded text-[15px] hover:bg-hover',
                 reacted.has(reaction.content) && 'bg-accent/15',
               )}
@@ -80,7 +80,7 @@ function ReactionPicker({
 }
 
 /** A comment's reactions as toggleable pills, plus a picker to add one. Shows yours right away, then GitHub's answer. */
-function reactionTitle(yours: boolean) {
+function describeReaction(yours: boolean) {
   if (yours) {
     return 'Remove your reaction'
   }
@@ -104,7 +104,7 @@ export function ReactionBar({ subjectId, reactions }: { subjectId: string; react
       setShown(await setReaction(subjectId, content, on))
     } catch (failure) {
       setShown(before)
-      setError(errorMessage(failure))
+      setError(readErrorMessage(failure))
     }
   }
 
@@ -118,10 +118,10 @@ export function ReactionBar({ subjectId, reactions }: { subjectId: string; react
           type="button"
           key={reaction.content}
           disabled={!setReaction}
-          title={reactionTitle(reaction.viewerHasReacted)}
+          title={describeReaction(reaction.viewerHasReacted)}
           aria-pressed={reaction.viewerHasReacted}
           onClick={() => toggle(reaction.content, !reaction.viewerHasReacted)}
-          className={cx(
+          className={joinClassNames(
             'flex h-6 items-center gap-1 rounded-full border px-2 text-[12px] leading-none',
             reaction.viewerHasReacted && 'border-accent/60 bg-accent/15 text-fg',
             !reaction.viewerHasReacted && 'border-line text-muted hover:border-muted',

@@ -1,5 +1,5 @@
 import type { ReactNode } from 'react'
-import { cx } from './format.util.ts'
+import { joinClassNames } from './format.util.ts'
 
 export interface InnerTab<T extends string> {
   value: T
@@ -30,7 +30,7 @@ export function InnerTabs<T extends string>(props: {
           aria-selected={props.value === tab.value}
           key={tab.value}
           onClick={() => props.onChange(tab.value)}
-          className={cx(
+          className={joinClassNames(
             '-mb-px flex h-9 shrink-0 items-center border-b-2 px-3 font-medium whitespace-nowrap',
             props.value === tab.value && 'border-accent text-fg',
             props.value !== tab.value && 'border-transparent text-muted hover:text-fg',

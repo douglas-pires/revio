@@ -1,7 +1,7 @@
 import type { GithubAuthStatus, GithubTokenSource } from '@shared/settings.types.ts'
 import { useEffect, useState } from 'react'
 import { ErrorBanner } from '../common/error-banner.component.tsx'
-import { cx } from '../common/format.util.ts'
+import { joinClassNames } from '../common/format.util.ts'
 import { useAsyncAction } from '../common/use-async-action.hook.ts'
 
 /** Classic token with the scopes Revio uses, pre-filled on GitHub's "new token" page. */
@@ -113,7 +113,7 @@ function TokenStatus({ status }: { status: GithubAuthStatus | null }) {
 const INPUT_TYPES = { true: 'text', false: 'password' } as const
 const ORG_SCOPE = /:org$/u
 
-function tokenPlaceholder(replacing: boolean) {
+function describeTokenPlaceholder(replacing: boolean) {
   if (replacing) {
     return 'Paste a new token to replace the saved one'
   }
@@ -129,7 +129,7 @@ function Scopes({ scopes }: { scopes: string[] | null }) {
     <>
       Scopes:{' '}
       {scopes.map((scope) => (
-        <code key={scope} className={cx('mr-1', ORG_SCOPE.test(scope) && 'text-ok')}>
+        <code key={scope} className={joinClassNames('mr-1', ORG_SCOPE.test(scope) && 'text-ok')}>
           {scope}
         </code>
       ))}
@@ -168,7 +168,7 @@ export function GithubTokenSettings({ onSaved }: { onSaved: () => void }) {
       <div className="flex gap-2">
         <SecretInput
           value={token}
-          placeholder={tokenPlaceholder(status?.source === 'settings')}
+          placeholder={describeTokenPlaceholder(status?.source === 'settings')}
           onChange={setToken}
           onEnter={() => {
             if (token.trim() && !busy) {

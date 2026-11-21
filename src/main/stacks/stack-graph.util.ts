@@ -86,7 +86,7 @@ export interface MiniPr {
 /** Says where a PR sits in your inbox. */
 export type InboxTag = (id: string) => StackPr['inbox']
 
-export function summaryToMini(summary: PullSummary): MiniPr {
+export function convertSummaryToMini(summary: PullSummary): MiniPr {
   return {
     id: summary.id,
     number: summary.number,
@@ -145,7 +145,7 @@ export function buildStacks(
 }
 
 /** Refreshes inbox tags and staleness on stacks found earlier, and re-marks positions on the summaries. */
-export function withInboxTags(stacks: Stack[], requested: PullSummary[], reviewed: PullSummary[]): Stack[] {
+export function applyInboxTags(stacks: Stack[], requested: PullSummary[], reviewed: PullSummary[]): Stack[] {
   const tag = tagInbox(requested, reviewed)
   const stale = new Set(requested.filter((pull) => pull.stale).map((pull) => pull.id))
   const fresh = stacks.map((st) => ({

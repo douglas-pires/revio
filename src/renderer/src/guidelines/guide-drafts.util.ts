@@ -24,7 +24,7 @@ function isDraft(value: unknown): value is Draft {
 /** Unsaved edits by guide: its id, or `new` for a guide not saved yet. */
 export type GuideDrafts = Readonly<Partial<Record<string, Draft>>>
 
-export function draftKeyOf(draft: Draft): string {
+export function buildDraftKey(draft: Draft): string {
   return draft.id ?? NEW_GUIDE
 }
 
@@ -76,8 +76,8 @@ export function hasUnsavedChanges(draft: Draft, saved: Guideline | undefined): b
 }
 
 /** The drafts after `d` changed: kept while it differs from what is saved, dropped once it matches again. */
-export function withDraft(drafts: GuideDrafts, draft: Draft, saved: Guideline | undefined): GuideDrafts {
-  const key = draftKeyOf(draft)
+export function applyDraft(drafts: GuideDrafts, draft: Draft, saved: Guideline | undefined): GuideDrafts {
+  const key = buildDraftKey(draft)
   const rest = Object.fromEntries(Object.entries(drafts).filter(([entry]) => entry !== key))
   if (hasUnsavedChanges(draft, saved)) {
     return { ...rest, [key]: draft }
@@ -85,6 +85,6 @@ export function withDraft(drafts: GuideDrafts, draft: Draft, saved: Guideline | 
   return rest
 }
 
-export function withoutDraft(drafts: GuideDrafts, key: string): GuideDrafts {
+export function removeDraft(drafts: GuideDrafts, key: string): GuideDrafts {
   return Object.fromEntries(Object.entries(drafts).filter(([entry]) => entry !== key))
 }

@@ -76,7 +76,7 @@ const DEFAULT_GUIDELINES: Guideline[] = [
   },
 ]
 
-const file = () => join(app.getPath('userData'), 'revio.json')
+const findStoreFile = () => join(app.getPath('userData'), 'revio.json')
 
 let db: Db | null = null
 
@@ -92,8 +92,8 @@ function load(): Db {
     sync: { settingsUpdatedAt: {}, deletedGuidelines: {} },
   }
   try {
-    if (existsSync(file())) {
-      const raw = JSON.parse(readFileSync(file(), 'utf8')) as Partial<Db>
+    if (existsSync(findStoreFile())) {
+      const raw = JSON.parse(readFileSync(findStoreFile(), 'utf8')) as Partial<Db>
       db = {
         settings: { ...DEFAULT_SETTINGS, ...raw.settings },
         guidelines: raw.guidelines ?? fresh.guidelines,
@@ -153,7 +153,7 @@ const sameValue = (left: unknown, right: unknown) => JSON.stringify(left) === JS
 let onSyncedChange: (() => void) | null = null
 
 /** Tells the sync service that something it syncs changed here. */
-function syncedChanged() {
+function notifySyncedChange() {
   onSyncedChange?.()
 }
 
@@ -176,9 +176,9 @@ export function flush() {
     return
   }
   mkdirSync(app.getPath('userData'), { recursive: true })
-  const tmp = `${file()}.tmp`
+  const tmp = `${findStoreFile()}.tmp`
   writeFileSync(tmp, JSON.stringify(db, null, 2))
-  renameSync(tmp, file())
+  renameSync(tmp, findStoreFile())
 }
 
 export const store = {
@@ -199,7 +199,7 @@ export const store = {
     }
     save()
     if (synced) {
-      syncedChanged()
+      notifySyncedChange()
     }
   },
   githubToken: () => decrypt(load().settings.githubTokenEnc),
@@ -218,7 +218,7 @@ export const store = {
     }
     database.guidelines = list
     save()
-    syncedChanged()
+    notifySyncedChange()
   },
 
   /** Calls `listener` whenever a synced setting or a guide changes on this Mac. */

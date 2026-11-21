@@ -4,7 +4,7 @@ import type { OpenThread } from '@shared/thread.types.ts'
 import { memo, useState } from 'react'
 import { CopyButton } from '../common/copy-button.component.tsx'
 import { EmptyState } from '../common/empty-state.component.tsx'
-import { ago, countOf, cx } from '../common/format.util.ts'
+import { countOf, formatAge, joinClassNames } from '../common/format.util.ts'
 import { groupBy } from '../common/group.util.ts'
 import type { OpenPull } from '../common/navigation.types.ts'
 import { SectionHeading } from '../common/section-heading.component.tsx'
@@ -114,7 +114,7 @@ function ThreadRow({
         <div className="flex shrink-0 flex-col items-end gap-1">
           <span className="flex items-baseline gap-2">
             <CopyLatestCommentLinkButton url={latestComment?.url} />
-            <span className="font-mono text-[11.5px] text-muted">{ago(thread.lastActivityAt)}</span>
+            <span className="font-mono text-[11.5px] text-muted">{formatAge(thread.lastActivityAt)}</span>
           </span>
           <ThreadButtons
             isResolved={isResolved}
@@ -144,7 +144,7 @@ function ThreadRow({
 
 const AVATAR_PX = 24
 
-function summaryTitle(outdated: boolean) {
+function describeSummary(outdated: boolean) {
   if (outdated) {
     return 'The code this thread was on has changed since; opens the file.'
   }
@@ -152,7 +152,7 @@ function summaryTitle(outdated: boolean) {
 }
 
 /** `path:line`, or the path alone when the thread has no current line. */
-function pathAndLine(thread: OpenThread) {
+function formatPathAndLine(thread: OpenThread) {
   if (!thread.line) {
     return thread.path
   }
@@ -167,9 +167,9 @@ function ThreadSummary({ thread, dimmed, onOpen }: { thread: OpenThread; dimmed:
   return (
     <button
       type="button"
-      className={cx('flex min-w-0 flex-1 gap-3 text-left', dimmed && 'opacity-50')}
+      className={joinClassNames('flex min-w-0 flex-1 gap-3 text-left', dimmed && 'opacity-50')}
       onClick={onOpen}
-      title={summaryTitle(thread.outdated)}
+      title={describeSummary(thread.outdated)}
     >
       <img
         src={last.authorAvatar}
@@ -180,14 +180,16 @@ function ThreadSummary({ thread, dimmed, onOpen }: { thread: OpenThread; dimmed:
       />
       <div className="min-w-0 flex-1">
         <div className="flex items-center gap-2 text-[12px]">
-          <code className="truncate" title={pathAndLine(thread)}>
-            {pathAndLine(thread)}
+          <code className="truncate" title={formatPathAndLine(thread)}>
+            {formatPathAndLine(thread)}
           </code>
           {Boolean(thread.outdated) && <span className="chip bg-panel-2 text-muted">outdated</span>}
           {Boolean(last.bot) && <span className="chip bg-panel-2 text-muted">bot</span>}
           <span className="shrink-0 text-muted">{countOf(thread.totalComments, 'comment', 'comments')}</span>
         </div>
-        <div className={cx('mt-0.5 line-clamp-2 text-[12.5px]', thread.waitingOn === 'others' && 'text-muted')}>
+        <div
+          className={joinClassNames('mt-0.5 line-clamp-2 text-[12.5px]', thread.waitingOn === 'others' && 'text-muted')}
+        >
           <span className="font-medium">{last.author}</span>: {summarizeComment(last.body)}
         </div>
       </div>

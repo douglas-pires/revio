@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest'
-import { expectPresent, makeMiniPr, makeSummary } from '../../../test/fixtures.ts'
-import { buildStacks, markStackPositions, tagInbox, withInboxTags } from './stack-graph.util.ts'
+import { assertPresent, makeMiniPr, makeSummary } from '../../../test/fixtures.ts'
+import { applyInboxTags, buildStacks, markStackPositions, tagInbox } from './stack-graph.util.ts'
 
 const noTags = tagInbox([], [])
 const noStale = new Set<string>()
@@ -66,7 +66,7 @@ describe('buildStacks', () => {
 })
 
 describe('markStackPositions and withInboxTags', () => {
-  const stack = expectPresent(buildStacks(chain.slice(2), new Set(['PR_1']), noTags, noStale)[0])
+  const stack = assertPresent(buildStacks(chain.slice(2), new Set(['PR_1']), noTags, noStale)[0])
 
   it('sets 1-based positions from the bottom on summaries in a stack', () => {
     const prs = [makeSummary({ id: 'PR_2' }), makeSummary({ id: 'PR_7' })]
@@ -75,7 +75,7 @@ describe('markStackPositions and withInboxTags', () => {
   })
 
   it('refreshes tags on cached stacks without changing them', () => {
-    const fresh = withInboxTags([stack], [makeSummary({ id: 'PR_2', stale: true })], [])
+    const fresh = applyInboxTags([stack], [makeSummary({ id: 'PR_2', stale: true })], [])
     expect(fresh[0]?.nodes.map((node) => [node.pr.inbox, node.pr.stale])).toEqual([
       [null, false],
       ['requested', true],

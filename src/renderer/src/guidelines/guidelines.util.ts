@@ -12,7 +12,7 @@ const groupNameOf = (guideline: Guideline) => {
 }
 
 /** "All repositories" first, then repositories by name. */
-function byGroupName(left: string, right: string) {
+function compareGroupNames(left: string, right: string) {
   if (left === ALL_REPOSITORIES) {
     return -1
   }
@@ -39,12 +39,12 @@ What this project/folder is and who owns it.
 `
 
 /** A new guide for `repo` (and optionally a folder in it), starting from the template. */
-export function newDraft(repo: string, path = ''): Draft {
+export function makeNewDraft(repo: string, path = ''): Draft {
   return { repo, path, title: '', body: TEMPLATE, enabled: true }
 }
 
 /** The title a guide gets when left blank: Global, its folder, or its repository's name. */
-export function defaultTitle(draft: Draft) {
+export function buildDefaultTitle(draft: Draft) {
   if (draft.repo === '*') {
     return 'Global'
   }
@@ -61,5 +61,5 @@ export function groupGuides(list: readonly Guideline[]): [string, Guideline[]][]
     const name = groupNameOf(guideline)
     groups.set(name, [...(groups.get(name) ?? []), guideline])
   }
-  return [...groups.entries()].sort(([leftName], [rightName]) => byGroupName(leftName, rightName))
+  return [...groups.entries()].sort(([leftName], [rightName]) => compareGroupNames(leftName, rightName))
 }

@@ -1,16 +1,16 @@
 import type { ConversationComment, DraftComment, ReviewComment } from '@shared/pull.types.ts'
 import { describe, expect, it } from 'vitest'
 import {
-  commentedLines,
+  collectCommentedLines,
+  findMatchingComment,
+  findNewComments,
   groupCommentThreads,
   indexFileComments,
-  matchingComment,
-  newComments,
   searchConversation,
   searchDrafts,
   searchThreads,
 } from '@/pull/comment-threads.util.ts'
-import { expectPresent } from '../../../../test/fixtures.ts'
+import { assertPresent } from '../../../../test/fixtures.ts'
 
 const makeComment = (id: number, over: Partial<ReviewComment> = {}): ReviewComment => ({
   id,
@@ -60,7 +60,7 @@ describe('groupCommentThreads', () => {
 })
 
 describe('indexFileComments', () => {
-  const draft = (id: string, over: Partial<DraftComment> = {}): DraftComment => ({
+  const makeDraft = (id: string, over: Partial<DraftComment> = {}): DraftComment => ({
     id,
     path: 'b.ts',
     side: 'RIGHT',
@@ -89,7 +89,12 @@ describe('indexFileComments', () => {
     const index = indexFileComments(
       'b.ts',
       [],
-      [draft('a'), draft('b', { side: 'LEFT', line: 3 }), draft('r', { inReplyTo: 1 }), draft('f', { line: null })],
+      [
+        makeDraft('a'),
+        makeDraft('b', { side: 'LEFT', line: 3 }),
+        makeDraft('r', { inReplyTo: 1 }),
+        makeDraft('f', { line: null }),
+      ],
     )
     expect([...index.draftsByLine].map(([anchor, ds]) => [anchor, ds.map((draftAtLine) => draftAtLine.id)])).toEqual([
       ['RIGHT:10', ['a']],
@@ -118,7 +123,7 @@ describe('searching comments', () => {
   })
 
   it('names the comment that matched', () => {
-    expect(matchingComment(expectPresent(threads[1]), 'done')?.id).toBe(2)
+    expect(findMatchingComment(assertPresent(threads[1]), 'done')?.id).toBe(2)
   })
 
   it('searches drafts by text and path', () => {
@@ -130,7 +135,7 @@ describe('searching comments', () => {
 })
 
 describe('newComments', () => {
-  const thread = expectPresent(
+  const thread = assertPresent(
     groupCommentThreads(
       [
         makeComment(1, { author: 'me' }),
@@ -144,23 +149,23 @@ describe('newComments', () => {
   )
 
   it("lists others' comments after your last review", () => {
-    const fresh = newComments(thread, { viewer: 'me', since: '2026-11-03T00:00:00Z' })
+    const fresh = findNewComments(thread, { viewer: 'me', since: '2026-11-03T00:00:00Z' })
     expect(fresh.map((comment) => comment.id)).toEqual([5])
   })
 
   it('leaves out your own comments', () => {
-    const fresh = newComments(thread, { viewer: 'me', since: '2026-11-01T12:00:00Z' })
+    const fresh = findNewComments(thread, { viewer: 'me', since: '2026-11-01T12:00:00Z' })
     expect(fresh.map((comment) => comment.id)).toEqual([2, 5])
   })
 
   it('is empty before your first review', () => {
-    expect(newComments(thread, { viewer: 'me', since: null })).toEqual([])
+    expect(findNewComments(thread, { viewer: 'me', since: null })).toEqual([])
   })
 })
 
 describe('commentedLines', () => {
   it('covers every line of a range comment and the line of a single-line one', () => {
-    const lines = commentedLines(
+    const lines = collectCommentedLines(
       [makeComment(1, { line: 12, startLine: 10 }), makeComment(2, { line: 3, side: 'LEFT' })],
       [],
     )
@@ -168,7 +173,7 @@ describe('commentedLines', () => {
   })
 
   it('includes your pending comments but not replies, outdated or file comments', () => {
-    const lines = commentedLines(
+    const lines = collectCommentedLines(
       [makeComment(1, { outdated: true, line: null }), makeComment(2, { subjectType: 'file', line: null })],
       [
         { id: 'd1', path: 'b.ts', side: 'RIGHT', line: 21, startLine: 20, body: 'x' },
@@ -181,7 +186,7 @@ describe('commentedLines', () => {
 })
 
 describe('searchConversation', () => {
-  const entry = (author: string, body: string): ConversationComment => ({
+  const makeEntry = (author: string, body: string): ConversationComment => ({
     id: `comment-${author}`,
     kind: 'comment',
     author,
@@ -190,7 +195,7 @@ describe('searchConversation', () => {
     url: '',
     createdAt: '',
   })
-  const conversation = [entry('ana', 'Can we ship this today?'), entry('bo', 'Rebased on main')]
+  const conversation = [makeEntry('ana', 'Can we ship this today?'), makeEntry('bo', 'Rebased on main')]
 
   it('matches the text or the author, ignoring case', () => {
     expect(searchConversation(conversation, 'SHIP').map((comment) => comment.author)).toEqual(['ana'])

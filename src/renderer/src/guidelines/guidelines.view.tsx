@@ -1,20 +1,20 @@
 import type { Guideline } from '@shared/guideline.types.ts'
 import { useCallback, useEffect, useState } from 'react'
 import { EmptyState } from '../common/empty-state.component.tsx'
-import { errorMessage } from '../common/format.util.ts'
+import { readErrorMessage } from '../common/format.util.ts'
 import { Screen, ScreenHeader } from '../common/screen.component.tsx'
 import {
-  draftKeyOf,
+  applyDraft,
+  buildDraftKey,
   type GuideDrafts,
   hasUnsavedChanges,
   readGuideDrafts,
+  removeDraft,
   storeGuideDrafts,
-  withDraft,
-  withoutDraft,
 } from './guide-drafts.util.ts'
 import { GuideEditor } from './guide-editor.component.tsx'
 import { GuideList } from './guide-list.component.tsx'
-import { type Draft, defaultTitle, newDraft } from './guidelines.util.ts'
+import { buildDefaultTitle, type Draft, makeNewDraft } from './guidelines.util.ts'
 
 /** How long "Saved" shows after a save. */
 const SAVED_NOTICE_MS = 1500
@@ -46,16 +46,22 @@ function useGuideDrafts() {
 }
 
 /** A guide as you left it: its unsaved draft when there is one, else as saved. */
-function withEdits(draft: Draft, drafts: GuideDrafts): Draft {
-  return drafts[draftKeyOf(draft)] ?? draft
+function applyEdits(draft: Draft, drafts: GuideDrafts): Draft {
+  return drafts[buildDraftKey(draft)] ?? draft
 }
 
 /** The guide to open first: the one asked for (or a new one there), else the first saved one. */
-function initialDraft(list: readonly Guideline[], repo: string | undefined, path: string | undefined): Draft | null {
+function findInitialDraft(
+  list: readonly Guideline[],
+  repo: string | undefined,
+  path: string | undefined,
+): Draft | null {
   if (!repo) {
     return list[0] ?? null
   }
-  return list.find((guideline) => guideline.repo === repo && guideline.path === (path ?? '')) ?? newDraft(repo, path)
+  return (
+    list.find((guideline) => guideline.repo === repo && guideline.path === (path ?? '')) ?? makeNewDraft(repo, path)
+  )
 }
 
 interface GuideSelection {
@@ -78,15 +84,15 @@ function useGuideSaving({ draft, setDraft, load, update }: GuideSelection) {
     try {
       const savedGuideline = await globalThis.revio.saveGuideline({
         ...draft,
-        title: draft.title || defaultTitle(draft),
+        title: draft.title || buildDefaultTitle(draft),
       })
-      update((ds) => withoutDraft(ds, draftKeyOf(draft)))
+      update((ds) => removeDraft(ds, buildDraftKey(draft)))
       await load()
       setDraft(savedGuideline)
       setSaved(true)
       setTimeout(() => setSaved(false), SAVED_NOTICE_MS)
     } catch (failure) {
-      setError(errorMessage(failure))
+      setError(readErrorMessage(failure))
     }
   }
   const remove = async () => {
@@ -95,7 +101,7 @@ function useGuideSaving({ draft, setDraft, load, update }: GuideSelection) {
       return
     }
     await globalThis.revio.deleteGuideline(draft.id)
-    update((ds) => withoutDraft(ds, draftKeyOf(draft)))
+    update((ds) => removeDraft(ds, buildDraftKey(draft)))
     const loaded = await load()
     setDraft(loaded[0] ?? null)
   }
@@ -107,12 +113,12 @@ function useGuideEditing(initialRepo: string | undefined, initialPath: string | 
   const { list, repos, load } = useGuides()
   const edits = useGuideDrafts()
   const [draft, setDraft] = useState<Draft | null>(null)
-  const savedOf = (candidate: Draft) => list.find((guideline) => guideline.id === candidate.id)
+  const findSaved = (candidate: Draft) => list.find((guideline) => guideline.id === candidate.id)
 
   useEffect(() => {
     load().then((loaded) => {
-      const first = initialDraft(loaded, initialRepo, initialPath)
-      setDraft(first && withEdits(first, readGuideDrafts()))
+      const first = findInitialDraft(loaded, initialRepo, initialPath)
+      setDraft(first && applyEdits(first, readGuideDrafts()))
     })
   }, [initialRepo, initialPath, load])
 
@@ -129,8 +135,8 @@ function useGuideEditing(initialRepo: string | undefined, initialPath: string | 
 
   const discard = () => {
     if (draft) {
-      edits.update((ds) => withoutDraft(ds, draftKeyOf(draft)))
-      setDraft(savedOf(draft) ?? list[0] ?? null)
+      edits.update((ds) => removeDraft(ds, buildDraftKey(draft)))
+      setDraft(findSaved(draft) ?? list[0] ?? null)
     }
   }
   return {
@@ -138,11 +144,11 @@ function useGuideEditing(initialRepo: string | undefined, initialPath: string | 
     repos,
     drafts: edits.drafts,
     draft,
-    unsaved: draft !== null && hasUnsavedChanges(draft, savedOf(draft)),
-    open: (opened: Draft) => setDraft(withEdits(opened, edits.drafts)),
+    unsaved: draft !== null && hasUnsavedChanges(draft, findSaved(draft)),
+    open: (opened: Draft) => setDraft(applyEdits(opened, edits.drafts)),
     change: (changed: Draft) => {
       setDraft(changed)
-      edits.update((ds) => withDraft(ds, changed, savedOf(changed)))
+      edits.update((ds) => applyDraft(ds, changed, findSaved(changed)))
     },
     discard,
     saving: useGuideSaving({ list, draft, setDraft, load, update: edits.update }),
@@ -165,7 +171,7 @@ export function Guidelines({
           title="Review guides"
           subtitle="What Claude should look for, by repository and folder"
           actions={
-            <button type="button" className="btn" onClick={() => editing.open(newDraft(editing.repos[0] ?? '*'))}>
+            <button type="button" className="btn" onClick={() => editing.open(makeNewDraft(editing.repos[0] ?? '*'))}>
               + New guide
             </button>
           }

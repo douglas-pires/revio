@@ -1,10 +1,10 @@
 import type { Octokit } from '@octokit/rest'
 import { describe, expect, it, vi } from 'vitest'
 import { makeMiniPr, makeSummary } from '../../../test/fixtures.ts'
-import { type MiniPr, summaryToMini } from './stack-graph.util.ts'
+import { convertSummaryToMini, type MiniPr } from './stack-graph.util.ts'
 import { StackFinder } from './stacks.service.ts'
 
-vi.mock('../github/github.client', () => ({ gh: vi.fn() }))
+vi.mock('../github/github.client', () => ({ getGithubClient: vi.fn() }))
 
 const LOOKUP =
   /(?<alias>l\d+): repository\(owner: "(?<owner>[^"]+)", name: "(?<name>[^"]+)"\) \{\s*pullRequests\((?<field>headRefName|baseRefName): (?<ref>"[^"]+")/gu
@@ -32,8 +32,8 @@ const top = makeSummary({ id: 'PR_2', number: 2, headRef: 'b', baseRef: 'a' })
 describe('StackFinder', () => {
   it('walks up and down from a PR in the middle, through PRs outside the inbox', async () => {
     const { octokit } = makeFakeGithub([
-      summaryToMini(bottom),
-      summaryToMini(top),
+      convertSummaryToMini(bottom),
+      convertSummaryToMini(top),
       makeMiniPr(3, 'c', 'b'),
       makeMiniPr(4, 'd', 'c'),
     ])
@@ -59,7 +59,7 @@ describe('StackFinder', () => {
   })
 
   it('reuses the last walk while the inbox branches are unchanged, but refreshes tags', async () => {
-    const { octokit, graphql } = makeFakeGithub([summaryToMini(bottom), summaryToMini(top)])
+    const { octokit, graphql } = makeFakeGithub([convertSummaryToMini(bottom), convertSummaryToMini(top)])
     const finder = new StackFinder()
     await finder.stacksForInbox(octokit, [{ ...top }], [{ ...bottom }])
     const calls = graphql.mock.calls.length
@@ -72,7 +72,7 @@ describe('StackFinder', () => {
   })
 
   it('falls back to the cached stacks when GitHub fails', async () => {
-    const { octokit, graphql } = makeFakeGithub([summaryToMini(bottom), summaryToMini(top)])
+    const { octokit, graphql } = makeFakeGithub([convertSummaryToMini(bottom), convertSummaryToMini(top)])
     const finder = new StackFinder()
     await finder.stacksForInbox(octokit, [{ ...top }], [{ ...bottom }])
     graphql.mockRejectedValue(new Error('rate limited'))

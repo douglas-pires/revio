@@ -1,6 +1,6 @@
 import { existsSync, readdirSync, readFileSync, statSync } from 'node:fs'
 import { join, resolve } from 'node:path'
-import { gitDirOf, githubRepoOf, remoteUrlsIn } from './local-clone.util.ts'
+import { listRemoteUrls, readGitDir, readGithubRepo } from './local-clone.util.ts'
 
 /** How many folders below a root a clone may sit: ~/Projects/acme/widgets is three below the home folder. */
 const MAX_DEPTH = 3
@@ -29,12 +29,12 @@ function readText(path: string) {
 }
 
 /** The config file of the git repository at `dir`: `.git/config`, or the main repository's for a linked worktree. */
-function gitConfigOf(dir: string): string {
+function readGitConfig(dir: string): string {
   const dotGit = join(dir, '.git')
   if (statSync(dotGit).isDirectory()) {
     return readText(join(dotGit, 'config'))
   }
-  const gitDir = gitDirOf(readText(dotGit))
+  const gitDir = readGitDir(readText(dotGit))
   if (!gitDir) {
     return ''
   }
@@ -42,7 +42,7 @@ function gitConfigOf(dir: string): string {
   return readText(join(resolve(dir, gitDir), common, 'config'))
 }
 
-function subfoldersOf(dir: string): string[] {
+function listSubfolders(dir: string): string[] {
   try {
     return readdirSync(dir, { withFileTypes: true })
       .filter((entry) => entry.isDirectory() && !entry.name.startsWith('.') && !SKIP.has(entry.name))
@@ -54,7 +54,7 @@ function subfoldersOf(dir: string): string[] {
 
 /** Notes the clone at `dir` under each GitHub repository its remotes point at, unless one was found first. */
 function recordClone(clones: Map<string, string>, dir: string) {
-  for (const repo of remoteUrlsIn(gitConfigOf(dir)).map(githubRepoOf)) {
+  for (const repo of listRemoteUrls(readGitConfig(dir)).map(readGithubRepo)) {
     if (repo && !clones.has(repo)) {
       clones.set(repo, dir)
     }
@@ -75,7 +75,7 @@ export function findClones(roots: readonly string[]): Map<string, string> {
       if (existsSync(join(dir, '.git'))) {
         recordClone(clones, dir)
       } else {
-        next.push(...subfoldersOf(dir))
+        next.push(...listSubfolders(dir))
       }
     }
     level = next

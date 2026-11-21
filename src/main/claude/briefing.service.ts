@@ -7,7 +7,7 @@ import { app } from 'electron'
 import { z } from 'zod'
 import { env } from '../common/env.config.ts'
 import { runWithInput } from '../common/shell.util.ts'
-import { scopeLabel } from '../guidelines/guidelines.service.ts'
+import { describeScope } from '../guidelines/guidelines.service.ts'
 import { store } from '../store/store.service.ts'
 
 const BriefingSchema = z.object({
@@ -69,11 +69,11 @@ const FENCED_JSON = /```(?:json)?\s*(?<json>[\s\S]*?)```/u
 const BACKEND_LABELS: Record<'api' | 'cli', string> = { api: 'the Anthropic API', cli: 'Claude Code' }
 
 function buildPrompt(pr: PullDetail, guidelines: ResolvedGuideline[]) {
-  const { context, omitted } = prContext(pr, guidelines)
+  const { context, omitted } = buildPrContext(pr, guidelines)
   return { prompt: `${context}\n\nBrief me on this pull request using the required JSON format.`, omitted }
 }
 
-async function viaApi(prompt: string, model: string): Promise<Briefing> {
+async function briefViaApi(prompt: string, model: string): Promise<Briefing> {
   const apiKey = store.anthropicKey()
   const client = new Anthropic({ ...(apiKey !== undefined && { apiKey }) })
   const response = await client.beta.messages.parse({
@@ -98,7 +98,7 @@ async function viaApi(prompt: string, model: string): Promise<Briefing> {
   return response.parsed_output
 }
 
-async function viaCli(prompt: string, model: string, onProgress: (message: string) => void): Promise<Briefing> {
+async function briefViaCli(prompt: string, model: string, onProgress: (message: string) => void): Promise<Briefing> {
   // The CLI's validator does not know the draft-2020 meta-schema tag Zod emits.
   const { $schema: _ignored, ...jsonSchema } = z.toJSONSchema(BriefingSchema, { target: 'draft-7' })
   const schema = JSON.stringify(jsonSchema)
@@ -164,14 +164,14 @@ function budgetDiffs(pr: PullDetail, budget: number) {
   return { included, omitted }
 }
 
-function guidelinesText(guidelines: ResolvedGuideline[]) {
+function buildGuidelinesText(guidelines: ResolvedGuideline[]) {
   if (guidelines.length === 0) {
     return '(none configured)'
   }
   return guidelines
     .map(
       (guideline) =>
-        `<guideline title="${guideline.title}" scope="${scopeLabel(guideline)}">\n${guideline.body}\n</guideline>`,
+        `<guideline title="${guideline.title}" scope="${describeScope(guideline)}">\n${guideline.body}\n</guideline>`,
     )
     .join('\n\n')
 }
@@ -193,7 +193,7 @@ function describeComment(comment: PullDetail['comments'][number]) {
 }
 
 /** An XML-ish section of the prompt, or nothing when it would be empty. */
-function optionalSection(tag: string, body: string, attributes = '') {
+function buildOptionalSection(tag: string, body: string, attributes = '') {
   if (!body) {
     return ''
   }
@@ -201,7 +201,7 @@ function optionalSection(tag: string, body: string, attributes = '') {
 }
 
 /** Guidelines + PR metadata + budgeted diffs, shared by the briefing and Ask Claude. */
-export function prContext(pr: PullDetail, guidelines: ResolvedGuideline[], budget = DIFF_BUDGET_CHARS) {
+export function buildPrContext(pr: PullDetail, guidelines: ResolvedGuideline[], budget = DIFF_BUDGET_CHARS) {
   const { included, omitted } = budgetDiffs(pr, budget)
   const fileList = pr.files.map(describeFile).join('\n')
   const diffs = pr.files
@@ -209,13 +209,13 @@ export function prContext(pr: PullDetail, guidelines: ResolvedGuideline[], budge
     .map((file) => `<file path="${file.path}" status="${file.status}">\n${file.patch}\n</file>`)
     .join('\n\n')
   const discussion = pr.comments.slice(-RECENT_COMMENTS).map(describeComment).join('\n')
-  const omittedSection = optionalSection(
+  const omittedSection = buildOptionalSection(
     'omitted_diffs',
     omitted.join('\n'),
     ' reason="binary, too large, or over the size budget"',
   )
   const prompt = `<reviewer_guidelines>
-${guidelinesText(guidelines)}
+${buildGuidelinesText(guidelines)}
 </reviewer_guidelines>
 
 <pull_request repo="${pr.repo}" number="${pr.number}" author="${pr.author}" base="${pr.baseRef}" head="${pr.headRef}">
@@ -226,7 +226,7 @@ ${pr.body || '(no description)'}
 <changed_files count="${pr.files.length}">
 ${fileList}
 </changed_files>
-${omittedSection}${optionalSection('existing_review_comments', discussion)}<diff>
+${omittedSection}${buildOptionalSection('existing_review_comments', discussion)}<diff>
 ${diffs}
 </diff>
 </pull_request>`
@@ -255,9 +255,9 @@ export async function generateBriefing(
   onProgress(`Asking ${model} via ${BACKEND_LABELS[backend]}…`)
   let briefing: Briefing
   if (backend === 'api') {
-    briefing = await viaApi(prompt, model)
+    briefing = await briefViaApi(prompt, model)
   } else {
-    briefing = await viaCli(prompt, model, onProgress)
+    briefing = await briefViaCli(prompt, model, onProgress)
   }
   return { headSha: pr.headSha, createdAt: new Date().toISOString(), backend, model, briefing, omittedFiles: omitted }
 }

@@ -8,7 +8,7 @@ import { createContext, useContext } from 'react'
 const unsent = new Map<string, string>()
 
 /** The text you left in this box, if any. */
-export function unsentComment(key: string): string | undefined {
+export function readUnsentComment(key: string): string | undefined {
   return unsent.get(key)
 }
 

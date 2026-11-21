@@ -1,6 +1,6 @@
 import { excerptAround } from '@shared/excerpt.util.ts'
 import type { ConversationComment } from '@shared/pull.types.ts'
-import { ago } from '../common/format.util.ts'
+import { formatAge } from '../common/format.util.ts'
 import { MatchText } from '../common/match-text.component.tsx'
 import { SectionHeading } from '../common/section-heading.component.tsx'
 
@@ -37,7 +37,7 @@ function ConversationEntry({
             <MatchText text={comment.author} query={query} />
           </span>
           {comment.kind === 'review' && <span className="font-mono text-[10.5px] text-muted">review</span>}
-          <span className="ml-auto shrink-0 text-[10.5px] text-muted">{ago(comment.createdAt)}</span>
+          <span className="ml-auto shrink-0 text-[10.5px] text-muted">{formatAge(comment.createdAt)}</span>
         </div>
         <div className="line-clamp-2 text-muted">
           <MatchText text={excerptAround(comment.body, query.trim(), EXCERPT_CHARS)} query={query} />

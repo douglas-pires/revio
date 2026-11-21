@@ -13,7 +13,7 @@ const EXAMPLES: [string, string][] = [
 ]
 
 /** The query with `qualifier` added at the end; a bare `key:` waits for its value, anything else gets a space. */
-function withQualifier(value: string, qualifier: string) {
+function toggleQualifier(value: string, qualifier: string) {
   const parts = [value.trim(), qualifier].filter(Boolean)
   if (qualifier.endsWith(':')) {
     return parts.join(' ')
@@ -28,7 +28,7 @@ export function InboxSearch({ value, onChange }: { value: string; onChange: (tex
   useSlashToFocus(input)
 
   const insert = (qualifier: string) => {
-    onChange(withQualifier(value, qualifier))
+    onChange(toggleQualifier(value, qualifier))
     requestAnimationFrame(() => input.current?.focus())
   }
 

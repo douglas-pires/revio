@@ -1,8 +1,8 @@
 import type { Mention, MentionSnippet } from '@shared/mention.types.ts'
 import { describe, expect, it } from 'vitest'
-import { audienceCounts, audienceLabel, matchesAudience, sameAudience } from '@/mentions/mention-audience.util.ts'
+import { countAudiences, describeAudience, matchesAudience, sameAudience } from '@/mentions/mention-audience.util.ts'
 
-function snippet(viaTeam: string | null): MentionSnippet {
+function makeSnippet(viaTeam: string | null): MentionSnippet {
   return {
     id: `s-${viaTeam}`,
     kind: 'comment',
@@ -19,15 +19,15 @@ function snippet(viaTeam: string | null): MentionSnippet {
   }
 }
 
-function mention(number: number, ...teams: (string | null)[]): Mention {
-  return { repo: 'acme/web', number, snippets: teams.map(snippet) } as Mention
+function makeMention(number: number, ...teams: (string | null)[]): Mention {
+  return { repo: 'acme/web', number, snippets: teams.map(makeSnippet) } as Mention
 }
 
 const mentions = [
-  mention(1, null),
-  mention(2, 'acme/frontend'),
-  mention(3, null, 'acme/frontend'),
-  mention(4, 'acme/api'),
+  makeMention(1, null),
+  makeMention(2, 'acme/frontend'),
+  makeMention(3, null, 'acme/frontend'),
+  makeMention(4, 'acme/api'),
 ]
 
 describe('matchesAudience', () => {
@@ -53,7 +53,7 @@ describe('matchesAudience', () => {
 
 describe('audienceCounts', () => {
   it('counts All, Me, then teams by how often they were mentioned', () => {
-    expect(audienceCounts(mentions).map((count) => [audienceLabel(count.audience), count.count])).toEqual([
+    expect(countAudiences(mentions).map((count) => [describeAudience(count.audience), count.count])).toEqual([
       ['All', 4],
       ['Me', 2],
       ['@acme/frontend', 2],

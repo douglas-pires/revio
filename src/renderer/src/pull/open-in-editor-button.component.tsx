@@ -1,9 +1,9 @@
 import { useEffect, useRef, useState } from 'react'
-import { cx, errorMessage } from '../common/format.util.ts'
+import { joinClassNames, readErrorMessage } from '../common/format.util.ts'
 
 type EditorButtonState = { kind: 'idle' | 'busy' } | { kind: 'failed'; reason: string }
 
-function buttonLabel(state: EditorButtonState) {
+function describeButtonState(state: EditorButtonState) {
   if (state.kind === 'failed') {
     return 'Could not open'
   }
@@ -59,7 +59,7 @@ export function OpenInEditorButton({ onOpen }: { onOpen: () => Promise<void> }) 
         ref={button}
         type="button"
         data-open-in-editor=""
-        className={cx(
+        className={joinClassNames(
           'btn btn-ghost py-0 text-[12px] whitespace-nowrap',
           state.kind === 'failed' && 'text-danger',
           state.kind !== 'failed' && 'text-muted hover:text-fg',
@@ -70,11 +70,11 @@ export function OpenInEditorButton({ onOpen }: { onOpen: () => Promise<void> }) 
           setState({ kind: 'busy' })
           onOpen().then(
             () => setState({ kind: 'idle' }),
-            (failure) => setState({ kind: 'failed', reason: errorMessage(failure) }),
+            (failure) => setState({ kind: 'failed', reason: readErrorMessage(failure) }),
           )
         }}
       >
-        {buttonLabel(state)}
+        {describeButtonState(state)}
       </button>
       {state.kind === 'failed' && (
         <FailureNote reason={state.reason} anchor={button} onClose={() => setState({ kind: 'idle' })} />

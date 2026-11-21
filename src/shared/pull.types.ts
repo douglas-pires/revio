@@ -6,7 +6,7 @@ export interface PullRef {
   repo: string
   number: number
 }
-export const pullKey = ({ repo, number }: PullRef) => `${repo}#${number}`
+export const buildPullKey = ({ repo, number }: PullRef) => `${repo}#${number}`
 export const isSamePull = (left: PullRef, right: PullRef) => left.repo === right.repo && left.number === right.number
 export type DiffSide = 'LEFT' | 'RIGHT'
 export interface PullFile {

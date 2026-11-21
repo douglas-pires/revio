@@ -1,6 +1,6 @@
 import type { Branches, CiState, Commit, CommitDetail, LocalRepo, LogPage, LogQuery } from '@shared/git-log.types.ts'
 import { useCallback, useEffect, useRef, useState } from 'react'
-import { errorMessage } from '../common/format.util.ts'
+import { readErrorMessage } from '../common/format.util.ts'
 
 /** Typing in a filter waits this long before asking git again. */
 const FILTER_DELAY_MS = 300
@@ -47,7 +47,7 @@ function useRepoChoice() {
         const storedRepo = readStoredRepo()
         setRepoState(localRepos.find((localRepo) => localRepo.repo === storedRepo)?.repo ?? localRepos[0]?.repo ?? '')
       })
-      .catch((failure) => setError(errorMessage(failure)))
+      .catch((failure) => setError(readErrorMessage(failure)))
   }, [])
   const setRepo = useCallback((next: string) => {
     storeRepo(next)
@@ -114,7 +114,7 @@ function useSelectedCommit(repo: string) {
       })
       .catch((failure) => {
         if (stillSelected) {
-          setError(errorMessage(failure))
+          setError(readErrorMessage(failure))
         }
       })
     return () => {
@@ -136,7 +136,7 @@ function useBranches(repo: string) {
     globalThis.revio
       .getBranches(repo)
       .then(setBranches)
-      .catch((failure) => setError(errorMessage(failure)))
+      .catch((failure) => setError(readErrorMessage(failure)))
   }, [repo])
   useEffect(() => {
     setBranches(null)
@@ -169,7 +169,7 @@ function useLogPages(repo: string, applied: LogFilters) {
         }
       } catch (failure) {
         if (latestLoad.current === loadId) {
-          setError(errorMessage(failure))
+          setError(readErrorMessage(failure))
           setCommits([])
           setMore(false)
         }

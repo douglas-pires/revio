@@ -1,6 +1,6 @@
 import type { PullFile } from '@shared/pull.types.ts'
 import { memo } from 'react'
-import { cx } from '../common/format.util.ts'
+import { joinClassNames } from '../common/format.util.ts'
 import { PanelHeader } from '../common/panel-header.component.tsx'
 import { groupByDir } from './files.util.ts'
 
@@ -55,14 +55,14 @@ export const FileTree = memo(function FileTreeView(props: {
                   key={file.path}
                   onClick={() => props.onSelect(file.path)}
                   title={file.path}
-                  className={cx(
+                  className={joinClassNames(
                     'flex w-full items-center gap-1.5 rounded px-1.5 py-0.5 pl-3 text-left hover:bg-hover',
                     (viewed || props.ignorePaths.has(file.path)) && 'opacity-55',
                     props.current === file.path && 'bg-hover ring-1 ring-accent/60',
                   )}
                 >
                   <span
-                    className={cx(
+                    className={joinClassNames(
                       'size-1.5 shrink-0 rounded-full',
                       props.focusPaths.has(file.path) && 'bg-focus',
                       !props.focusPaths.has(file.path) && 'bg-transparent',

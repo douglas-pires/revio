@@ -7,7 +7,7 @@ import { MyReviewChip, ReviewPopover } from './review-popover.component.tsx'
 const AVATAR_PX = 28
 
 /** Approve opens the popover to approve, or closes it when it is already open for that. */
-function toggledEvent(open: ReviewEvent | false, event: ReviewEvent): ReviewEvent | false {
+function toggleEvent(open: ReviewEvent | false, event: ReviewEvent): ReviewEvent | false {
   if (open === event) {
     return false
   }
@@ -15,7 +15,7 @@ function toggledEvent(open: ReviewEvent | false, event: ReviewEvent): ReviewEven
 }
 
 /** Finish review closes the popover when it is open (whatever it opened for), else opens it to comment. */
-function closedOr(open: ReviewEvent | false, event: ReviewEvent): ReviewEvent | false {
+function closeIfOpen(open: ReviewEvent | false, event: ReviewEvent): ReviewEvent | false {
   if (open) {
     return false
   }
@@ -33,14 +33,18 @@ function ReviewButtons(props: PullHeaderProps) {
         <button
           type="button"
           className="btn border-ok/50 text-ok hover:bg-ok/10"
-          onClick={() => setReviewOpen(toggledEvent(reviewOpen, 'APPROVE'))}
+          onClick={() => setReviewOpen(toggleEvent(reviewOpen, 'APPROVE'))}
           title="Approve this pull request"
         >
           ✓ {pr.myReview?.state === 'APPROVED' && 'Re-approve'}
           {!(pr.myReview?.state === 'APPROVED') && 'Approve'}
         </button>
       )}
-      <button type="button" className="btn btn-primary" onClick={() => setReviewOpen(closedOr(reviewOpen, 'COMMENT'))}>
+      <button
+        type="button"
+        className="btn btn-primary"
+        onClick={() => setReviewOpen(closeIfOpen(reviewOpen, 'COMMENT'))}
+      >
         Finish review{Boolean(props.draftCount) && ` (${props.draftCount})`}
       </button>
       {reviewOpen !== false && (

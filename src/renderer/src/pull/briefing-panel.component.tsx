@@ -1,5 +1,5 @@
 import type { Briefing, BriefingRecord, FocusItem } from '@shared/claude.types.ts'
-import { ago, cx } from '../common/format.util.ts'
+import { formatAge, joinClassNames } from '../common/format.util.ts'
 import { Markdown } from '../common/markdown.component.tsx'
 import { CodeSnippet } from './code-snippet.component.tsx'
 import { hasSummaryLine } from './pull-view.util.ts'
@@ -41,7 +41,7 @@ interface BriefingPanelProps {
 }
 
 /** The diff of the file a concern names; none when it names no file. */
-function patchOfConcern(concern: Concern, patchOf: (path: string) => string | undefined) {
+function findConcernPatch(concern: Concern, patchOf: (path: string) => string | undefined) {
   if (!concern.path) {
     return
   }
@@ -49,14 +49,16 @@ function patchOfConcern(concern: Concern, patchOf: (path: string) => string | un
 }
 
 /** The first line of a focus range like "42-80", or null for the whole file. */
-function firstLineOf(lines: string) {
+function readFirstLine(lines: string) {
   return Number(lines.split('-')[0]) || null
 }
 
 function Card({ title, tone = 'plain', children }: { title: string; tone?: CardTone; children: React.ReactNode }) {
   return (
     <section className="card">
-      <h3 className={cx('border-b border-line px-4 py-2 text-[12px] font-semibold', CARD_TONES[tone])}>{title}</h3>
+      <h3 className={joinClassNames('border-b border-line px-4 py-2 text-[12px] font-semibold', CARD_TONES[tone])}>
+        {title}
+      </h3>
       <div className="px-4 py-3">{children}</div>
     </section>
   )
@@ -125,12 +127,14 @@ function FocusCard({ focus, onJump }: { focus: readonly FocusItem[]; onJump: Jum
       <ul className="space-y-1.5">
         {focus.map((focusItem) => (
           <li key={`${focusItem.path}:${focusItem.lines}`} className="flex gap-2">
-            <span className={cx('mt-1.5 size-1.5 shrink-0 rounded-full', PRIORITY_DOTS[focusItem.priority])} />
+            <span
+              className={joinClassNames('mt-1.5 size-1.5 shrink-0 rounded-full', PRIORITY_DOTS[focusItem.priority])}
+            />
             <div className="min-w-0">
               <button
                 type="button"
                 className="font-mono text-[12px] text-accent hover:underline"
-                onClick={() => onJump(focusItem.path, firstLineOf(focusItem.lines))}
+                onClick={() => onJump(focusItem.path, readFirstLine(focusItem.lines))}
               >
                 {focusItem.path}
                 {Boolean(focusItem.lines) && `:${focusItem.lines}`}
@@ -156,7 +160,7 @@ function ConcernsCard(
           <ConcernItem
             key={`${concern.path}:${concern.line}:${concern.title}`}
             concern={concern}
-            patch={patchOfConcern(concern, props.patchOf)}
+            patch={findConcernPatch(concern, props.patchOf)}
             canDraft={Boolean(concern.path) && concern.line !== null && props.validLine(concern.path, concern.line)}
             onJump={props.onJump}
             onDraft={props.onDraft}
@@ -268,9 +272,9 @@ function BriefingHeader({ record, ...props }: BriefingPanelProps & { record: Bri
   return (
     <>
       <div className="flex items-center gap-2 text-[12px] text-muted">
-        <span className={cx('chip', RISK[risk])}>{risk} risk</span>
+        <span className={joinClassNames('chip', RISK[risk])}>{risk} risk</span>
         <span>
-          {record.model} · {BACKEND_NAMES[record.backend]} · {ago(record.createdAt)} ago
+          {record.model} · {BACKEND_NAMES[record.backend]} · {formatAge(record.createdAt)} ago
         </span>
         {record.headSha !== props.headSha && <span className="chip bg-warn/15 text-warn">new commits since</span>}
         <div className="flex-1" />

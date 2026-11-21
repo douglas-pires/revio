@@ -13,9 +13,9 @@ const octokit = {
   graphql: vi.fn(async () => ({})),
 }
 vi.mock('../github/github.client', () => ({
-  gh: async () => octokit,
-  smallAvatar: (url: string) => url,
-  viewerLogin: async () => 'me',
+  getGithubClient: async () => octokit,
+  buildSmallAvatarUrl: (url: string) => url,
+  getViewerLogin: async () => 'me',
 }))
 const { submitReview } = await import('./pull.service.ts')
 

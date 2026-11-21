@@ -1,4 +1,4 @@
-import { withOffsets } from './numbered-lines.util.ts'
+import { addOffsets } from './numbered-lines.util.ts'
 
 const REGEXP_SPECIALS = /[.*+?^${}()|[\]\\]/gu
 
@@ -17,7 +17,7 @@ export function MatchText({ text, query }: { text: string; query: string }) {
   }
   // With the query in a capturing group, split keeps the matches: they are the odd-numbered pieces.
   const parts = text.split(new RegExp(`(${needle.replace(REGEXP_SPECIALS, '\\$&')})`, 'giu'))
-  const pieces = withOffsets(parts.map((part, index) => ({ text: part, matched: index % 2 === 1 })))
+  const pieces = addOffsets(parts.map((part, index) => ({ text: part, matched: index % 2 === 1 })))
   return (
     <>
       {pieces.map((piece) => (

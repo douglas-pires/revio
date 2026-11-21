@@ -2,7 +2,7 @@ import type { PullFile } from '@shared/pull.types.ts'
 import { useEffect, useMemo, useRef, useState } from 'react'
 import { parsePatch } from './diff.util.ts'
 import { type DiffMatch, searchDiffs, stepMatch } from './diff-search.util.ts'
-import { cellOf, rangesIn } from './find-highlights.util.ts'
+import { findMatchCell, findRangesIn } from './find-highlights.util.ts'
 import type { ScrollTarget } from './use-scroll-to-target.hook.ts'
 
 const ALL = 'revio-find'
@@ -21,7 +21,7 @@ function delayFor(query: string) {
 }
 
 /** ⌘G steps forward, ⇧⌘G back. */
-function directionOf(shift: boolean): 1 | -1 {
+function pickDirection(shift: boolean): 1 | -1 {
   if (shift) {
     return -1
   }
@@ -58,9 +58,9 @@ function useMatchHighlights(query: string, caseSensitive: boolean, current: Diff
       raf = 0
       const options = { caseSensitive }
       const cells = [...scope.querySelectorAll('td[data-row]')]
-      registry.set(ALL, new Highlight(...cells.flatMap((cell) => rangesIn(cell, query, options))))
-      const currentCell = current && cellOf(current)
-      const range = currentCell && rangesIn(currentCell, query, options)[current.nth]
+      registry.set(ALL, new Highlight(...cells.flatMap((cell) => findRangesIn(cell, query, options))))
+      const currentCell = current && findMatchCell(current)
+      const range = currentCell && findRangesIn(currentCell, query, options)[current.nth]
       if (range) {
         registry.set(CURRENT, new Highlight(range))
       } else {
@@ -113,7 +113,7 @@ function useFindShortcuts(
         latest.current.onOpen()
       } else if (key === 'g' && latest.current.open) {
         event.preventDefault()
-        latest.current.go(directionOf(event.shiftKey))
+        latest.current.go(pickDirection(event.shiftKey))
       }
     }
     globalThis.addEventListener('keydown', onKey)

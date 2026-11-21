@@ -1,7 +1,7 @@
 import type { Octokit } from '@octokit/rest'
-import { errorMessage } from '@shared/error.util.ts'
+import { readErrorMessage } from '@shared/error.util.ts'
 import type { MentionsInbox } from '@shared/mention.types.ts'
-import { type PullRef, pullKey } from '@shared/pull.types.ts'
+import { buildPullKey, type PullRef } from '@shared/pull.types.ts'
 import { MS_PER_DAY } from '@shared/time.util.ts'
 import { splitRepo } from '../github/repo-name.util.ts'
 import { buildMention, type NotificationInfo, type RawMentionPr, sortMentions } from './mention-match.util.ts'
@@ -19,7 +19,7 @@ const PR_FIELDS = `number title state url ${TEXT} repository { nameWithOwner }
   reviewThreads(last: 30) { nodes { path line comments(last: 10) { nodes { ${TEXT} } } } }`
 
 /** Case-insensitive, since GitHub URLs and search results may differ in owner case. */
-const toPrKey = (ref: PullRef) => pullKey(ref).toLowerCase()
+const toPrKey = (ref: PullRef) => buildPullKey(ref).toLowerCase()
 
 interface Notification extends NotificationInfo, PullRef {
   key: string
@@ -65,7 +65,7 @@ async function listPrNotifications(octokit: Octokit, since: Date): Promise<Notif
     })
   } catch (err) {
     // Fine-grained tokens cannot read notifications; mentions still come from search, without unread state.
-    console.error('[revio] notifications unavailable:', errorMessage(err))
+    console.error('[revio] notifications unavailable:', readErrorMessage(err))
     return []
   }
 }

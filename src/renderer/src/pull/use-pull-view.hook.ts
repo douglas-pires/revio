@@ -6,11 +6,11 @@ import type { PullTarget } from '../common/navigation.types.ts'
 import { useStoredChoice } from '../common/use-stored-choice.hook.ts'
 import { groupCommentThreads } from './comment-threads.util.ts'
 import type { AskSelection, DiffView } from './diff-file.component.tsx'
-import { groupByDir, initialCollapsed, newSideLinesByPath } from './files.util.ts'
+import { collectNewSideLines, computeInitialCollapsed, groupByDir } from './files.util.ts'
 import type { PullTab } from './pull-tabs.util.ts'
-import { fileTargetOf, quoteOf, replyIdOf } from './pull-view.util.ts'
+import { quoteOf, readFileTarget, replyIdOf } from './pull-view.util.ts'
 import type { QuotedConversation } from './quoted-comment.component.tsx'
-import { rememberStackTab, stackTabFor } from './stack-memory.util.ts'
+import { readStackTab, rememberStackTab } from './stack-memory.util.ts'
 
 import { useBriefing } from './use-briefing.hook.ts'
 
@@ -60,14 +60,14 @@ function usePullIndexes(pr: ReturnType<typeof usePullDetail>['pr'], local: PullL
         ),
       [pr, orderedFiles],
     ),
-    rightLines: useMemo(() => newSideLinesByPath(pr), [pr]),
+    rightLines: useMemo(() => collectNewSideLines(pr), [pr]),
     patchOf: useCallback((path: string) => pr?.files.find((file) => file.path === path)?.patch, [pr]),
   }
 }
 
 /** Which tab, which side panel and which display choices the PR view shows. */
 function useViewChoices(pull: PullRef) {
-  const [tab, showTab] = useState<PullTab>(() => stackTabFor(pull) ?? 'overview')
+  const [tab, showTab] = useState<PullTab>(() => readStackTab(pull) ?? 'overview')
   /** Moving to another PR of the same stack opens it on this tab. */
   const setTab = useCallback(
     (next: PullTab) => {
@@ -129,7 +129,7 @@ function quoteFromMention(target: PullTarget | undefined): QuotedConversation | 
 /** Where the PR opened: a conversation comment to quote, a place in the diff, and a reply box to open once. */
 function useArrival(initialTarget: PullTarget | undefined) {
   const [quoted, setQuoted] = useState(() => quoteFromMention(initialTarget))
-  const fileTarget = fileTargetOf(initialTarget)
+  const fileTarget = readFileTarget(initialTarget)
   const [replyToId, setReplyToId] = useState(() => replyIdOf(fileTarget))
   const replyTarget = useMemo(() => ({ commentId: replyToId, consume: () => setReplyToId(null) }), [replyToId])
   return { quoted, setQuoted, fileTarget, replyTarget }
@@ -179,7 +179,7 @@ export function usePullView(pullRef: PullRef, initialTarget: PullTarget | undefi
   // The callback runs after an await, by which time `nav` below is defined.
   const detail = usePullDetail(pull, (loadedPull, loadedLocal) => {
     local.replaceLocal(loadedLocal)
-    nav.replaceCollapsed(initialCollapsed(loadedPull, loadedLocal))
+    nav.replaceCollapsed(computeInitialCollapsed(loadedPull, loadedLocal))
   })
   const threadFold = useThreadFoldState()
   const nav = useFileNavigation({

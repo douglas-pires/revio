@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest'
 import type { BlameRange, CommitSummary } from './history.types.ts'
-import { blameAt, markPrCommits, patchOfFile } from './history.util.ts'
+import { findBlameAt, findFilePatch, markPrCommits } from './history.util.ts'
 
 const commit = (sha: string): CommitSummary => ({
   sha,
@@ -11,10 +11,10 @@ const commit = (sha: string): CommitSummary => ({
   date: '',
   url: '',
 })
-const range = (start: number, end: number, sha: string): BlameRange => ({ start, end, commit: commit(sha) })
+const makeRange = (start: number, end: number, sha: string): BlameRange => ({ start, end, commit: commit(sha) })
 
 describe('blameAt', () => {
-  const ranges = [range(1, 3, 'a'), range(4, 4, 'b'), range(5, 20, 'c')]
+  const ranges = [makeRange(1, 3, 'a'), makeRange(4, 4, 'b'), makeRange(5, 20, 'c')]
 
   it.each([
     [1, 'a'],
@@ -22,11 +22,11 @@ describe('blameAt', () => {
     [4, 'b'],
     [12, 'c'],
     [20, 'c'],
-  ])('finds the range for line %i', (line, sha) => expect(blameAt(ranges, line)?.commit.sha).toBe(sha))
+  ])('finds the range for line %i', (line, sha) => expect(findBlameAt(ranges, line)?.commit.sha).toBe(sha))
 
   it('is undefined outside every range', () => {
-    expect(blameAt(ranges, 21)).toBeUndefined()
-    expect(blameAt([], 1)).toBeUndefined()
+    expect(findBlameAt(ranges, 21)).toBeUndefined()
+    expect(findBlameAt([], 1)).toBeUndefined()
   })
 })
 
@@ -49,12 +49,12 @@ describe('patchOfFile', () => {
   ]
 
   it('finds a file by its path or its name before a rename', () => {
-    expect(patchOfFile(files, 'a.ts')).toBe('@@ a')
-    expect(patchOfFile(files, 'old.ts')).toBe('@@ r')
+    expect(findFilePatch(files, 'a.ts')).toBe('@@ a')
+    expect(findFilePatch(files, 'old.ts')).toBe('@@ r')
   })
 
   it('is null for a file without a diff or not in the commit', () => {
-    expect(patchOfFile(files, 'img.png')).toBeNull()
-    expect(patchOfFile(files, 'x.ts')).toBeNull()
+    expect(findFilePatch(files, 'img.png')).toBeNull()
+    expect(findFilePatch(files, 'x.ts')).toBeNull()
   })
 })

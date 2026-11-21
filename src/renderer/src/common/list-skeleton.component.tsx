@@ -1,4 +1,4 @@
-import { cx } from './format.util.ts'
+import { joinClassNames } from './format.util.ts'
 
 const ROW_KEYS = ['a', 'b', 'c', 'd', 'e', 'f']
 
@@ -18,7 +18,12 @@ export function ListSkeleton({
       {ROW_KEYS.slice(0, rows).map((rowKey) => (
         <div
           key={rowKey}
-          className={cx('animate-pulse rounded-lg', rowHeight, onPanel && 'bg-panel-2', !onPanel && 'bg-panel')}
+          className={joinClassNames(
+            'animate-pulse rounded-lg',
+            rowHeight,
+            onPanel && 'bg-panel-2',
+            !onPanel && 'bg-panel',
+          )}
         />
       ))}
     </div>

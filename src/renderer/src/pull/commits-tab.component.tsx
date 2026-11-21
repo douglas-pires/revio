@@ -3,10 +3,10 @@ import type { PullRef } from '@shared/pull.types.ts'
 import { useEffect, useMemo, useState } from 'react'
 import { CopyButton } from '../common/copy-button.component.tsx'
 import { ErrorBanner } from '../common/error-banner.component.tsx'
-import { ago, cx, errorMessage } from '../common/format.util.ts'
-import { toggledIn, toggledOpen } from '../common/group.util.ts'
+import { formatAge, joinClassNames, readErrorMessage } from '../common/format.util.ts'
+import { toggleInSet, toggleOpen } from '../common/group.util.ts'
 import { parsePatch } from './diff.util.ts'
-import { renameTitle } from './files.util.ts'
+import { describeRename } from './files.util.ts'
 import { StaticDiff } from './static-diff.component.tsx'
 
 const AVATAR_PX = 24
@@ -29,7 +29,11 @@ function CommitRow({
   const details = commit.message.slice(commit.headline.length).trim()
   return (
     <li
-      className={cx('overflow-hidden rounded-lg border bg-panel', open && 'border-accent/50', !open && 'border-line')}
+      className={joinClassNames(
+        'overflow-hidden rounded-lg border bg-panel',
+        open && 'border-accent/50',
+        !open && 'border-line',
+      )}
     >
       <div className="flex items-center gap-3 px-4 py-2.5">
         <span className="w-6 shrink-0 text-right font-mono text-[11px] text-muted">{index}</span>
@@ -46,7 +50,8 @@ function CommitRow({
         <button type="button" className="min-w-0 flex-1 text-left" onClick={onToggle} aria-expanded={open}>
           <div className="truncate text-[13px] font-medium hover:underline">{commit.headline}</div>
           <div className="text-[11.5px] text-muted">
-            {commit.author} committed <span title={new Date(commit.date).toLocaleString()}>{ago(commit.date)} ago</span>
+            {commit.author} committed{' '}
+            <span title={new Date(commit.date).toLocaleString()}>{formatAge(commit.date)} ago</span>
           </div>
         </button>
         <CopyButton
@@ -98,7 +103,7 @@ function CommitFiles({ repo, sha }: { repo: string; sha: string }) {
           setShown(new Set(commitFiles.map((file) => file.path)))
         }
       })
-      .catch((failure) => live && setError(errorMessage(failure)))
+      .catch((failure) => live && setError(readErrorMessage(failure)))
     return () => {
       live = false
     }
@@ -110,7 +115,7 @@ function CommitFiles({ repo, sha }: { repo: string; sha: string }) {
   if (!files) {
     return <div className="px-4 py-3 text-[12px] text-muted">Loading files…</div>
   }
-  const toggle = (path: string) => setShown((shownPaths) => toggledIn(shownPaths, path))
+  const toggle = (path: string) => setShown((shownPaths) => toggleInSet(shownPaths, path))
   return (
     <div className="divide-y divide-line">
       {files.map((file) => (
@@ -124,12 +129,12 @@ function CommitFiles({ repo, sha }: { repo: string; sha: string }) {
             <svg
               aria-hidden={true}
               viewBox="0 0 16 16"
-              className={cx('size-3 shrink-0 text-muted transition', !shown.has(file.path) && '-rotate-90')}
+              className={joinClassNames('size-3 shrink-0 text-muted transition', !shown.has(file.path) && '-rotate-90')}
               fill="currentColor"
             >
               <path d="M4 6l4 4 4-4z" />
             </svg>
-            <span className="min-w-0 flex-1 truncate font-mono text-[12px]" title={renameTitle(file)}>
+            <span className="min-w-0 flex-1 truncate font-mono text-[12px]" title={describeRename(file)}>
               {Boolean(file.previousPath) && <span className="text-muted">{file.previousPath} → </span>}
               {file.path}
             </span>
@@ -167,7 +172,7 @@ export function CommitsTab({ pull, headSha }: { pull: PullRef; headSha: string }
     globalThis.revio
       .getPullCommits(pull, headSha)
       .then((loaded) => live && setCommits(loaded))
-      .catch((failure) => live && setError(errorMessage(failure)))
+      .catch((failure) => live && setError(readErrorMessage(failure)))
     return () => {
       live = false
     }
@@ -192,7 +197,7 @@ export function CommitsTab({ pull, headSha }: { pull: PullRef; headSha: string }
           index={index + 1}
           repo={pull.repo}
           open={open === commit.sha}
-          onToggle={() => setOpen(toggledOpen(open, commit.sha))}
+          onToggle={() => setOpen(toggleOpen(open, commit.sha))}
         />
       ))}
     </ol>

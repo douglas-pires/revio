@@ -5,7 +5,7 @@ import { fetchCommitCi, GitLogService } from './git-log.service.ts'
 type GitLogMethods = 'listLocalRepos' | 'getBranches' | 'getLog' | 'getCommit' | 'getCommitCi'
 
 /** The git log's API calls, reading the clones the editor service finds. */
-export function gitLogApi(editor: EditorService): Pick<RevioApi, GitLogMethods> {
+export function buildGitLogApi(editor: EditorService): Pick<RevioApi, GitLogMethods> {
   const gitLog = new GitLogService(editor)
   return {
     listLocalRepos: async () => gitLog.listRepos(),

@@ -3,7 +3,7 @@ import type { DiffRow } from './diff.util.ts'
 import type { LineSelection } from './use-line-selection.hook.ts'
 
 /** "Line 12", "Lines 12–14", or "Old line…" for the removed side. */
-export function rangeLabel(selection: LineSelection) {
+export function describeRange(selection: LineSelection) {
   let label = 'Line'
   if (selection.side === 'LEFT') {
     label = 'Old line'
@@ -24,7 +24,7 @@ export function isInFocus(row: DiffRow, ranges: readonly [number, number][]) {
 }
 
 /** A draft comment on the selected lines; one line has no start, as GitHub expects. */
-export function draftFromSelection(path: string, sel: LineSelection, body: string): Omit<DraftComment, 'id'> {
+export function buildDraftFromSelection(path: string, sel: LineSelection, body: string): Omit<DraftComment, 'id'> {
   const draft: Omit<DraftComment, 'id'> = { path, side: sel.side, line: sel.end, body }
   if (sel.start !== sel.end) {
     draft.startLine = sel.start
@@ -33,7 +33,7 @@ export function draftFromSelection(path: string, sel: LineSelection, body: strin
 }
 
 /** The line to open in the editor: the selected line on the new side, else the first changed line. */
-export function editorLineOf(sel: LineSelection | null, patchRows: readonly DiffRow[]): number | undefined {
+export function findEditorLine(sel: LineSelection | null, patchRows: readonly DiffRow[]): number | undefined {
   if (sel?.side === 'RIGHT') {
     return sel.start
   }

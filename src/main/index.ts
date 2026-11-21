@@ -2,13 +2,13 @@ import { readFileSync } from 'node:fs'
 import { join } from 'node:path'
 import { app, BrowserWindow } from 'electron'
 import { showNotification } from './alerts/notification.service.ts'
-import { reactToSettings, registerApi } from './app/api.controller.ts'
+import { applySettingsChanges, registerApi } from './app/api.controller.ts'
 import { installAppMenu } from './app/app.menu.ts'
 import { AppWindow } from './app/app.window.ts'
 import { env } from './common/env.config.ts'
 import { runWithInput } from './common/shell.util.ts'
 import { EditorService } from './editor/editor.service.ts'
-import { configureTokenResolver, gh } from './github/github.client.ts'
+import { configureTokenResolver, getGithubClient } from './github/github.client.ts'
 import { GithubTokens } from './github/github-tokens.service.ts'
 import { HistoryCache } from './history/history.cache.ts'
 import { InboxPoller } from './inbox/inbox.poller.ts'
@@ -29,7 +29,7 @@ import { showUpdateResult } from './updates/update-dialog.service.ts'
 import { fetchLatestRelease } from './updates/updates.service.ts'
 
 /** The project's .env when running from source; packaged builds read no .env. */
-function dotEnvPathOf() {
+function findDotEnvPath() {
   if (app.isPackaged) {
     return null
   }
@@ -42,7 +42,7 @@ const window = new AppWindow()
 const tokens = new GithubTokens({
   readSaved: () => store.githubToken(),
   save: (token) => store.updateSettings({ githubToken: token }),
-  dotEnvPath: dotEnvPathOf(),
+  dotEnvPath: findDotEnvPath(),
   env,
   // `gh` straight from the login-shell PATH (looked up once), not a login shell per call.
   readCliToken: async () =>
@@ -50,7 +50,7 @@ const tokens = new GithubTokens({
 })
 configureTokenResolver(() => tokens.resolve())
 const pulls = new PullCache(fetchPull)
-const history = new HistoryCache(gh)
+const history = new HistoryCache(getGithubClient)
 const releaseSource = releaseSourceOf(JSON.parse(readFileSync(join(app.getAppPath(), 'package.json'), 'utf8')))
 const updates = new UpdatePoller({
   current: app.getVersion(),
@@ -59,16 +59,18 @@ const updates = new UpdatePoller({
     if (!releaseSource) {
       return null
     }
-    return fetchLatestRelease(await gh(), releaseSource, process.arch)
+    return fetchLatestRelease(await getGithubClient(), releaseSource, process.arch)
   },
   onStatus: (status) => window.send({ type: 'update', status }),
 })
 const stackFinder = new StackFinder()
-const threads = new ThreadCache(async () => fetchThreads(await gh()))
+const threads = new ThreadCache(async () => fetchThreads(await getGithubClient()))
 const mentions = new MentionWatcher({
-  load: async () => fetchMentions(await gh()),
+  load: async () => fetchMentions(await getGithubClient()),
   markRead: async (notificationId) => {
-    await (await gh()).request('PATCH /notifications/threads/{thread_id}', { thread_id: Number(notificationId) })
+    await (await getGithubClient()).request('PATCH /notifications/threads/{thread_id}', {
+      thread_id: Number(notificationId),
+    })
   },
   onMentions: (latest) => {
     window.send({ type: 'mentions', mentions: latest })
@@ -97,7 +99,7 @@ const sync = new IcloudSync({
   drive: ICLOUD_DRIVE,
   enabled: () => store.settings().syncViaIcloud,
   local: () => store.syncSnapshot(),
-  apply: (snapshot) => reactToSettings(poller, store.applySyncSnapshot(snapshot).settings),
+  apply: (snapshot) => applySettingsChanges(poller, store.applySyncSnapshot(snapshot).settings),
   onStatus: (status, applied) => window.send({ type: 'sync', status, applied }),
 })
 store.onSyncedChange(() => sync.localChanged())

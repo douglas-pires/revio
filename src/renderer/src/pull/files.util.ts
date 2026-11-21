@@ -8,7 +8,7 @@ import { parsePatch } from './diff.util.ts'
 const MONOREPO_ROOTS = new Set(['apps', 'packages', 'services', 'libs', 'modules'])
 
 /** The folder a file suggests a guide for: its top-level folder, or two levels under a monorepo root. */
-function suggestedFolderOf(parts: readonly string[]) {
+function suggestFolder(parts: readonly string[]) {
   const [top, second] = parts
   if (parts.length < 2 || top === undefined) {
     return null
@@ -32,7 +32,7 @@ export function groupByDir<T extends { path: string }>(files: T[]): [string, T[]
 export function suggestFolders(paths: string[]) {
   const out = new Set<string>()
   for (const parts of paths.map((path) => path.split('/'))) {
-    const folder = suggestedFolderOf(parts)
+    const folder = suggestFolder(parts)
     if (folder) {
       out.add(folder)
     }
@@ -41,7 +41,7 @@ export function suggestFolders(paths: string[]) {
 }
 
 /** Files start collapsed when already viewed at this version, marked skippable by Claude, or generated. */
-export function initialCollapsed(pr: PullDetail, local: PullLocalState): Record<string, boolean> {
+export function computeInitialCollapsed(pr: PullDetail, local: PullLocalState): Record<string, boolean> {
   const ignore = new Set(local.briefing?.briefing.ignore.map((skipped) => skipped.path))
   return Object.fromEntries(
     pr.files.map((file) => [
@@ -52,7 +52,7 @@ export function initialCollapsed(pr: PullDetail, local: PullLocalState): Record<
 }
 
 /** New-side line numbers present in each file's diff: where a RIGHT-side comment can attach. */
-export function newSideLinesByPath(pr: PullDetail | null): Map<string, Set<number>> {
+export function collectNewSideLines(pr: PullDetail | null): Map<string, Set<number>> {
   const lines = new Map<string, Set<number>>()
   for (const file of pr?.files ?? []) {
     const set = new Set<number>()
@@ -69,7 +69,7 @@ export function newSideLinesByPath(pr: PullDetail | null): Map<string, Set<numbe
 }
 
 /** A file's path, with where it came from when it was renamed. */
-export function renameTitle(file: { path: string; previousPath?: string | undefined }) {
+export function describeRename(file: { path: string; previousPath?: string | undefined }) {
   if (!file.previousPath) {
     return file.path
   }

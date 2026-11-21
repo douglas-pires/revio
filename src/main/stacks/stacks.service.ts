@@ -1,18 +1,18 @@
 import type { Octokit } from '@octokit/rest'
-import { errorMessage } from '@shared/error.util.ts'
+import { readErrorMessage } from '@shared/error.util.ts'
 import type { Inbox, PullSummary, Stack } from '@shared/inbox.types.ts'
 import type { PullRef } from '@shared/pull.types.ts'
 import { MS_PER_MINUTE } from '@shared/time.util.ts'
-import { gh } from '../github/github.client.ts'
+import { getGithubClient } from '../github/github.client.ts'
 import { splitRepo } from '../github/repo-name.util.ts'
 import {
+  applyInboxTags,
   buildStacks,
+  convertSummaryToMini,
   type InboxTag,
   type MiniPr,
   markStackPositions,
-  summaryToMini,
   tagInbox,
-  withInboxTags,
 } from './stack-graph.util.ts'
 
 /** Stacks are re-walked at most this often while the inbox's PRs and branches stay the same. */
@@ -138,12 +138,12 @@ export class StackFinder {
     const all = [...requested, ...reviewed]
     const signature = signInbox(all)
     if (this.#cache && this.#cache.signature === signature && Date.now() - this.#cache.at < STACK_TTL_MS) {
-      return withInboxTags(this.#cache.stacks, requested, reviewed)
+      return applyInboxTags(this.#cache.stacks, requested, reviewed)
     }
     try {
       const stacks = await findStacks(
         octokit,
-        all.map(summaryToMini),
+        all.map(convertSummaryToMini),
         tagInbox(requested, reviewed),
         collectStaleIds(all),
       )
@@ -151,11 +151,11 @@ export class StackFinder {
       markStackPositions(stacks, all)
       return stacks
     } catch (err) {
-      console.error('[revio] stack lookup failed:', errorMessage(err))
+      console.error('[revio] stack lookup failed:', readErrorMessage(err))
       if (!this.#cache) {
         return []
       }
-      return withInboxTags(this.#cache.stacks, requested, reviewed)
+      return applyInboxTags(this.#cache.stacks, requested, reviewed)
     }
   }
 }
@@ -168,7 +168,7 @@ export async function fetchStack(ref: PullRef, inbox: Inbox | null): Promise<Sta
   if (cached) {
     return cached
   }
-  const octokit = await gh()
+  const octokit = await getGithubClient()
   const seed = await fetchMiniPr(octokit, ref)
   if (!seed) {
     return null

@@ -10,7 +10,7 @@ import type {
 } from '@shared/history.types.ts'
 import { markPrCommits } from '@shared/history.util.ts'
 import type { PullRef } from '@shared/pull.types.ts'
-import { smallAvatar } from '../github/github.client.ts'
+import { buildSmallAvatarUrl } from '../github/github.client.ts'
 import { splitRepo } from '../github/repo-name.util.ts'
 
 /** How many characters of a commit sha GitHub shows. */
@@ -27,7 +27,7 @@ interface RawBlameCommit {
   author: { name: string | null; user: { login: string; avatarUrl: string } | null } | null
 }
 
-function fromGraphql(commit: RawBlameCommit): CommitSummary {
+function convertGraphqlCommit(commit: RawBlameCommit): CommitSummary {
   return {
     sha: commit.oid,
     shortSha: commit.abbreviatedOid,
@@ -41,13 +41,13 @@ function fromGraphql(commit: RawBlameCommit): CommitSummary {
 
 type RestCommit = Awaited<ReturnType<Octokit['repos']['listCommits']>>['data'][number]
 
-function fromRest(commit: RestCommit): CommitSummary {
+function convertRestCommit(commit: RestCommit): CommitSummary {
   return {
     sha: commit.sha,
     shortSha: commit.sha.slice(0, SHORT_SHA_LENGTH),
     headline: commit.commit.message.split('\n')[0] ?? '',
     author: commit.author?.login ?? commit.commit.author?.name ?? 'unknown',
-    authorAvatar: smallAvatar(commit.author?.avatar_url),
+    authorAvatar: buildSmallAvatarUrl(commit.author?.avatar_url),
     date: commit.commit.author?.date ?? commit.commit.committer?.date ?? '',
     url: commit.html_url,
   }
@@ -73,7 +73,7 @@ export async function fetchBlame(octokit: Octokit, at: FileAtCommit): Promise<Bl
   return (data.repository.object?.blame.ranges ?? []).map((range) => ({
     start: range.startingLine,
     end: range.endingLine,
-    commit: fromGraphql(range.commit),
+    commit: convertGraphqlCommit(range.commit),
   }))
 }
 
@@ -84,7 +84,7 @@ export async function fetchFileHistory(octokit: Octokit, pull: PullRef, at: File
     octokit.repos.listCommits({ owner, repo, sha: at.sha, path: at.path, per_page: HISTORY_LIMIT }),
     octokit.paginate(octokit.pulls.listCommits, { owner, repo, pull_number: pull.number, per_page: 100 }),
   ])
-  return markPrCommits(commits.data.map(fromRest), new Set(prCommits.map((commit) => commit.sha)))
+  return markPrCommits(commits.data.map(convertRestCommit), new Set(prCommits.map((commit) => commit.sha)))
 }
 
 /** The files a commit changed, with their diffs (GitHub lists up to 300). */
@@ -110,5 +110,5 @@ export async function fetchPullCommits(octokit: Octokit, pull: PullRef): Promise
     pull_number: pull.number,
     per_page: 100,
   })
-  return commits.map((commit) => ({ ...fromRest(commit), message: commit.commit.message }))
+  return commits.map((commit) => ({ ...convertRestCommit(commit), message: commit.commit.message }))
 }

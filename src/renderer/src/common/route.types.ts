@@ -2,7 +2,7 @@ import type { PullRef } from '@shared/pull.types.ts'
 import type { PullTarget } from './navigation.types.ts'
 
 /** Where the screen jumps to on arrival, which going back or forward should not repeat. */
-function withoutTarget(route: Route): Route {
+function dropTarget(route: Route): Route {
   if (route.view === 'pull' && route.target) {
     return { view: 'pull', pull: route.pull }
   }
@@ -21,6 +21,6 @@ export type Route =
 
 /** The same screen, whatever it was opened to jump to. */
 export const sameRoute = (left: Route, right: Route) =>
-  JSON.stringify(withoutTarget(left)) === JSON.stringify(withoutTarget(right))
+  JSON.stringify(dropTarget(left)) === JSON.stringify(dropTarget(right))
 
-export { withoutTarget }
+export { dropTarget }

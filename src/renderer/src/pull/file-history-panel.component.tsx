@@ -1,8 +1,8 @@
 import type { FileHistoryEntry } from '@shared/history.types.ts'
 import { useEffect, useMemo, useState } from 'react'
 import { CopyButton } from '../common/copy-button.component.tsx'
-import { ago, cx, errorMessage } from '../common/format.util.ts'
-import { toggledOpen } from '../common/group.util.ts'
+import { formatAge, joinClassNames, readErrorMessage } from '../common/format.util.ts'
+import { toggleOpen } from '../common/group.util.ts'
 import { PanelHeader } from '../common/panel-header.component.tsx'
 import { parsePatch } from './diff.util.ts'
 import { StaticDiff } from './static-diff.component.tsx'
@@ -23,7 +23,7 @@ function HistoryEntry({
   onToggle: () => void
 }) {
   return (
-    <li className={cx('border-b border-line', open && 'bg-bg/40')}>
+    <li className={joinClassNames('border-b border-line', open && 'bg-bg/40')}>
       <button
         type="button"
         className="flex w-full gap-2 px-3 py-2 text-left hover:bg-hover"
@@ -43,7 +43,8 @@ function HistoryEntry({
         <span className="min-w-0 flex-1">
           <span className="line-clamp-2 text-[12.5px]">{entry.headline}</span>
           <span className="mt-0.5 flex items-center gap-1.5 text-[11.5px] text-muted">
-            <span>{entry.author}</span>·<span title={new Date(entry.date).toLocaleString()}>{ago(entry.date)} ago</span>
+            <span>{entry.author}</span>·
+            <span title={new Date(entry.date).toLocaleString()}>{formatAge(entry.date)} ago</span>
             {Boolean(entry.inThisPr) && <span className="chip bg-accent/15 text-accent">this PR</span>}
           </span>
         </span>
@@ -83,7 +84,7 @@ function CommitChange({ repo, sha, path }: { repo: string; sha: string; path: st
     globalThis.revio
       .getCommitFilePatch({ repo, sha, path })
       .then((loadedPatch) => live && setPatch(loadedPatch))
-      .catch((failure) => live && setError(errorMessage(failure)))
+      .catch((failure) => live && setError(readErrorMessage(failure)))
     return () => {
       live = false
     }
@@ -126,7 +127,7 @@ export function FileHistoryPanel(props: {
     globalThis.revio
       .getFileHistory(pull, { repo, sha: headSha, path })
       .then((loadedEntries) => live && setEntries(loadedEntries))
-      .catch((failure) => live && setError(errorMessage(failure)))
+      .catch((failure) => live && setError(readErrorMessage(failure)))
     return () => {
       live = false
     }
@@ -158,7 +159,7 @@ export function FileHistoryPanel(props: {
               repo={repo}
               path={path}
               open={open === entry.sha}
-              onToggle={() => setOpen(toggledOpen(open, entry.sha))}
+              onToggle={() => setOpen(toggleOpen(open, entry.sha))}
             />
           ))}
         </ol>

@@ -3,7 +3,7 @@ import { REACTIONS, type ReactionContent, type ReactionSummary } from './reactio
 const ORDER = new Map<string, number>(REACTIONS.map((reaction, index) => [reaction.content, index]))
 
 /** Sorts in GitHub's reaction order; unknown kinds go last. */
-const byGithubOrder = (left: { content: string }, right: { content: string }) =>
+const compareByGithubOrder = (left: { content: string }, right: { content: string }) =>
   (ORDER.get(left.content) ?? REACTIONS.length) - (ORDER.get(right.content) ?? REACTIONS.length)
 
 /** GitHub's GraphQL `reactionGroups` entry. */
@@ -17,7 +17,7 @@ export interface RawReactionGroup {
 export function toReactionSummaries(groups: readonly RawReactionGroup[]): ReactionSummary[] {
   return groups
     .filter((group) => ORDER.has(group.content) && group.reactors.totalCount > 0)
-    .sort(byGithubOrder)
+    .sort(compareByGithubOrder)
     .map((group) => ({
       content: group.content as ReactionContent,
       count: group.reactors.totalCount,
@@ -44,5 +44,5 @@ export function applyReaction(
   if (count > 0) {
     next.push({ content, count, viewerHasReacted: on })
   }
-  return next.sort(byGithubOrder)
+  return next.sort(compareByGithubOrder)
 }

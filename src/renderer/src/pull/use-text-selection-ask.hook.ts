@@ -1,9 +1,9 @@
 import type { DiffSide } from '@shared/pull.types.ts'
 import { useEffect, useState } from 'react'
-import { type DiffRow, lineRangeOfRows } from './diff.util.ts'
+import { computeLineRange, type DiffRow } from './diff.util.ts'
 
 /** The node itself when it is an element, else the element holding it (a text node's parent). */
-function elementOf(node: Node | null) {
+function findElement(node: Node | null) {
   if (node instanceof Element) {
     return node
   }
@@ -35,13 +35,13 @@ export function useTextSelectionAsk(rows: readonly DiffRow[]) {
     if (!selection || selection.isCollapsed) {
       return
     }
-    const cellOf = (node: Node | null) => elementOf(node)?.closest<HTMLElement>('td[data-row]')
-    const anchorCell = cellOf(selection.anchorNode)
-    const focusCell = cellOf(selection.focusNode)
+    const findCodeCell = (node: Node | null) => findElement(node)?.closest<HTMLElement>('td[data-row]')
+    const anchorCell = findCodeCell(selection.anchorNode)
+    const focusCell = findCodeCell(selection.focusNode)
     if (!(anchorCell && focusCell)) {
       return
     }
-    const range = lineRangeOfRows(
+    const range = computeLineRange(
       rows,
       Number(anchorCell.dataset.row),
       Number(focusCell.dataset.row),

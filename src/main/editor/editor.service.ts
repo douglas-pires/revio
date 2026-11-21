@@ -6,7 +6,7 @@ import type { EditorInfo, EditorTarget } from '@shared/editor.types.ts'
 import { shell } from 'electron'
 import { findClones } from './clone-finder.service.ts'
 import { EDITORS, type EditorSpec, launchFor } from './editor-launch.util.ts'
-import { pathInside, REPO_NAME } from './local-clone.util.ts'
+import { REPO_NAME, resolvePathInside } from './local-clone.util.ts'
 
 const APP_FOLDERS = [
   '/Applications',
@@ -14,7 +14,7 @@ const APP_FOLDERS = [
   join(homedir(), 'Applications', 'JetBrains Toolbox'),
 ]
 
-const appPathOf = (editor: EditorSpec) => APP_FOLDERS.map((dir) => join(dir, `${editor.app}.app`)).find(existsSync)
+const findAppPath = (editor: EditorSpec) => APP_FOLDERS.map((dir) => join(dir, `${editor.app}.app`)).find(existsSync)
 
 const HOME_PREFIX = /^~(?=$|\/)/u
 
@@ -31,7 +31,7 @@ function run(command: string, args: string[], childEnv?: NodeJS.ProcessEnv): Pro
 }
 
 /** Why no editor could be used: the chosen one is missing, or none of the supported ones is installed. */
-function missingEditorMessage(chosen: string) {
+function describeMissingEditor(chosen: string) {
   if (!chosen) {
     return 'No supported editor found. Pick one in Settings.'
   }
@@ -40,7 +40,7 @@ function missingEditorMessage(chosen: string) {
 }
 
 /** A positive whole line number, or null to open the file at its top. */
-function validLine(line: number | undefined): number | null {
+function validateLine(line: number | undefined): number | null {
   if (line !== undefined && Number.isInteger(line) && line > 0) {
     return line
   }
@@ -48,8 +48,8 @@ function validLine(line: number | undefined): number | null {
 }
 
 /** The known editors installed on this Mac. */
-export function installedEditors(): EditorInfo[] {
-  return EDITORS.filter((editor) => appPathOf(editor)).map(({ id, name }) => ({ id, name }))
+export function listInstalledEditors(): EditorInfo[] {
+  return EDITORS.filter((editor) => findAppPath(editor)).map(({ id, name }) => ({ id, name }))
 }
 
 /** Finds and remembers where your clones of GitHub repositories live, and opens their files in your editor. */
@@ -94,12 +94,12 @@ export class EditorService {
       order = EDITORS.filter((editor) => editor.id === chosen)
     }
     for (const spec of order) {
-      const appPath = appPathOf(spec)
+      const appPath = findAppPath(spec)
       if (appPath) {
         return { spec, appPath }
       }
     }
-    throw new Error(missingEditorMessage(chosen))
+    throw new Error(describeMissingEditor(chosen))
   }
 
   async open(target: EditorTarget): Promise<void> {
@@ -110,14 +110,14 @@ export class EditorService {
     if (!clone) {
       throw new Error(`No local clone of ${target.repo} found. Add the folder that holds it under Settings → Editor.`)
     }
-    const file = pathInside(clone, target.path)
+    const file = resolvePathInside(clone, target.path)
     if (!file) {
       throw new Error(`Bad path: ${target.path}`)
     }
     if (!existsSync(file)) {
       throw new Error(`${target.path} is not in ${clone}. Check out the PR's branch there to open it.`)
     }
-    const line = validLine(target.line)
+    const line = validateLine(target.line)
     const { spec, appPath } = this.#editor()
     const launch = launchFor(spec, appPath, file, line)
     if ('url' in launch) {

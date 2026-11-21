@@ -2,7 +2,7 @@
 const READING_LINE_PX = 48
 const FILE_ID_PREFIX = 'file-'
 
-function overlaps(first: { top: number; bottom: number }, second: { top: number; bottom: number }) {
+function doesOverlap(first: { top: number; bottom: number }, second: { top: number; bottom: number }) {
   return first.bottom > second.top && first.top < second.bottom
 }
 
@@ -20,7 +20,7 @@ export interface FileSpan extends Span {
  * across the reading line near the top of the diff, else the first file below it. Null when no file is on screen.
  */
 export function pickFileInView(current: string | null, files: readonly FileSpan[], view: Span): string | null {
-  const onScreen = files.filter((file) => overlaps(file, view))
+  const onScreen = files.filter((file) => doesOverlap(file, view))
   if (onScreen.some((file) => file.path === current)) {
     return current
   }
@@ -30,7 +30,7 @@ export function pickFileInView(current: string | null, files: readonly FileSpan[
 }
 
 /** The changed file a DOM node is in, from its card's `file-<path>` id. */
-export function filePathAt(node: Element | null): string | null {
+export function findFilePathAt(node: Element | null): string | null {
   const card = node?.closest(`[id^="${FILE_ID_PREFIX}"]`)
   if (!card) {
     return null
@@ -39,7 +39,7 @@ export function filePathAt(node: Element | null): string | null {
 }
 
 /** `pickFileInView` on the files tab as laid out now; `current` when the tab is not showing. */
-export function fileInView(current: string | null): string | null {
+export function findFileInView(current: string | null): string | null {
   const scroller = document
     .querySelector('[data-scroll-root]:not(.hidden) [data-find-scope]')
     ?.closest('[data-scroll-root]')

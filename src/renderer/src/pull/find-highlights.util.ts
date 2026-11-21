@@ -1,5 +1,5 @@
 import type { DiffSide } from '@shared/pull.types.ts'
-import { type DiffMatch, occurrences, type SearchOptions } from './diff-search.util.ts'
+import { type DiffMatch, findOccurrences, type SearchOptions } from './diff-search.util.ts'
 
 /** The row attribute holding a line number, by side. */
 const LINE_ATTRIBUTES: Record<DiffSide, string> = { LEFT: 'data-old-line', RIGHT: 'data-new-line' }
@@ -34,7 +34,7 @@ function locate(
 }
 
 /** Ranges over each occurrence of `query` in a code cell's text, which may span several token spans. Blame notes are skipped. */
-export function rangesIn(cell: Element, query: string, options: SearchOptions): Range[] {
+export function findRangesIn(cell: Element, query: string, options: SearchOptions): Range[] {
   const nodes: Text[] = []
   const walker = document.createTreeWalker(cell, NodeFilter.SHOW_TEXT, {
     acceptNode: (node) => acceptUnlessInBlameNote(node),
@@ -49,7 +49,7 @@ export function rangesIn(cell: Element, query: string, options: SearchOptions): 
     starts.push(total)
     total += node.data.length
   }
-  return occurrences(text, query, options).flatMap((at) => {
+  return findOccurrences(text, query, options).flatMap((at) => {
     const start = locate(nodes, starts, at, false)
     const end = locate(nodes, starts, at + query.length, true)
     if (!(start && end)) {
@@ -63,7 +63,7 @@ export function rangesIn(cell: Element, query: string, options: SearchOptions): 
 }
 
 /** The code cell a match is in, if its file is rendered. In split view a kept line shows twice; the new side is used. */
-export function cellOf(match: DiffMatch): Element | null {
+export function findMatchCell(match: DiffMatch): Element | null {
   const file = document.querySelector(`#${CSS.escape(`file-${match.path}`)}`)
   const row = file?.querySelector(`tr[${LINE_ATTRIBUTES[match.side]}="${match.line}"]`)
   return row?.querySelector(`td[data-row][data-half="${match.side}"]`) ?? row?.querySelector('td[data-row]') ?? null

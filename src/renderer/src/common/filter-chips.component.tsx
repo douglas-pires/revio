@@ -1,4 +1,4 @@
-import { cx } from './format.util.ts'
+import { joinClassNames } from './format.util.ts'
 
 export interface FilterChip {
   key: string
@@ -21,7 +21,7 @@ export function FilterChips({ label, chips }: { label: string; chips: readonly F
           title={chip.title}
           aria-pressed={chip.active}
           onClick={chip.onPick}
-          className={cx(
+          className={joinClassNames(
             'rounded-full border px-2.5 py-0.5 whitespace-nowrap',
             chip.active && 'border-accent bg-accent/15 text-accent',
             !chip.active && 'border-line text-muted hover:text-fg',

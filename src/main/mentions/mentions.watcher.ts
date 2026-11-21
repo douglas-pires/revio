@@ -1,4 +1,4 @@
-import { errorMessage } from '@shared/error.util.ts'
+import { readErrorMessage } from '@shared/error.util.ts'
 import type { MentionsInbox } from '@shared/mention.types.ts'
 import { isSamePull, type PullRef } from '@shared/pull.types.ts'
 import { InFlight } from '../common/in-flight.util.ts'
@@ -46,7 +46,7 @@ export class MentionWatcher {
     try {
       inbox = await this.#deps.load()
     } catch (err) {
-      const error = errorMessage(err)
+      const error = readErrorMessage(err)
       console.error('[revio] mentions failed:', error)
       inbox = this.#withError(error)
     }

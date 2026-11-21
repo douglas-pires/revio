@@ -5,7 +5,7 @@ import type {
   PullThreadStatus,
   ReviewComment,
 } from '@shared/pull.types.ts'
-import { anchorKey } from './diff.util.ts'
+import { buildAnchorKey } from './diff.util.ts'
 
 const includesFolded = (text: string, needle: string) => text.toLowerCase().includes(needle)
 
@@ -16,12 +16,12 @@ interface LineSpan {
 }
 
 /** The lines a comment covers: startLine..line on its side, or just its line. */
-function linesOf({ side, line, startLine }: LineSpan): string[] {
+function listCoveredAnchors({ side, line, startLine }: LineSpan): string[] {
   if (line === null) {
     return []
   }
   const first = Math.min(startLine ?? line, line)
-  return Array.from({ length: line - first + 1 }, (_, offset) => anchorKey(side, first + offset))
+  return Array.from({ length: line - first + 1 }, (_, offset) => buildAnchorKey(side, first + offset))
 }
 
 /** A review thread on this PR: its first comment, the replies, and whether it is resolved. */
@@ -47,16 +47,16 @@ export function groupCommentThreads(
 ): CommentThread[] {
   const status = new Map(statuses.map((threadStatus) => [threadStatus.rootCommentId, threadStatus]))
   const ids = new Set(comments.map((comment) => comment.id))
-  const parentOf = (comment: ReviewComment) => {
+  const findParent = (comment: ReviewComment) => {
     if (comment.inReplyTo && ids.has(comment.inReplyTo)) {
       return comment.inReplyTo
     }
     return null
   }
-  const isRoot = (comment: ReviewComment) => parentOf(comment) === null
+  const isRoot = (comment: ReviewComment) => findParent(comment) === null
   const replies = new Map<number, ReviewComment[]>()
   for (const comment of comments) {
-    const parent = parentOf(comment)
+    const parent = findParent(comment)
     if (parent !== null) {
       replies.set(parent, [...(replies.get(parent) ?? []), comment])
     }
@@ -116,12 +116,12 @@ export function indexFileComments(
     } else if (thread.outdated || thread.line === null) {
       index.outdatedThreads.push(thread.comments)
     } else {
-      push(index.threadsByLine, anchorKey(thread.side, thread.line), thread.comments)
+      push(index.threadsByLine, buildAnchorKey(thread.side, thread.line), thread.comments)
     }
   }
   for (const draft of drafts) {
     if (!draft.inReplyTo && draft.line !== null) {
-      push(index.draftsByLine, anchorKey(draft.side, draft.line), draft)
+      push(index.draftsByLine, buildAnchorKey(draft.side, draft.line), draft)
     }
   }
   return index
@@ -131,14 +131,17 @@ export function indexFileComments(
  * Every line a comment is on, as `anchorKey`s: GitHub's comments that still point at a line, and your pending ones
  * (replies sit on their thread's lines already). So the diff can keep those lines marked after the selection is gone.
  */
-export function commentedLines(comments: readonly ReviewComment[], drafts: readonly DraftComment[]): Set<string> {
+export function collectCommentedLines(
+  comments: readonly ReviewComment[],
+  drafts: readonly DraftComment[],
+): Set<string> {
   const onLines = comments.filter((comment) => !comment.outdated && comment.subjectType === 'line')
   const newDrafts = drafts.filter((draft) => !draft.inReplyTo)
-  return new Set([...onLines, ...newDrafts].flatMap(linesOf))
+  return new Set([...onLines, ...newDrafts].flatMap(listCoveredAnchors))
 }
 
 /** The thread's comment that matches `query` (text or author), or null. The file path matching counts as the first comment. */
-export function matchingComment(thread: CommentThread, query: string): ReviewComment | null {
+export function findMatchingComment(thread: CommentThread, query: string): ReviewComment | null {
   const needle = query.trim().toLowerCase()
   if (!needle) {
     return thread.comments[0] ?? null
@@ -164,7 +167,7 @@ export interface ReviewedBy {
 }
 
 /** The thread's comments by others since your last review, oldest first. */
-export function newComments(thread: CommentThread, { viewer, since }: ReviewedBy): ReviewComment[] {
+export function findNewComments(thread: CommentThread, { viewer, since }: ReviewedBy): ReviewComment[] {
   if (since === null) {
     return []
   }
@@ -173,7 +176,7 @@ export function newComments(thread: CommentThread, { viewer, since }: ReviewedBy
 
 /** Threads with a comment, author or file path matching `query`, resolved ones included. */
 export function searchThreads(threads: readonly CommentThread[], query: string): CommentThread[] {
-  return threads.filter((thread) => matchingComment(thread, query))
+  return threads.filter((thread) => findMatchingComment(thread, query))
 }
 
 /** Your pending comments whose text or file path matches `query`. */

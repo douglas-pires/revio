@@ -1,6 +1,6 @@
 import type { Settings, SettingsPatch, SyncStatus } from '@shared/settings.types.ts'
 import { useState } from 'react'
-import { ago, errorMessage } from '../common/format.util.ts'
+import { formatAge, readErrorMessage } from '../common/format.util.ts'
 
 /** Where syncing stands, in words. */
 function SyncState({ status, problem }: { status: SyncStatus; problem: string | null }) {
@@ -14,7 +14,7 @@ function SyncState({ status, problem }: { status: SyncStatus; problem: string | 
     return 'Waiting for iCloud to download your settings…'
   }
   if (status.state === 'synced' && status.lastSyncedAt) {
-    return `Synced ${ago(status.lastSyncedAt)} ago`
+    return `Synced ${formatAge(status.lastSyncedAt)} ago`
   }
   return 'Alerts, GitHub filters, Claude connection and model, and your review guides.'
 }
@@ -35,7 +35,7 @@ export function SyncSettings({
     try {
       await globalThis.revio.syncNow()
     } catch (failure) {
-      setProblem(errorMessage(failure))
+      setProblem(readErrorMessage(failure))
     }
   }
   return (

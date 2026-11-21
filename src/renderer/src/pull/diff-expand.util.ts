@@ -11,7 +11,7 @@ interface HunkSpan {
   newEnd: number
 }
 
-function hunksOf(rows: readonly DiffRow[]): HunkSpan[] {
+function findHunks(rows: readonly DiffRow[]): HunkSpan[] {
   const hunks: { header: HunkHeader; body: LineRow[] }[] = []
   for (const row of rows) {
     if (row.kind === 'hunk') {
@@ -23,14 +23,14 @@ function hunksOf(rows: readonly DiffRow[]): HunkSpan[] {
   return hunks.map(({ header, body }) => {
     const olds = body.map((row) => row.oldNo).filter(isPresent)
     const news = body.map((row) => row.newNo).filter(isPresent)
-    const oldBefore = lineBefore(olds, header.oldStart)
-    const newBefore = lineBefore(news, header.newStart)
+    const oldBefore = findLineBefore(olds, header.oldStart)
+    const newBefore = findLineBefore(news, header.newStart)
     return { header, body, oldBefore, newBefore, oldEnd: olds.at(-1) ?? oldBefore, newEnd: news.at(-1) ?? newBefore }
   })
 }
 
 /** The last line before a hunk on one side. A side with no lines in it ("-10,0") names that line in its header. */
-function lineBefore(lines: readonly number[], headerStart: number) {
+function findLineBefore(lines: readonly number[], headerStart: number) {
   const [first] = lines
   if (first === undefined) {
     return headerStart
@@ -38,14 +38,14 @@ function lineBefore(lines: readonly number[], headerStart: number) {
   return first - 1
 }
 
-function lengthOf(gap: Gap) {
+function measureGap(gap: Gap) {
   if (gap.end === null) {
     return null
   }
   return Math.max(0, gap.end - gap.start + 1)
 }
 
-const contextRow = (lines: readonly string[], gap: Gap, newNo: number): LineRow => ({
+const buildContextRow = (lines: readonly string[], gap: Gap, newNo: number): LineRow => ({
   kind: 'ctx',
   text: lines[newNo - 1] ?? '',
   oldNo: newNo + gap.offset,
@@ -54,16 +54,16 @@ const contextRow = (lines: readonly string[], gap: Gap, newNo: number): LineRow 
 })
 
 /** Rows for new-side lines first..last of a gap, read from the file. */
-function contextRows(lines: readonly string[], gap: Gap, first: number, last: number): LineRow[] {
+function buildContextRows(lines: readonly string[], gap: Gap, first: number, last: number): LineRow[] {
   const rows: LineRow[] = []
   for (let lineNumber = first; lineNumber <= last; lineNumber += 1) {
-    rows.push(contextRow(lines, gap, lineNumber))
+    rows.push(buildContextRow(lines, gap, lineNumber))
   }
   return rows
 }
 
 /** The separator for a gap that still hides lines: the next hunk's header, or a blank one after the last hunk. */
-function separatorFor(gap: Gap, hunk: HunkSpan | undefined, hidden: number | null): HunkHeader {
+function buildSeparator(gap: Gap, hunk: HunkSpan | undefined, hidden: number | null): HunkHeader {
   const header: HunkHeader = hunk?.header ?? {
     kind: 'hunk',
     text: '',
@@ -74,9 +74,14 @@ function separatorFor(gap: Gap, hunk: HunkSpan | undefined, hidden: number | nul
 }
 
 /** A gap's rows: lines shown from its top, its separator (while lines stay hidden), lines from its bottom, the hunk. */
-function gapRows(gap: Gap, hunk: HunkSpan | undefined, lines: readonly string[] | null, shown: GapShown | undefined) {
-  const length = lengthOf(gap)
-  const hidden = hiddenIn(gap, shown)
+function buildGapRows(
+  gap: Gap,
+  hunk: HunkSpan | undefined,
+  lines: readonly string[] | null,
+  shown: GapShown | undefined,
+) {
+  const length = measureGap(gap)
+  const hidden = countHiddenLines(gap, shown)
   let last = Number.MAX_SAFE_INTEGER
   if (length !== null) {
     last = gap.start + length - 1
@@ -84,15 +89,15 @@ function gapRows(gap: Gap, hunk: HunkSpan | undefined, lines: readonly string[] 
   const out: DiffRow[] = []
   if (lines) {
     const { top, bottom } = shown ?? { top: 0, bottom: 0 }
-    out.push(...contextRows(lines, gap, gap.start, Math.min(gap.start + top - 1, last)))
+    out.push(...buildContextRows(lines, gap, gap.start, Math.min(gap.start + top - 1, last)))
     if (hidden !== 0) {
-      out.push(separatorFor(gap, hunk, hidden))
+      out.push(buildSeparator(gap, hunk, hidden))
     }
     if (hunk) {
-      out.push(...contextRows(lines, gap, Math.max(gap.start + top, last - bottom + 1), last))
+      out.push(...buildContextRows(lines, gap, Math.max(gap.start + top, last - bottom + 1), last))
     }
   } else if (hidden !== 0) {
-    out.push(separatorFor(gap, hunk, hidden))
+    out.push(buildSeparator(gap, hunk, hidden))
   }
   if (hidden === 0 && hunk && length === 0) {
     out.push(hunk.header)
@@ -126,8 +131,8 @@ export type ExpandDirection = 'up' | 'down' | 'all'
 export const EXPAND_STEP = 20
 
 /** Every gap the diff leaves, including empty ones, one per hunk plus one after the last. */
-export function gapsOf(rows: readonly DiffRow[], totalLines: number | null): Gap[] {
-  const hunks = hunksOf(rows)
+export function findGaps(rows: readonly DiffRow[], totalLines: number | null): Gap[] {
+  const hunks = findHunks(rows)
   const gaps: Gap[] = hunks.map((hunk, index) => {
     // The first gap starts at line 1; the others right after the previous hunk.
     const start = (hunks[index - 1]?.newEnd ?? 0) + 1
@@ -141,8 +146,8 @@ export function gapsOf(rows: readonly DiffRow[], totalLines: number | null): Gap
 }
 
 /** Lines of a gap still hidden; null when its length is unknown. */
-export function hiddenIn(gap: Gap, shown: GapShown | undefined): number | null {
-  const length = lengthOf(gap)
+export function countHiddenLines(gap: Gap, shown: GapShown | undefined): number | null {
+  const length = measureGap(gap)
   if (length === null) {
     return null
   }
@@ -172,11 +177,11 @@ export function expandRows(
   lines: readonly string[] | null,
   shown: ReadonlyMap<number, GapShown>,
 ): DiffRow[] {
-  const hunks = hunksOf(rows)
+  const hunks = findHunks(rows)
   if (hunks.length === 0) {
     return [...rows]
   }
-  return gapsOf(rows, lines?.length ?? null).flatMap((gap) =>
-    gapRows(gap, hunks[gap.index], lines, shown.get(gap.index)),
+  return findGaps(rows, lines?.length ?? null).flatMap((gap) =>
+    buildGapRows(gap, hunks[gap.index], lines, shown.get(gap.index)),
   )
 }

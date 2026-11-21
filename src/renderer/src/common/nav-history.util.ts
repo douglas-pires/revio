@@ -9,7 +9,7 @@ export interface NavHistory<T> {
 
 export const startHistory = <T>(first: T): NavHistory<T> => ({ entries: [first], index: 0 })
 
-export function currentEntry<T>(history: NavHistory<T>): T {
+export function readCurrentEntry<T>(history: NavHistory<T>): T {
   const entry = history.entries[history.index]
   // startHistory, visit and step keep the index on an entry; this only guards that promise.
   if (entry === undefined) {
@@ -24,7 +24,7 @@ export const canGoForward = <T>(history: NavHistory<T>) => history.index < histo
 
 /** Adds a screen after the current one; visiting the screen you are on changes nothing. */
 export function visit<T>(history: NavHistory<T>, entry: T, same: (left: T, right: T) => boolean): NavHistory<T> {
-  if (same(currentEntry(history), entry)) {
+  if (same(readCurrentEntry(history), entry)) {
     return history
   }
   const entries = [...history.entries.slice(0, history.index + 1), entry].slice(-MAX_ENTRIES)

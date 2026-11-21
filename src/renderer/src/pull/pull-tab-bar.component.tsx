@@ -2,7 +2,7 @@ import { InnerTabs } from '../common/inner-tabs.component.tsx'
 import { SegmentedControl } from '../common/segmented-control.component.tsx'
 import { ToggleButton } from '../common/toggle-button.component.tsx'
 import type { DiffView } from './diff-file.component.tsx'
-import { type PullTab, pullTabs } from './pull-tabs.util.ts'
+import { listPullTabs, type PullTab } from './pull-tabs.util.ts'
 
 /** Tooltips for the toggles, by whether they are on. */
 const TOGGLE_TITLES = {
@@ -85,7 +85,7 @@ interface PullTabBarProps {
 }
 
 export function PullTabBar(props: PullTabBarProps) {
-  const tabs = pullTabs(props.commitCount)
+  const tabs = listPullTabs(props.commitCount)
   return (
     <InnerTabs tabs={tabs} value={props.tab} onChange={props.onTab}>
       {props.tab === 'files' && <FilesToolbar props={props} />}

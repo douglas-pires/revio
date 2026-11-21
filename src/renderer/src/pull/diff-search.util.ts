@@ -16,7 +16,7 @@ function matchesInRow(path: string, row: LineRow, query: string, options: Search
   if (line === null) {
     return []
   }
-  return occurrences(row.text, query, options).map((_, nth) => ({ path, side, line, nth }))
+  return findOccurrences(row.text, query, options).map((_, nth) => ({ path, side, line, nth }))
 }
 
 /** One occurrence of the search text in a diff line. */
@@ -37,7 +37,7 @@ export interface SearchOptions {
 export const MAX_MATCHES = 1000
 
 /** Start offsets of `query` in `text`, without overlaps. */
-export function occurrences(text: string, query: string, { caseSensitive }: SearchOptions): number[] {
+export function findOccurrences(text: string, query: string, { caseSensitive }: SearchOptions): number[] {
   if (!query) {
     return []
   }

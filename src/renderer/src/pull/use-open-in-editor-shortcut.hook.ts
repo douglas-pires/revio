@@ -1,7 +1,7 @@
 import { hasCommandModifier, matchesShortcut } from '@shared/shortcut.util.ts'
 import { useEffect, useRef, useState } from 'react'
 import { isTyping } from '../common/keyboard.util.ts'
-import { fileInView } from './file-in-view.util.ts'
+import { findFileInView } from './file-in-view.util.ts'
 
 interface ShortcutState {
   enabled: boolean
@@ -38,7 +38,7 @@ function isShortcutPress(event: KeyboardEvent, state: ShortcutState) {
 
 /** The Open in editor button of the file you are reading, or null when no file is on screen. */
 function findOpenInEditorButton(currentFile: string | null): HTMLButtonElement | null {
-  const path = fileInView(currentFile)
+  const path = findFileInView(currentFile)
   if (!path) {
     return null
   }

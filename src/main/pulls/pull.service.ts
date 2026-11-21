@@ -1,5 +1,5 @@
 import type { Octokit } from '@octokit/rest'
-import { errorMessage } from '@shared/error.util.ts'
+import { readErrorMessage } from '@shared/error.util.ts'
 import { isPresent } from '@shared/presence.util.ts'
 import type {
   DraftComment,
@@ -14,7 +14,7 @@ import type {
 import type { ReactionSummary } from '@shared/reaction.types.ts'
 import { type RawReactionGroup, toReactionSummaries } from '@shared/reaction.util.ts'
 import { MemoCache } from '../common/memo.cache.ts'
-import { gh, smallAvatar, viewerLogin } from '../github/github.client.ts'
+import { buildSmallAvatarUrl, getGithubClient, getViewerLogin } from '../github/github.client.ts'
 import { splitRepo } from '../github/repo-name.util.ts'
 import { REACTION_GROUPS } from '../reactions/reactions.service.ts'
 import { buildConversation } from './conversation.util.ts'
@@ -73,7 +73,7 @@ async function fetchThreadMeta(octokit: Octokit, ref: PullRef): Promise<ThreadMe
       ),
     }
   } catch (err) {
-    console.error('[revio] thread status lookup failed:', errorMessage(err))
+    console.error('[revio] thread status lookup failed:', readErrorMessage(err))
     return { threads: [], reactions: new Map() }
   }
 }
@@ -128,7 +128,7 @@ async function addFileThread(octokit: Octokit, reviewId: string, { path, body }:
 const fileCache = new MemoCache<string | null>(MAX_CACHED_FILES)
 
 async function loadFileAt(repoFull: string, ref: string, path: string): Promise<string | null> {
-  const octokit = await gh()
+  const octokit = await getGithubClient()
   const { owner, repo } = splitRepo(repoFull)
   // With the raw media type GitHub returns the file body, which Octokit's types don't model.
   const data: unknown = await octokit.repos
@@ -152,7 +152,7 @@ type RestFile = Awaited<ReturnType<Octokit['pulls']['listFiles']>>['data'][numbe
 type RestComment = Awaited<ReturnType<Octokit['pulls']['listReviewComments']>>['data'][number]
 
 /** Your most recent decisive review (approve, request changes, dismissed), else your latest comment review. */
-function myReviewOf(reviews: readonly RestReview[], viewer: string, headSha: string): PullDetail['myReview'] {
+function findMyReview(reviews: readonly RestReview[], viewer: string, headSha: string): PullDetail['myReview'] {
   const mine = reviews.filter((review) => review.user?.login === viewer && review.state !== 'PENDING')
   const latest = mine.filter((review) => DECISIVE_STATES.has(review.state)).at(-1) ?? mine.at(-1)
   if (!latest) {
@@ -166,7 +166,7 @@ function myReviewOf(reviews: readonly RestReview[], viewer: string, headSha: str
 }
 
 /** When you last submitted a review, of any kind. */
-function lastReviewedAtOf(reviews: readonly RestReview[], viewer: string): string | null {
+function findLastReviewedAt(reviews: readonly RestReview[], viewer: string): string | null {
   const times = reviews
     .filter((review) => review.user?.login === viewer && review.state !== 'PENDING' && isPresent(review.submitted_at))
     .map((review) => review.submitted_at ?? '')
@@ -186,7 +186,7 @@ function toPullFile(file: RestFile): PullFile {
   }
 }
 
-function subjectTypeOf(onFile: boolean): ReviewComment['subjectType'] {
+function pickSubjectType(onFile: boolean): ReviewComment['subjectType'] {
   if (onFile) {
     return 'file'
   }
@@ -205,19 +205,19 @@ function toReviewComment(comment: RestComment, reactions: ThreadMeta['reactions'
     side: (comment.side as ReviewComment['side']) ?? 'RIGHT',
     body: comment.body,
     author: comment.user?.login ?? 'ghost',
-    authorAvatar: smallAvatar(comment.user?.avatar_url),
+    authorAvatar: buildSmallAvatarUrl(comment.user?.avatar_url),
     createdAt: comment.created_at,
     url: comment.html_url,
     // A line comment loses its line once the code it was on changes; a file comment never had one.
     outdated: !(onFile || isPresent(comment.line)),
-    subjectType: subjectTypeOf(onFile),
+    subjectType: pickSubjectType(onFile),
     reactions: reactions.get(comment.id) ?? [],
   }
 }
 
 export async function fetchPull(ref: PullRef): Promise<PullDetail> {
   const { repo: repoFull, number } = ref
-  const octokit = await gh()
+  const octokit = await getGithubClient()
   const { owner, repo } = splitRepo(repoFull)
   const list = { owner, repo, pull_number: number, per_page: PAGE_SIZE }
   const [pr, files, comments, reviews, conversationComments, viewer, meta] = await Promise.all([
@@ -226,7 +226,7 @@ export async function fetchPull(ref: PullRef): Promise<PullDetail> {
     octokit.paginate(octokit.pulls.listReviewComments, list),
     octokit.paginate(octokit.pulls.listReviews, list),
     octokit.paginate(octokit.issues.listComments, { owner, repo, issue_number: number, per_page: PAGE_SIZE }),
-    viewerLogin(),
+    getViewerLogin(),
     fetchThreadMeta(octokit, ref),
   ])
   const pullData = pr.data
@@ -238,14 +238,14 @@ export async function fetchPull(ref: PullRef): Promise<PullDetail> {
     body: pullData.body ?? '',
     url: pullData.html_url,
     author: pullData.user?.login ?? 'ghost',
-    authorAvatar: smallAvatar(pullData.user?.avatar_url),
+    authorAvatar: buildSmallAvatarUrl(pullData.user?.avatar_url),
     headRef: pullData.head.ref,
     baseRef: pullData.base.ref,
     headSha: pullData.head.sha,
     baseSha: pullData.base.sha,
     viewer,
-    myReview: myReviewOf(reviews, viewer, pullData.head.sha),
-    lastReviewedAt: lastReviewedAtOf(reviews, viewer),
+    myReview: findMyReview(reviews, viewer, pullData.head.sha),
+    lastReviewedAt: findLastReviewedAt(reviews, viewer),
     isDraft: Boolean(pullData.draft),
     additions: pullData.additions,
     deletions: pullData.deletions,
@@ -253,12 +253,12 @@ export async function fetchPull(ref: PullRef): Promise<PullDetail> {
     files: files.map(toPullFile),
     threads: meta.threads,
     comments: comments.map((comment) => toReviewComment(comment, meta.reactions)),
-    conversation: buildConversation(conversationComments, reviews, smallAvatar),
+    conversation: buildConversation(conversationComments, reviews, buildSmallAvatarUrl),
   }
 }
 
 export async function submitReview(input: SubmitReviewInput, drafts: DraftComment[]): Promise<{ url: string }> {
-  const octokit = await gh()
+  const octokit = await getGithubClient()
   const { owner, repo } = splitRepo(input.repo)
   const plan = planReview(drafts)
   for (const reply of plan.replies) {
@@ -289,14 +289,14 @@ export async function submitReview(input: SubmitReviewInput, drafts: DraftCommen
 }
 
 export async function replyToComment({ repo: repoFull, number }: PullRef, commentId: number, body: string) {
-  const octokit = await gh()
+  const octokit = await getGithubClient()
   const { owner, repo } = splitRepo(repoFull)
   await octokit.pulls.createReplyForReviewComment({ owner, repo, pull_number: number, comment_id: commentId, body })
 }
 
 /** Posts a comment in the PR conversation (not on code) and returns its link. */
 export async function commentOnPull({ repo: repoFull, number }: PullRef, body: string): Promise<{ url: string }> {
-  const octokit = await gh()
+  const octokit = await getGithubClient()
   const { owner, repo } = splitRepo(repoFull)
   const { data } = await octokit.issues.createComment({ owner, repo, issue_number: number, body })
   return { url: data.html_url }

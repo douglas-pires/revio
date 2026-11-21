@@ -1,6 +1,6 @@
 import type { UpdateStatus } from '@shared/update.types.ts'
 import { useState } from 'react'
-import { ago, errorMessage } from '../common/format.util.ts'
+import { formatAge, readErrorMessage } from '../common/format.util.ts'
 import { downloadLinkOf, openLink } from './update-links.util.ts'
 import { useUpdateStatus } from './use-update-status.hook.ts'
 
@@ -16,7 +16,7 @@ function UpdateState({ status, problem }: { status: UpdateStatus; problem: strin
     return `Version ${status.latest} is available.`
   }
   if (status.checkedAt) {
-    return `Up to date · checked ${ago(status.checkedAt)} ago`
+    return `Up to date · checked ${formatAge(status.checkedAt)} ago`
   }
   return 'Not checked yet. Installed builds check every few hours.'
 }
@@ -33,7 +33,7 @@ export function UpdateSettings() {
     try {
       await globalThis.revio.checkForUpdates()
     } catch (failure) {
-      setError(errorMessage(failure))
+      setError(readErrorMessage(failure))
     }
   }
   const problem = error ?? status.error

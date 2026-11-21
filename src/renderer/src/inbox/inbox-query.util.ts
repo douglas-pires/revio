@@ -117,17 +117,17 @@ export function matchesQuery(pr: Searchable, query: InboxQuery): boolean {
   return query.filters.every((filter) => QUALIFIERS[filter.key](pr, filter.value) !== filter.negated)
 }
 
-export function summaryToSearchable(pr: PullSummary, requested: boolean): Searchable {
+export function convertSummaryToSearchable(pr: PullSummary, requested: boolean): Searchable {
   return { ...pr, stacked: Boolean(pr.stack), requested, viaTeam: pr.viaTeam }
 }
 
 /** Stack members outside your inbox have no request; members inside it reuse the inbox row's team. */
-export function stackPrToSearchable(pr: StackPr, inboxRow: PullSummary | undefined): Searchable {
+export function convertStackPrToSearchable(pr: StackPr, inboxRow: PullSummary | undefined): Searchable {
   return { ...pr, stacked: true, requested: pr.inbox === 'requested', viaTeam: inboxRow?.viaTeam ?? null }
 }
 
 /** A thread searches by its PR's fields plus its file path and comments. Review-request qualifiers never match. */
-export function threadToSearchable(thread: OpenThread): Searchable {
+export function convertThreadToSearchable(thread: OpenThread): Searchable {
   return {
     repo: thread.repo,
     title: thread.prTitle,

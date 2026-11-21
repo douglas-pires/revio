@@ -1,7 +1,7 @@
 import { describe, expect, it } from 'vitest'
-import { expectPresent } from '../../../../test/fixtures.ts'
+import { assertPresent } from '../../../../test/fixtures.ts'
 import { type DiffRow, parsePatch } from './diff.util.ts'
-import { EXPAND_STEP, expandGap, expandRows, type GapShown, gapsOf, hiddenIn } from './diff-expand.util.ts'
+import { countHiddenLines, EXPAND_STEP, expandGap, expandRows, findGaps, type GapShown } from './diff-expand.util.ts'
 
 // A 40-line file; line n reads "n". The PR changes line 10 and adds a line after old line 30.
 const file = Array.from({ length: 40 }, (_, index) => `${index + 1}`)
@@ -19,11 +19,11 @@ function describeRow(row: DiffRow) {
   }
   return `@${row.gap.hidden}`
 }
-const newNos = (out: DiffRow[]) => out.map(describeRow)
+const describeRows = (out: DiffRow[]) => out.map(describeRow)
 
 describe('gapsOf', () => {
   it('finds the lines before, between and after hunks, with the old-side offset', () => {
-    expect(gapsOf(rows, 41)).toEqual([
+    expect(findGaps(rows, 41)).toEqual([
       { index: 0, start: 1, end: 7, offset: 0 },
       { index: 1, start: 13, end: 30, offset: 0 },
       { index: 2, start: 32, end: 41, offset: -1 },
@@ -31,7 +31,7 @@ describe('gapsOf', () => {
   })
 
   it('leaves the end open until the file length is known', () => {
-    expect(gapsOf(rows, null).at(-1)).toMatchObject({ start: 32, end: null })
+    expect(findGaps(rows, null).at(-1)).toMatchObject({ start: 32, end: null })
   })
 })
 
@@ -65,7 +65,7 @@ describe('expandRows', () => {
       [2, { top: 2, bottom: 0 }],
     ])
     const out = expandRows(rows, file41, shown)
-    expect(newNos(out)).toEqual(['@7', 8, 9, null, 10, 11, 12, 13, 14, '@13', 28, 29, 30, 31, 32, 33, '@8'])
+    expect(describeRows(out)).toEqual(['@7', 8, 9, null, 10, 11, 12, 13, 14, '@13', 28, 29, 30, 31, 32, 33, '@8'])
     const thirteen = out.find((row) => row.kind === 'ctx' && row.newNo === 13)
     expect(thirteen).toEqual({ kind: 'ctx', text: '13', oldNo: 13, newNo: 13, expanded: true })
     const afterInsert = out.find((row) => row.kind === 'ctx' && row.newNo === 32)
@@ -79,7 +79,7 @@ describe('expandRows', () => {
     ])
     const out = expandRows(rows, file41, shown)
     expect(out[0]).toMatchObject({ kind: 'ctx', newNo: 1 })
-    expect(hiddenIn(expectPresent(gapsOf(rows, 41)[2]), shown.get(2))).toBe(1)
+    expect(countHiddenLines(assertPresent(findGaps(rows, 41)[2]), shown.get(2))).toBe(1)
     expect(out.at(-1)).toMatchObject({ kind: 'hunk', gap: { index: 2, hidden: 1 } })
 
     const fromTop = expandRows(parsePatch('@@ -1,2 +1,2 @@\n-a\n+b\n 2'), ['b', '2'], new Map())

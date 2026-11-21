@@ -1,12 +1,12 @@
 import { useEffect, useRef } from 'react'
-import { cx } from '../common/format.util.ts'
+import { joinClassNames } from '../common/format.util.ts'
 import { MAX_MATCHES } from './diff-search.util.ts'
 import type { useDiffFind } from './use-diff-find.hook.ts'
 
 type DiffFind = ReturnType<typeof useDiffFind>
 
 /** "1000+" past the cap, else the count. */
-function totalOf(count: number) {
+function describeTotal(count: number) {
   if (count >= MAX_MATCHES) {
     return `${MAX_MATCHES}+`
   }
@@ -29,9 +29,9 @@ function findStatus(query: string, count: number, index: number | null) {
     return 'No results'
   }
   if (index === null) {
-    return `${totalOf(count)} ${matchWord(count)}`
+    return `${describeTotal(count)} ${matchWord(count)}`
   }
-  return `${index + 1} of ${totalOf(count)}`
+  return `${index + 1} of ${describeTotal(count)}`
 }
 
 /** Enter steps forward, ⇧Enter back, Escape closes. */
@@ -109,7 +109,7 @@ export function FindBar({ find }: { find: DiffFind }) {
       />
       <button
         type="button"
-        className={cx(
+        className={joinClassNames(
           'btn btn-ghost px-1.5 py-0 font-mono text-[12px]',
           find.caseSensitive && 'bg-hover text-fg',
           !find.caseSensitive && 'text-muted',
@@ -121,7 +121,7 @@ export function FindBar({ find }: { find: DiffFind }) {
         Aa
       </button>
       <span
-        className={cx(
+        className={joinClassNames(
           'min-w-20 text-[12px] whitespace-nowrap',
           count === 0 && Boolean(find.query) && 'text-danger',
           !(count === 0 && find.query) && 'text-muted',

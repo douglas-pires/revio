@@ -1,6 +1,6 @@
 import type { MentionSnippet } from '@shared/mention.types.ts'
 import { describe, expect, it } from 'vitest'
-import { expectPresent } from '../../../test/fixtures.ts'
+import { assertPresent } from '../../../test/fixtures.ts'
 import {
   buildMention,
   findMentionedHandle,
@@ -30,7 +30,7 @@ describe('findMentionedHandle', () => {
   ])('ignores %j', (body) => expect(findMentionedHandle(body, handles)).toBeNull())
 })
 
-const text = (login: string, body: string, createdAt: string, url = `u-${createdAt}`): RawText => ({
+const makeText = (login: string, body: string, createdAt: string, url = `u-${createdAt}`): RawText => ({
   author: { login, avatarUrl: '' },
   body,
   createdAt,
@@ -39,7 +39,7 @@ const text = (login: string, body: string, createdAt: string, url = `u-${created
 
 function makePr(over: Partial<RawMentionPr> = {}): RawMentionPr {
   return {
-    ...text('ana', 'Adds a cache', '2026-11-01T00:00:00Z', 'pr-url'),
+    ...makeText('ana', 'Adds a cache', '2026-11-01T00:00:00Z', 'pr-url'),
     number: 7,
     title: 'Add cache',
     state: 'OPEN',
@@ -58,12 +58,12 @@ const MIXED_MENTIONS_PR = makePr({
   body: 'cc @me (too old: before the window)',
   comments: {
     nodes: [
-      text('bo', '@me thoughts?', '2026-11-03T00:00:00Z'),
-      text('me', 'note to @me', '2026-11-04T00:00:00Z'),
+      makeText('bo', '@me thoughts?', '2026-11-03T00:00:00Z'),
+      makeText('me', 'note to @me', '2026-11-04T00:00:00Z'),
       null,
     ],
   },
-  reviews: { nodes: [text('cy', 'LGTM @acme/web-team', '2026-11-05T00:00:00Z')] },
+  reviews: { nodes: [makeText('cy', 'LGTM @acme/web-team', '2026-11-05T00:00:00Z')] },
   reviewThreads: {
     nodes: [
       {
@@ -71,7 +71,12 @@ const MIXED_MENTIONS_PR = makePr({
         line: 12,
         comments: {
           nodes: [
-            text('bo', '@me is this right?', '2026-11-06T00:00:00Z', 'https://github.com/o/r/pull/1#discussion_r42'),
+            makeText(
+              'bo',
+              '@me is this right?',
+              '2026-11-06T00:00:00Z',
+              'https://github.com/o/r/pull/1#discussion_r42',
+            ),
           ],
         },
       },
@@ -91,7 +96,7 @@ const describeSnippet = (snippet: MentionSnippet) => [
 
 describe('buildMention', () => {
   it('collects mentions from comments, reviews and review threads, newest first, skipping your own and old ones', () => {
-    const mention = expectPresent(buildMention(MIXED_MENTIONS_PR, ctx))
+    const mention = assertPresent(buildMention(MIXED_MENTIONS_PR, ctx))
     expect(mention.snippets.map(describeSnippet)).toEqual([
       ['review-comment', 'bo', null, 'src/a.ts', 12, 42],
       ['review', 'cy', 'acme/web-team', null, null, null],
@@ -102,9 +107,11 @@ describe('buildMention', () => {
 
   it('is new only when the notification is unread and the mention is after your last read', () => {
     const pr = makePr({
-      comments: { nodes: [text('bo', '@me a', '2026-11-03T00:00:00Z'), text('bo', '@me b', '2026-11-08T00:00:00Z')] },
+      comments: {
+        nodes: [makeText('bo', '@me a', '2026-11-03T00:00:00Z'), makeText('bo', '@me b', '2026-11-08T00:00:00Z')],
+      },
     })
-    const mention = expectPresent(
+    const mention = assertPresent(
       buildMention(pr, { ...ctx, notification: { id: 'N1', unread: true, lastReadAt: '2026-11-05T00:00:00Z' } }),
     )
     expect(mention.notificationId).toBe('N1')
@@ -114,20 +121,20 @@ describe('buildMention', () => {
 
   it('returns null without mentions', () => {
     expect(
-      buildMention(makePr({ comments: { nodes: [text('bo', 'no ping', '2026-11-03T00:00:00Z')] } }), ctx),
+      buildMention(makePr({ comments: { nodes: [makeText('bo', 'no ping', '2026-11-03T00:00:00Z')] } }), ctx),
     ).toBeNull()
   })
 })
 
 describe('sortMentions and markMentionRead', () => {
-  const unread = expectPresent(
-    buildMention(makePr({ number: 1, comments: { nodes: [text('bo', '@me', '2026-11-03T00:00:00Z')] } }), {
+  const unread = assertPresent(
+    buildMention(makePr({ number: 1, comments: { nodes: [makeText('bo', '@me', '2026-11-03T00:00:00Z')] } }), {
       ...ctx,
       notification: { id: 'N', unread: true, lastReadAt: null },
     }),
   )
-  const recent = expectPresent(
-    buildMention(makePr({ number: 2, comments: { nodes: [text('bo', '@me', '2026-11-09T00:00:00Z')] } }), ctx),
+  const recent = assertPresent(
+    buildMention(makePr({ number: 2, comments: { nodes: [makeText('bo', '@me', '2026-11-09T00:00:00Z')] } }), ctx),
   )
 
   it('puts PRs with new mentions first', () => {

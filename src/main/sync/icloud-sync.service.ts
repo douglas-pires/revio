@@ -12,7 +12,7 @@ import {
 } from 'node:fs'
 import { homedir } from 'node:os'
 import { join } from 'node:path'
-import { errorMessage } from '@shared/error.util.ts'
+import { readErrorMessage } from '@shared/error.util.ts'
 import type { SyncStatus } from '@shared/settings.types.ts'
 import { MS_PER_MINUTE } from '@shared/time.util.ts'
 import type { SyncSnapshot } from './sync.types.ts'
@@ -148,7 +148,7 @@ export class IcloudSync {
     try {
       return this.#sync()
     } catch (err) {
-      return this.#set({ ...this.#status, state: 'error', message: errorMessage(err) }, false)
+      return this.#set({ ...this.#status, state: 'error', message: readErrorMessage(err) }, false)
     }
   }
 

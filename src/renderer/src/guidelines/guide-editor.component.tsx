@@ -1,7 +1,7 @@
 import { useId, useState } from 'react'
 import { Markdown } from '../common/markdown.component.tsx'
 import { SegmentedControl } from '../common/segmented-control.component.tsx'
-import { type Draft, defaultTitle } from './guidelines.util.ts'
+import { buildDefaultTitle, type Draft } from './guidelines.util.ts'
 
 type Change = (draft: Draft) => void
 
@@ -57,7 +57,7 @@ function ScopeFields({ draft, repos, onChange }: { draft: Draft; repos: readonly
           id={ids.title}
           className="input"
           value={draft.title}
-          placeholder={defaultTitle(draft)}
+          placeholder={buildDefaultTitle(draft)}
           onChange={(event) => onChange({ ...draft, title: event.target.value })}
         />
       </Field>

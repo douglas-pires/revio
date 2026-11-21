@@ -1,7 +1,7 @@
 import type { Inbox, PullSummary } from '@shared/inbox.types.ts'
 import type { Mention, MentionsInbox } from '@shared/mention.types.ts'
 import { beforeEach, describe, expect, it, vi } from 'vitest'
-import { expectPresent, makeSummary } from '../../../test/fixtures.ts'
+import { assertPresent, makeSummary } from '../../../test/fixtures.ts'
 import {
   type AlertSettings,
   type AlertState,
@@ -76,7 +76,7 @@ describe('raiseAlerts', () => {
   it('repeats stale alerts only after the repeat interval', () => {
     const notify = vi.fn()
     const stale = makeSummary({ stale: true, waitingHours: 30 })
-    state.requested.PR_1 = expectPresent(stale.requestedAt)
+    state.requested.PR_1 = assertPresent(stale.requestedAt)
     runAlerts(makeInbox(stale), notify, NOW)
     runAlerts(makeInbox(stale), notify, NOW + 23 * HOUR)
     runAlerts(makeInbox(stale), notify, NOW + 24 * HOUR)
@@ -163,7 +163,7 @@ describe('formatHours', () => {
 })
 
 describe('mention alerts', () => {
-  const snippet = (id: string, isNew: boolean) => ({
+  const makeSnippet = (id: string, isNew: boolean) => ({
     id,
     kind: 'comment' as const,
     author: 'bo',
@@ -177,7 +177,7 @@ describe('mention alerts', () => {
     viaTeam: null,
     isNew,
   })
-  const mention = (...snippets: ReturnType<typeof snippet>[]): Mention => ({
+  const makeMention = (...snippets: ReturnType<typeof makeSnippet>[]): Mention => ({
     repo: 'acme/web',
     number: 1,
     title: 't',
@@ -197,7 +197,7 @@ describe('mention alerts', () => {
 
   it('finds nothing before the first fetch is recorded, which is silent', () => {
     state.seenMentionsRecorded = false
-    const inbox = makeMentions(mention(snippet('a', true)))
+    const inbox = makeMentions(makeMention(makeSnippet('a', true)))
     expect(alertIds(inbox)).toEqual([])
     recordMentionAlerts(inbox, state)
     expect(state.seenMentionsRecorded).toBe(true)
@@ -206,7 +206,7 @@ describe('mention alerts', () => {
 
   it('finds each mention once, read or not, and finding does not record', () => {
     // Without notifications access (fine-grained tokens) GitHub never says a mention is unread.
-    const inbox = makeMentions(mention(snippet('a', true), snippet('b', false)))
+    const inbox = makeMentions(makeMention(makeSnippet('a', true), makeSnippet('b', false)))
     expect(alertIds(inbox)).toEqual(['a', 'b'])
     expect(alertIds(inbox)).toEqual(['a', 'b'])
     recordMentionAlerts(inbox, state)
@@ -214,7 +214,7 @@ describe('mention alerts', () => {
   })
 
   it('forgets mentions that left the window', () => {
-    recordMentionAlerts(makeMentions(mention(snippet('a', true))), state)
+    recordMentionAlerts(makeMentions(makeMention(makeSnippet('a', true))), state)
     recordMentionAlerts(makeMentions(), state)
     expect(state.seenMentions).toEqual({})
   })

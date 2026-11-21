@@ -11,7 +11,7 @@ const MAX_SHELL_OUTPUT_BYTES = 10_485_760 // 10 MiB
 
 let cachedPath: string | null = null
 
-export function loginShell(command: string, timeoutMs = 15_000): Promise<string> {
+export function runInLoginShell(command: string, timeoutMs = 15_000): Promise<string> {
   return new Promise((resolve, reject) => {
     execFile(
       SHELL,
@@ -28,12 +28,12 @@ export function loginShell(command: string, timeoutMs = 15_000): Promise<string>
   })
 }
 
-export async function shellPath(): Promise<string> {
+export async function readShellPath(): Promise<string> {
   if (cachedPath) {
     return cachedPath
   }
   try {
-    cachedPath = (await loginShell('printf %s "$PATH"')) || env.PATH || ''
+    cachedPath = (await runInLoginShell('printf %s "$PATH"')) || env.PATH || ''
   } catch {
     cachedPath = env.PATH ?? ''
   }
@@ -47,7 +47,7 @@ export async function runWithInput(
   input: string,
   opts: { cwd?: string; timeoutMs: number; onStderr?: (line: string) => void; onStdout?: (chunk: string) => void },
 ): Promise<string> {
-  const path = await shellPath()
+  const path = await readShellPath()
   return new Promise((resolve, reject) => {
     const child = spawn(bin, args, {
       cwd: opts.cwd,

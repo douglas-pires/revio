@@ -1,8 +1,8 @@
 import type { FocusItem } from '@shared/claude.types.ts'
 import type { PullFile } from '@shared/pull.types.ts'
 import { CopyButton } from '../common/copy-button.component.tsx'
-import { cx } from '../common/format.util.ts'
-import { renameTitle } from './files.util.ts'
+import { joinClassNames } from '../common/format.util.ts'
+import { describeRename } from './files.util.ts'
 import { OpenInEditorButton } from './open-in-editor-button.component.tsx'
 
 const STATUS: Record<string, string> = {
@@ -49,14 +49,14 @@ export function DiffFileHeader(props: {
         <svg
           aria-hidden={true}
           viewBox="0 0 16 16"
-          className={cx('size-3.5 transition', props.collapsed && '-rotate-90')}
+          className={joinClassNames('size-3.5 transition', props.collapsed && '-rotate-90')}
           fill="currentColor"
         >
           <path d="M4 6l4 4 4-4z" />
         </svg>
       </button>
       <span className="chip shrink-0 bg-panel font-mono text-muted">{STATUS[props.file.status] ?? '?'}</span>
-      <span className="selectable min-w-0 truncate font-mono text-[12px]" title={renameTitle(props.file)}>
+      <span className="selectable min-w-0 truncate font-mono text-[12px]" title={describeRename(props.file)}>
         {Boolean(props.file.previousPath) && <span className="text-muted">{props.file.previousPath} → </span>}
         {props.file.path}
       </span>

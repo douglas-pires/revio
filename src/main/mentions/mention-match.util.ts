@@ -18,16 +18,16 @@ function stripQuotesAndCode(body: string) {
 type Located = RawText & { kind: MentionSnippet['kind']; path: string | null; line: number | null }
 
 function collectTexts(pr: RawMentionPr): Located[] {
-  const at =
+  const readAt =
     (kind: MentionSnippet['kind'], path: string | null = null, line: number | null = null) =>
     (text: RawText): Located => ({ ...text, kind, path, line })
   return [
-    at('description')(pr),
-    ...pr.comments.nodes.filter(isPresent).map(at('comment')),
-    ...pr.reviews.nodes.filter(isPresent).map(at('review')),
+    readAt('description')(pr),
+    ...pr.comments.nodes.filter(isPresent).map(readAt('comment')),
+    ...pr.reviews.nodes.filter(isPresent).map(readAt('review')),
     ...pr.reviewThreads.nodes
       .filter(isPresent)
-      .flatMap((th) => th.comments.nodes.filter(isPresent).map(at('review-comment', th.path, th.line))),
+      .flatMap((th) => th.comments.nodes.filter(isPresent).map(readAt('review-comment', th.path, th.line))),
   ]
 }
 
@@ -51,7 +51,7 @@ function toSnippet(located: Located, ctx: MentionContext): MentionSnippet | null
     path: located.path,
     line: located.line,
     commentId: commentIdOf(located),
-    viaTeam: teamOf(handle, ctx.viewer),
+    viaTeam: findTeam(handle, ctx.viewer),
     isNew: isUnreadSince(located.createdAt, ctx.notification),
   }
 }
@@ -69,7 +69,7 @@ function commentIdOf(located: Located) {
 }
 
 /** The team mentioned, or null when the mention is of you by name. */
-function teamOf(handle: string, viewer: string) {
+function findTeam(handle: string, viewer: string) {
   if (handle.toLowerCase() === viewer.toLowerCase()) {
     return null
   }

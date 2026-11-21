@@ -21,9 +21,9 @@ export function useLineSelection() {
     if (!dragging) {
       return
     }
-    const up = () => setDragging(null)
-    globalThis.addEventListener('mouseup', up)
-    return () => globalThis.removeEventListener('mouseup', up)
+    const endDrag = () => setDragging(null)
+    globalThis.addEventListener('mouseup', endDrag)
+    return () => globalThis.removeEventListener('mouseup', endDrag)
   }, [dragging])
 
   const press = (anchor: Anchor | null, shift: boolean) => {
@@ -38,7 +38,7 @@ export function useLineSelection() {
     setDragging({ side: anchor.side, origin: anchor.line })
   }
 
-  const over = (anchor: Anchor | null) => {
+  const hoverAnchor = (anchor: Anchor | null) => {
     if (!(dragging && anchor) || anchor.side !== dragging.side) {
       return
     }
@@ -51,10 +51,10 @@ export function useLineSelection() {
 
   const contains = (anchor: Anchor | null) =>
     Boolean(anchor && sel && anchor.side === sel.side && anchor.line >= sel.start && anchor.line <= sel.end)
-  const composerAt = (anchor: Anchor | null) =>
+  const isComposerAt = (anchor: Anchor | null) =>
     Boolean(!dragging && anchor && sel && sel.side === anchor.side && sel.end === anchor.line)
 
-  return { sel, clear: () => setSel(null), press, over, contains, composerAt }
+  return { sel, clear: () => setSel(null), press, over: hoverAnchor, contains, composerAt: isComposerAt }
 }
 
 export type LineSelectionApi = ReturnType<typeof useLineSelection>

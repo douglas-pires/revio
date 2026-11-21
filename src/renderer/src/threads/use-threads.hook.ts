@@ -1,7 +1,7 @@
 import type { ThreadsInbox } from '@shared/thread.types.ts'
 import { MS_PER_MINUTE } from '@shared/time.util.ts'
 import { useCallback, useEffect, useState } from 'react'
-import { errorMessage } from '../common/format.util.ts'
+import { readErrorMessage } from '../common/format.util.ts'
 import { applyReply, setMembership } from './thread-edits.util.ts'
 
 /** A copy this recent is reused when the inbox opens; Refresh always fetches. */
@@ -20,7 +20,7 @@ export function useThreads() {
       setData(await globalThis.revio.getThreads(maxAgeMs))
       setResolved(new Set())
     } catch (failure) {
-      setError(errorMessage(failure))
+      setError(readErrorMessage(failure))
     }
   }, [])
 

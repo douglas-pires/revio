@@ -7,7 +7,7 @@ const FLASH_MS = 1200
 const LINE_ATTRIBUTES: Record<DiffSide, string> = { LEFT: 'data-old-line', RIGHT: 'data-new-line' }
 
 /** The rendered file's element, found by path (paths hold characters CSS selectors treat specially). */
-const fileElementOf = (path: string) => document.querySelector<HTMLElement>(`#${CSS.escape(`file-${path}`)}`)
+const findFileElement = (path: string) => document.querySelector<HTMLElement>(`#${CSS.escape(`file-${path}`)}`)
 
 /** The comment when one is asked for and rendered (opening the folded outdated list if it is in there), else the line's row. */
 function findExact(fileEl: HTMLElement | null, target: ScrollTarget): Element | null {
@@ -71,7 +71,7 @@ export function useScrollToTarget(target: ScrollTarget | null, active: boolean, 
     let frame = 0
     let raf = 0
     const attempt = () => {
-      const fileEl = fileElementOf(target.path)
+      const fileEl = findFileElement(target.path)
       const exact = findExact(fileEl, target)
       if (fileEl && (exact || !(target.line || target.commentId) || frame >= MAX_FRAMES)) {
         land(exact ?? fileEl, exact !== null)

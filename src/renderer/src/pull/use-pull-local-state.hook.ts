@@ -1,7 +1,7 @@
 import type { AskThread, BriefingRecord } from '@shared/claude.types.ts'
 import type { DraftComment, PullLocalState, PullRef } from '@shared/pull.types.ts'
 import { type Dispatch, type SetStateAction, useCallback, useState } from 'react'
-import { withDraftBody, withSavedThread, withViewed } from './pull-local-state.util.ts'
+import { saveThread, setViewed, updateDraftBody } from './pull-local-state.util.ts'
 
 const EMPTY_STATE: PullLocalState = { drafts: [], viewed: {} }
 
@@ -24,7 +24,7 @@ function useDrafts(pull: PullRef, setLocal: SetLocal) {
       [updateDrafts],
     ),
     updateDraft: useCallback(
-      (id: string, body: string) => updateDrafts((ds) => withDraftBody(ds, id, body)),
+      (id: string, body: string) => updateDrafts((ds) => updateDraftBody(ds, id, body)),
       [updateDrafts],
     ),
     deleteDraft: useCallback(
@@ -49,7 +49,7 @@ function useAskThreads(pull: PullRef, setLocal: SetLocal) {
   )
   return {
     /** Saves a Claude conversation; empty (unasked) threads are not persisted. */
-    saveThread: useCallback((thread: AskThread) => updateAsks((asks) => withSavedThread(asks, thread)), [updateAsks]),
+    saveThread: useCallback((thread: AskThread) => updateAsks((asks) => saveThread(asks, thread)), [updateAsks]),
     deleteThread: useCallback(
       (id: string) => updateAsks((asks) => asks.filter((saved) => saved.id !== id)),
       [updateAsks],
@@ -70,7 +70,7 @@ export function usePullLocalState(pull: PullRef) {
         viewedSha = sha
       }
       globalThis.revio.setViewed(pull, path, viewedSha)
-      setLocal((current) => ({ ...current, viewed: withViewed(current.viewed, path, viewedSha) }))
+      setLocal((current) => ({ ...current, viewed: setViewed(current.viewed, path, viewedSha) }))
     },
     [pull],
   )

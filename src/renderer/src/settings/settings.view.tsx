@@ -1,6 +1,6 @@
 import type { Settings as AppSettings, SettingsPatch } from '@shared/settings.types.ts'
 import { useCallback, useEffect, useState } from 'react'
-import { errorMessage } from '../common/format.util.ts'
+import { readErrorMessage } from '../common/format.util.ts'
 import { Screen, ScreenBody, ScreenHeader } from '../common/screen.component.tsx'
 import { SectionHeading } from '../common/section-heading.component.tsx'
 import { useAsyncAction } from '../common/use-async-action.hook.ts'
@@ -79,7 +79,7 @@ type Update = (patch: SettingsPatch) => Promise<void>
 /** How long "Saved" shows after a change. */
 const SAVED_NOTICE_MS = 1200
 
-function apiKeyHint(hasKey: boolean) {
+function describeApiKeyHint(hasKey: boolean) {
   if (hasKey) {
     return 'A key is stored in the macOS keychain.'
   }
@@ -199,7 +199,7 @@ function ClaudeGroup({ settings, update }: { settings: AppSettings; update: Upda
           }}
         />
       </Row>
-      <Row label="Anthropic API key" hint={apiKeyHint(settings.hasAnthropicKey)}>
+      <Row label="Anthropic API key" hint={describeApiKeyHint(settings.hasAnthropicKey)}>
         <div className="flex gap-2">
           <input
             className="input font-mono"
@@ -250,7 +250,7 @@ export function Settings() {
       setMsg('Saved')
       setTimeout(() => setMsg(null), SAVED_NOTICE_MS)
     } catch (failure) {
-      setMsg(errorMessage(failure))
+      setMsg(readErrorMessage(failure))
     }
   }
 

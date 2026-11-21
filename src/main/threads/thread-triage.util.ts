@@ -3,7 +3,7 @@ import type { OpenThread, ThreadComment } from '@shared/thread.types.ts'
 
 /** GitHub's GraphQL shapes for a PR and its review threads. */
 /** The thread's line on the new side; none once the code it was on has changed. */
-function currentLine(thread: RawThread) {
+function readCurrentLine(thread: RawThread) {
   if (thread.isOutdated) {
     return null
   }
@@ -11,7 +11,7 @@ function currentLine(thread: RawThread) {
 }
 
 /** Whose turn it is: yours when someone else spoke last, theirs when you did. */
-function waitingOn(lastAuthor: string | undefined, viewer: string): OpenThread['waitingOn'] {
+function findWhoIsWaited(lastAuthor: string | undefined, viewer: string): OpenThread['waitingOn'] {
   if (lastAuthor === viewer) {
     return 'others'
   }
@@ -77,11 +77,11 @@ export function triageThread(thread: RawThread, pr: RawThreadPr, viewer: string)
     prAuthor: pr.author?.login ?? 'ghost',
     isDraft: pr.isDraft,
     path: thread.path,
-    line: currentLine(thread),
+    line: readCurrentLine(thread),
     outdated: thread.isOutdated,
     comments: comments.map(toThreadComment),
     totalComments: thread.comments.totalCount,
-    waitingOn: waitingOn(last.author?.login, viewer),
+    waitingOn: findWhoIsWaited(last.author?.login, viewer),
     lastActivityAt: last.createdAt,
   }
 }

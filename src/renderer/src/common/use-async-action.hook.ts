@@ -1,5 +1,5 @@
 import { useCallback, useState } from 'react'
-import { errorMessage } from './format.util.ts'
+import { readErrorMessage } from './format.util.ts'
 
 /** Busy and error state around an async action. `run` resolves true when the action succeeded. */
 export function useAsyncAction() {
@@ -12,7 +12,7 @@ export function useAsyncAction() {
       await action()
       return true
     } catch (failure) {
-      setError(errorMessage(failure))
+      setError(readErrorMessage(failure))
       return false
     } finally {
       setBusy(false)

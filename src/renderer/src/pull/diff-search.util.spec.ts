@@ -1,15 +1,15 @@
 import { describe, expect, it } from 'vitest'
 import { parsePatch } from './diff.util.ts'
-import { MAX_MATCHES, occurrences, searchDiffs, stepMatch } from './diff-search.util.ts'
+import { findOccurrences, MAX_MATCHES, searchDiffs, stepMatch } from './diff-search.util.ts'
 
 const insensitive = { caseSensitive: false }
 
 describe('occurrences', () => {
   it('finds every non-overlapping occurrence, ignoring case unless asked', () => {
-    expect(occurrences('Foo foo FOO', 'foo', insensitive)).toEqual([0, 4, 8])
-    expect(occurrences('Foo foo FOO', 'foo', { caseSensitive: true })).toEqual([4])
-    expect(occurrences('aaaa', 'aa', insensitive)).toEqual([0, 2])
-    expect(occurrences('abc', '', insensitive)).toEqual([])
+    expect(findOccurrences('Foo foo FOO', 'foo', insensitive)).toEqual([0, 4, 8])
+    expect(findOccurrences('Foo foo FOO', 'foo', { caseSensitive: true })).toEqual([4])
+    expect(findOccurrences('aaaa', 'aa', insensitive)).toEqual([0, 2])
+    expect(findOccurrences('abc', '', insensitive)).toEqual([])
   })
 })
 

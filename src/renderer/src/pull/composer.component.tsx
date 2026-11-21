@@ -1,8 +1,8 @@
 import { useEffect, useState } from 'react'
-import { cx } from '../common/format.util.ts'
+import { joinClassNames } from '../common/format.util.ts'
 import { Markdown } from '../common/markdown.component.tsx'
-import { markdownLinkFor } from '../common/markdown-link.util.ts'
-import { forgetUnsentComment, keepUnsentComment, unsentComment } from './unsent-comments.util.ts'
+import { buildMarkdownLink } from '../common/markdown-link.util.ts'
+import { forgetUnsentComment, keepUnsentComment, readUnsentComment } from './unsent-comments.util.ts'
 
 interface ComposerProps {
   label: string
@@ -25,7 +25,7 @@ interface ComposerProps {
 }
 
 /** The comment with a GitHub suggestion block of `lines` added on a new line. */
-function withSuggestion(body: string, lines: string | undefined) {
+function appendSuggestion(body: string, lines: string | undefined) {
   const block = `\`\`\`suggestion\n${lines}\n\`\`\`\n`
   if (!body) {
     return block
@@ -41,9 +41,9 @@ function forget(key: string | undefined) {
 }
 
 /** What the box opens with: the text you left in it last time, else its `initial`. */
-function openingBody(props: ComposerProps) {
+function buildOpeningBody(props: ComposerProps) {
   if (props.unsentKey !== undefined) {
-    return unsentComment(props.unsentKey) ?? props.initial ?? ''
+    return readUnsentComment(props.unsentKey) ?? props.initial ?? ''
   }
   return props.initial ?? ''
 }
@@ -51,7 +51,7 @@ function openingBody(props: ComposerProps) {
 /** Pasting a link over selected words writes `[words](link)`, as on GitHub. */
 function pasteAsLink(event: React.ClipboardEvent<HTMLTextAreaElement>) {
   const box = event.currentTarget
-  const link = markdownLinkFor(
+  const link = buildMarkdownLink(
     box.value.slice(box.selectionStart, box.selectionEnd),
     event.clipboardData.getData('text/plain'),
   )
@@ -88,14 +88,14 @@ function ComposerToolbar({
       <span className="mr-2">{props.label}</span>
       <button
         type="button"
-        className={cx('btn btn-ghost py-0', !preview && 'bg-hover')}
+        className={joinClassNames('btn btn-ghost py-0', !preview && 'bg-hover')}
         onClick={() => setPreview(false)}
       >
         Write
       </button>
       <button
         type="button"
-        className={cx('btn btn-ghost py-0', preview && 'bg-hover')}
+        className={joinClassNames('btn btn-ghost py-0', preview && 'bg-hover')}
         onClick={() => setPreview(true)}
       >
         Preview
@@ -126,7 +126,7 @@ function ComposerToolbar({
           type="button"
           className="btn btn-ghost py-0"
           title="Insert a GitHub suggestion block with the selected lines"
-          onClick={() => setBody((body) => withSuggestion(body, props.suggestion))}
+          onClick={() => setBody((body) => appendSuggestion(body, props.suggestion))}
         >
           ± Suggest change
         </button>
@@ -159,7 +159,7 @@ function ComposerButtons({
       {props.onSubmitNow !== undefined && (
         <button
           type="button"
-          className={cx('btn', !props.onSubmit && 'btn-primary')}
+          className={joinClassNames('btn', !props.onSubmit && 'btn-primary')}
           disabled={!body.trim() || busy}
           onClick={sendNow}
         >
@@ -178,8 +178,8 @@ function ComposerButtons({
 }
 
 export function Composer(props: ComposerProps) {
-  const [restored] = useState(() => props.unsentKey !== undefined && unsentComment(props.unsentKey) !== undefined)
-  const [body, setBody] = useState(() => openingBody(props))
+  const [restored] = useState(() => props.unsentKey !== undefined && readUnsentComment(props.unsentKey) !== undefined)
+  const [body, setBody] = useState(() => buildOpeningBody(props))
   const [busy, setBusy] = useState(false)
   const [preview, setPreview] = useState(false)
   const { unsentKey } = props

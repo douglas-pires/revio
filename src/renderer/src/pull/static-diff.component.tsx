@@ -1,9 +1,9 @@
 import { useEffect, useState } from 'react'
-import { cx } from '../common/format.util.ts'
+import { joinClassNames } from '../common/format.util.ts'
 import { type Tok, useHighlighter } from '../highlight/highlight.service.ts'
 import { TokenText } from '../highlight/token-text.component.tsx'
 import type { DiffRow } from './diff.util.ts'
-import { DIFF_SIGNS, rowBg, rowKey } from './diff-look.util.ts'
+import { buildRowKey, DIFF_SIGNS, pickRowBackground } from './diff-look.util.ts'
 
 function useStaticTokens(path: string, rows: readonly DiffRow[], sourceLength: number) {
   const highlighter = useHighlighter()
@@ -45,7 +45,7 @@ export function StaticDiff({
         {rows.map((row, index) => {
           if (row.kind === 'hunk') {
             return (
-              <tr key={rowKey(row)} className="bg-hunk text-muted">
+              <tr key={buildRowKey(row)} className="bg-hunk text-muted">
                 <td colSpan={3} className="px-2 py-0.5">
                   {row.text}
                 </td>
@@ -55,8 +55,11 @@ export function StaticDiff({
           const marked = row.kind !== 'del' && row.newNo === markLine
           return (
             <tr
-              key={rowKey(row)}
-              className={cx(rowBg(row.kind), marked && 'shadow-[inset_3px_0_0_var(--color-focus)] !bg-focus/15')}
+              key={buildRowKey(row)}
+              className={joinClassNames(
+                pickRowBackground(row.kind),
+                marked && 'shadow-[inset_3px_0_0_var(--color-focus)] !bg-focus/15',
+              )}
             >
               <td className="w-[1%] px-2 text-right whitespace-nowrap text-muted/70 select-none">
                 {row.newNo ?? row.oldNo}

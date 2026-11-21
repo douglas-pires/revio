@@ -40,7 +40,7 @@ export function classifyRequest(
  * Whether a request still waits on you: you have not reviewed since you were (last) asked.
  * With no known request time, any review of yours counts as answering it.
  */
-export function awaitsYou(request: ReviewRequest, yourLastReviewAt: string | null): boolean {
+export function isAwaitingYou(request: ReviewRequest, yourLastReviewAt: string | null): boolean {
   if (!yourLastReviewAt) {
     return true
   }

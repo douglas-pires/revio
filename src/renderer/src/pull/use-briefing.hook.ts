@@ -1,7 +1,7 @@
 import type { BriefingRecord } from '@shared/claude.types.ts'
-import { type PullRef, pullKey } from '@shared/pull.types.ts'
+import { buildPullKey, type PullRef } from '@shared/pull.types.ts'
 import { useEffect, useState } from 'react'
-import { errorMessage } from '../common/format.util.ts'
+import { readErrorMessage } from '../common/format.util.ts'
 
 const IDLE: BriefingStatus = { loading: false, progress: null, error: null }
 
@@ -14,7 +14,7 @@ export interface BriefingStatus {
 /** Generates Claude's briefing for a PR, following its progress events. */
 export function useBriefing(pull: PullRef, onRecord: (record: BriefingRecord) => void) {
   const [status, setStatus] = useState<BriefingStatus>(IDLE)
-  const key = pullKey(pull)
+  const key = buildPullKey(pull)
 
   useEffect(
     () =>
@@ -32,7 +32,7 @@ export function useBriefing(pull: PullRef, onRecord: (record: BriefingRecord) =>
       onRecord(await globalThis.revio.generateBriefing(pull))
       setStatus(IDLE)
     } catch (failure) {
-      setStatus({ ...IDLE, error: errorMessage(failure) })
+      setStatus({ ...IDLE, error: readErrorMessage(failure) })
     }
   }
 

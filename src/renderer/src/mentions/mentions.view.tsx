@@ -4,7 +4,7 @@ import { useState } from 'react'
 import { EmptyState } from '../common/empty-state.component.tsx'
 import { ErrorBanner } from '../common/error-banner.component.tsx'
 import { FilterChips } from '../common/filter-chips.component.tsx'
-import { ago, cx } from '../common/format.util.ts'
+import { formatAge, joinClassNames } from '../common/format.util.ts'
 import { ListSkeleton } from '../common/list-skeleton.component.tsx'
 import type { OpenPull, PullTarget } from '../common/navigation.types.ts'
 import { RefreshControl } from '../common/refresh-control.component.tsx'
@@ -12,8 +12,8 @@ import { Screen, ScreenBody, ScreenHeader } from '../common/screen.component.tsx
 import { SectionHeading } from '../common/section-heading.component.tsx'
 import { useAsyncAction } from '../common/use-async-action.hook.ts'
 import {
-  audienceCounts,
-  audienceLabel,
+  countAudiences,
+  describeAudience,
   type MentionAudience,
   matchesAudience,
   sameAudience,
@@ -67,9 +67,9 @@ function AudienceFilter(props: {
   active: MentionAudience
   onPick: (audience: MentionAudience) => void
 }) {
-  const chips = audienceCounts(props.mentions).map(({ audience, count }) => ({
-    key: audienceLabel(audience),
-    label: audienceLabel(audience),
+  const chips = countAudiences(props.mentions).map(({ audience, count }) => ({
+    key: describeAudience(audience),
+    label: describeAudience(audience),
     count,
     active: sameAudience(audience, props.active),
     onPick: () => props.onPick(audience),
@@ -168,7 +168,7 @@ function openTitle(snippet: MentionSnippet) {
   return 'Open the PR and show this comment'
 }
 
-function pathAndLine(snippet: MentionSnippet) {
+function formatPathAndLine(snippet: MentionSnippet) {
   if (!snippet.line) {
     return snippet.path ?? ''
   }
@@ -176,7 +176,7 @@ function pathAndLine(snippet: MentionSnippet) {
 }
 
 /** Review comments open at that comment in the diff, with its reply box; others are quoted on the overview. */
-function targetOf(snippet: MentionSnippet): PullTarget {
+function findTarget(snippet: MentionSnippet): PullTarget {
   if (!snippet.path) {
     return { conversation: snippet }
   }
@@ -188,7 +188,7 @@ function SnippetRow({ snippet, viewer, onOpen }: { snippet: MentionSnippet; view
     <li className="group/row flex gap-3 border-b border-line px-4 py-2.5 last:border-b-0 hover:bg-hover">
       <button type="button" className="flex min-w-0 flex-1 gap-3 text-left" onClick={onOpen} title={openTitle(snippet)}>
         <span
-          className={cx(
+          className={joinClassNames(
             'mt-2.5 size-2 shrink-0 rounded-full',
             snippet.isNew && 'bg-accent',
             !snippet.isNew && 'bg-transparent',
@@ -209,18 +209,18 @@ function SnippetRow({ snippet, viewer, onOpen }: { snippet: MentionSnippet; view
             {Boolean(snippet.viaTeam) && <span className="chip bg-panel-2 text-muted">@{snippet.viaTeam}</span>}
             <span className="text-muted">{WHERE[snippet.kind]}</span>
             {Boolean(snippet.path) && (
-              <code className="truncate text-[11.5px]" title={pathAndLine(snippet)}>
-                {pathAndLine(snippet)}
+              <code className="truncate text-[11.5px]" title={formatPathAndLine(snippet)}>
+                {formatPathAndLine(snippet)}
               </code>
             )}
           </div>
-          <div className={cx('mt-0.5 line-clamp-3 text-[12.5px]', !snippet.isNew && 'text-muted')}>
+          <div className={joinClassNames('mt-0.5 line-clamp-3 text-[12.5px]', !snippet.isNew && 'text-muted')}>
             {summarizeAround(snippet.body, snippet.viaTeam ?? viewer)}
           </div>
         </div>
       </button>
       <div className="flex shrink-0 flex-col items-end gap-1">
-        <span className="font-mono text-[11.5px] text-muted">{ago(snippet.createdAt)}</span>
+        <span className="font-mono text-[11.5px] text-muted">{formatAge(snippet.createdAt)}</span>
         <button
           type="button"
           className="btn btn-ghost py-0 text-[11.5px] opacity-0 group-hover/row:opacity-100"
@@ -248,7 +248,7 @@ export function Mentions({ mentions, onOpen }: { mentions: MentionsInbox | null;
     if (snippet.isNew) {
       markRead(mention)
     }
-    onOpen(mention, targetOf(snippet))
+    onOpen(mention, findTarget(snippet))
   }
 
   return (

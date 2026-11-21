@@ -33,7 +33,7 @@ const open = (href?: string) => {
 }
 
 /** An image source that is a URL; markdown can also hand over a Blob, which the app never shows. */
-function stringOrNothing(src: unknown) {
+function keepString(src: unknown) {
   if (typeof src !== 'string') {
     return
   }
@@ -84,7 +84,7 @@ function Img({
 }
 
 /** The file extension, used as the language of a ```suggestion block on that file. */
-function extensionOf(path: string | undefined) {
+function readExtension(path: string | undefined) {
   if (!path?.includes('.')) {
     return
   }
@@ -105,7 +105,7 @@ function Pre({ children, codePath }: { children?: ReactNode; codePath?: string |
     return <MermaidBlock code={code} />
   }
   if (language === 'suggestion') {
-    return <CodeBlock code={code} language={extensionOf(codePath)} label="Suggested change" />
+    return <CodeBlock code={code} language={readExtension(codePath)} label="Suggested change" />
   }
   return <CodeBlock code={code} language={language} />
 }
@@ -138,9 +138,7 @@ export const Markdown = memo(function MarkdownView({
             </a>
           ),
           pre: ({ children: code }) => <Pre codePath={codePath}>{code}</Pre>,
-          img: ({ src, alt, width, height }) => (
-            <Img src={stringOrNothing(src)} alt={alt} width={width} height={height} />
-          ),
+          img: ({ src, alt, width, height }) => <Img src={keepString(src)} alt={alt} width={width} height={height} />,
         }}
       >
         {children}

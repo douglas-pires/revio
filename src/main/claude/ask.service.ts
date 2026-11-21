@@ -7,8 +7,8 @@ import { runWithInput } from '../common/shell.util.ts'
 import { fetchFileAt } from '../pulls/pull.service.ts'
 import { store } from '../store/store.service.ts'
 import { type AnswerStream, type AskStream, answerStream } from './ask-activity.util.ts'
-import { messageText, questionText, selectionBlock } from './ask-prompt.util.ts'
-import { pickBackend, prContext } from './briefing.service.ts'
+import { buildMessageText, buildQuestionText, buildSelectionBlock } from './ask-prompt.util.ts'
+import { buildPrContext, pickBackend } from './briefing.service.ts'
 
 const SYSTEM = `You are pairing with a code reviewer who is looking at one specific part of a pull request.
 They selected some lines of the diff and asked a question about them. You have the full file at the PR's head
@@ -51,7 +51,7 @@ interface CliStreamEvent {
   is_error?: boolean
 }
 
-function numbered(text: string, focus: [number, number]) {
+function numberCodeLines(text: string, focus: [number, number]) {
   const lines = text.split('\n')
   let from = 1
   let to = lines.length
@@ -67,7 +67,7 @@ function numbered(text: string, focus: [number, number]) {
 }
 
 /** Where the selected file lives on one side of the PR: its path there and the commit to read it at. */
-function fileAtSide(pr: PullDetail, thread: AskThread, ref: 'head' | 'base') {
+function findFileAtSide(pr: PullDetail, thread: AskThread, ref: 'head' | 'base') {
   if (ref === 'head') {
     return { path: thread.path, sha: pr.headSha }
   }
@@ -75,14 +75,14 @@ function fileAtSide(pr: PullDetail, thread: AskThread, ref: 'head' | 'base') {
   return { path: file?.previousPath ?? thread.path, sha: pr.baseSha }
 }
 
-async function fileBlock(pr: PullDetail, thread: AskThread, ref: 'head' | 'base', out: AskStream) {
-  const { path, sha } = fileAtSide(pr, thread, ref)
+async function buildFileBlock(pr: PullDetail, thread: AskThread, ref: 'head' | 'base', out: AskStream) {
+  const { path, sha } = findFileAtSide(pr, thread, ref)
   out.onActivity({ kind: 'step', label: `Reading ${path} at the PR's ${ref}` })
   const text = await fetchFileAt(pr.repo, sha, path)
   if (text === null) {
     return `<file path="${path}" ref="${ref}">(not available)</file>`
   }
-  const numberedCode = numbered(text, [thread.startLine, thread.endLine])
+  const numberedCode = numberCodeLines(text, [thread.startLine, thread.endLine])
   let range = ''
   if (numberedCode.partial) {
     range = ` lines="${numberedCode.from}-${numberedCode.to} of ${numberedCode.total}"`
@@ -90,7 +90,7 @@ async function fileBlock(pr: PullDetail, thread: AskThread, ref: 'head' | 'base'
   return `<file path="${path}" ref="${ref}"${range}>\n${numberedCode.body}\n</file>`
 }
 
-function briefingGist(briefing: BriefingRecord | undefined) {
+function describeBriefingGist(briefing: BriefingRecord | undefined) {
   if (!briefing) {
     return ''
   }
@@ -99,12 +99,12 @@ function briefingGist(briefing: BriefingRecord | undefined) {
 
 /** Stable per-thread context: identical on follow-ups, so the API can serve it from cache. */
 async function buildContext({ pr, guidelines, briefing, thread }: AskInput, out: AskStream) {
-  const { context } = prContext(pr, guidelines, DIFF_BUDGET_CHARS)
-  const files = [await fileBlock(pr, thread, 'head', out)]
+  const { context } = buildPrContext(pr, guidelines, DIFF_BUDGET_CHARS)
+  const files = [await buildFileBlock(pr, thread, 'head', out)]
   if (thread.side === 'LEFT') {
-    files.push(await fileBlock(pr, thread, 'base', out))
+    files.push(await buildFileBlock(pr, thread, 'base', out))
   }
-  return `${context}\n\n${briefingGist(briefing)}<full_file_contents>\n${files.join('\n\n')}\n</full_file_contents>`
+  return `${context}\n\n${describeBriefingGist(briefing)}<full_file_contents>\n${files.join('\n\n')}\n</full_file_contents>`
 }
 
 async function askViaApi(context: string, thread: AskThread, model: string, answer: AnswerStream) {
@@ -119,10 +119,10 @@ async function askViaApi(context: string, thread: AskThread, model: string, answ
       role: 'user',
       content: [
         { type: 'text', text: context, cache_control: { type: 'ephemeral' } },
-        { type: 'text', text: `${selectionBlock(thread)}\n\n${questionText(first)}` },
+        { type: 'text', text: `${buildSelectionBlock(thread)}\n\n${buildQuestionText(first)}` },
       ],
     },
-    ...rest.map((message) => ({ role: message.role, content: messageText(message) })),
+    ...rest.map((message) => ({ role: message.role, content: buildMessageText(message) })),
   ]
   const stream = client.beta.messages.stream({
     model,
@@ -148,13 +148,13 @@ async function askViaApi(context: string, thread: AskThread, model: string, answ
 }
 
 /** The conversation replayed for a one-shot CLI prompt; the first message is always a question. */
-function transcriptOf(thread: AskThread) {
+function buildTranscript(thread: AskThread) {
   return thread.messages
     .map((message) => {
       if (message.role === 'assistant') {
         return `<your_answer>\n${message.content}\n</your_answer>`
       }
-      return `<question>\n${questionText(message)}\n</question>`
+      return `<question>\n${buildQuestionText(message)}\n</question>`
     })
     .join('\n\n')
 }
@@ -176,7 +176,7 @@ function parseStreamEvent(line: string): CliStreamEvent | null {
 }
 
 /** The text a streaming event adds to the answer, or '' for other events. */
-function deltaTextOf(ev: CliStreamEvent) {
+function readDeltaText(ev: CliStreamEvent) {
   if (ev.type !== 'stream_event' || ev.event?.type !== 'content_block_delta' || ev.event.delta?.type !== 'text_delta') {
     return ''
   }
@@ -184,7 +184,7 @@ function deltaTextOf(ev: CliStreamEvent) {
 }
 
 /** Reasoning text in a CLI stream event, when Claude Code passes it on. */
-function deltaThinkingOf(ev: CliStreamEvent) {
+function readDeltaThinking(ev: CliStreamEvent) {
   if (
     ev.type !== 'stream_event' ||
     ev.event?.type !== 'content_block_delta' ||
@@ -196,16 +196,16 @@ function deltaThinkingOf(ev: CliStreamEvent) {
 }
 
 async function askViaCli(context: string, thread: AskThread, model: string, answer: AnswerStream) {
-  const prompt = `${context}\n\n${selectionBlock(thread)}\n\n<conversation>\n${transcriptOf(thread)}\n</conversation>\n\nAnswer the last question.`
+  const prompt = `${context}\n\n${buildSelectionBlock(thread)}\n\n<conversation>\n${buildTranscript(thread)}\n</conversation>\n\nAnswer the last question.`
   let streamed = ''
   let buffer = ''
   let finalText: string | null = null
   const onEvent = (ev: CliStreamEvent) => {
-    const thinking = deltaThinkingOf(ev)
+    const thinking = readDeltaThinking(ev)
     if (thinking) {
       answer.thinking(thinking)
     }
-    const delta = deltaTextOf(ev)
+    const delta = readDeltaText(ev)
     if (delta) {
       streamed += delta
       answer.text(delta)

@@ -4,7 +4,7 @@ import { useCallback, useState } from 'react'
 
 import { CopyButton } from '../common/copy-button.component.tsx'
 
-import { ago, countOf } from '../common/format.util.ts'
+import { countOf, formatAge } from '../common/format.util.ts'
 
 import { Markdown } from '../common/markdown.component.tsx'
 
@@ -20,7 +20,7 @@ const AVATAR_PX = 20
 const MARKDOWN_MARKS = /[`*_~]/gu
 
 /** A comment's first line without markdown marks, for a one-line summary. */
-function firstLineAsText(body: string) {
+function readFirstLineAsText(body: string) {
   return (body.split('\n')[0] ?? '').replaceAll(MARKDOWN_MARKS, '')
 }
 
@@ -125,7 +125,7 @@ function FoldedThread({
         </span>
       )}
       <span className="min-w-0 flex-1 truncate text-muted">
-        {last.author}: {firstLineAsText(last.body)}
+        {last.author}: {readFirstLineAsText(last.body)}
       </span>
     </button>
   )
@@ -152,7 +152,7 @@ export function CommentView({ comment }: { comment: ReviewComment }) {
               globalThis.revio.openExternal(comment.url)
             }}
           >
-            {ago(comment.createdAt)} ago
+            {formatAge(comment.createdAt)} ago
           </a>
           <CopyButton
             text={comment.url}

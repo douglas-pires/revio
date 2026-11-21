@@ -1,6 +1,6 @@
 import type { DiffSide } from '@shared/pull.types.ts'
 import { type ReactNode, useMemo } from 'react'
-import { anchorFor, type DiffRow, type HunkHeader, keysOf, type LineRow, toSplit } from './diff.util.ts'
+import { type DiffRow, findRowAnchor, type HunkHeader, type LineRow, listRowKeys, toSplit } from './diff.util.ts'
 import { EmptyHalf, Half, RowGroup } from './diff-cells.component.tsx'
 import type { DiffTableProps } from './diff-table.types.ts'
 import { HunkRow } from './hunk-row.component.tsx'
@@ -18,7 +18,7 @@ interface SideLine {
 }
 
 /** The line on one side of a split row, or null where that side has none. */
-function sideLine(
+function renderSideLine(
   rows: readonly DiffRow[],
   idx: number | null,
   side: DiffSide,
@@ -28,8 +28,8 @@ function sideLine(
     return null
   }
   const row = rows[idx] as LineRow
-  const anchor = anchorFor(row, side)
-  return { row, idx, anchor, notes: notesFor(keysOf(row, side), anchor) }
+  const anchor = findRowAnchor(row, side)
+  return { row, idx, anchor, notes: notesFor(listRowKeys(row, side), anchor) }
 }
 
 /** Line number, sign and code, for the old side then the new. */
@@ -88,8 +88,8 @@ export function SplitDiff({
               />
             )
           }
-          const left = sideLine(rows, sr.left, 'LEFT', notesFor)
-          const right = sideLine(rows, sr.right, 'RIGHT', notesFor)
+          const left = renderSideLine(rows, sr.left, 'LEFT', notesFor)
+          const right = renderSideLine(rows, sr.right, 'RIGHT', notesFor)
           return (
             <RowGroup key={`line-${sr.left}-${sr.right}`}>
               <tr data-new-line={right?.row.newNo ?? undefined} data-old-line={left?.row.oldNo ?? undefined}>

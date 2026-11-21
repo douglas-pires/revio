@@ -1,6 +1,6 @@
 import type { BlameRange, FileAtCommit } from '@shared/history.types.ts'
 import { useEffect, useState } from 'react'
-import { errorMessage } from '../common/format.util.ts'
+import { readErrorMessage } from '../common/format.util.ts'
 
 /** Blame for a file at the PR head, fetched once it is wanted (blame on, file open and in view). */
 export function useBlame(at: FileAtCommit, wanted: boolean) {
@@ -15,7 +15,7 @@ export function useBlame(at: FileAtCommit, wanted: boolean) {
     globalThis.revio
       .getBlame({ repo, sha, path })
       .then((loadedRanges) => live && setRanges(loadedRanges))
-      .catch((failure) => live && setError(errorMessage(failure)))
+      .catch((failure) => live && setError(readErrorMessage(failure)))
     return () => {
       live = false
     }

@@ -1,6 +1,6 @@
 import { quoteReply } from '@shared/quote.util.ts'
 import { useEffect, useRef, useState } from 'react'
-import { ago, errorMessage } from '../common/format.util.ts'
+import { formatAge, readErrorMessage } from '../common/format.util.ts'
 import { Markdown } from '../common/markdown.component.tsx'
 import type { ConversationQuote } from '../common/navigation.types.ts'
 import { Composer } from './composer.component.tsx'
@@ -24,7 +24,7 @@ const WROTE: Record<ConversationQuote['kind'], string> = {
 
 /** What the heading says after the author's name: why you are seeing this comment, and when it was written. */
 function describeQuote({ quote, openedFrom }: QuotedConversation) {
-  const when = `${ago(quote.createdAt)} ago`
+  const when = `${formatAge(quote.createdAt)} ago`
   if (openedFrom === 'mention') {
     return `mentioned you ${WHERE[quote.kind]} · ${when}`
   }
@@ -100,7 +100,7 @@ export function QuotedComment({
                 try {
                   setSentUrl((await onReply(body)).url)
                 } catch (failure) {
-                  setError(errorMessage(failure))
+                  setError(readErrorMessage(failure))
                 }
               }}
             />

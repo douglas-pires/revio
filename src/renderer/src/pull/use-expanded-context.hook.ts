@@ -1,8 +1,15 @@
 import type { FileAtCommit } from '@shared/history.types.ts'
 import { useCallback, useMemo, useState } from 'react'
-import { errorMessage } from '../common/format.util.ts'
+import { readErrorMessage } from '../common/format.util.ts'
 import type { DiffRow } from './diff.util.ts'
-import { type ExpandDirection, expandGap, expandRows, type GapShown, gapsOf, hiddenIn } from './diff-expand.util.ts'
+import {
+  countHiddenLines,
+  type ExpandDirection,
+  expandGap,
+  expandRows,
+  findGaps,
+  type GapShown,
+} from './diff-expand.util.ts'
 
 const FINAL_NEWLINE = /\r?\n$/u
 const NEWLINE = /\r?\n/u
@@ -47,14 +54,14 @@ export function useExpandedContext(at: FileAtCommit, rows: DiffRow[], enabled: b
       setError(null)
       try {
         const file = await load()
-        const gap = gapsOf(rows, file.length)[index]
+        const gap = findGaps(rows, file.length)[index]
         if (gap) {
           setShown((prev) =>
-            new Map(prev).set(index, expandGap(prev.get(index), direction, hiddenIn(gap, prev.get(index)))),
+            new Map(prev).set(index, expandGap(prev.get(index), direction, countHiddenLines(gap, prev.get(index)))),
           )
         }
       } catch (failure) {
-        setError(errorMessage(failure))
+        setError(readErrorMessage(failure))
       } finally {
         setLoading(false)
       }

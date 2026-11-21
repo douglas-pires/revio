@@ -2,13 +2,13 @@ import { useCallback, useEffect, useState } from 'react'
 import {
   canGoBack,
   canGoForward,
-  currentEntry,
   type NavHistory,
+  readCurrentEntry,
   startHistory,
   step,
   visit,
 } from './nav-history.util.ts'
-import { type Route, sameRoute, withoutTarget } from './route.types.ts'
+import { dropTarget, type Route, sameRoute } from './route.types.ts'
 
 /** Mouse side buttons, as browsers number them. */
 const MOUSE_BACK = 3
@@ -33,7 +33,7 @@ export function useRouteHistory(first: Route) {
       }
       // Arriving again should not re-run a one-time jump (e.g. opening a reply box).
       const entries = [...next.entries]
-      entries[next.index] = withoutTarget(currentEntry(next))
+      entries[next.index] = dropTarget(readCurrentEntry(next))
       return { entries, index: next.index }
     })
   }, [])
@@ -63,7 +63,7 @@ export function useRouteHistory(first: Route) {
   }, [back, forward])
 
   return {
-    route: currentEntry(history),
+    route: readCurrentEntry(history),
     go,
     back,
     forward,

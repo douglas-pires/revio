@@ -2,7 +2,7 @@ import type { FocusItem } from '@shared/claude.types.ts'
 
 import type { BlameRange } from '@shared/history.types.ts'
 
-import { blameAt } from '@shared/history.util.ts'
+import { findBlameAt } from '@shared/history.util.ts'
 
 import { isPresent } from '@shared/presence.util.ts'
 
@@ -10,17 +10,24 @@ import type { DiffSide, DraftComment, PullFile, ReviewComment } from '@shared/pu
 
 import { memo, useMemo, useRef, useState } from 'react'
 
-import { cx } from '../common/format.util.ts'
+import { joinClassNames } from '../common/format.util.ts'
 
 import { AskClaudeButton } from './ask-claude-button.component.tsx'
 
 import { BlameNote } from './blame-note.component.tsx'
 
-import { commentedLines, type FileCommentIndex, indexFileComments } from './comment-threads.util.ts'
+import { collectCommentedLines, type FileCommentIndex, indexFileComments } from './comment-threads.util.ts'
 
-import { anchorKey, diffSnippet, type LineRow, newSideText, parsePatch, parseRange } from './diff.util.ts'
+import {
+  buildAnchorKey,
+  extractDiffSnippet,
+  extractNewSideText,
+  type LineRow,
+  parsePatch,
+  parseRange,
+} from './diff.util.ts'
 
-import { editorLineOf, isInFocus } from './diff-file.util.ts'
+import { findEditorLine, isInFocus } from './diff-file.util.ts'
 
 import { DiffFileHeader } from './diff-file-header.component.tsx'
 
@@ -53,7 +60,7 @@ import { useRowTokens } from './use-row-tokens.hook.ts'
 import { useTextSelectionAsk } from './use-text-selection-ask.hook.ts'
 
 /** Blame notes on new-side lines, when blame is on and loaded. */
-function blameNoteFor(ranges: readonly BlameRange[] | null) {
+function buildBlameNoteRenderer(ranges: readonly BlameRange[] | null) {
   if (!ranges) {
     return
   }
@@ -61,7 +68,7 @@ function blameNoteFor(ranges: readonly BlameRange[] | null) {
     if (row.kind === 'del' || row.newNo === null) {
       return null
     }
-    const range = blameAt(ranges, row.newNo)
+    const range = findBlameAt(ranges, row.newNo)
     return range && <BlameNote range={range} />
   }
 }
@@ -199,19 +206,19 @@ export const DiffFile = memo(function DiffFileView(props: DiffFileProps) {
     () => indexFileComments(file.path, props.comments, props.drafts),
     [file.path, props.comments, props.drafts],
   )
-  const commented = useMemo(() => commentedLines(props.comments, props.drafts), [props.comments, props.drafts])
-  const selectionOf = (side: DiffSide, start: number, end: number): AskSelection => ({
+  const commented = useMemo(() => collectCommentedLines(props.comments, props.drafts), [props.comments, props.drafts])
+  const buildSelection = (side: DiffSide, start: number, end: number): AskSelection => ({
     path: file.path,
     side,
     startLine: start,
     endLine: end,
-    snippet: diffSnippet(rows, side, start, end),
+    snippet: extractDiffSnippet(rows, side, start, end),
   })
-  const ask = (side: DiffSide, start: number, end: number) => props.onAsk(selectionOf(side, start, end))
+  const ask = (side: DiffSide, start: number, end: number) => props.onAsk(buildSelection(side, start, end))
   const { onAddToChat } = props
   let addToChat: ((sel: { side: DiffSide; start: number; end: number }) => void) | undefined
   if (onAddToChat) {
-    addToChat = (sel) => onAddToChat(selectionOf(sel.side, sel.start, sel.end))
+    addToChat = (sel) => onAddToChat(buildSelection(sel.side, sel.start, sel.end))
   }
   const notesFor = useLineNotes({
     path: file.path,
@@ -219,7 +226,7 @@ export const DiffFile = memo(function DiffFileView(props: DiffFileProps) {
     allDrafts: props.drafts,
     selection,
     actions,
-    newSideText: (start, end) => newSideText(rows, start, end),
+    newSideText: (start, end) => extractNewSideText(rows, start, end),
     onAsk: (sel) => ask(sel.side, sel.start, sel.end),
     onAddToChat: addToChat,
   })
@@ -229,7 +236,7 @@ export const DiffFile = memo(function DiffFileView(props: DiffFileProps) {
     tokens,
     selection,
     inFocus: (row) => isInFocus(row, focusRanges),
-    commented: (anchor) => anchor !== null && commented.has(anchorKey(anchor.side, anchor.line)),
+    commented: (anchor) => anchor !== null && commented.has(buildAnchorKey(anchor.side, anchor.line)),
     notesFor,
     onMouseUp: textAsk.onMouseUp,
   }
@@ -239,7 +246,7 @@ export const DiffFile = memo(function DiffFileView(props: DiffFileProps) {
   let blameError: string | null = null
   if (props.blame) {
     blameError = blame.error
-    table.noteFor = blameNoteFor(blame.ranges)
+    table.noteFor = buildBlameNoteRenderer(blame.ranges)
   }
 
   return (
@@ -251,7 +258,7 @@ export const DiffFile = memo(function DiffFileView(props: DiffFileProps) {
       onBlur={(event) => !event.currentTarget.contains(event.relatedTarget as Node | null) && setFocusWithin(false)}
       id={`file-${file.path}`}
       // overflow-clip, not overflow-hidden: it rounds the corners without becoming a scroll box, so the header stays sticky.
-      className={cx(
+      className={joinClassNames(
         'scroll-mt-2 overflow-clip rounded-lg border bg-panel',
         props.current && 'border-accent ring-1 ring-accent/40',
         !props.current && 'border-line',
@@ -271,7 +278,7 @@ export const DiffFile = memo(function DiffFileView(props: DiffFileProps) {
           globalThis.revio.openInEditor({
             repo: props.repo,
             path: file.path,
-            line: editorLineOf(selection.sel, patchRows),
+            line: findEditorLine(selection.sel, patchRows),
           })
         }
         blameError={blameError}

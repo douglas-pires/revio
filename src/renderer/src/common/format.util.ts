@@ -1,4 +1,4 @@
-import { errorMessage as sharedErrorMessage } from '@shared/error.util.ts'
+import { readErrorMessage as readSharedErrorMessage } from '@shared/error.util.ts'
 import { MS_PER_HOUR } from '@shared/time.util.ts'
 
 const IPC_ERROR_PREFIX = /^Error invoking remote method '[^']+': (?:Error: )?/u
@@ -12,12 +12,12 @@ const GENERATED = [
 /** Waits shorter than this read in hours ("30h"); longer ones in days ("3d"). */
 const MAX_HOURS_SHOWN = 48
 
-export function ago(iso: string | null | undefined) {
+export function formatAge(iso: string | null | undefined) {
   if (!iso) {
     return ''
   }
   const hours = (Date.now() - new Date(iso).getTime()) / MS_PER_HOUR
-  return duration(hours)
+  return formatDuration(hours)
 }
 
 /** "just updated", "updated 5m ago", or "loading…" before the first fetch. */
@@ -25,14 +25,14 @@ export function describeFreshness(fetchedAt: string | undefined) {
   if (!fetchedAt) {
     return 'loading…'
   }
-  const age = ago(fetchedAt)
+  const age = formatAge(fetchedAt)
   if (age === 'now') {
     return 'just updated'
   }
   return `updated ${age} ago`
 }
 
-export function duration(hours: number) {
+export function formatDuration(hours: number) {
   if (hours < 1 / 60) {
     return 'now'
   }
@@ -45,10 +45,11 @@ export function duration(hours: number) {
   return `${Math.round(hours / 24)}d`
 }
 
-export const cx = (...classNames: (string | false | null | undefined)[]) => classNames.filter(Boolean).join(' ')
+export const joinClassNames = (...classNames: (string | false | null | undefined)[]) =>
+  classNames.filter(Boolean).join(' ')
 
 /** A thrown value as text, without the prefix Electron adds to errors that crossed IPC. */
-export const errorMessage = (failure: unknown) => sharedErrorMessage(failure).replace(IPC_ERROR_PREFIX, '')
+export const readErrorMessage = (failure: unknown) => readSharedErrorMessage(failure).replace(IPC_ERROR_PREFIX, '')
 
 export const isGenerated = (path: string) => GENERATED.some((pattern) => pattern.test(path))
 

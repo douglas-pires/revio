@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest'
-import { canGoBack, canGoForward, currentEntry, startHistory, step, visit } from './nav-history.util.ts'
+import { canGoBack, canGoForward, readCurrentEntry, startHistory, step, visit } from './nav-history.util.ts'
 
 const same = (left: string, right: string) => left === right
 
@@ -7,10 +7,10 @@ describe('nav history', () => {
   it('goes back and forward through visited screens', () => {
     let history = visit(visit(startHistory('inbox'), 'pr', same), 'settings', same)
     history = step(history, -1)
-    expect(currentEntry(history)).toBe('pr')
+    expect(readCurrentEntry(history)).toBe('pr')
     expect(canGoForward(history)).toBe(true)
     history = step(history, 1)
-    expect(currentEntry(history)).toBe('settings')
+    expect(readCurrentEntry(history)).toBe('settings')
     expect(canGoForward(history)).toBe(false)
   })
 
@@ -36,6 +36,6 @@ describe('nav history', () => {
     }
     expect(history.entries).toHaveLength(50)
     expect(history.entries[0]).toBe('11')
-    expect(currentEntry(history)).toBe('60')
+    expect(readCurrentEntry(history)).toBe('60')
   })
 })
