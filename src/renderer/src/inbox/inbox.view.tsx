@@ -1,13 +1,11 @@
 import type { Inbox as InboxData, PullSummary } from '@shared/inbox.types.ts'
 import { useMemo, useState } from 'react'
-import { EmptyState } from '../common/empty-state.component.tsx'
 import { ErrorBanner } from '../common/error-banner.component.tsx'
 import { EMPTY } from '../common/group.util.ts'
 import { ListSkeleton } from '../common/list-skeleton.component.tsx'
 import type { OpenPull } from '../common/navigation.types.ts'
 import { RefreshControl } from '../common/refresh-control.component.tsx'
 import { Screen, ScreenBody, ScreenHeader } from '../common/screen.component.tsx'
-import { SectionHeading } from '../common/section-heading.component.tsx'
 import { SegmentedControl } from '../common/segmented-control.component.tsx'
 import { useAsyncAction } from '../common/use-async-action.hook.ts'
 import { countWaitingOnYou } from '../threads/thread-edits.util.ts'
@@ -26,8 +24,8 @@ import {
   type ReviewAudience,
   readAudience,
 } from './inbox-query.util.ts'
-import { InboxRow } from './inbox-row.component.tsx'
 import { InboxSearch } from './inbox-search.component.tsx'
+import { InboxSection } from './inbox-section.component.tsx'
 import { StackList } from './stack-list.component.tsx'
 
 type Mode = 'queue' | 'stacks' | 'threads'
@@ -136,7 +134,7 @@ function QueueSections(props: {
   const empty = describeEmptyQueue(stale.length > 0, props.filtering)
   return (
     <>
-      <Section
+      <InboxSection
         title="Stale"
         hint="waiting longer than your stale threshold"
         tone="danger"
@@ -144,8 +142,14 @@ function QueueSections(props: {
         onOpen={props.onOpen}
         onStack={props.onStack}
       />
-      <Section title="Needs your review" items={fresh} onOpen={props.onOpen} onStack={props.onStack} empty={empty} />
-      <Section
+      <InboxSection
+        title="Needs your review"
+        items={fresh}
+        onOpen={props.onOpen}
+        onStack={props.onStack}
+        empty={empty}
+      />
+      <InboxSection
         title="You reviewed · still open"
         hint="re-review when they push"
         items={props.reviewed}
@@ -202,34 +206,6 @@ function filterInbox(inbox: InboxData | null, query: InboxQuery) {
       st.nodes.some((node) => matchesQuery(convertStackPrToSearchable(node.pr, rows.get(node.pr.id)), query)),
     ),
   }
-}
-
-function Section(props: {
-  title: string
-  hint?: string | undefined
-  items: readonly PullSummary[]
-  onOpen: OpenPull
-  onStack: (id: string) => void
-  tone?: 'danger' | undefined
-  muted?: boolean | undefined
-  empty?: string | undefined
-}) {
-  if (!(props.items.length > 0 || props.empty)) {
-    return null
-  }
-  return (
-    <section className="mb-6">
-      <SectionHeading title={props.title} count={props.items.length} hint={props.hint} tone={props.tone} />
-      {props.items.length > 0 && (
-        <ul className="card">
-          {props.items.map((pull) => (
-            <InboxRow key={pull.id} pr={pull} onOpen={props.onOpen} onStack={props.onStack} muted={props.muted} />
-          ))}
-        </ul>
-      )}
-      {props.items.length === 0 && <EmptyState>{props.empty}</EmptyState>}
-    </section>
-  )
 }
 
 export function Inbox({
