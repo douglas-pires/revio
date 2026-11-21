@@ -1,4 +1,10 @@
-import type { DiffSide, DraftComment, PullThreadStatus, ReviewComment } from '@shared/pull.types.ts'
+import type {
+  ConversationComment,
+  DiffSide,
+  DraftComment,
+  PullThreadStatus,
+  ReviewComment,
+} from '@shared/pull.types.ts'
 import { anchorKey } from './diff.util.ts'
 
 const includesFolded = (text: string, q: string) => text.toLowerCase().includes(q)
@@ -170,4 +176,13 @@ export function searchDrafts(drafts: readonly DraftComment[], query: string): Dr
     return [...drafts]
   }
   return drafts.filter((d) => includesFolded(d.body, q) || includesFolded(d.path, q))
+}
+
+/** Conversation comments whose text or author matches `query`; all of them for an empty query. */
+export function searchConversation(comments: readonly ConversationComment[], query: string): ConversationComment[] {
+  const needle = query.trim().toLowerCase()
+  if (!needle) {
+    return [...comments]
+  }
+  return comments.filter((comment) => includesFolded(comment.body, needle) || includesFolded(comment.author, needle))
 }

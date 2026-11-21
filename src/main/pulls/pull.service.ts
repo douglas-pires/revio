@@ -17,6 +17,7 @@ import { MemoCache } from '../common/memo.cache.ts'
 import { gh, smallAvatar, viewerLogin } from '../github/github.client.ts'
 import { splitRepo } from '../github/repo-name.util.ts'
 import { REACTION_GROUPS } from '../reactions/reactions.service.ts'
+import { buildConversation } from './conversation.util.ts'
 import { planReview, type ReviewPlan } from './review-plan.util.ts'
 
 /** Whole files are large, so only this many recent ones are kept. */
@@ -213,11 +214,12 @@ export async function fetchPull(ref: PullRef): Promise<PullDetail> {
   const octokit = await gh()
   const { owner, repo } = splitRepo(repoFull)
   const list = { owner, repo, pull_number: number, per_page: PAGE_SIZE }
-  const [pr, files, comments, reviews, viewer, meta] = await Promise.all([
+  const [pr, files, comments, reviews, conversationComments, viewer, meta] = await Promise.all([
     octokit.pulls.get({ owner, repo, pull_number: number }),
     octokit.paginate(octokit.pulls.listFiles, list),
     octokit.paginate(octokit.pulls.listReviewComments, list),
     octokit.paginate(octokit.pulls.listReviews, list),
+    octokit.paginate(octokit.issues.listComments, { owner, repo, issue_number: number, per_page: PAGE_SIZE }),
     viewerLogin(),
     fetchThreadMeta(octokit, ref),
   ])
@@ -245,6 +247,7 @@ export async function fetchPull(ref: PullRef): Promise<PullDetail> {
     files: files.map(toPullFile),
     threads: meta.threads,
     comments: comments.map((c) => toReviewComment(c, meta.reactions)),
+    conversation: buildConversation(conversationComments, reviews, smallAvatar),
   }
 }
 

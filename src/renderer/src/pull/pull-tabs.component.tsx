@@ -3,10 +3,10 @@ import { BriefingPanel } from './briefing-panel.component.tsx'
 import { CommitsTab } from './commits-tab.component.tsx'
 import { FilesTab } from './files-tab.component.tsx'
 import { FindBar } from './find-bar.component.tsx'
-import { MentionedComment } from './mentioned-comment.component.tsx'
 import { OverviewTab } from './overview-tab.component.tsx'
 import { PullTabBar } from './pull-tab-bar.component.tsx'
 import { appendSummaryLine, markedAsAi, toggled } from './pull-view.util.ts'
+import { QuotedComment } from './quoted-comment.component.tsx'
 import { TabPane } from './tab-pane.component.tsx'
 import { BLAME_STATES, PANEL_STATES, type PullViewState } from './use-pull-view.hook.ts'
 
@@ -42,18 +42,19 @@ function OverviewPane({
   pr: PullDetail
   onEditGuidelines: EditGuidelines
 }) {
-  const { quote } = v
+  const { quoted } = v
   return (
     <OverviewTab
       pr={pr}
       guides={v.guides}
       onEditGuidelines={onEditGuidelines}
       mentioned={
-        quote !== null && (
-          <MentionedComment
-            quote={quote}
+        quoted !== null && (
+          <QuotedComment
+            key={quoted.quote.url}
+            quoted={quoted}
             onReply={(body) => globalThis.revio.commentOnPull(v.pull, body)}
-            onDismiss={() => v.setQuote(null)}
+            onDismiss={() => v.setQuoted(null)}
           />
         )
       }

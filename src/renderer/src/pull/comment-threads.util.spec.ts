@@ -1,4 +1,4 @@
-import type { DraftComment, ReviewComment } from '@shared/pull.types.ts'
+import type { ConversationComment, DraftComment, ReviewComment } from '@shared/pull.types.ts'
 import { describe, expect, it } from 'vitest'
 import {
   commentedLines,
@@ -6,6 +6,7 @@ import {
   indexFileComments,
   matchingComment,
   newComments,
+  searchConversation,
   searchDrafts,
   searchThreads,
 } from '@/pull/comment-threads.util.ts'
@@ -174,5 +175,24 @@ describe('commentedLines', () => {
       ],
     )
     expect(lines).toEqual(new Set(['RIGHT:20', 'RIGHT:21']))
+  })
+})
+
+describe('searchConversation', () => {
+  const entry = (author: string, body: string): ConversationComment => ({
+    id: `comment-${author}`,
+    kind: 'comment',
+    author,
+    authorAvatar: '',
+    body,
+    url: '',
+    createdAt: '',
+  })
+  const conversation = [entry('ana', 'Can we ship this today?'), entry('bo', 'Rebased on main')]
+
+  it('matches the text or the author, ignoring case', () => {
+    expect(searchConversation(conversation, 'SHIP').map((comment) => comment.author)).toEqual(['ana'])
+    expect(searchConversation(conversation, 'bo').map((comment) => comment.author)).toEqual(['bo'])
+    expect(searchConversation(conversation, '  ')).toHaveLength(2)
   })
 })

@@ -1,5 +1,5 @@
 import { excerptAround } from '@shared/excerpt.util.ts'
-import type { DraftComment, ReviewComment } from '@shared/pull.types.ts'
+import type { ConversationComment, DraftComment, ReviewComment } from '@shared/pull.types.ts'
 import { memo, useEffect, useRef, useState } from 'react'
 import { ago, countOf, cx } from '../common/format.util.ts'
 import { groupBy } from '../common/group.util.ts'
@@ -13,9 +13,11 @@ import {
   matchingComment,
   newComments,
   type ReviewedBy,
+  searchConversation,
   searchDrafts,
   searchThreads,
 } from './comment-threads.util.ts'
+import { ConversationList } from './conversation-list.component.tsx'
 
 /** Characters of a comment shown in the panel, around a search match when there is one. */
 const EXCERPT_CHARS = 200
@@ -305,9 +307,14 @@ function describeThreadLine(t: CommentThread) {
   return `L${t.line}`
 }
 
-/** Right-hand sidebar: every review thread and your pending comments, grouped by file. Click to jump. */
+/**
+ * Right-hand sidebar: your pending comments, the PR's conversation, then every review thread grouped by file.
+ * Click a thread to jump to it, or a conversation comment to show it on the overview.
+ */
 export const CommentsPanel = memo(function CommentsPanelView(props: {
   threads: readonly CommentThread[]
+  conversation: readonly ConversationComment[]
+  onOpenConversation: (comment: ConversationComment) => void
   drafts: readonly DraftComment[]
   current: string | null
   reviewed: ReviewedBy
@@ -330,6 +337,8 @@ export const CommentsPanel = memo(function CommentsPanelView(props: {
     reviewed,
   )
   const drafts = searchDrafts(props.drafts, query)
+  const conversation = searchConversation(props.conversation, query)
+  const shownCount = visible.length + drafts.length + conversation.length
   const byFile = groupBy(visible, (t) => t.path)
 
   return (
@@ -365,14 +374,11 @@ export const CommentsPanel = memo(function CommentsPanelView(props: {
         onClose={props.onClose}
         closeLabel="Hide comments"
       />
-      <CommentSearch
-        query={query}
-        onChange={setQuery}
-        matches={matchCount(searching, visible.length + drafts.length)}
-      />
+      <CommentSearch query={query} onChange={setQuery} matches={matchCount(searching, shownCount)} />
       <div className="min-h-0 flex-1 overflow-y-auto px-1.5 pb-3">
         {drafts.length > 0 && <Drafts drafts={drafts} query={query} onJump={props.onJump} />}
-        {!(visible.length > 0 || drafts.length > 0) && (
+        <ConversationList comments={conversation} query={query} onOpen={props.onOpenConversation} />
+        {shownCount === 0 && (
           <div className="px-3 py-8 text-center text-[12px] text-muted">
             {describeEmptyList(query, props.threads.length, onlyYours)}
           </div>
