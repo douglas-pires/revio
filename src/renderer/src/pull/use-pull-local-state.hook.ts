@@ -20,15 +20,15 @@ function useDrafts(pull: PullRef, setLocal: SetLocal) {
   )
   return {
     addDraft: useCallback(
-      (draft: Omit<DraftComment, 'id'>) => updateDrafts((ds) => [...ds, { ...draft, id: crypto.randomUUID() }]),
+      (draft: Omit<DraftComment, 'id'>) => updateDrafts((drafts) => [...drafts, { ...draft, id: crypto.randomUUID() }]),
       [updateDrafts],
     ),
     updateDraft: useCallback(
-      (id: string, body: string) => updateDrafts((ds) => updateDraftBody(ds, id, body)),
+      (id: string, body: string) => updateDrafts((drafts) => updateDraftBody(drafts, id, body)),
       [updateDrafts],
     ),
     deleteDraft: useCallback(
-      (id: string) => updateDrafts((ds) => ds.filter((draft) => draft.id !== id)),
+      (id: string) => updateDrafts((drafts) => drafts.filter((draft) => draft.id !== id)),
       [updateDrafts],
     ),
     /** After a review is submitted the main process already cleared them; mirror that locally. */

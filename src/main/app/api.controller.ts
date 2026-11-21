@@ -202,11 +202,11 @@ function buildClaudeHandlers({ store, pulls, window }: ApiDeps): Pick<ApiHandler
       const onActivity = (activity: AskActivity) => window.send({ type: 'ask-activity', threadId: thread.id, activity })
       onActivity({ kind: 'step', label: 'Loading the PR and your review guides' })
       const { pr, guidelines } = await loadContext(ref)
-      const out = {
+      const output = {
         onText: (text: string) => window.send({ type: 'ask-delta', threadId: thread.id, text }),
         onActivity,
       }
-      return { answer: await ask({ pr, guidelines, briefing: store.pull(buildPullKey(ref)).briefing, thread }, out) }
+      return { answer: await ask({ pr, guidelines, briefing: store.pull(buildPullKey(ref)).briefing, thread }, output) }
     },
   }
 }
@@ -255,8 +255,8 @@ export function registerApi(deps: ApiDeps) {
     if (!Object.hasOwn(handlers, method)) {
       throw new Error(`Unknown method ${method}`)
     }
-    const fn = handlers[method] as (...a: unknown[]) => unknown
-    return fn(...args)
+    const handler = handlers[method] as (...a: unknown[]) => unknown
+    return handler(...args)
   })
 }
 

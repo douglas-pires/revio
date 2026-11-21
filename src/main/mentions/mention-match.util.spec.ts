@@ -51,7 +51,7 @@ function makePr(over: Partial<RawMentionPr> = {}): RawMentionPr {
   }
 }
 
-const ctx = { viewer: 'me', teams: ['acme/web-team'], since: '2026-11-02T00:00:00Z' }
+const context = { viewer: 'me', teams: ['acme/web-team'], since: '2026-11-02T00:00:00Z' }
 
 /** A PR with mentions everywhere they can be: an old one in the description, comments, a review and a thread. */
 const MIXED_MENTIONS_PR = makePr({
@@ -96,7 +96,7 @@ const describeSnippet = (snippet: MentionSnippet) => [
 
 describe('buildMention', () => {
   it('collects mentions from comments, reviews and review threads, newest first, skipping your own and old ones', () => {
-    const mention = assertPresent(buildMention(MIXED_MENTIONS_PR, ctx))
+    const mention = assertPresent(buildMention(MIXED_MENTIONS_PR, context))
     expect(mention.snippets.map(describeSnippet)).toEqual([
       ['review-comment', 'bo', null, 'src/a.ts', 12, 42],
       ['review', 'cy', 'acme/web-team', null, null, null],
@@ -112,16 +112,16 @@ describe('buildMention', () => {
       },
     })
     const mention = assertPresent(
-      buildMention(pr, { ...ctx, notification: { id: 'N1', unread: true, lastReadAt: '2026-11-05T00:00:00Z' } }),
+      buildMention(pr, { ...context, notification: { id: 'N1', unread: true, lastReadAt: '2026-11-05T00:00:00Z' } }),
     )
     expect(mention.notificationId).toBe('N1')
     expect(mention.snippets.map((snippet) => snippet.isNew)).toEqual([true, false])
-    expect(buildMention(pr, ctx)?.snippets.every((snippet) => !snippet.isNew)).toBe(true)
+    expect(buildMention(pr, context)?.snippets.every((snippet) => !snippet.isNew)).toBe(true)
   })
 
   it('returns null without mentions', () => {
     expect(
-      buildMention(makePr({ comments: { nodes: [makeText('bo', 'no ping', '2026-11-03T00:00:00Z')] } }), ctx),
+      buildMention(makePr({ comments: { nodes: [makeText('bo', 'no ping', '2026-11-03T00:00:00Z')] } }), context),
     ).toBeNull()
   })
 })
@@ -129,12 +129,12 @@ describe('buildMention', () => {
 describe('sortMentions and markMentionRead', () => {
   const unread = assertPresent(
     buildMention(makePr({ number: 1, comments: { nodes: [makeText('bo', '@me', '2026-11-03T00:00:00Z')] } }), {
-      ...ctx,
+      ...context,
       notification: { id: 'N', unread: true, lastReadAt: null },
     }),
   )
   const recent = assertPresent(
-    buildMention(makePr({ number: 2, comments: { nodes: [makeText('bo', '@me', '2026-11-09T00:00:00Z')] } }), ctx),
+    buildMention(makePr({ number: 2, comments: { nodes: [makeText('bo', '@me', '2026-11-09T00:00:00Z')] } }), context),
   )
 
   it('puts PRs with new mentions first', () => {

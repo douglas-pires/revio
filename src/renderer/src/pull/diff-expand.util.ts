@@ -86,26 +86,26 @@ function buildGapRows(
   if (length !== null) {
     last = gap.start + length - 1
   }
-  const out: DiffRow[] = []
+  const output: DiffRow[] = []
   if (lines) {
     const { top, bottom } = shown ?? { top: 0, bottom: 0 }
-    out.push(...buildContextRows(lines, gap, gap.start, Math.min(gap.start + top - 1, last)))
+    output.push(...buildContextRows(lines, gap, gap.start, Math.min(gap.start + top - 1, last)))
     if (hidden !== 0) {
-      out.push(buildSeparator(gap, hunk, hidden))
+      output.push(buildSeparator(gap, hunk, hidden))
     }
     if (hunk) {
-      out.push(...buildContextRows(lines, gap, Math.max(gap.start + top, last - bottom + 1), last))
+      output.push(...buildContextRows(lines, gap, Math.max(gap.start + top, last - bottom + 1), last))
     }
   } else if (hidden !== 0) {
-    out.push(buildSeparator(gap, hunk, hidden))
+    output.push(buildSeparator(gap, hunk, hidden))
   }
   if (hidden === 0 && hunk && length === 0) {
-    out.push(hunk.header)
+    output.push(hunk.header)
   }
   if (hunk) {
-    out.push(...hunk.body)
+    output.push(...hunk.body)
   }
-  return out
+  return output
 }
 
 /** Lines of the file the diff leaves out, before hunk `index` (or after the last hunk), by new-side line number. */

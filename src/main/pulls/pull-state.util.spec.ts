@@ -14,18 +14,18 @@ const makeState = (touchedAt?: string): PullLocalState => {
 
 describe('pruneStalePulls', () => {
   it('drops PRs untouched for 45 days and keeps recent ones', () => {
-    const out = pruneStalePulls(
+    const output = pruneStalePulls(
       {
         old: makeState(new Date(NOW - 46 * DAY).toISOString()),
         recent: makeState(new Date(NOW - 44 * DAY).toISOString()),
       },
       NOW,
     )
-    expect(Object.keys(out)).toEqual(['recent'])
+    expect(Object.keys(output)).toEqual(['recent'])
   })
 
   it('starts the clock now for entries saved before touchedAt existed', () => {
-    const out = pruneStalePulls({ legacy: makeState() }, NOW)
-    expect(out.legacy).toMatchObject({ touchedAt: new Date(NOW).toISOString() })
+    const output = pruneStalePulls({ legacy: makeState() }, NOW)
+    expect(output.legacy).toMatchObject({ touchedAt: new Date(NOW).toISOString() })
   })
 })

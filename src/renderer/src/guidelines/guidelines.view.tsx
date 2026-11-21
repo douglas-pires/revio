@@ -86,7 +86,7 @@ function useGuideSaving({ draft, setDraft, load, update }: GuideSelection) {
         ...draft,
         title: draft.title || buildDefaultTitle(draft),
       })
-      update((ds) => removeDraft(ds, buildDraftKey(draft)))
+      update((drafts) => removeDraft(drafts, buildDraftKey(draft)))
       await load()
       setDraft(savedGuideline)
       setSaved(true)
@@ -101,7 +101,7 @@ function useGuideSaving({ draft, setDraft, load, update }: GuideSelection) {
       return
     }
     await globalThis.revio.deleteGuideline(draft.id)
-    update((ds) => removeDraft(ds, buildDraftKey(draft)))
+    update((drafts) => removeDraft(drafts, buildDraftKey(draft)))
     const loaded = await load()
     setDraft(loaded[0] ?? null)
   }
@@ -135,7 +135,7 @@ function useGuideEditing(initialRepo: string | undefined, initialPath: string | 
 
   const discard = () => {
     if (draft) {
-      edits.update((ds) => removeDraft(ds, buildDraftKey(draft)))
+      edits.update((drafts) => removeDraft(drafts, buildDraftKey(draft)))
       setDraft(findSaved(draft) ?? list[0] ?? null)
     }
   }
@@ -148,7 +148,7 @@ function useGuideEditing(initialRepo: string | undefined, initialPath: string | 
     open: (opened: Draft) => setDraft(applyEdits(opened, edits.drafts)),
     change: (changed: Draft) => {
       setDraft(changed)
-      edits.update((ds) => applyDraft(ds, changed, findSaved(changed)))
+      edits.update((drafts) => applyDraft(drafts, changed, findSaved(changed)))
     },
     discard,
     saving: useGuideSaving({ list, draft, setDraft, load, update: edits.update }),

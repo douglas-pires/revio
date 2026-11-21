@@ -149,9 +149,9 @@ function buildInboxSearches(settings: Pick<Settings, 'includeTeamRequests' | 'ig
 async function searchInbox(octokit: Octokit, searches: InboxSearches): Promise<InboxSearch> {
   try {
     return await octokit.graphql<InboxSearch>(searchQuery(areTeamNamesAllowed()), searches)
-  } catch (err) {
-    if (!(areTeamNamesAllowed() && SCOPE_ERROR.test(String(err)))) {
-      throw err
+  } catch (failure) {
+    if (!(areTeamNamesAllowed() && SCOPE_ERROR.test(String(failure)))) {
+      throw failure
     }
     teamNamesRefusedFor = readTokenInUse()
     return octokit.graphql<InboxSearch>(searchQuery(false), searches)

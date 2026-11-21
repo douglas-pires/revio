@@ -24,18 +24,22 @@ export function isInFocus(row: DiffRow, ranges: readonly [number, number][]) {
 }
 
 /** A draft comment on the selected lines; one line has no start, as GitHub expects. */
-export function buildDraftFromSelection(path: string, sel: LineSelection, body: string): Omit<DraftComment, 'id'> {
-  const draft: Omit<DraftComment, 'id'> = { path, side: sel.side, line: sel.end, body }
-  if (sel.start !== sel.end) {
-    draft.startLine = sel.start
+export function buildDraftFromSelection(
+  path: string,
+  selection: LineSelection,
+  body: string,
+): Omit<DraftComment, 'id'> {
+  const draft: Omit<DraftComment, 'id'> = { path, side: selection.side, line: selection.end, body }
+  if (selection.start !== selection.end) {
+    draft.startLine = selection.start
   }
   return draft
 }
 
 /** The line to open in the editor: the selected line on the new side, else the first changed line. */
-export function findEditorLine(sel: LineSelection | null, patchRows: readonly DiffRow[]): number | undefined {
-  if (sel?.side === 'RIGHT') {
-    return sel.start
+export function findEditorLine(selection: LineSelection | null, patchRows: readonly DiffRow[]): number | undefined {
+  if (selection?.side === 'RIGHT') {
+    return selection.start
   }
   const changed =
     patchRows.find((row) => row.kind === 'add') ?? patchRows.find((row) => row.kind !== 'hunk' && row.newNo !== null)

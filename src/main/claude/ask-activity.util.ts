@@ -16,15 +16,15 @@ export interface AnswerStream {
  * Turns the model's stream into what the chat shows: a "Thinking" step when its reasoning starts, the reasoning itself,
  * and a "Writing the answer" step when the first words of the answer arrive.
  */
-export function answerStream(out: AskStream): AnswerStream {
+export function answerStream(stream: AskStream): AnswerStream {
   let phase: 'waiting' | 'thinking' | 'writing' = 'waiting'
   return {
     text: (delta) => {
       if (phase !== 'writing') {
         phase = 'writing'
-        out.onActivity({ kind: 'step', label: 'Writing the answer' })
+        stream.onActivity({ kind: 'step', label: 'Writing the answer' })
       }
-      out.onText(delta)
+      stream.onText(delta)
     },
     thinking: (delta) => {
       if (phase === 'writing') {
@@ -32,9 +32,9 @@ export function answerStream(out: AskStream): AnswerStream {
       }
       if (phase === 'waiting') {
         phase = 'thinking'
-        out.onActivity({ kind: 'step', label: 'Thinking' })
+        stream.onActivity({ kind: 'step', label: 'Thinking' })
       }
-      out.onActivity({ kind: 'thinking', text: delta })
+      stream.onActivity({ kind: 'thinking', text: delta })
     },
   }
 }

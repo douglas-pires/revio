@@ -14,15 +14,16 @@ const APP_FOLDERS = [
   join(homedir(), 'Applications', 'JetBrains Toolbox'),
 ]
 
-const findAppPath = (editor: EditorSpec) => APP_FOLDERS.map((dir) => join(dir, `${editor.app}.app`)).find(existsSync)
+const findAppPath = (editor: EditorSpec) =>
+  APP_FOLDERS.map((directory) => join(directory, `${editor.app}.app`)).find(existsSync)
 
 const HOME_PREFIX = /^~(?=$|\/)/u
 
 function run(command: string, args: string[], childEnv?: NodeJS.ProcessEnv): Promise<string> {
   return new Promise((resolve, reject) => {
-    execFile(command, args, { timeout: 10_000, env: childEnv }, (err, stdout, stderr) => {
-      if (err) {
-        reject(new Error(stderr.trim() || err.message))
+    execFile(command, args, { timeout: 10_000, env: childEnv }, (failure, stdout, stderr) => {
+      if (failure) {
+        reject(new Error(stderr.trim() || failure.message))
       } else {
         resolve(stdout)
       }

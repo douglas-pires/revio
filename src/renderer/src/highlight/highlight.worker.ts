@@ -3,25 +3,29 @@ import { type Tok, TokenHighlighter, type TokenRow } from './highlight-tokens.ut
 
 const highlighter = new TokenHighlighter()
 
-async function answer(req: HighlightRequest): Promise<HighlightResponse> {
-  if (req.kind === 'code') {
-    return { id: req.id, kind: 'code', lines: await highlighter.tokenizeCode(req.language, req.code) }
+async function answer(requestedIds: HighlightRequest): Promise<HighlightResponse> {
+  if (requestedIds.kind === 'code') {
+    return {
+      id: requestedIds.id,
+      kind: 'code',
+      lines: await highlighter.tokenizeCode(requestedIds.language, requestedIds.code),
+    }
   }
-  const map = await highlighter.tokenizeRows(req.path, req.rows, req.patchLength)
-  return { id: req.id, kind: 'rows', tokens: map && [...map] }
+  const map = await highlighter.tokenizeRows(requestedIds.path, requestedIds.rows, requestedIds.patchLength)
+  return { id: requestedIds.id, kind: 'rows', tokens: map && [...map] }
 }
 
 /** The answer when tokenizing throws: the request's kind with nothing highlighted. */
-function buildFailedAnswer(req: HighlightRequest): HighlightResponse {
-  if (req.kind === 'code') {
-    return { id: req.id, kind: 'code', lines: null }
+function buildFailedAnswer(requestedIds: HighlightRequest): HighlightResponse {
+  if (requestedIds.kind === 'code') {
+    return { id: requestedIds.id, kind: 'code', lines: null }
   }
-  return { id: req.id, kind: 'rows', tokens: null }
+  return { id: requestedIds.id, kind: 'rows', tokens: null }
 }
 
 globalThis.onmessage = async (event: MessageEvent<HighlightRequest>) => {
-  const req = event.data
-  globalThis.postMessage(await answer(req).catch(() => buildFailedAnswer(req)))
+  const requestedIds = event.data
+  globalThis.postMessage(await answer(requestedIds).catch(() => buildFailedAnswer(requestedIds)))
 }
 
 /** Rows of a diff, tokenized per side, or a plain code block in a named language. */

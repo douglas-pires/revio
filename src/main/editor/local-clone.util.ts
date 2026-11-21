@@ -43,8 +43,8 @@ export function resolvePathInside(clone: string, path: string): string | null {
     return null
   }
   const full = resolve(clone, path)
-  const rel = relative(clone, full)
-  if (!rel || rel.startsWith('..') || isAbsolute(rel)) {
+  const relativePath = relative(clone, full)
+  if (!relativePath || relativePath.startsWith('..') || isAbsolute(relativePath)) {
     return null
   }
   return full

@@ -36,19 +36,19 @@ function groupChildren(nodes: MiniPr[], parentOf: (pull: MiniPr) => MiniPr | und
 
 /** Depth-first from the root, so each PR is followed by the PRs stacked on it. */
 function walkDown(root: MiniPr, children: Map<string, MiniPr[]>, seen: Set<string>) {
-  const out: { pr: MiniPr; depth: number }[] = []
+  const output: { pr: MiniPr; depth: number }[] = []
   const visit = (pr: MiniPr, depth: number) => {
     if (seen.has(pr.id)) {
       return
     }
     seen.add(pr.id)
-    out.push({ pr, depth })
+    output.push({ pr, depth })
     for (const child of children.get(pr.id) ?? []) {
       visit(child, depth + 1)
     }
   }
   visit(root, 0)
-  return out
+  return output
 }
 
 function toStackPr(pull: MiniPr, tag: InboxTag, staleIds: Set<string>): StackPr {
@@ -102,13 +102,13 @@ export function convertSummaryToMini(summary: PullSummary): MiniPr {
 }
 
 export function tagInbox(requested: readonly { id: string }[], reviewed: readonly { id: string }[]): InboxTag {
-  const req = new Set(requested.map((pull) => pull.id))
-  const rev = new Set(reviewed.map((pull) => pull.id))
+  const requestedIds = new Set(requested.map((pull) => pull.id))
+  const reviewedIds = new Set(reviewed.map((pull) => pull.id))
   return (id) => {
-    if (req.has(id)) {
+    if (requestedIds.has(id)) {
       return 'requested'
     }
-    if (rev.has(id)) {
+    if (reviewedIds.has(id)) {
       return 'reviewed'
     }
     return null
@@ -148,9 +148,9 @@ export function buildStacks(
 export function applyInboxTags(stacks: Stack[], requested: PullSummary[], reviewed: PullSummary[]): Stack[] {
   const tag = tagInbox(requested, reviewed)
   const stale = new Set(requested.filter((pull) => pull.stale).map((pull) => pull.id))
-  const fresh = stacks.map((st) => ({
-    ...st,
-    nodes: st.nodes.map((node) => ({
+  const fresh = stacks.map((stack) => ({
+    ...stack,
+    nodes: stack.nodes.map((node) => ({
       ...node,
       pr: { ...node.pr, inbox: tag(node.pr.id), stale: stale.has(node.pr.id) },
     })),
@@ -161,12 +161,12 @@ export function applyInboxTags(stacks: Stack[], requested: PullSummary[], review
 
 /** Sets `stack` (1-based position from the bottom) on each summary that belongs to a stack. Mutates `prs`. */
 export function markStackPositions(stacks: Stack[], prs: PullSummary[]) {
-  for (const st of stacks) {
-    const order = st.nodes.map((node) => node.pr.id)
+  for (const stack of stacks) {
+    const order = stack.nodes.map((node) => node.pr.id)
     for (const pull of prs) {
       const position = order.indexOf(pull.id)
       if (position >= 0) {
-        pull.stack = { id: st.id, position: position + 1, size: order.length }
+        pull.stack = { id: stack.id, position: position + 1, size: order.length }
       }
     }
   }

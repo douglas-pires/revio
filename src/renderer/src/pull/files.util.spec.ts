@@ -6,8 +6,8 @@ import { assertPresent, makeDetail, makeFile } from '../../../../test/fixtures.t
 
 describe('groupByDir', () => {
   it('groups by containing folder, root files under ""', () => {
-    const out = groupByDir([{ path: 'a/x.ts' }, { path: 'README.md' }, { path: 'a/y.ts' }])
-    expect(out).toEqual([
+    const output = groupByDir([{ path: 'a/x.ts' }, { path: 'README.md' }, { path: 'a/y.ts' }])
+    expect(output).toEqual([
       ['a/', [{ path: 'a/x.ts' }, { path: 'a/y.ts' }]],
       ['', [{ path: 'README.md' }]],
     ])

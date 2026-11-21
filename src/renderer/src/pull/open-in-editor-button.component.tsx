@@ -25,14 +25,14 @@ function FailureNote({
 }) {
   const note = useRef<HTMLDivElement>(null)
   useEffect(() => {
-    const el = note.current
+    const element = note.current
     // `source` makes the button the popover's anchor, which `position-area` places it against.
     if (anchor.current) {
-      el?.showPopover({ source: anchor.current })
+      element?.showPopover({ source: anchor.current })
     } else {
-      el?.showPopover()
+      element?.showPopover()
     }
-    return () => el?.hidePopover()
+    return () => element?.hidePopover()
   }, [anchor])
   return (
     <div

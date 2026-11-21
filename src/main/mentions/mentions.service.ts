@@ -63,9 +63,9 @@ async function listPrNotifications(octokit: Octokit, since: Date): Promise<Notif
         },
       ]
     })
-  } catch (err) {
+  } catch (failure) {
     // Fine-grained tokens cannot read notifications; mentions still come from search, without unread state.
-    console.error('[revio] notifications unavailable:', readErrorMessage(err))
+    console.error('[revio] notifications unavailable:', readErrorMessage(failure))
     return []
   }
 }

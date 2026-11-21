@@ -20,22 +20,22 @@ function suggestFolder(parts: readonly string[]) {
 export function groupByDir<T extends { path: string }>(files: T[]): [string, T[]][] {
   const groups = new Map<string, T[]>()
   for (const file of files) {
-    const dir = file.path.slice(0, file.path.lastIndexOf('/') + 1)
-    groups.set(dir, [...(groups.get(dir) ?? []), file])
+    const directory = file.path.slice(0, file.path.lastIndexOf('/') + 1)
+    groups.set(directory, [...(groups.get(directory) ?? []), file])
   }
   return [...groups.entries()]
 }
 
 /** Top-level folders a PR touches, two levels deep for monorepo-style roots (apps/, packages/, services/…). */
 export function suggestFolders(paths: string[]) {
-  const out = new Set<string>()
+  const output = new Set<string>()
   for (const parts of paths.map((path) => path.split('/'))) {
     const folder = suggestFolder(parts)
     if (folder) {
-      out.add(folder)
+      output.add(folder)
     }
   }
-  return [...out]
+  return [...output]
 }
 
 /** Files start collapsed when already viewed at this version, marked skippable by Claude, or generated. */

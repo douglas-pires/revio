@@ -27,16 +27,18 @@ function collectTexts(pr: RawMentionPr): Located[] {
     ...pr.reviews.nodes.filter(isPresent).map(readAt('review')),
     ...pr.reviewThreads.nodes
       .filter(isPresent)
-      .flatMap((th) => th.comments.nodes.filter(isPresent).map(readAt('review-comment', th.path, th.line))),
+      .flatMap((thread) =>
+        thread.comments.nodes.filter(isPresent).map(readAt('review-comment', thread.path, thread.line)),
+      ),
   ]
 }
 
 /** A recent text by someone else that mentions you or a team of yours, as a snippet; otherwise null. */
-function toSnippet(located: Located, ctx: MentionContext): MentionSnippet | null {
-  if (located.author?.login === ctx.viewer || located.createdAt < ctx.since) {
+function toSnippet(located: Located, context: MentionContext): MentionSnippet | null {
+  if (located.author?.login === context.viewer || located.createdAt < context.since) {
     return null
   }
-  const handle = findMentionedHandle(located.body, [ctx.viewer, ...ctx.teams])
+  const handle = findMentionedHandle(located.body, [context.viewer, ...context.teams])
   if (!handle) {
     return null
   }
@@ -51,8 +53,8 @@ function toSnippet(located: Located, ctx: MentionContext): MentionSnippet | null
     path: located.path,
     line: located.line,
     commentId: commentIdOf(located),
-    viaTeam: findTeam(handle, ctx.viewer),
-    isNew: isUnreadSince(located.createdAt, ctx.notification),
+    viaTeam: findTeam(handle, context.viewer),
+    isNew: isUnreadSince(located.createdAt, context.notification),
   }
 }
 
@@ -119,9 +121,9 @@ export function findMentionedHandle(body: string, handles: readonly string[]): s
 }
 
 /** The PR's recent mentions of you (by name or team), newest first; null when there are none. */
-export function buildMention(pr: RawMentionPr, ctx: MentionContext): Mention | null {
+export function buildMention(pr: RawMentionPr, context: MentionContext): Mention | null {
   const snippets = collectTexts(pr)
-    .flatMap((text) => toSnippet(text, ctx) ?? [])
+    .flatMap((text) => toSnippet(text, context) ?? [])
     .sort((left, right) => right.createdAt.localeCompare(left.createdAt))
   const [latest] = snippets
   if (latest === undefined) {
@@ -133,7 +135,7 @@ export function buildMention(pr: RawMentionPr, ctx: MentionContext): Mention | n
     title: pr.title,
     url: pr.url,
     state: pr.state,
-    notificationId: ctx.notification?.id ?? null,
+    notificationId: context.notification?.id ?? null,
     snippets,
     latestAt: latest.createdAt,
   }

@@ -41,14 +41,14 @@ export function findOccurrences(text: string, query: string, { caseSensitive }: 
   if (!query) {
     return []
   }
-  let hay = text.toLowerCase()
+  let haystack = text.toLowerCase()
   let needle = query.toLowerCase()
   if (caseSensitive) {
-    hay = text
+    haystack = text
     needle = query
   }
   const found: number[] = []
-  for (let at = hay.indexOf(needle); at >= 0; at = hay.indexOf(needle, at + needle.length)) {
+  for (let at = haystack.indexOf(needle); at >= 0; at = haystack.indexOf(needle, at + needle.length)) {
     found.push(at)
   }
   return found

@@ -58,31 +58,31 @@ function pickNewer<T>(local: T, remote: T, at: (x: T) => string | null) {
 }
 
 function mergeSettings(local: StampedSettings, remote: StampedSettings): StampedSettings {
-  const out: Record<string, Stamped<unknown>> = {}
+  const output: Record<string, Stamped<unknown>> = {}
   const localByKey = local as Record<string, Stamped<unknown> | undefined>
   const remoteByKey = remote as Record<string, Stamped<unknown> | undefined>
   for (const key of SYNCED_SETTING_KEYS) {
     const localValue = localByKey[key]
     const remoteValue = remoteByKey[key]
     if (localValue && remoteValue) {
-      out[key] = pickNewer(localValue, remoteValue, (stamped) => stamped.updatedAt)
+      output[key] = pickNewer(localValue, remoteValue, (stamped) => stamped.updatedAt)
     } else if (localValue ?? remoteValue) {
-      out[key] = (localValue ?? remoteValue) as Stamped<unknown>
+      output[key] = (localValue ?? remoteValue) as Stamped<unknown>
     }
   }
-  return out as StampedSettings
+  return output as StampedSettings
 }
 
 /** Each deletion once, at its latest time, forgetting the ones older than the keep window. */
 function mergeDeletions(local: Record<string, string>, remote: Record<string, string>, now: number) {
   const oldest = now - KEEP_DELETIONS_DAYS * MS_PER_DAY
-  const out: Record<string, string> = {}
+  const output: Record<string, string> = {}
   for (const [id, at] of [...Object.entries(local), ...Object.entries(remote)]) {
-    if (readTime(at) >= oldest && readTime(at) >= readTime(out[id])) {
-      out[id] = at
+    if (readTime(at) >= oldest && readTime(at) >= readTime(output[id])) {
+      output[id] = at
     }
   }
-  return out
+  return output
 }
 
 /** Every guide from both sides, the latest edit of each, minus the ones deleted after their last edit. */
@@ -123,14 +123,14 @@ const StampSchema = z.object({ value: z.unknown(), updatedAt: z.string().nullabl
 
 /** The settings in a sync file that this Revio knows and that hold a valid value; anything else is dropped. */
 function parseSettings(raw: Record<string, unknown>): StampedSettings {
-  const out: Record<string, Stamped<unknown>> = {}
+  const output: Record<string, Stamped<unknown>> = {}
   for (const key of SYNCED_SETTING_KEYS) {
     const stamp = StampSchema.safeParse(raw[key])
     if (stamp.success && SETTING_SCHEMAS[key].safeParse(stamp.data.value).success) {
-      out[key] = { value: stamp.data.value, updatedAt: stamp.data.updatedAt }
+      output[key] = { value: stamp.data.value, updatedAt: stamp.data.updatedAt }
     }
   }
-  return out as StampedSettings
+  return output as StampedSettings
 }
 
 /** The shape of the sync file. A file with a higher number was written by a newer Revio and is left alone. */

@@ -34,13 +34,16 @@ function wantsRequestAlert(change: RequestChange, settings: AlertSettings) {
 }
 
 /** Notifies about one queued PR: a new or renewed request, and a stale one when its alert is due. Records the latter. */
-function alertRequest(pr: PullSummary, change: RequestChange | null, ctx: Required<AlertContext>) {
-  if (change && wantsRequestAlert(change, ctx.settings)) {
-    ctx.notify(requestTitle(change, pr), describePull(pr), pr)
+function alertRequest(pr: PullSummary, change: RequestChange | null, context: Required<AlertContext>) {
+  if (change && wantsRequestAlert(change, context.settings)) {
+    context.notify(requestTitle(change, pr), describePull(pr), pr)
   }
-  if (ctx.settings.notifyOnStale && isStaleAlertDue(pr, ctx.state, ctx.settings.staleRepeatHours, ctx.now)) {
-    recordStaleAlert(pr, ctx.state, ctx.now)
-    ctx.notify(`Stale review · waiting ${formatHours(pr.waitingHours)}`, describePull(pr), pr)
+  if (
+    context.settings.notifyOnStale &&
+    isStaleAlertDue(pr, context.state, context.settings.staleRepeatHours, context.now)
+  ) {
+    recordStaleAlert(pr, context.state, context.now)
+    context.notify(`Stale review · waiting ${formatHours(pr.waitingHours)}`, describePull(pr), pr)
   }
 }
 

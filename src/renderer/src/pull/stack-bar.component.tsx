@@ -132,17 +132,17 @@ function StackChain({ stack, index, onOpen }: { stack: Stack; index: number; onO
   const commentsByPull = useStackComments(stack)
   // Each PR's view draws a new bar: put it back where you had it scrolled, then bring the open PR into view if needed.
   useLayoutEffect(() => {
-    const el = scroller.current
-    if (!el) {
+    const element = scroller.current
+    if (!element) {
       return
     }
-    el.scrollLeft = readStackScroll(stack)
-    const open = el.querySelector('[aria-current="page"]')
-    if (open && isOutOfView(open.getBoundingClientRect(), el.getBoundingClientRect())) {
+    element.scrollLeft = readStackScroll(stack)
+    const open = element.querySelector('[aria-current="page"]')
+    if (open && isOutOfView(open.getBoundingClientRect(), element.getBoundingClientRect())) {
       open.scrollIntoView({ block: 'nearest', inline: 'nearest' })
     }
     // Scroll events can arrive late; the bar's position as it goes is what the next PR's bar starts from.
-    return () => rememberStackScroll(stack, el.scrollLeft)
+    return () => rememberStackScroll(stack, element.scrollLeft)
   }, [stack])
   return (
     <div
@@ -182,8 +182,8 @@ function StackChain({ stack, index, onOpen }: { stack: Stack; index: number; onO
 
 /** The stack this PR belongs to: its place, the chain to jump along, and a warning when its base is unapproved. */
 export function StackBar({ stack, pull, onOpen }: { stack: Stack; pull: PullRef; onOpen: OpenPull }) {
-  const idx = stack.nodes.findIndex((node) => isSamePull(node.pr, pull))
-  const me = stack.nodes[idx]?.pr
+  const index = stack.nodes.findIndex((node) => isSamePull(node.pr, pull))
+  const me = stack.nodes[index]?.pr
   const parent = me && stack.nodes.find((node) => node.pr.headRef === me.baseRef)?.pr
   return (
     <div className="flex shrink-0 items-center gap-2 border-b border-line bg-panel-2/60 px-4 py-1.5 text-[12px]">
@@ -191,10 +191,10 @@ export function StackBar({ stack, pull, onOpen }: { stack: Stack; pull: PullRef;
         className="chip shrink-0 bg-accent/15 text-accent"
         title="Stacked PRs, bottom (closest to the default branch) first"
       >
-        ⧉ Stack {idx + 1}/{stack.nodes.length}
+        ⧉ Stack {index + 1}/{stack.nodes.length}
       </span>
-      <StepButton pr={stack.nodes[idx - 1]?.pr} label="‹ Prev" onOpen={onOpen} />
-      <StackChain stack={stack} index={idx} onOpen={onOpen} />
+      <StepButton pr={stack.nodes[index - 1]?.pr} label="‹ Prev" onOpen={onOpen} />
+      <StackChain stack={stack} index={index} onOpen={onOpen} />
       {parent !== undefined && parent.reviewDecision !== 'APPROVED' && (
         <span
           className="shrink-0 text-warn"
@@ -203,7 +203,7 @@ export function StackBar({ stack, pull, onOpen }: { stack: Stack; pull: PullRef;
           Builds on #{parent.number}, not approved yet
         </span>
       )}
-      <StepButton pr={stack.nodes[idx + 1]?.pr} label="Next ›" onOpen={onOpen} />
+      <StepButton pr={stack.nodes[index + 1]?.pr} label="Next ›" onOpen={onOpen} />
     </div>
   )
 }

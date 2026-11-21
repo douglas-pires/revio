@@ -17,8 +17,8 @@ export function useBodyHeight(mounted: boolean) {
   const ref = useRef<HTMLDivElement>(null)
   const [last, setLast] = useState<number | null>(null)
   useEffect(() => {
-    const el = ref.current
-    if (!(mounted && el)) {
+    const element = ref.current
+    if (!(mounted && element)) {
       return
     }
     const observer = new ResizeObserver(([entry]) => {
@@ -28,7 +28,7 @@ export function useBodyHeight(mounted: boolean) {
         setLast(height)
       }
     })
-    observer.observe(el)
+    observer.observe(element)
     return () => observer.disconnect()
   }, [mounted])
   return { ref, last }

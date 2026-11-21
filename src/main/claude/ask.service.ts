@@ -75,9 +75,9 @@ function findFileAtSide(pr: PullDetail, thread: AskThread, ref: 'head' | 'base')
   return { path: file?.previousPath ?? thread.path, sha: pr.baseSha }
 }
 
-async function buildFileBlock(pr: PullDetail, thread: AskThread, ref: 'head' | 'base', out: AskStream) {
+async function buildFileBlock(pr: PullDetail, thread: AskThread, ref: 'head' | 'base', stream: AskStream) {
   const { path, sha } = findFileAtSide(pr, thread, ref)
-  out.onActivity({ kind: 'step', label: `Reading ${path} at the PR's ${ref}` })
+  stream.onActivity({ kind: 'step', label: `Reading ${path} at the PR's ${ref}` })
   const text = await fetchFileAt(pr.repo, sha, path)
   if (text === null) {
     return `<file path="${path}" ref="${ref}">(not available)</file>`
@@ -98,11 +98,11 @@ function describeBriefingGist(briefing: BriefingRecord | undefined) {
 }
 
 /** Stable per-thread context: identical on follow-ups, so the API can serve it from cache. */
-async function buildContext({ pr, guidelines, briefing, thread }: AskInput, out: AskStream) {
+async function buildContext({ pr, guidelines, briefing, thread }: AskInput, stream: AskStream) {
   const { context } = buildPrContext(pr, guidelines, DIFF_BUDGET_CHARS)
-  const files = [await buildFileBlock(pr, thread, 'head', out)]
+  const files = [await buildFileBlock(pr, thread, 'head', stream)]
   if (thread.side === 'LEFT') {
-    files.push(await buildFileBlock(pr, thread, 'base', out))
+    files.push(await buildFileBlock(pr, thread, 'base', stream))
   }
   return `${context}\n\n${describeBriefingGist(briefing)}<full_file_contents>\n${files.join('\n\n')}\n</full_file_contents>`
 }
@@ -176,23 +176,27 @@ function parseStreamEvent(line: string): CliStreamEvent | null {
 }
 
 /** The text a streaming event adds to the answer, or '' for other events. */
-function readDeltaText(ev: CliStreamEvent) {
-  if (ev.type !== 'stream_event' || ev.event?.type !== 'content_block_delta' || ev.event.delta?.type !== 'text_delta') {
-    return ''
-  }
-  return ev.event.delta.text ?? ''
-}
-
-/** Reasoning text in a CLI stream event, when Claude Code passes it on. */
-function readDeltaThinking(ev: CliStreamEvent) {
+function readDeltaText(event: CliStreamEvent) {
   if (
-    ev.type !== 'stream_event' ||
-    ev.event?.type !== 'content_block_delta' ||
-    ev.event.delta?.type !== 'thinking_delta'
+    event.type !== 'stream_event' ||
+    event.event?.type !== 'content_block_delta' ||
+    event.event.delta?.type !== 'text_delta'
   ) {
     return ''
   }
-  return ev.event.delta.thinking ?? ''
+  return event.event.delta.text ?? ''
+}
+
+/** Reasoning text in a CLI stream event, when Claude Code passes it on. */
+function readDeltaThinking(event: CliStreamEvent) {
+  if (
+    event.type !== 'stream_event' ||
+    event.event?.type !== 'content_block_delta' ||
+    event.event.delta?.type !== 'thinking_delta'
+  ) {
+    return ''
+  }
+  return event.event.delta.thinking ?? ''
 }
 
 async function askViaCli(context: string, thread: AskThread, model: string, answer: AnswerStream) {
@@ -200,21 +204,21 @@ async function askViaCli(context: string, thread: AskThread, model: string, answ
   let streamed = ''
   let buffer = ''
   let finalText: string | null = null
-  const onEvent = (ev: CliStreamEvent) => {
-    const thinking = readDeltaThinking(ev)
+  const onEvent = (event: CliStreamEvent) => {
+    const thinking = readDeltaThinking(event)
     if (thinking) {
       answer.thinking(thinking)
     }
-    const delta = readDeltaText(ev)
+    const delta = readDeltaText(event)
     if (delta) {
       streamed += delta
       answer.text(delta)
     }
-    if (ev.type === 'result' && ev.is_error) {
-      throw new Error(ev.result || 'Claude Code returned an error')
+    if (event.type === 'result' && event.is_error) {
+      throw new Error(event.result || 'Claude Code returned an error')
     }
-    if (ev.type === 'result') {
-      finalText = ev.result ?? null
+    if (event.type === 'result') {
+      finalText = event.result ?? null
     }
   }
   await runWithInput(
@@ -240,9 +244,9 @@ async function askViaCli(context: string, thread: AskThread, model: string, answ
       onStdout: (chunk) => {
         const { lines, rest } = takeLines(buffer + chunk)
         buffer = rest
-        for (const ev of lines.map(parseStreamEvent)) {
-          if (ev) {
-            onEvent(ev)
+        for (const event of lines.map(parseStreamEvent)) {
+          if (event) {
+            onEvent(event)
           }
         }
       },
@@ -255,12 +259,12 @@ async function askViaCli(context: string, thread: AskThread, model: string, answ
 const BACKEND_LABELS = { api: 'the Claude API', cli: 'Claude Code' } as const
 
 /** Answers the last question of `input.thread`, streaming the answer and what Claude is doing through `out`. */
-export async function ask(input: AskInput, out: AskStream): Promise<string> {
-  const context = await buildContext(input, out)
+export async function ask(input: AskInput, stream: AskStream): Promise<string> {
+  const context = await buildContext(input, stream)
   const model = store.settings().claudeModel
   const backend = pickBackend()
-  out.onActivity({ kind: 'step', label: `Asking ${model} through ${BACKEND_LABELS[backend]}` })
-  const answer = answerStream(out)
+  stream.onActivity({ kind: 'step', label: `Asking ${model} through ${BACKEND_LABELS[backend]}` })
+  const answer = answerStream(stream)
   if (backend === 'api') {
     return askViaApi(context, input.thread, model, answer)
   }

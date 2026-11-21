@@ -85,8 +85,8 @@ export class InboxPoller {
         notify: (title, body, pr) => this.#notify(title, body, pr),
       })
       store.saveAlerts()
-    } catch (err) {
-      const message = readErrorMessage(err)
+    } catch (failure) {
+      const message = readErrorMessage(failure)
       console.error('[revio] poll failed:', message)
       inbox = keepLatest(this.#latest, message)
     }

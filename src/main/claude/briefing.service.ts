@@ -102,7 +102,7 @@ async function briefViaCli(prompt: string, model: string, onProgress: (message: 
   // The CLI's validator does not know the draft-2020 meta-schema tag Zod emits.
   const { $schema: _ignored, ...jsonSchema } = z.toJSONSchema(BriefingSchema, { target: 'draft-7' })
   const schema = JSON.stringify(jsonSchema)
-  const out = await runWithInput(
+  const output = await runWithInput(
     'claude',
     [
       '-p',
@@ -125,7 +125,7 @@ async function briefViaCli(prompt: string, model: string, onProgress: (message: 
       onStderr: (line) => onProgress(line.trim().slice(0, MAX_PROGRESS_CHARS)),
     },
   )
-  const result = JSON.parse(out) as { is_error?: boolean; result?: string; structured_output?: unknown }
+  const result = JSON.parse(output) as { is_error?: boolean; result?: string; structured_output?: unknown }
   if (result.is_error) {
     throw new Error(result.result || 'Claude Code returned an error')
   }

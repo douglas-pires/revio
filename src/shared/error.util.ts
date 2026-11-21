@@ -1,7 +1,7 @@
 /** A thrown value as text: an Error's message, anything else converted to a string. */
-export function readErrorMessage(err: unknown): string {
-  if (err instanceof Error) {
-    return err.message
+export function readErrorMessage(failure: unknown): string {
+  if (failure instanceof Error) {
+    return failure.message
   }
-  return String(err)
+  return String(failure)
 }

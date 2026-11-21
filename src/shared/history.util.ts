@@ -2,18 +2,18 @@ import type { BlameRange, CommitFile, CommitSummary, FileHistoryEntry } from './
 
 /** The blame range covering `line`, or undefined. Ranges must be sorted by start, as GitHub returns them. */
 export function findBlameAt(ranges: readonly BlameRange[], line: number): BlameRange | undefined {
-  let lo = 0
-  let hi = ranges.length - 1
-  while (lo <= hi) {
-    const mid = Math.floor((lo + hi) / 2)
+  let low = 0
+  let high = ranges.length - 1
+  while (low <= high) {
+    const mid = Math.floor((low + high) / 2)
     const range = ranges[mid]
     if (!range) {
       return undefined
     }
     if (line < range.start) {
-      hi = mid - 1
+      high = mid - 1
     } else if (line > range.end) {
-      lo = mid + 1
+      low = mid + 1
     } else {
       return range
     }

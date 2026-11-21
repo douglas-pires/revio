@@ -165,7 +165,7 @@ function ClaudeGroup({ settings, update }: { settings: AppSettings; update: Upda
 
 export function Settings() {
   const [settings, setSettings] = useState<AppSettings | null>(null)
-  const [msg, setMsg] = useState<string | null>(null)
+  const [message, setMsg] = useState<string | null>(null)
   // Bumped when another Mac's settings come in, so the fields that keep their own text show the new values.
   const [revision, setRevision] = useState(0)
   const reload = useCallback(() => {
@@ -200,7 +200,7 @@ export function Settings() {
         <ScreenHeader
           title="Settings"
           subtitle="GitHub, alerts, your editor, Claude and sync"
-          actions={Boolean(msg) && <span className="text-muted">{msg}</span>}
+          actions={Boolean(message) && <span className="text-muted">{message}</span>}
         />
       }
     >

@@ -36,14 +36,14 @@ export const FileTree = memo(function FileTreeView(props: {
         />
       </div>
       <ul className="min-h-0 flex-1 overflow-y-auto px-1.5 pb-3">
-        {groupByDir(props.files).map(([dir, files]) => (
-          <li key={dir} className="mb-1">
-            {Boolean(dir) && (
+        {groupByDir(props.files).map(([directory, files]) => (
+          <li key={directory} className="mb-1">
+            {Boolean(directory) && (
               <div
                 className="truncate px-1.5 pt-1.5 pb-0.5 text-left font-mono text-[10.5px] text-muted [direction:rtl]"
-                title={dir}
+                title={directory}
               >
-                {dir}
+                {directory}
               </div>
             )}
             {files.map((file) => {
@@ -68,7 +68,9 @@ export const FileTree = memo(function FileTreeView(props: {
                       !props.focusPaths.has(file.path) && 'bg-transparent',
                     )}
                   />
-                  <span className="min-w-0 flex-1 truncate font-mono text-[11.5px]">{file.path.slice(dir.length)}</span>
+                  <span className="min-w-0 flex-1 truncate font-mono text-[11.5px]">
+                    {file.path.slice(directory.length)}
+                  </span>
                   {drafts > 0 && <span className="chip bg-warn/20 text-warn">{drafts}</span>}
                   <span className="font-mono text-[10.5px] text-muted">{file.additions + file.deletions}</span>
                   {Boolean(viewed) && <span className="text-ok">✓</span>}

@@ -29,8 +29,8 @@ function readText(path: string) {
 }
 
 /** The config file of the git repository at `dir`: `.git/config`, or the main repository's for a linked worktree. */
-function readGitConfig(dir: string): string {
-  const dotGit = join(dir, '.git')
+function readGitConfig(directory: string): string {
+  const dotGit = join(directory, '.git')
   if (statSync(dotGit).isDirectory()) {
     return readText(join(dotGit, 'config'))
   }
@@ -38,25 +38,25 @@ function readGitConfig(dir: string): string {
   if (!gitDir) {
     return ''
   }
-  const common = readText(join(resolve(dir, gitDir), 'commondir')).trim() || '.'
-  return readText(join(resolve(dir, gitDir), common, 'config'))
+  const common = readText(join(resolve(directory, gitDir), 'commondir')).trim() || '.'
+  return readText(join(resolve(directory, gitDir), common, 'config'))
 }
 
-function listSubfolders(dir: string): string[] {
+function listSubfolders(directory: string): string[] {
   try {
-    return readdirSync(dir, { withFileTypes: true })
+    return readdirSync(directory, { withFileTypes: true })
       .filter((entry) => entry.isDirectory() && !entry.name.startsWith('.') && !SKIP.has(entry.name))
-      .map((entry) => join(dir, entry.name))
+      .map((entry) => join(directory, entry.name))
   } catch {
     return []
   }
 }
 
 /** Notes the clone at `dir` under each GitHub repository its remotes point at, unless one was found first. */
-function recordClone(clones: Map<string, string>, dir: string) {
-  for (const repo of listRemoteUrls(readGitConfig(dir)).map(readGithubRepo)) {
+function recordClone(clones: Map<string, string>, directory: string) {
+  for (const repo of listRemoteUrls(readGitConfig(directory)).map(readGithubRepo)) {
     if (repo && !clones.has(repo)) {
-      clones.set(repo, dir)
+      clones.set(repo, directory)
     }
   }
 }
@@ -71,11 +71,11 @@ export function findClones(roots: readonly string[]): Map<string, string> {
   let level = roots.filter((root) => existsSync(root))
   for (let depth = 0; depth <= MAX_DEPTH && level.length > 0; depth += 1) {
     const next: string[] = []
-    for (const dir of level) {
-      if (existsSync(join(dir, '.git'))) {
-        recordClone(clones, dir)
+    for (const directory of level) {
+      if (existsSync(join(directory, '.git'))) {
+        recordClone(clones, directory)
       } else {
-        next.push(...listSubfolders(dir))
+        next.push(...listSubfolders(directory))
       }
     }
     level = next

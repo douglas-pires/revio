@@ -46,9 +46,9 @@ interface IcloudSyncDeps {
 const OFF: SyncStatus = { state: 'off', lastSyncedAt: null, message: null }
 
 function downloadWithBrctl(path: string) {
-  execFile('/usr/bin/brctl', ['download', path], (err) => {
-    if (err) {
-      console.error('Could not ask iCloud to download the sync file', err)
+  execFile('/usr/bin/brctl', ['download', path], (failure) => {
+    if (failure) {
+      console.error('Could not ask iCloud to download the sync file', failure)
     }
   })
 }
@@ -57,11 +57,11 @@ function downloadWithBrctl(path: string) {
  * This Mac's snapshot merged with each sync file in `names`, and the main file's own snapshot (null when it is missing
  * or unreadable). Fails only on a file this Revio must not replace.
  */
-function mergeFiles(dir: string, names: string[], local: SyncSnapshot) {
+function mergeFiles(directory: string, names: string[], local: SyncSnapshot) {
   let merged = local
   let remote: SyncSnapshot | null = null
   for (const name of names) {
-    const parsed = parseSyncFile(readFileSync(join(dir, name), 'utf8'))
+    const parsed = parseSyncFile(readFileSync(join(directory, name), 'utf8'))
     if (parsed.ok) {
       merged = mergeSnapshots(merged, parsed.snapshot)
       if (name === FILE) {
@@ -147,23 +147,23 @@ export class IcloudSync {
     }
     try {
       return this.#sync()
-    } catch (err) {
-      return this.#set({ ...this.#status, state: 'error', message: readErrorMessage(err) }, false)
+    } catch (failure) {
+      return this.#set({ ...this.#status, state: 'error', message: readErrorMessage(failure) }, false)
     }
   }
 
   #sync(): SyncStatus {
-    const dir = this.#dir
-    mkdirSync(dir, { recursive: true })
-    const names = readdirSync(dir)
+    const directory = this.#dir
+    mkdirSync(directory, { recursive: true })
+    const names = readdirSync(directory)
     if (!names.includes(FILE) && names.includes(NOT_DOWNLOADED)) {
-      ;(this.#deps.download ?? downloadWithBrctl)(join(dir, FILE))
+      ;(this.#deps.download ?? downloadWithBrctl)(join(directory, FILE))
       return this.#set({ ...this.#status, state: 'downloading', message: null }, false)
     }
     const copies = names.filter((name) => CONFLICT_COPY.test(name))
     const local = this.#deps.local()
     const read = mergeFiles(
-      dir,
+      directory,
       [FILE, ...copies].filter((fileName) => names.includes(fileName)),
       local,
     )
@@ -178,7 +178,7 @@ export class IcloudSync {
     if (!(remote && sameSnapshot(merged, remote)) || copies.length > 0) {
       this.#write(merged)
       for (const copy of copies) {
-        rmSync(join(dir, copy), { force: true })
+        rmSync(join(directory, copy), { force: true })
       }
     }
     return this.#set({ state: 'synced', lastSyncedAt: new Date().toISOString(), message: null }, applied)
@@ -186,9 +186,9 @@ export class IcloudSync {
 
   /** Writes the file whole, so iCloud never uploads half of it. */
   #write(snapshot: SyncSnapshot) {
-    const tmp = join(this.#dir, `.${FILE}.tmp`)
-    writeFileSync(tmp, JSON.stringify(snapshot, null, 2))
-    renameSync(tmp, join(this.#dir, FILE))
+    const temporaryPath = join(this.#dir, `.${FILE}.tmp`)
+    writeFileSync(temporaryPath, JSON.stringify(snapshot, null, 2))
+    renameSync(temporaryPath, join(this.#dir, FILE))
   }
 
   #watch() {
@@ -205,8 +205,8 @@ export class IcloudSync {
       this.#watcher.on('error', () => {
         this.#watcher = null
       })
-    } catch (err) {
-      console.error('Could not watch the iCloud sync folder; syncing on a timer instead', err)
+    } catch (failure) {
+      console.error('Could not watch the iCloud sync folder; syncing on a timer instead', failure)
     }
   }
 

@@ -13,11 +13,11 @@ export function useNearViewport(ref: RefObject<HTMLElement | null>, keepAlive: b
   const [near, setNear] = useState(false)
 
   useEffect(() => {
-    const el = ref.current
-    if (!el) {
+    const element = ref.current
+    if (!element) {
       return
     }
-    const root = el.closest<HTMLElement>('[data-scroll-root]')
+    const root = element.closest<HTMLElement>('[data-scroll-root]')
     const enter = new IntersectionObserver(([entry]) => entry?.isIntersecting && setNear(true), {
       root,
       rootMargin: ENTER_MARGIN,
@@ -26,8 +26,8 @@ export function useNearViewport(ref: RefObject<HTMLElement | null>, keepAlive: b
       root,
       rootMargin: LEAVE_MARGIN,
     })
-    enter.observe(el)
-    leave.observe(el)
+    enter.observe(element)
+    leave.observe(element)
     return () => {
       enter.disconnect()
       leave.disconnect()

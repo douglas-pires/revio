@@ -45,12 +45,18 @@ function PullViewHeader({ view, pr, props }: { view: PullViewState; pr: PullDeta
       setReviewBody={review.setBody}
       onSubmitReview={async (event) => {
         const { repo, number } = view.pull
-        const res = await globalThis.revio.submitReview({ repo, number, headSha: pr.headSha, event, body: review.body })
+        const response = await globalThis.revio.submitReview({
+          repo,
+          number,
+          headSha: pr.headSha,
+          event,
+          body: review.body,
+        })
         review.setBody('')
         review.setOpen(false)
         view.forgetDrafts()
         props.onReviewed()
-        return res.url
+        return response.url
       }}
     />
   )

@@ -36,9 +36,9 @@ describe('buildStacks', () => {
 
   it('does not make a PR its own parent', () => {
     const odd = makeMiniPr(9, 'x', 'x')
-    expect(buildStacks([odd, makeMiniPr(10, 'y', 'x')], new Set(['PR_9']), noTags, noStale).map((st) => st.id)).toEqual(
-      ['acme/web#9'],
-    )
+    expect(
+      buildStacks([odd, makeMiniPr(10, 'y', 'x')], new Set(['PR_9']), noTags, noStale).map((stack) => stack.id),
+    ).toEqual(['acme/web#9'])
   })
 
   it('drops stacks that contain no seed, and single PRs', () => {

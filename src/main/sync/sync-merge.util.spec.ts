@@ -25,9 +25,9 @@ describe('mergeSnapshots: settings', () => {
         ignoreDrafts: { value: true, updatedAt: '2026-11-20T09:00:00Z' },
       },
     })
-    const out = mergeSnapshots(local, remote, NOW)
-    expect(out.settings.pollIntervalMinutes?.value).toBe(5)
-    expect(out.settings.ignoreDrafts?.value).toBe(true)
+    const output = mergeSnapshots(local, remote, NOW)
+    expect(output.settings.pollIntervalMinutes?.value).toBe(5)
+    expect(output.settings.ignoreDrafts?.value).toBe(true)
   })
 
   it('lets any change beat a value never changed, and the synced copy win between two never changed', () => {
@@ -43,9 +43,9 @@ describe('mergeSnapshots: settings', () => {
         staleAfterHours: { value: 12, updatedAt: '2026-11-01T00:00:00Z' },
       },
     })
-    const out = mergeSnapshots(local, remote, NOW)
-    expect(out.settings.claudeModel?.value).toBe('theirs')
-    expect(out.settings.staleAfterHours?.value).toBe(12)
+    const output = mergeSnapshots(local, remote, NOW)
+    expect(output.settings.claudeModel?.value).toBe('theirs')
+    expect(output.settings.staleAfterHours?.value).toBe(12)
   })
 
   it('keeps a setting only one side has', () => {
@@ -63,8 +63,8 @@ describe('mergeSnapshots: guides', () => {
     const remote = makeSnapshot({
       guidelines: [makeGuide('a', '2026-11-19T10:00:00Z', 'theirs'), makeGuide('c', '2026-11-02T00:00:00Z')],
     })
-    const out = mergeSnapshots(local, remote, NOW)
-    expect(out.guidelines.map((guideline) => [guideline.id, guideline.title])).toEqual([
+    const output = mergeSnapshots(local, remote, NOW)
+    expect(output.guidelines.map((guideline) => [guideline.id, guideline.title])).toEqual([
       ['a', 'mine'],
       ['b', 'b'],
       ['c', 'c'],
@@ -74,9 +74,9 @@ describe('mergeSnapshots: guides', () => {
   it('drops a guide deleted after its last edit, on whichever side it was deleted', () => {
     const local = makeSnapshot({ guidelines: [makeGuide('a', '2026-11-10T00:00:00Z')] })
     const remote = makeSnapshot({ deletedGuidelines: { a: '2026-11-15T00:00:00Z' } })
-    const out = mergeSnapshots(local, remote, NOW)
-    expect(out.guidelines).toEqual([])
-    expect(out.deletedGuidelines).toEqual({ a: '2026-11-15T00:00:00Z' })
+    const output = mergeSnapshots(local, remote, NOW)
+    expect(output.guidelines).toEqual([])
+    expect(output.deletedGuidelines).toEqual({ a: '2026-11-15T00:00:00Z' })
     expect(mergeSnapshots(remote, local, NOW).guidelines).toEqual([])
   })
 
@@ -123,10 +123,17 @@ describe('mergeSnapshots: convergence', () => {
 
 describe('sameSnapshot', () => {
   it('ignores the order of guides and keys', () => {
-    const g1 = makeGuide('a', '2026-11-20T00:00:00Z')
-    const g2 = makeGuide('b', '2026-11-20T00:00:00Z')
-    expect(sameSnapshot(makeSnapshot({ guidelines: [g1, g2] }), makeSnapshot({ guidelines: [g2, g1] }))).toBe(true)
-    expect(sameSnapshot(makeSnapshot({ guidelines: [g1] }), makeSnapshot({ guidelines: [g2] }))).toBe(false)
+    const firstGuide = makeGuide('a', '2026-11-20T00:00:00Z')
+    const secondGuide = makeGuide('b', '2026-11-20T00:00:00Z')
+    expect(
+      sameSnapshot(
+        makeSnapshot({ guidelines: [firstGuide, secondGuide] }),
+        makeSnapshot({ guidelines: [secondGuide, firstGuide] }),
+      ),
+    ).toBe(true)
+    expect(sameSnapshot(makeSnapshot({ guidelines: [firstGuide] }), makeSnapshot({ guidelines: [secondGuide] }))).toBe(
+      false,
+    )
   })
 })
 

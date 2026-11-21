@@ -22,26 +22,26 @@ export function useStickToBottom(scroller: RefObject<HTMLElement | null>) {
   const pinned = useRef(true)
   const [away, setAway] = useState(false)
   const onScroll = useCallback(() => {
-    const el = scroller.current
-    if (!el) {
+    const element = scroller.current
+    if (!element) {
       return
     }
-    pinned.current = isNearBottom(el)
+    pinned.current = isNearBottom(element)
     setAway(!pinned.current)
   }, [scroller])
   /** After content changes: back to the bottom, if that is where you were. */
   const follow = useCallback(() => {
-    const el = scroller.current
-    if (el && pinned.current) {
-      el.scrollTo({ top: el.scrollHeight })
+    const element = scroller.current
+    if (element && pinned.current) {
+      element.scrollTo({ top: element.scrollHeight })
     }
   }, [scroller])
   /** To the bottom, following again: on sending a question, or the "Latest" button. */
   const jump = useCallback(() => {
     pinned.current = true
     setAway(false)
-    const el = scroller.current
-    el?.scrollTo({ top: el.scrollHeight })
+    const element = scroller.current
+    element?.scrollTo({ top: element.scrollHeight })
   }, [scroller])
   return { away, onScroll, follow, jump }
 }

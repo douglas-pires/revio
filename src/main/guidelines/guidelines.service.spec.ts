@@ -13,8 +13,8 @@ describe('matchGuidelines', () => {
   ]
 
   it('orders general to specific and skips folders the PR does not touch', () => {
-    const out = matchGuidelines(all, 'acme/web', ['apps/web/src/a.ts', 'apps/web/b.ts', 'README.md'])
-    expect(out.map((match) => [match.id, match.matchedFiles])).toEqual([
+    const output = matchGuidelines(all, 'acme/web', ['apps/web/src/a.ts', 'apps/web/b.ts', 'README.md'])
+    expect(output.map((match) => [match.id, match.matchedFiles])).toEqual([
       ['global', 3],
       ['web', 3],
       ['web-app', 2],
@@ -36,5 +36,5 @@ describe('normalizePath', () => {
     ['/apps/web', 'apps/web/'],
     ['apps/web//', 'apps/web/'],
     ['  ', ''],
-  ])('%j → %j', (input, out) => expect(normalizePath(input)).toBe(out))
+  ])('%j → %j', (input, expected) => expect(normalizePath(input)).toBe(expected))
 })

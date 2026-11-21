@@ -89,8 +89,8 @@ export class UpdatePoller {
         downloadUrl: latest.downloadUrl,
         notes: latest.notes,
       })
-    } catch (err) {
-      return this.#set({ checking: false, error: readErrorMessage(err) })
+    } catch (failure) {
+      return this.#set({ checking: false, error: readErrorMessage(failure) })
     }
   }
 

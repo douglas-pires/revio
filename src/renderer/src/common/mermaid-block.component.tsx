@@ -38,10 +38,10 @@ const isDarkPreferred = () => !globalThis.matchMedia('(prefers-color-scheme: lig
 function usePrefersDark() {
   const [dark, setDark] = useState(isDarkPreferred)
   useEffect(() => {
-    const mq = globalThis.matchMedia('(prefers-color-scheme: light)')
+    const colorSchemeQuery = globalThis.matchMedia('(prefers-color-scheme: light)')
     const onChange = () => setDark(isDarkPreferred())
-    mq.addEventListener('change', onChange)
-    return () => mq.removeEventListener('change', onChange)
+    colorSchemeQuery.addEventListener('change', onChange)
+    return () => colorSchemeQuery.removeEventListener('change', onChange)
   }, [])
   return dark
 }
@@ -80,18 +80,18 @@ function useMermaidSvg(code: string) {
  * Mermaid sizes the SVG as width:100% with max-width = its natural width; zoomed shows it at natural size.
  * The viewBox holds the drawn size, since not every diagram type sets an inline max-width.
  */
-function resizeDiagram(el: SVGSVGElement, zoomed: boolean) {
-  const drawnWidth = el.viewBox?.baseVal?.width
-  let natural = el.style.maxWidth || '100%'
+function resizeDiagram(element: SVGSVGElement, zoomed: boolean) {
+  const drawnWidth = element.viewBox?.baseVal?.width
+  let natural = element.style.maxWidth || '100%'
   if (drawnWidth) {
     natural = `${Math.round(drawnWidth)}px`
   }
   if (zoomed) {
-    el.style.width = natural
-    el.style.maxWidth = 'none'
+    element.style.width = natural
+    element.style.maxWidth = 'none'
   } else {
-    el.style.width = '100%'
-    el.style.maxWidth = natural
+    element.style.width = '100%'
+    element.style.maxWidth = natural
   }
 }
 
@@ -113,9 +113,9 @@ function Diagram({ svg }: { svg: string }) {
   const [zoomed, setZoomed] = useState(false)
   const box = useRef<HTMLDivElement>(null)
   useEffect(() => {
-    const el = box.current?.querySelector('svg')
-    if (el) {
-      resizeDiagram(el, zoomed)
+    const element = box.current?.querySelector('svg')
+    if (element) {
+      resizeDiagram(element, zoomed)
     }
   }, [zoomed])
   const toggleZoom = () => setZoomed(!zoomed)

@@ -75,8 +75,8 @@ export async function fetchCommitCi(repo: string, hashes: string[]): Promise<Rec
       const batch = await fetchCiBatch(octokit, repo, hashes.slice(start, start + CI_COMMITS_PER_QUERY))
       Object.assign(states, Object.fromEntries(batch))
     }
-  } catch (err) {
-    console.error('[revio] CI lookup failed:', readErrorMessage(err))
+  } catch (failure) {
+    console.error('[revio] CI lookup failed:', readErrorMessage(failure))
   }
   return states
 }

@@ -155,7 +155,8 @@ export const DiffFile = memo(function DiffFileView(props: DiffFileProps) {
   const { onAddToChat } = props
   let addToChat: ((sel: { side: DiffSide; start: number; end: number }) => void) | undefined
   if (onAddToChat) {
-    addToChat = (sel) => onAddToChat(buildSelection(sel.side, sel.start, sel.end))
+    addToChat = (lineSelection) =>
+      onAddToChat(buildSelection(lineSelection.side, lineSelection.start, lineSelection.end))
   }
   const notesFor = useLineNotes({
     path: file.path,
@@ -164,7 +165,7 @@ export const DiffFile = memo(function DiffFileView(props: DiffFileProps) {
     selection,
     actions,
     newSideText: (start, end) => extractNewSideText(rows, start, end),
-    onAsk: (sel) => ask(sel.side, sel.start, sel.end),
+    onAsk: (lineSelection) => ask(lineSelection.side, lineSelection.start, lineSelection.end),
     onAddToChat: addToChat,
   })
 

@@ -62,8 +62,8 @@ export interface ReleaseSource {
  * Revio only has `repository` to go by.
  */
 export function releaseSourceOf(packageJson: unknown): ReleaseSource | null {
-  const pkg = packageJson as { build?: { publish?: unknown }; repository?: unknown } | null
-  const publish = pkg?.build?.publish
+  const manifest = packageJson as { build?: { publish?: unknown }; repository?: unknown } | null
+  const publish = manifest?.build?.publish
   const entries = publishEntriesOf(publish)
   const github = entries.find(
     (entry): entry is { provider: string; owner: string; repo: string } =>
@@ -72,7 +72,7 @@ export function releaseSourceOf(packageJson: unknown): ReleaseSource | null {
   if (github?.owner && github.repo) {
     return { owner: github.owner, repo: github.repo }
   }
-  return readReleaseSourceFromRepository(pkg?.repository)
+  return readReleaseSourceFromRepository(manifest?.repository)
 }
 
 /**

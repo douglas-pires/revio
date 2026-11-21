@@ -78,11 +78,11 @@ const DEFAULT_GUIDELINES: Guideline[] = [
 
 const findStoreFile = () => join(app.getPath('userData'), 'revio.json')
 
-let db: Db | null = null
+let loadedDatabase: Db | null = null
 
 function load(): Db {
-  if (db) {
-    return db
+  if (loadedDatabase) {
+    return loadedDatabase
   }
   const fresh: Db = {
     settings: { ...DEFAULT_SETTINGS },
@@ -94,20 +94,20 @@ function load(): Db {
   try {
     if (existsSync(findStoreFile())) {
       const raw = JSON.parse(readFileSync(findStoreFile(), 'utf8')) as Partial<Db>
-      db = {
+      loadedDatabase = {
         settings: { ...DEFAULT_SETTINGS, ...raw.settings },
         guidelines: raw.guidelines ?? fresh.guidelines,
         pulls: pruneStalePulls(raw.pulls ?? {}),
         alerts: { ...fresh.alerts, ...raw.alerts },
         sync: { ...fresh.sync, ...raw.sync },
       }
-      return db
+      return loadedDatabase
     }
-  } catch (err) {
-    console.error('Could not read store, starting fresh', err)
+  } catch (failure) {
+    console.error('Could not read store, starting fresh', failure)
   }
-  db = fresh
-  return db
+  loadedDatabase = fresh
+  return loadedDatabase
 }
 
 let saveTimer: NodeJS.Timeout | null = null
@@ -172,13 +172,13 @@ function stampSettings(database: Db, patch: Record<string, unknown>) {
 }
 
 export function flush() {
-  if (!db) {
+  if (!loadedDatabase) {
     return
   }
   mkdirSync(app.getPath('userData'), { recursive: true })
-  const tmp = `${findStoreFile()}.tmp`
-  writeFileSync(tmp, JSON.stringify(db, null, 2))
-  renameSync(tmp, findStoreFile())
+  const temporaryPath = `${findStoreFile()}.tmp`
+  writeFileSync(temporaryPath, JSON.stringify(loadedDatabase, null, 2))
+  renameSync(temporaryPath, findStoreFile())
 }
 
 export const store = {
@@ -268,10 +268,10 @@ export const store = {
   pull(key: string): PullLocalState {
     return load().pulls[key] ?? { drafts: [], viewed: {} }
   },
-  updatePull(key: string, fn: (pullState: PullLocalState) => void) {
+  updatePull(key: string, update: (pullState: PullLocalState) => void) {
     const { pulls } = load()
     const state = pulls[key] ?? { drafts: [], viewed: {} }
-    fn(state)
+    update(state)
     state.touchedAt = new Date().toISOString()
     pulls[key] = state
     save()

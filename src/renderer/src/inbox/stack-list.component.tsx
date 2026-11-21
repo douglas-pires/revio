@@ -143,8 +143,8 @@ export function StackList({
         Stacks read bottom-up: review the PR closest to <code>{stacks[0]?.base ?? 'main'}</code> first, since everything
         above builds on it.
       </p>
-      {stacks.map((st) => (
-        <StackCard key={st.id} stack={st} focused={focus === st.id} onOpen={onOpen} />
+      {stacks.map((stack) => (
+        <StackCard key={stack.id} stack={stack} focused={focus === stack.id} onOpen={onOpen} />
       ))}
     </div>
   )

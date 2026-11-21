@@ -45,8 +45,8 @@ export class MentionWatcher {
     let inbox: MentionsInbox
     try {
       inbox = await this.#deps.load()
-    } catch (err) {
-      const error = readErrorMessage(err)
+    } catch (failure) {
+      const error = readErrorMessage(failure)
       console.error('[revio] mentions failed:', error)
       inbox = this.#withError(error)
     }

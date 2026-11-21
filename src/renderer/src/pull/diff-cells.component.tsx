@@ -80,7 +80,7 @@ export function Sign({ kind }: { kind: DiffRow['kind'] }) {
 
 export function Code({
   row,
-  idx,
+  idx: index,
   tokens,
   note,
 }: {
@@ -90,7 +90,7 @@ export function Code({
   note?: React.ReactNode
 }) {
   return (
-    <td data-row={idx} className="pr-4 align-top break-all whitespace-pre-wrap select-text">
+    <td data-row={index} className="pr-4 align-top break-all whitespace-pre-wrap select-text">
       <TokenText tokens={tokens} text={row.text} />
       {note}
     </td>
@@ -113,7 +113,10 @@ export function Half(props: {
   divider?: boolean | undefined
   note?: React.ReactNode
 }) {
-  const bg = joinClassNames(pickHalfBackground(props.selected, props.row.kind), props.commented && 'commented-line')
+  const background = joinClassNames(
+    pickHalfBackground(props.selected, props.row.kind),
+    props.commented && 'commented-line',
+  )
   return (
     <>
       <Gutter
@@ -128,7 +131,7 @@ export function Half(props: {
         {props.lineNo ?? ''}
       </Gutter>
       {/* biome-ignore lint/a11y/noNoninteractiveElementInteractions: hovering extends a line selection being dragged. */}
-      <td onMouseEnter={props.onEnter} className={joinClassNames('align-top', bg)}>
+      <td onMouseEnter={props.onEnter} className={joinClassNames('align-top', background)}>
         <span className="block pl-1.5 text-muted select-none">{DIFF_SIGNS[props.row.kind]}</span>
       </td>
       {/* biome-ignore lint/a11y/noNoninteractiveElementInteractions: hovering extends a line selection being dragged. */}
@@ -136,7 +139,7 @@ export function Half(props: {
         onMouseEnter={props.onEnter}
         data-row={props.idx}
         data-half={props.half}
-        className={joinClassNames('pr-3 align-top break-all whitespace-pre-wrap select-text', bg)}
+        className={joinClassNames('pr-3 align-top break-all whitespace-pre-wrap select-text', background)}
       >
         <TokenText tokens={props.tokens} text={props.row.text} />
         {props.note}

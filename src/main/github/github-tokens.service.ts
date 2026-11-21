@@ -11,10 +11,10 @@ type Candidate = [GithubTokenSource, () => string | undefined | Promise<string |
 
 /** Who a token belongs to and what it may do. Throws when GitHub rejects it. */
 async function inspectToken(token: string): Promise<Pick<GithubAuthStatus, 'login' | 'scopes' | 'canSeeTeams'>> {
-  const res = await new Octokit({ auth: token, userAgent: 'revio' }).request('GET /user')
-  const scopes = parseScopes(res.headers['x-oauth-scopes'])
+  const response = await new Octokit({ auth: token, userAgent: 'revio' }).request('GET /user')
+  const scopes = parseScopes(response.headers['x-oauth-scopes'])
   return {
-    login: res.data.login,
+    login: response.data.login,
     scopes,
     canSeeTeams: scopes?.some((scope) => ORG_SCOPE.test(scope)) ?? null,
   }
@@ -23,12 +23,12 @@ async function inspectToken(token: string): Promise<Pick<GithubAuthStatus, 'logi
 const isResolvedToken = (value: unknown): value is ResolvedToken =>
   typeof value === 'object' && value !== null && 'token' in value
 
-const buildFailedStatus = (source: GithubTokenSource, err: unknown): GithubAuthStatus => ({
+const buildFailedStatus = (source: GithubTokenSource, failure: unknown): GithubAuthStatus => ({
   source,
   login: null,
   scopes: null,
   canSeeTeams: null,
-  error: readErrorMessage(err),
+  error: readErrorMessage(failure),
 })
 
 export interface ResolvedToken {
@@ -76,13 +76,13 @@ export class GithubTokens {
   }
 
   async describe(): Promise<GithubAuthStatus> {
-    const resolved = await this.resolve().catch((err: unknown) => err)
+    const resolved = await this.resolve().catch((failure: unknown) => failure)
     if (!isResolvedToken(resolved)) {
       return buildFailedStatus('none', resolved)
     }
     return inspectToken(resolved.token).then(
       (details) => ({ source: resolved.source, ...details }),
-      (err: unknown) => buildFailedStatus(resolved.source, err),
+      (failure: unknown) => buildFailedStatus(resolved.source, failure),
     )
   }
 
@@ -92,8 +92,8 @@ export class GithubTokens {
     if (!token) {
       throw new Error('Paste a token first.')
     }
-    await inspectToken(token).catch((err: unknown) => {
-      throw new Error(`GitHub rejected this token: ${readErrorMessage(err)}`)
+    await inspectToken(token).catch((failure: unknown) => {
+      throw new Error(`GitHub rejected this token: ${readErrorMessage(failure)}`)
     })
     this.#sources.save(token)
   }

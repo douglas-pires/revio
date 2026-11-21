@@ -19,7 +19,7 @@ describe('defaultTitle', () => {
 describe('groupGuides', () => {
   it('puts all repositories first, then repositories by name, folders in order', () => {
     const groups = groupGuides([makeGuide('b/b', 'x/'), makeGuide('*', ''), makeGuide('a/a', ''), makeGuide('b/b', '')])
-    expect(groups.map(([name, gs]) => [name, gs.map((guideline) => guideline.path)])).toEqual([
+    expect(groups.map(([name, guidelines]) => [name, guidelines.map((guideline) => guideline.path)])).toEqual([
       ['All repositories', ['']],
       ['a/a', ['']],
       ['b/b', ['', 'x/']],

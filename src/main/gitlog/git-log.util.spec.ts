@@ -39,7 +39,7 @@ describe('buildLogArgs', () => {
   })
 
   it('does not grep for a hash: that is matched against the commits', () => {
-    expect(buildLogArgs({ ...ALL, text: 'a1b2c3d' }, 10).some((arg) => arg.startsWith('--grep'))).toBe(false)
+    expect(buildLogArgs({ ...ALL, text: 'a1b2c3d' }, 10).some((argument) => argument.startsWith('--grep'))).toBe(false)
     expect(looksLikeHash('a1b2c3d')).toBe(true)
     expect(looksLikeHash('fix it')).toBe(false)
   })
@@ -47,7 +47,7 @@ describe('buildLogArgs', () => {
 
 describe('parseLog', () => {
   it('reads each field and the refs, without HEAD', () => {
-    const out = [
+    const output = [
       [
         'h2',
         'h1 h0',
@@ -61,7 +61,7 @@ describe('parseLog', () => {
     ]
       .map((fields) => `${fields.join('\u001f')}\u001e`)
       .join('\n')
-    expect(parseLog(out)).toEqual([
+    expect(parseLog(output)).toEqual([
       {
         hash: 'h2',
         parents: ['h1', 'h0'],
@@ -86,13 +86,13 @@ describe('parseLog', () => {
 
 describe('parseBranches', () => {
   it('reads local branches with tracking and remote ones, skipping origin/HEAD', () => {
-    const out = [
+    const output = [
       'refs/heads/main\t*\t[ahead 2, behind 1]',
       'refs/heads/feat/x\t \t',
       'refs/remotes/origin/HEAD\t \t',
       'refs/remotes/origin/main\t \t',
     ].join('\n')
-    expect(parseBranches(out)).toEqual([
+    expect(parseBranches(output)).toEqual([
       { name: 'main', kind: 'local', current: true, ahead: 2, behind: 1 },
       { name: 'feat/x', kind: 'local', current: false, ahead: 0, behind: 0 },
       { name: 'origin/main', kind: 'remote', current: false, ahead: 0, behind: 0 },

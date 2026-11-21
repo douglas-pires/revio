@@ -111,11 +111,11 @@ export function detectLanguage(path: string): string | null {
   if (name.startsWith('Dockerfile')) {
     return 'docker'
   }
-  let ext = ''
+  let extension = ''
   if (name.includes('.')) {
-    ext = name.slice(name.lastIndexOf('.') + 1).toLowerCase()
+    extension = name.slice(name.lastIndexOf('.') + 1).toLowerCase()
   }
-  const lang = EXT[ext] ?? ext
+  const lang = EXT[extension] ?? extension
   if (!(lang in loaders)) {
     return null
   }
@@ -189,7 +189,7 @@ export class TokenHighlighter {
       return null
     }
 
-    const out = new Map<number, Tok[]>()
+    const output = new Map<number, Tok[]>()
     const tokenize = (indices: number[], keep: (row: TokenRow) => boolean) => {
       const isKept = (rowIndex: number) => {
         const row = rows[rowIndex]
@@ -202,7 +202,7 @@ export class TokenHighlighter {
         const lines = tokenizeLines(core, indices.map((index) => rows[index]?.text).join('\n'), lang)
         for (const [position, rowIdx] of indices.entries()) {
           if (isKept(rowIdx)) {
-            out.set(rowIdx, lines[position] ?? [])
+            output.set(rowIdx, lines[position] ?? [])
           }
         }
       } catch {
@@ -230,6 +230,6 @@ export class TokenHighlighter {
       }
     }
     flush()
-    return out
+    return output
   }
 }

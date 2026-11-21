@@ -202,8 +202,8 @@ function filterInbox(inbox: InboxData | null, query: InboxQuery) {
   return {
     requested: inbox.requested.filter((pull) => matchesQuery(convertSummaryToSearchable(pull, true), query)),
     reviewed: inbox.reviewed.filter((pull) => matchesQuery(convertSummaryToSearchable(pull, false), query)),
-    stacks: inbox.stacks.filter((st) =>
-      st.nodes.some((node) => matchesQuery(convertStackPrToSearchable(node.pr, rows.get(node.pr.id)), query)),
+    stacks: inbox.stacks.filter((stack) =>
+      stack.nodes.some((node) => matchesQuery(convertStackPrToSearchable(node.pr, rows.get(node.pr.id)), query)),
     ),
   }
 }

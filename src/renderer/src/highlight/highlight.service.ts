@@ -48,24 +48,24 @@ export class WorkerHighlighter implements Highlighter {
   }
 
   async highlightRows(path: string, rows: readonly DiffRow[], patchLength: number) {
-    const res = await this.#request({
+    const response = await this.#request({
       kind: 'rows',
       path,
       patchLength,
       rows: rows.map((row) => ({ kind: row.kind, text: row.text })),
     })
-    if (res?.kind !== 'rows' || !res.tokens) {
+    if (response?.kind !== 'rows' || !response.tokens) {
       return null
     }
-    return new Map(res.tokens)
+    return new Map(response.tokens)
   }
 
   async highlightCode(language: string, code: string) {
-    const res = await this.#request({ kind: 'code', language, code })
-    if (res?.kind !== 'code') {
+    const response = await this.#request({ kind: 'code', language, code })
+    if (response?.kind !== 'code') {
       return null
     }
-    return res.lines
+    return response.lines
   }
 
   dispose() {

@@ -47,9 +47,9 @@ export function findFileInView(current: string | null): string | null {
     return current
   }
   const { top, bottom } = scroller.getBoundingClientRect()
-  const cards = [...scroller.querySelectorAll(`[id^="${FILE_ID_PREFIX}"]`)].map((el) => {
-    const bounds = el.getBoundingClientRect()
-    return { path: el.id.slice(FILE_ID_PREFIX.length), top: bounds.top, bottom: bounds.bottom }
+  const cards = [...scroller.querySelectorAll(`[id^="${FILE_ID_PREFIX}"]`)].map((element) => {
+    const bounds = element.getBoundingClientRect()
+    return { path: element.id.slice(FILE_ID_PREFIX.length), top: bounds.top, bottom: bounds.bottom }
   })
   return pickFileInView(current, cards, { top, bottom }) ?? current
 }

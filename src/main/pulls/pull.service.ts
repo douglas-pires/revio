@@ -62,8 +62,8 @@ async function fetchThreadMeta(octokit: Octokit, ref: PullRef): Promise<ThreadMe
         comments.map((comment) => [comment.databaseId, toReactionSummaries(comment.reactionGroups ?? [])]),
       ),
     }
-  } catch (err) {
-    console.error('[revio] thread status lookup failed:', readErrorMessage(err))
+  } catch (failure) {
+    console.error('[revio] thread status lookup failed:', readErrorMessage(failure))
     return { threads: [], reactions: new Map() }
   }
 }
@@ -77,7 +77,7 @@ async function loadFileAt(repoFull: string, ref: string, path: string): Promise<
   // With the raw media type GitHub returns the file body, which Octokit's types don't model.
   const data: unknown = await octokit.repos
     .getContent({ owner, repo, path, ref, mediaType: { format: 'raw' } })
-    .then((res) => res.data as unknown)
+    .then((response) => response.data as unknown)
     .catch(() => null)
   // A NUL byte means a binary file, which the app does not show.
   if (typeof data !== 'string' || data.includes('\u0000')) {

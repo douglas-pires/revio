@@ -53,9 +53,9 @@ function useMatchHighlights(query: string, caseSensitive: boolean, current: Diff
     if (!(query && scope)) {
       return clear
     }
-    let raf = 0
+    let frameRequest = 0
     const paint = () => {
-      raf = 0
+      frameRequest = 0
       const options = { caseSensitive }
       const cells = [...scope.querySelectorAll('td[data-row]')]
       registry.set(ALL, new Highlight(...cells.flatMap((cell) => findRangesIn(cell, query, options))))
@@ -68,14 +68,14 @@ function useMatchHighlights(query: string, caseSensitive: boolean, current: Diff
       }
     }
     const schedule = () => {
-      raf ||= requestAnimationFrame(paint)
+      frameRequest ||= requestAnimationFrame(paint)
     }
     paint()
     const observer = new MutationObserver(schedule)
     observer.observe(scope, { childList: true, subtree: true, characterData: true })
     return () => {
       observer.disconnect()
-      cancelAnimationFrame(raf)
+      cancelAnimationFrame(frameRequest)
       clear()
     }
   }, [query, caseSensitive, current])

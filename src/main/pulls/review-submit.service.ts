@@ -31,13 +31,13 @@ export async function submitWithFileComments(
       // biome-ignore lint/performance/noAwaitInLoops: threads are added one at a time so they keep the order they were drafted in.
       await addFileThread(octokit, pending.data.node_id, fileComment)
     }
-    const res = await octokit.pulls.submitReview({ ...ids, event, ...(review.body && { body: review.body }) })
-    return { url: res.data.html_url }
-  } catch (err) {
+    const response = await octokit.pulls.submitReview({ ...ids, event, ...(review.body && { body: review.body }) })
+    return { url: response.data.html_url }
+  } catch (failure) {
     await octokit.pulls.deletePendingReview(ids).catch(() => {
       // Best effort: the original error is the one worth reporting.
     })
-    throw err
+    throw failure
   }
 }
 
@@ -79,8 +79,8 @@ export async function submitReview(input: SubmitReviewInput, drafts: DraftCommen
     review.body = input.body
   }
   if (plan.fileComments.length === 0) {
-    const res = await octokit.pulls.createReview({ ...review, event: input.event })
-    return { url: res.data.html_url }
+    const response = await octokit.pulls.createReview({ ...review, event: input.event })
+    return { url: response.data.html_url }
   }
   return submitWithFileComments(octokit, review, plan.fileComments, input.event)
 }

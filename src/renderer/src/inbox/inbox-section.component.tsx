@@ -4,6 +4,7 @@ import type { OpenPull } from '../common/navigation.types.ts'
 import { SectionHeading } from '../common/section-heading.component.tsx'
 import { InboxRow } from './inbox-row.component.tsx'
 
+/** A titled list of PRs in the inbox; shows `empty` (or nothing) when the list is empty. */
 export function InboxSection(props: {
   title: string
   hint?: string | undefined

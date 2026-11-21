@@ -34,14 +34,17 @@ function usePullIndexes(pr: ReturnType<typeof usePullDetail>['pr'], local: PullL
   )
   const draftsByPath = useMemo(() => groupBy(local.drafts, (draft) => draft.path), [local.drafts])
   /** Folder-grouped order, shared by the sidebar, the diff list and j/k. */
-  const orderedFiles = useMemo(() => groupByDir(pr?.files ?? []).flatMap(([, fs]) => fs), [pr])
+  const orderedFiles = useMemo(() => groupByDir(pr?.files ?? []).flatMap(([, files]) => files), [pr])
   return {
     focusByPath,
     ignoreByPath,
     focusPaths: useMemo(() => new Set(focusByPath.keys()), [focusByPath]),
     ignorePaths: useMemo(() => new Set(ignoreByPath.keys()), [ignoreByPath]),
     draftsByPath,
-    draftCounts: useMemo(() => new Map([...draftsByPath].map(([path, ds]) => [path, ds.length])), [draftsByPath]),
+    draftCounts: useMemo(
+      () => new Map([...draftsByPath].map(([path, drafts]) => [path, drafts.length])),
+      [draftsByPath],
+    ),
     commentsByPath: useMemo(() => groupBy(pr?.comments ?? [], (comment) => comment.path), [pr]),
     orderedFiles,
     commentThreads: useMemo(
@@ -100,12 +103,12 @@ function useReviewState() {
 /** The Claude conversation open in the side panel; `start` begins one about a selection. */
 function useAskState() {
   const [thread, setThread] = useState<AskThread | null>(null)
-  const start = useCallback((sel: AskSelection) => {
-    setThread({ id: crypto.randomUUID(), ...sel, messages: [], createdAt: new Date().toISOString() })
+  const start = useCallback((selection: AskSelection) => {
+    setThread({ id: crypto.randomUUID(), ...selection, messages: [], createdAt: new Date().toISOString() })
   }, [])
   /** Adds lines to the open chat, for the next question. */
-  const addContext = useCallback((sel: AskSelection) => {
-    setThread((current) => current && { ...current, pendingContext: [...(current.pendingContext ?? []), sel] })
+  const addContext = useCallback((selection: AskSelection) => {
+    setThread((current) => current && { ...current, pendingContext: [...(current.pendingContext ?? []), selection] })
   }, [])
   return { thread, setThread, start, addContext }
 }

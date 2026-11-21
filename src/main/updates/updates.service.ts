@@ -25,11 +25,11 @@ export async function fetchLatestRelease(
       downloadUrl: pickInstaller(data.assets, arch)?.browser_download_url ?? null,
       notes: data.body ?? '',
     }
-  } catch (err) {
+  } catch (failure) {
     // 404 means no release yet, or a token that cannot see the repository.
-    if ((err as { status?: number }).status === HTTP_NOT_FOUND) {
+    if ((failure as { status?: number }).status === HTTP_NOT_FOUND) {
       return null
     }
-    throw err
+    throw failure
   }
 }

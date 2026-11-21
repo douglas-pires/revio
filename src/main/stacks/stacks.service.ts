@@ -150,8 +150,8 @@ export class StackFinder {
       this.#cache = { signature, at: Date.now(), stacks }
       markStackPositions(stacks, all)
       return stacks
-    } catch (err) {
-      console.error('[revio] stack lookup failed:', readErrorMessage(err))
+    } catch (failure) {
+      console.error('[revio] stack lookup failed:', readErrorMessage(failure))
       if (!this.#cache) {
         return []
       }
@@ -162,8 +162,8 @@ export class StackFinder {
 
 /** The stack a single PR belongs to (it may be outside your inbox), or null when it is not stacked. */
 export async function fetchStack(ref: PullRef, inbox: Inbox | null): Promise<Stack | null> {
-  const cached = inbox?.stacks.find((st) =>
-    st.nodes.some((node) => node.pr.repo === ref.repo && node.pr.number === ref.number),
+  const cached = inbox?.stacks.find((stack) =>
+    stack.nodes.some((node) => node.pr.repo === ref.repo && node.pr.number === ref.number),
   )
   if (cached) {
     return cached

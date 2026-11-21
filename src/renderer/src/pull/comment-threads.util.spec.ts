@@ -96,7 +96,9 @@ describe('indexFileComments', () => {
         makeDraft('f', { line: null }),
       ],
     )
-    expect([...index.draftsByLine].map(([anchor, ds]) => [anchor, ds.map((draftAtLine) => draftAtLine.id)])).toEqual([
+    expect(
+      [...index.draftsByLine].map(([anchor, drafts]) => [anchor, drafts.map((draftAtLine) => draftAtLine.id)]),
+    ).toEqual([
       ['RIGHT:10', ['a']],
       ['LEFT:3', ['b']],
     ])

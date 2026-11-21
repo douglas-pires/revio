@@ -71,9 +71,9 @@ describe('triageThread', () => {
 
   it('flags bots and drops the line of outdated threads', () => {
     const thread = makeThread([comment(makeBot('coderabbitai'), 't1')], { isOutdated: true })
-    const out = triageThread(thread, makePr('me', [thread]), 'me')
-    expect(out?.comments[0]?.bot).toBe(true)
-    expect(out).toMatchObject({ outdated: true, line: null })
+    const output = triageThread(thread, makePr('me', [thread]), 'me')
+    expect(output?.comments[0]?.bot).toBe(true)
+    expect(output).toMatchObject({ outdated: true, line: null })
   })
 
   it('treats deleted accounts as someone else', () => {

@@ -178,12 +178,12 @@ export function findRowAnchor(row: DiffRow, half?: DiffSide): { side: DiffSide; 
 
 /** Pairs removed and added runs side by side; context lines sit on both sides. */
 export function toSplit(rows: DiffRow[]): SplitRow[] {
-  const out: SplitRow[] = []
+  const output: SplitRow[] = []
   let dels: number[] = []
   let adds: number[] = []
   const flush = () => {
     for (let pairIndex = 0; pairIndex < Math.max(dels.length, adds.length); pairIndex += 1) {
-      out.push({ kind: 'pair', left: dels[pairIndex] ?? null, right: adds[pairIndex] ?? null })
+      output.push({ kind: 'pair', left: dels[pairIndex] ?? null, right: adds[pairIndex] ?? null })
     }
     dels = []
     adds = []
@@ -198,11 +198,11 @@ export function toSplit(rows: DiffRow[]): SplitRow[] {
       adds.push(position)
     } else {
       flush()
-      out.push(splitRowOf(row, position))
+      output.push(splitRowOf(row, position))
     }
   }
   flush()
-  return out
+  return output
 }
 
 /** Up to `radius` diff rows on each side of a new-side line, without leaving its hunk. Empty when the line is not in the diff. */
@@ -276,11 +276,13 @@ export function extractNewSideText(rows: readonly DiffRow[], start: number, end:
  */
 export function computeLineRange(
   rows: readonly DiffRow[],
-  i0: number,
-  i1: number,
+  fromIndex: number,
+  toIndex: number,
   half?: DiffSide,
 ): { side: DiffSide; start: number; end: number } | null {
-  const slice = rows.slice(Math.min(i0, i1), Math.max(i0, i1) + 1).filter((row): row is LineRow => row.kind !== 'hunk')
+  const slice = rows
+    .slice(Math.min(fromIndex, toIndex), Math.max(fromIndex, toIndex) + 1)
+    .filter((row): row is LineRow => row.kind !== 'hunk')
   const side = half ?? findSelectionSide(slice)
   const nums = slice
     .map((row) => readLineOnSide(row, side))

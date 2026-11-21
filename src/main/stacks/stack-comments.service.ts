@@ -36,8 +36,8 @@ async function loadStackComments(stack: Stack): Promise<StackPrComments[]> {
     return pulls.map((pull, index) =>
       summarizeYourThreads(pull, response[`p${index}`]?.pullRequest?.reviewThreads.nodes ?? [], viewer),
     )
-  } catch (err) {
-    console.error('[revio] stack comments lookup failed:', readErrorMessage(err))
+  } catch (failure) {
+    console.error('[revio] stack comments lookup failed:', readErrorMessage(failure))
     return []
   }
 }

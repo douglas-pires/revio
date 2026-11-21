@@ -50,26 +50,26 @@ describe('parsePatch of nothing', () => {
 
 describe('anchors', () => {
   const rows = parsePatch(PATCH)
-  const ctx = assertPresent(rows[1])
-  const del = assertPresent(rows[2])
+  const context = assertPresent(rows[1])
+  const deletedRow = assertPresent(rows[2])
   const add = assertPresent(rows[3])
 
   it('attaches deletions to the left side and everything else to the right', () => {
-    expect(readRowAnchor(del)).toEqual({ side: 'LEFT', line: 11 })
+    expect(readRowAnchor(deletedRow)).toEqual({ side: 'LEFT', line: 11 })
     expect(readRowAnchor(add)).toEqual({ side: 'RIGHT', line: 11 })
-    expect(readRowAnchor(ctx)).toEqual({ side: 'RIGHT', line: 10 })
+    expect(readRowAnchor(context)).toEqual({ side: 'RIGHT', line: 10 })
   })
 
   it('picks the requested half in split view, or nothing when that half is empty', () => {
-    expect(findRowAnchor(ctx, 'LEFT')).toEqual({ side: 'LEFT', line: 10 })
+    expect(findRowAnchor(context, 'LEFT')).toEqual({ side: 'LEFT', line: 10 })
     expect(findRowAnchor(add, 'LEFT')).toBeNull()
-    expect(findRowAnchor(del, 'RIGHT')).toBeNull()
+    expect(findRowAnchor(deletedRow, 'RIGHT')).toBeNull()
   })
 
   it('gives context lines keys on both sides', () => {
-    expect(listRowKeys(ctx)).toEqual(['RIGHT:10', 'LEFT:10'])
-    expect(listRowKeys(ctx, 'LEFT')).toEqual(['LEFT:10'])
-    expect(listRowKeys(del)).toEqual(['LEFT:11'])
+    expect(listRowKeys(context)).toEqual(['RIGHT:10', 'LEFT:10'])
+    expect(listRowKeys(context, 'LEFT')).toEqual(['LEFT:10'])
+    expect(listRowKeys(deletedRow)).toEqual(['LEFT:11'])
   })
 })
 
