@@ -1,7 +1,14 @@
 import type { EditorInfo } from '@shared/editor.types.ts'
 import type { Settings, SettingsPatch } from '@shared/settings.types.ts'
-import { DEFAULT_OPEN_IN_EDITOR_SHORTCUT, formatShortcut, type KeyPress, readShortcut } from '@shared/shortcut.util.ts'
+import {
+  DEFAULT_OPEN_IN_EDITOR_SHORTCUT,
+  findShortcutConflict,
+  formatShortcut,
+  type KeyPress,
+  readShortcut,
+} from '@shared/shortcut.util.ts'
 import { useEffect, useState } from 'react'
+import { joinClassNames } from '../common/format.util.ts'
 
 /** Which editor "Open in editor" uses, and where to look for local clones. */
 /** The "Automatic" choice, naming the editor it currently picks when one is installed. */
@@ -30,17 +37,35 @@ function interpretRecordingKey(press: KeyPress): RecordingStep {
   return { kind: 'set', shortcut }
 }
 
-/** What the recorder button reads: a prompt while recording, else the shortcut or "Off". */
-function describeRecorderState(recording: boolean, shortcut: string) {
+/** Keys refused because another shortcut already uses them, and what for. */
+interface RejectedShortcut {
+  shortcut: string
+  conflict: string
+}
+
+/** What the recorder button reads: a prompt while recording, the refused keys, else the shortcut or "Off". */
+function describeRecorderState(recording: boolean, shortcut: string, rejected: RejectedShortcut | null) {
   if (recording) {
     return 'Press the keys…'
+  }
+  if (rejected) {
+    return formatShortcut(rejected.shortcut)
   }
   return formatShortcut(shortcut) || 'Off'
 }
 
-/** Records a shortcut: click, then press the keys. Escape cancels; Backspace or Delete turns it off. */
-function ShortcutRecorder({ value, onChange }: { value: string; onChange: (shortcut: string) => void }) {
+/**
+ * Records a shortcut: click, then press the keys. Escape cancels; Backspace or Delete turns it off. Keys another
+ * shortcut already uses are refused: they show in red with what uses them, and the old shortcut stays.
+ */
+function ShortcutRecorder(props: {
+  value: string
+  onChange: (shortcut: string) => void
+  findConflict: (shortcut: string) => string | null
+}) {
+  const { value, onChange } = props
   const [recording, setRecording] = useState(false)
+  const [rejected, setRejected] = useState<RejectedShortcut | null>(null)
   const recordKey = (event: React.KeyboardEvent) => {
     if (!recording) {
       return
@@ -52,26 +77,47 @@ function ShortcutRecorder({ value, onChange }: { value: string; onChange: (short
       return
     }
     setRecording(false)
-    if (step.kind === 'set' && step.shortcut !== value) {
-      onChange(step.shortcut)
+    if (step.kind !== 'set' || step.shortcut === value) {
+      return
     }
+    const conflict = props.findConflict(step.shortcut)
+    if (conflict) {
+      setRejected({ shortcut: step.shortcut, conflict })
+      return
+    }
+    onChange(step.shortcut)
   }
   return (
-    <div className="flex items-center gap-2">
-      <button
-        type="button"
-        className="input w-40 text-left font-mono"
-        aria-label="Open in editor shortcut"
-        onClick={() => setRecording(true)}
-        onBlur={() => setRecording(false)}
-        onKeyDown={recordKey}
-      >
-        {describeRecorderState(recording, value)}
-      </button>
-      {value !== DEFAULT_OPEN_IN_EDITOR_SHORTCUT && (
-        <button type="button" className="btn btn-ghost" onClick={() => onChange(DEFAULT_OPEN_IN_EDITOR_SHORTCUT)}>
-          Reset to {formatShortcut(DEFAULT_OPEN_IN_EDITOR_SHORTCUT)}
+    <div>
+      <div className="flex items-center gap-2">
+        <button
+          type="button"
+          className={joinClassNames(
+            'input w-40 text-left font-mono',
+            rejected !== null && 'border-danger text-danger focus:border-danger',
+          )}
+          aria-label="Open in editor shortcut"
+          aria-invalid={rejected !== null}
+          onClick={() => {
+            setRejected(null)
+            setRecording(true)
+          }}
+          onBlur={() => setRecording(false)}
+          onKeyDown={recordKey}
+        >
+          {describeRecorderState(recording, value, rejected)}
         </button>
+        {value !== DEFAULT_OPEN_IN_EDITOR_SHORTCUT && (
+          <button type="button" className="btn btn-ghost" onClick={() => onChange(DEFAULT_OPEN_IN_EDITOR_SHORTCUT)}>
+            Reset to {formatShortcut(DEFAULT_OPEN_IN_EDITOR_SHORTCUT)}
+          </button>
+        )}
+      </div>
+      {rejected !== null && (
+        <div className="mt-1.5 text-[12px] text-danger">
+          {formatShortcut(rejected.shortcut)} is already used for {rejected.conflict}; kept{' '}
+          {formatShortcut(value) || 'Off'}.
+        </div>
       )}
     </div>
   )
@@ -109,6 +155,9 @@ export function EditorSettings({
         <ShortcutRecorder
           value={settings.openInEditorShortcut}
           onChange={(openInEditorShortcut) => update({ openInEditorShortcut })}
+          findConflict={(shortcut) =>
+            findShortcutConflict(shortcut, [{ shortcut: settings.gitLogShortcut, action: 'the Git log' }])
+          }
         />
         <div className="mt-1.5 text-[12px] text-muted">
           Opens the file you are reading, at the selected line, from a PR's Files changed tab. Click to record new keys;
