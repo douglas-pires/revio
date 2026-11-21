@@ -43,7 +43,7 @@ function FileHeading({ path, current }: { path: string; current: boolean }) {
 /** "3 open · 2 new" beside the panel's title. */
 function OpenAndNewCounts({ openCount, newCount }: { openCount: number; newCount: number }) {
   return (
-    <span>
+    <span className="whitespace-nowrap">
       {openCount} open
       {newCount > 0 && (
         <span className="text-accent" title="Comments by others since your last review">
