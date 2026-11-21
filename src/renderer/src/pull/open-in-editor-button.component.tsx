@@ -58,6 +58,7 @@ export function OpenInEditorButton({ onOpen }: { onOpen: () => Promise<void> }) 
       <button
         ref={button}
         type="button"
+        data-open-in-editor=""
         className={cx(
           'btn btn-ghost py-0 text-[12px] whitespace-nowrap',
           state.kind === 'failed' && 'text-danger',
