@@ -1,0 +1,35 @@
+# Lint, typecheck and tests on every pull request, whatever branch it targets (stacked PRs included), and on
+# every push to a pull request's branch. The release workflow runs the same checks again before it builds.
+name: Checks
+
+on:
+  pull_request:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: checks-${{ github.event.pull_request.number }}
+  cancel-in-progress: true
+
+jobs:
+  checks:
+    # The tests mock Electron (test/setup.ts), so they run on Linux, which starts faster than a macOS runner.
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v5
+
+      - uses: pnpm/action-setup@v4
+
+      - uses: actions/setup-node@v5
+        with:
+          node-version: 24
+          cache: pnpm
+
+      - run: pnpm install --frozen-lockfile
+
+      - run: pnpm lint
+
+      - run: pnpm typecheck
+
+      - run: pnpm test
