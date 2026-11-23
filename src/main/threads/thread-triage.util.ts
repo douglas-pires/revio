@@ -18,7 +18,7 @@ function findWhoIsWaited(lastAuthor: string | undefined, viewer: string): OpenTh
   return 'you'
 }
 
-export interface RawAuthor {
+interface RawAuthor {
   __typename: string
   login: string
   avatarUrl: string

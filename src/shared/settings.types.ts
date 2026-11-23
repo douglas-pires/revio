@@ -1,4 +1,4 @@
-export type ClaudeBackend = 'auto' | 'api' | 'cli'
+type ClaudeBackend = 'auto' | 'api' | 'cli'
 export interface Settings {
   /** Poll GitHub every N minutes. */
   pollIntervalMinutes: number

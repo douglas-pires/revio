@@ -19,14 +19,14 @@ interface UpdatePollerDeps {
 
 /** Checks GitHub for a newer Revio: on demand, and every few hours once started. */
 export class UpdatePoller {
-  #status: UpdateStatus
-  #timer: ReturnType<typeof setInterval> | null = null
-  #running: Promise<UpdateStatus> | null = null
-  readonly #deps: UpdatePollerDeps
+  private currentStatus: UpdateStatus
+  private timer: ReturnType<typeof setInterval> | null = null
+  private running: Promise<UpdateStatus> | null = null
+  private readonly deps: UpdatePollerDeps
 
   constructor(deps: UpdatePollerDeps) {
-    this.#deps = deps
-    this.#status = {
+    this.deps = deps
+    this.currentStatus = {
       current: deps.current,
       latest: null,
       available: false,
@@ -40,39 +40,39 @@ export class UpdatePoller {
   }
 
   get status(): UpdateStatus {
-    return this.#status
+    return this.currentStatus
   }
 
   start() {
     setTimeout(() => this.check(), FIRST_CHECK_DELAY_MS)
-    this.#timer = setInterval(() => this.check(), CHECK_EVERY_MS)
+    this.timer = setInterval(() => this.check(), CHECK_EVERY_MS)
   }
 
   stop() {
-    if (this.#timer) {
-      clearInterval(this.#timer)
+    if (this.timer) {
+      clearInterval(this.timer)
     }
   }
 
   /** Checks now; concurrent calls share one check. */
   check(): Promise<UpdateStatus> {
-    this.#running ??= this.#check().finally(() => {
-      this.#running = null
+    this.running ??= this.runCheck().finally(() => {
+      this.running = null
     })
-    return this.#running
+    return this.running
   }
 
-  async #check(): Promise<UpdateStatus> {
-    const { sourceName } = this.#deps
+  private async runCheck(): Promise<UpdateStatus> {
+    const { sourceName } = this.deps
     if (!sourceName) {
-      return this.#set({ error: 'This build has no release source to check.' })
+      return this.setStatus({ error: 'This build has no release source to check.' })
     }
-    this.#set({ checking: true, error: null })
+    this.setStatus({ checking: true, error: null })
     try {
-      const latest = await this.#deps.loadLatest()
+      const latest = await this.deps.loadLatest()
       const checkedAt = new Date().toISOString()
       if (!latest) {
-        return this.#set({
+        return this.setStatus({
           checking: false,
           checkedAt,
           latest: null,
@@ -80,23 +80,23 @@ export class UpdatePoller {
           error: `No releases found in ${sourceName}, or your GitHub token cannot see it.`,
         })
       }
-      return this.#set({
+      return this.setStatus({
         checking: false,
         checkedAt,
         latest: latest.version,
-        available: isNewerVersion(latest.version, this.#deps.current),
+        available: isNewerVersion(latest.version, this.deps.current),
         releaseUrl: latest.releaseUrl,
         downloadUrl: latest.downloadUrl,
         notes: latest.notes,
       })
     } catch (failure) {
-      return this.#set({ checking: false, error: readErrorMessage(failure) })
+      return this.setStatus({ checking: false, error: readErrorMessage(failure) })
     }
   }
 
-  #set(patch: Partial<UpdateStatus>): UpdateStatus {
-    this.#status = { ...this.#status, ...patch }
-    this.#deps.onStatus(this.#status)
-    return this.#status
+  private setStatus(patch: Partial<UpdateStatus>): UpdateStatus {
+    this.currentStatus = { ...this.currentStatus, ...patch }
+    this.deps.onStatus(this.currentStatus)
+    return this.currentStatus
   }
 }

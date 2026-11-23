@@ -104,18 +104,18 @@ function drawLowerHalf(commit: GraphCommit, dot: Dot, below: LanesBelow, movedTo
   return edges
 }
 
-/** What the graph needs of a commit: its hash and its parents, first parent first. */
-export interface GraphCommit {
-  hash: string
-  parents: readonly string[]
-}
-
 /** A line in one row of the graph, from a lane at the top or middle of the row to a lane at the middle or bottom. */
-export interface GraphEdge {
+interface GraphEdge {
   from: number
   to: number
   /** The lane the line belongs to, for its colour. */
   color: number
+}
+
+/** What the graph needs of a commit: its hash and its parents, first parent first. */
+export interface GraphCommit {
+  hash: string
+  parents: readonly string[]
 }
 
 /** How to draw one commit's row: the dot's lane, and the lines through the row's top and bottom halves. */

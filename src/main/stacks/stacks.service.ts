@@ -132,13 +132,13 @@ function buildLookupQuery(chunk: Lookup[]) {
  * repeat several GraphQL rounds even when nothing changed.
  */
 export class StackFinder {
-  #cache: { signature: string; at: number; stacks: Stack[] } | null = null
+  private cache: { signature: string; at: number; stacks: Stack[] } | null = null
 
   async stacksForInbox(octokit: Octokit, requested: PullSummary[], reviewed: PullSummary[]): Promise<Stack[]> {
     const all = [...requested, ...reviewed]
     const signature = signInbox(all)
-    if (this.#cache && this.#cache.signature === signature && Date.now() - this.#cache.at < STACK_TTL_MS) {
-      return applyInboxTags(this.#cache.stacks, requested, reviewed)
+    if (this.cache && this.cache.signature === signature && Date.now() - this.cache.at < STACK_TTL_MS) {
+      return applyInboxTags(this.cache.stacks, requested, reviewed)
     }
     try {
       const stacks = await findStacks(
@@ -147,15 +147,15 @@ export class StackFinder {
         tagInbox(requested, reviewed),
         collectStaleIds(all),
       )
-      this.#cache = { signature, at: Date.now(), stacks }
+      this.cache = { signature, at: Date.now(), stacks }
       markStackPositions(stacks, all)
       return stacks
     } catch (failure) {
       console.error('[revio] stack lookup failed:', readErrorMessage(failure))
-      if (!this.#cache) {
+      if (!this.cache) {
         return []
       }
-      return applyInboxTags(this.#cache.stacks, requested, reviewed)
+      return applyInboxTags(this.cache.stacks, requested, reviewed)
     }
   }
 }

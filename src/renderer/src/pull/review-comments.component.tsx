@@ -123,7 +123,7 @@ function FoldedThread({
   )
 }
 
-export function CommentView({ comment }: { comment: ReviewComment }) {
+function CommentView({ comment }: { comment: ReviewComment }) {
   return (
     <div data-comment-id={comment.id} className="flex scroll-mt-12 gap-2 rounded">
       <img

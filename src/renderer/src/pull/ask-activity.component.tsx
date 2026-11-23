@@ -59,7 +59,7 @@ function Reasoning({ text, tail }: { text: string; tail: boolean }) {
  * What Claude is doing on your question, as Claude Code shows it: each step as it starts, with the time so far and its
  * reasoning while it thinks. Once the answer starts, it folds into "Worked for Ns", which opens to show the steps.
  */
-export function AskActivity({ progress, answering }: { progress: AskProgress; answering: boolean }) {
+function AskActivity({ progress, answering }: { progress: AskProgress; answering: boolean }) {
   const seconds = countSecondsSince(progress, useNow())
   if (answering) {
     return (

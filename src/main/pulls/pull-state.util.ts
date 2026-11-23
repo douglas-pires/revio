@@ -3,7 +3,7 @@ import { MS_PER_DAY } from '@shared/time.util.ts'
 
 const PULL_STATE_TTL_DAYS = 45
 /** Local state for PRs untouched this long (merged, closed, abandoned) is dropped on startup. */
-export const PULL_STATE_TTL_MS = PULL_STATE_TTL_DAYS * MS_PER_DAY
+const PULL_STATE_TTL_MS = PULL_STATE_TTL_DAYS * MS_PER_DAY
 
 export function pruneStalePulls(
   pulls: Record<string, PullLocalState>,

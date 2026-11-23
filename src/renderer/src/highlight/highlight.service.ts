@@ -15,40 +15,40 @@ export interface Highlighter {
 
 /** Highlights code in a Web Worker so tokenizing large files never blocks scrolling or typing. */
 export class WorkerHighlighter implements Highlighter {
-  #worker: Worker | null = null
-  #nextId = 0
-  readonly #pending = new Map<number, (response: HighlightResponse | null) => void>()
+  private worker: Worker | null = null
+  private nextId = 0
+  private readonly pending = new Map<number, (response: HighlightResponse | null) => void>()
 
-  #ensureWorker() {
-    if (this.#worker) {
-      return this.#worker
+  private ensureWorker() {
+    if (this.worker) {
+      return this.worker
     }
     const worker = new Worker(new URL('./highlight.worker.ts', import.meta.url), { type: 'module' })
     worker.onmessage = (event: MessageEvent<HighlightResponse>) => {
-      this.#pending.get(event.data.id)?.(event.data)
-      this.#pending.delete(event.data.id)
+      this.pending.get(event.data.id)?.(event.data)
+      this.pending.delete(event.data.id)
     }
     worker.onerror = () => {
-      for (const resolve of this.#pending.values()) {
+      for (const resolve of this.pending.values()) {
         resolve(null)
       }
-      this.#pending.clear()
+      this.pending.clear()
     }
-    this.#worker = worker
+    this.worker = worker
     return worker
   }
 
-  #request(body: RequestBody) {
-    const id = this.#nextId
-    this.#nextId += 1
+  private request(body: RequestBody) {
+    const id = this.nextId
+    this.nextId += 1
     return new Promise<HighlightResponse | null>((resolve) => {
-      this.#pending.set(id, resolve)
-      this.#ensureWorker().postMessage({ ...body, id } as HighlightRequest)
+      this.pending.set(id, resolve)
+      this.ensureWorker().postMessage({ ...body, id } as HighlightRequest)
     })
   }
 
   async highlightRows(path: string, rows: readonly DiffRow[], patchLength: number) {
-    const response = await this.#request({
+    const response = await this.request({
       kind: 'rows',
       path,
       patchLength,
@@ -61,7 +61,7 @@ export class WorkerHighlighter implements Highlighter {
   }
 
   async highlightCode(language: string, code: string) {
-    const response = await this.#request({ kind: 'code', language, code })
+    const response = await this.request({ kind: 'code', language, code })
     if (response?.kind !== 'code') {
       return null
     }
@@ -69,8 +69,8 @@ export class WorkerHighlighter implements Highlighter {
   }
 
   dispose() {
-    this.#worker?.terminate()
-    this.#worker = null
+    this.worker?.terminate()
+    this.worker = null
   }
 }
 

@@ -20,28 +20,28 @@ const buildCacheKey = (at: FileAtCommit) => `${at.repo}@${at.sha}:${at.path}`
 
 /** Blame, file history, commit files and PR commits, kept per commit sha since they never change for one. */
 export class HistoryCache {
-  readonly #blame = new MemoCache<BlameRange[]>(ENTRIES_PER_CACHE)
-  readonly #history = new MemoCache<FileHistoryEntry[]>(ENTRIES_PER_CACHE)
-  readonly #commitFiles = new MemoCache<CommitFile[]>(ENTRIES_PER_CACHE)
-  readonly #pullCommits = new MemoCache<PullCommit[]>(PULL_COMMIT_LISTS)
-  readonly #octokit: () => Promise<Octokit>
+  private readonly blameCache = new MemoCache<BlameRange[]>(ENTRIES_PER_CACHE)
+  private readonly historyCache = new MemoCache<FileHistoryEntry[]>(ENTRIES_PER_CACHE)
+  private readonly commitFilesCache = new MemoCache<CommitFile[]>(ENTRIES_PER_CACHE)
+  private readonly pullCommitsCache = new MemoCache<PullCommit[]>(PULL_COMMIT_LISTS)
+  private readonly octokit: () => Promise<Octokit>
 
   constructor(octokit: () => Promise<Octokit>) {
-    this.#octokit = octokit
+    this.octokit = octokit
   }
 
   blame(at: FileAtCommit) {
-    return this.#blame.get(buildCacheKey(at), async () => fetchBlame(await this.#octokit(), at))
+    return this.blameCache.get(buildCacheKey(at), async () => fetchBlame(await this.octokit(), at))
   }
 
   fileHistory(pull: PullRef, at: FileAtCommit) {
-    return this.#history.get(`${buildPullKey(pull)} ${buildCacheKey(at)}`, async () =>
-      fetchFileHistory(await this.#octokit(), pull, at),
+    return this.historyCache.get(`${buildPullKey(pull)} ${buildCacheKey(at)}`, async () =>
+      fetchFileHistory(await this.octokit(), pull, at),
     )
   }
 
   commitFiles(at: CommitRef) {
-    return this.#commitFiles.get(`${at.repo}@${at.sha}`, async () => fetchCommitFiles(await this.#octokit(), at))
+    return this.commitFilesCache.get(`${at.repo}@${at.sha}`, async () => fetchCommitFiles(await this.octokit(), at))
   }
 
   async commitFilePatch(at: FileAtCommit) {
@@ -50,8 +50,8 @@ export class HistoryCache {
 
   /** Keyed by head sha: a new push lists again. */
   pullCommits(pull: PullRef, headSha: string) {
-    return this.#pullCommits.get(`${buildPullKey(pull)}@${headSha}`, async () =>
-      fetchPullCommits(await this.#octokit(), pull),
+    return this.pullCommitsCache.get(`${buildPullKey(pull)}@${headSha}`, async () =>
+      fetchPullCommits(await this.octokit(), pull),
     )
   }
 }

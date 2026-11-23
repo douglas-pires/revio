@@ -18,15 +18,15 @@ function openInBrowser(url: string) {
 
 /** The single app window: created on demand, receives main → renderer events. */
 export class AppWindow {
-  #win: BrowserWindow | null = null
-  readonly #page: AppPage = {
+  private win: BrowserWindow | null = null
+  private readonly page: AppPage = {
     devUrl: env.ELECTRON_RENDERER_URL,
     indexFile: join(import.meta.dirname, '../renderer/index.html'),
   }
 
   /** Whether `url` is the app's own page, the only one allowed to call the IPC API. */
   isAppPage(url: string | undefined) {
-    return isAppPage(url, this.#page)
+    return isAppPage(url, this.page)
   }
 
   /** Opens the window and returns it. */
@@ -49,7 +49,7 @@ export class AppWindow {
     })
     browserWindow.once('ready-to-show', () => browserWindow.show())
     browserWindow.on('closed', () => {
-      this.#win = null
+      this.win = null
     })
     // Three-finger swipe (with "Swipe between pages" on in System Settings) goes back and forward.
     browserWindow.on('swipe', (_e, direction) => {
@@ -75,26 +75,26 @@ export class AppWindow {
         openInBrowser(event.url)
       }
     })
-    if (this.#page.devUrl) {
-      browserWindow.loadURL(this.#page.devUrl)
+    if (this.page.devUrl) {
+      browserWindow.loadURL(this.page.devUrl)
     } else {
-      browserWindow.loadFile(this.#page.indexFile)
+      browserWindow.loadFile(this.page.indexFile)
     }
-    this.#win = browserWindow
+    this.win = browserWindow
     return browserWindow
   }
 
   send(event: MainEvent) {
-    this.#win?.webContents.send(IPC.event, event)
+    this.win?.webContents.send(IPC.event, event)
   }
 
   show() {
-    this.#win?.show()
+    this.win?.show()
   }
 
   /** Brings the window forward (creating it if needed) and opens a PR in it. */
   focusAndOpen(ref: PullRef) {
-    const browserWindow = this.#win ?? this.create()
+    const browserWindow = this.win ?? this.create()
     if (browserWindow.isMinimized()) {
       browserWindow.restore()
     }

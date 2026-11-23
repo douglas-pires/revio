@@ -54,6 +54,20 @@ interface MentionAlert {
   snippet: MentionSnippet
 }
 
+/** PRs that left the queue are forgotten, so a later re-request alerts again. */
+function forgetLeftQueue(state: AlertState, live: Set<string>) {
+  for (const id of Object.keys(state.requested)) {
+    if (!live.has(id)) {
+      delete state.requested[id]
+    }
+  }
+  for (const id of Object.keys(state.staleAlertedAt)) {
+    if (!live.has(id)) {
+      delete state.staleAlertedAt[id]
+    }
+  }
+}
+
 export interface AlertState {
   /** requestedAt we last alerted about, per PR node id. */
   requested: Record<string, string>
@@ -132,20 +146,6 @@ export function isStaleAlertDue(pr: PullSummary, state: AlertState, repeatHours:
     return true
   }
   return repeatHours > 0 && now - new Date(last).getTime() >= repeatHours * MS_PER_HOUR
-}
-
-/** PRs that left the queue are forgotten, so a later re-request alerts again. */
-export function forgetLeftQueue(state: AlertState, live: Set<string>) {
-  for (const id of Object.keys(state.requested)) {
-    if (!live.has(id)) {
-      delete state.requested[id]
-    }
-  }
-  for (const id of Object.keys(state.staleAlertedAt)) {
-    if (!live.has(id)) {
-      delete state.staleAlertedAt[id]
-    }
-  }
 }
 
 export function formatHours(hours: number) {
