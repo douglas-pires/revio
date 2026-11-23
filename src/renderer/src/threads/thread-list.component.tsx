@@ -258,7 +258,7 @@ function ThreadButtons(props: {
   )
 }
 
-export interface ThreadActions {
+interface ThreadActions {
   onOpen: OpenPull
   onReply: (threadId: string, body: string) => Promise<void>
   onResolve: (threadId: string, resolved: boolean) => Promise<void>

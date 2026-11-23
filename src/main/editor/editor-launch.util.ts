@@ -9,7 +9,7 @@ const makeJetbrainsEditor = (id: string, app: string): EditorSpec => ({
 })
 
 /** How an editor opens a file at a line. */
-export type LaunchStyle =
+type LaunchStyle =
   /** A URL scheme taking `<scheme>://file/<path>:<line>` (VS Code and its forks). */
   | { kind: 'url'; scheme: string }
   /** A command-line tool inside the app bundle taking `<path>:<line>`. */

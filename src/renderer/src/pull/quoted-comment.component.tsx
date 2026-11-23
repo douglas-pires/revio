@@ -32,7 +32,7 @@ function describeQuote({ quote, openedFrom }: QuotedConversation) {
 }
 
 /** How the quoted comment was opened, which sets its heading and whether the reply box starts open. */
-export type QuoteOpener = 'mention' | 'comments-panel'
+type QuoteOpener = 'mention' | 'comments-panel'
 
 /** A comment and how it was opened: from a mention, or by picking it in the comments panel. */
 export interface QuotedConversation {

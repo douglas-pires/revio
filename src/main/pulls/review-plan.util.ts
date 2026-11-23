@@ -10,7 +10,7 @@ function toLineComment(draft: DraftComment & { line: number }): ReviewLineCommen
 }
 
 /** A new line comment in the shape GitHub's "create review" call takes. */
-export interface ReviewLineComment {
+interface ReviewLineComment {
   path: string
   body: string
   line: number

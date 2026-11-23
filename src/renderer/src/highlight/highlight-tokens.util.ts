@@ -91,19 +91,7 @@ function loadLanguage(core: HighlighterCore, lang: string): Promise<boolean> {
   )
 }
 
-/** A colored span. `style` carries both theme colors as CSS variables (see styles.css `.tok`). */
-export interface Tok {
-  text: string
-  style?: Record<string, string> | undefined
-}
-
-/** The parts of a diff row the tokenizer needs (structured-clone friendly). */
-export interface TokenRow {
-  kind: 'hunk' | 'ctx' | 'add' | 'del'
-  text: string
-}
-
-export function detectLanguage(path: string): string | null {
+function detectLanguage(path: string): string | null {
   const name = path.slice(path.lastIndexOf('/') + 1)
   if (FILENAMES[name]) {
     return FILENAMES[name]
@@ -123,7 +111,7 @@ export function detectLanguage(path: string): string | null {
 }
 
 /** The Shiki language for a fence's info string (```ts, ```typescript, ```py…), or null when unknown. */
-export function findLanguageByName(name: string): string | null {
+function findLanguageByName(name: string): string | null {
   const key = name.trim().toLowerCase()
   if (!key) {
     return null
@@ -132,6 +120,18 @@ export function findLanguageByName(name: string): string | null {
     return key
   }
   return detectLanguage(`file.${key}`)
+}
+
+/** A colored span. `style` carries both theme colors as CSS variables (see styles.css `.tok`). */
+export interface Tok {
+  text: string
+  style?: Record<string, string> | undefined
+}
+
+/** The parts of a diff row the tokenizer needs (structured-clone friendly). */
+export interface TokenRow {
+  kind: 'hunk' | 'ctx' | 'add' | 'del'
+  text: string
 }
 
 export class TokenHighlighter {

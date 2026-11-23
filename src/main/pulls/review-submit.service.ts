@@ -5,7 +5,7 @@ import { splitRepo } from '../github/repo-name.util.ts'
 import { planReview, type ReviewPlan } from './review-plan.util.ts'
 
 // biome-ignore lint/style/useConsistentTypeDefinitions: a type alias, unlike an interface, fits Octokit's index-signature parameter type.
-export type ReviewDraft = {
+type ReviewDraft = {
   owner: string
   repo: string
   pull_number: number
@@ -18,7 +18,7 @@ export type ReviewDraft = {
  * File comments can only join a review through GraphQL: create the review pending, add each file as a
  * thread, then submit. A failure deletes the pending review so nothing is left half-posted.
  */
-export async function submitWithFileComments(
+async function submitWithFileComments(
   octokit: Octokit,
   review: ReviewDraft,
   files: ReviewPlan['fileComments'],
@@ -41,11 +41,7 @@ export async function submitWithFileComments(
   }
 }
 
-export async function addFileThread(
-  octokit: Octokit,
-  reviewId: string,
-  { path, body }: { path: string; body: string },
-) {
+async function addFileThread(octokit: Octokit, reviewId: string, { path, body }: { path: string; body: string }) {
   await octokit.graphql(
     `mutation ($review: ID!, $path: String!, $body: String!) {
       addPullRequestReviewThread(input: { pullRequestReviewId: $review, path: $path, body: $body, subjectType: FILE }) { thread { id } }
