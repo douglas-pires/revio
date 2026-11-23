@@ -36,69 +36,69 @@ export interface PollerDeps {
 
 /** Polls GitHub on the configured interval, keeps the latest inbox, and raises review alerts. */
 export class InboxPoller {
-  #latest: Inbox | null = null
-  #timer: NodeJS.Timeout | null = null
-  readonly #inFlight = new InFlight<Inbox>()
-  readonly #deps: PollerDeps
+  private latestInbox: Inbox | null = null
+  private timer: NodeJS.Timeout | null = null
+  private readonly inFlight = new InFlight<Inbox>()
+  private readonly deps: PollerDeps
 
   constructor(deps: PollerDeps) {
-    this.#deps = deps
+    this.deps = deps
   }
 
   get latest() {
-    return this.#latest
+    return this.latestInbox
   }
 
   start() {
-    this.#schedule(0)
+    this.schedule(0)
   }
 
   /** Re-arms the timer after the interval setting changes. */
   reschedule() {
-    this.#schedule(readPollIntervalMs())
+    this.schedule(readPollIntervalMs())
   }
 
   /** Fetches now; concurrent callers share one request. */
   poll(): Promise<Inbox> {
-    return this.#inFlight.run('inbox', () => this.#fetch())
+    return this.inFlight.run('inbox', () => this.fetch())
   }
 
-  #schedule(delay: number) {
-    if (this.#timer) {
-      clearTimeout(this.#timer)
+  private schedule(delay: number) {
+    if (this.timer) {
+      clearTimeout(this.timer)
     }
-    this.#timer = setTimeout(async () => {
+    this.timer = setTimeout(async () => {
       await this.poll().catch(() => {
-        // #fetch already turned the failure into an inbox with an error; nothing else to do.
+        // fetch() already turned the failure into an inbox with an error; nothing else to do.
       })
-      this.#schedule(readPollIntervalMs())
+      this.schedule(readPollIntervalMs())
     }, delay)
   }
 
-  async #fetch(): Promise<Inbox> {
+  private async fetch(): Promise<Inbox> {
     let inbox: Inbox
     try {
-      inbox = await this.#deps.loadInbox()
+      inbox = await this.deps.loadInbox()
       raiseAlerts(inbox, {
         settings: store.settings(),
         state: store.alerts(),
-        notify: (title, body, pr) => this.#notify(title, body, pr),
+        notify: (title, body, pr) => this.notify(title, body, pr),
       })
       store.saveAlerts()
     } catch (failure) {
       const message = readErrorMessage(failure)
       console.error('[revio] poll failed:', message)
-      inbox = keepLatest(this.#latest, message)
+      inbox = keepLatest(this.latestInbox, message)
     }
-    this.#latest = inbox
-    this.#deps.onInbox(inbox)
+    this.latestInbox = inbox
+    this.deps.onInbox(inbox)
     if (process.platform === 'darwin') {
       app.setBadgeCount(inbox.requested.length)
     }
     return inbox
   }
 
-  #notify(title: string, body: string, pr: PullSummary) {
-    showNotification(title, body, { onClick: () => this.#deps.onOpenPull(pr) })
+  private notify(title: string, body: string, pr: PullSummary) {
+    showNotification(title, body, { onClick: () => this.deps.onOpenPull(pr) })
   }
 }

@@ -56,16 +56,16 @@ export const CLI_TOKEN_TTL_MS = MS_PER_MINUTE
 
 /** The GitHub token in use, what it can do, and saving a pasted one. */
 export class GithubTokens {
-  readonly #sources: TokenSources
-  #cliToken: { token: string; at: number } | null = null
+  private readonly sources: TokenSources
+  private cliToken: { token: string; at: number } | null = null
 
   constructor(sources: TokenSources) {
-    this.#sources = sources
+    this.sources = sources
   }
 
   /** Settings first, then .env (from source only), then GH_TOKEN / GITHUB_TOKEN, then the GitHub CLI login. */
   async resolve(): Promise<ResolvedToken> {
-    for (const [source, read] of this.#candidates()) {
+    for (const [source, read] of this.candidates()) {
       // biome-ignore lint/performance/noAwaitInLoops: sources are tried in order and the first token wins; later ones (the gh CLI) must not run.
       const token = await read()
       if (token) {
@@ -95,32 +95,32 @@ export class GithubTokens {
     await inspectToken(token).catch((failure: unknown) => {
       throw new Error(`GitHub rejected this token: ${readErrorMessage(failure)}`)
     })
-    this.#sources.save(token)
+    this.sources.save(token)
   }
 
-  #candidates(): Candidate[] {
-    const sources = this.#sources
+  private candidates(): Candidate[] {
+    const { sources } = this
     return [
       ['settings', sources.readSaved],
       ['dotenv', () => readDotEnvToken(sources.dotEnvPath)],
       ['GH_TOKEN', () => sources.env.GH_TOKEN],
       ['GITHUB_TOKEN', () => sources.env.GITHUB_TOKEN],
-      ['gh-cli', () => this.#readCliToken()],
+      ['gh-cli', () => this.readCliToken()],
     ]
   }
 
   /** The CLI's token, reused for CLI_TOKEN_TTL_MS. Failures are not kept, so a later login is picked up at once. */
-  async #readCliToken(): Promise<string | undefined> {
-    const now = this.#sources.now ?? Date.now
-    if (this.#cliToken && now() - this.#cliToken.at < CLI_TOKEN_TTL_MS) {
-      return this.#cliToken.token
+  private async readCliToken(): Promise<string | undefined> {
+    const now = this.sources.now ?? Date.now
+    if (this.cliToken && now() - this.cliToken.at < CLI_TOKEN_TTL_MS) {
+      return this.cliToken.token
     }
-    const token = await this.#sources.readCliToken().catch(() => '')
+    const token = await this.sources.readCliToken().catch(() => '')
     if (!token) {
-      this.#cliToken = null
+      this.cliToken = null
       return undefined
     }
-    this.#cliToken = { token, at: now() }
+    this.cliToken = { token, at: now() }
     return token
   }
 }

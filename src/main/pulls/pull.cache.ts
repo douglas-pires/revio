@@ -9,35 +9,35 @@ type Fetch = (ref: PullRef) => Promise<PullDetail>
  * Concurrent requests for the same PR share one fetch.
  */
 export class PullCache {
-  readonly #entries = new Map<string, { at: number; pr: PullDetail }>()
-  readonly #inFlight = new InFlight<PullDetail>()
-  readonly #fetch: Fetch
+  private readonly entries = new Map<string, { at: number; pr: PullDetail }>()
+  private readonly inFlight = new InFlight<PullDetail>()
+  private readonly fetch: Fetch
 
   constructor(fetch: Fetch) {
-    this.#fetch = fetch
+    this.fetch = fetch
   }
 
   /** A cached copy no older than `maxAgeMs`, otherwise a fresh fetch (0 always fetches). */
   get(ref: PullRef, maxAgeMs = 0): Promise<PullDetail> {
     const key = buildPullKey(ref)
-    const hit = this.#entries.get(key)
+    const hit = this.entries.get(key)
     if (hit && maxAgeMs > 0 && Date.now() - hit.at <= maxAgeMs) {
       return Promise.resolve(hit.pr)
     }
-    return this.#inFlight.run(key, async () => {
-      const pr = await this.#fetch(ref)
-      this.#entries.set(key, { at: Date.now(), pr })
+    return this.inFlight.run(key, async () => {
+      const pr = await this.fetch(ref)
+      this.entries.set(key, { at: Date.now(), pr })
       return pr
     })
   }
 
   /** Drops the cached copy, e.g. after a change the copy does not show yet. */
   forget(ref: PullRef): void {
-    this.#entries.delete(buildPullKey(ref))
+    this.entries.delete(buildPullKey(ref))
   }
 
   /** The last fetched copy, if any, without hitting the network. */
   peek(ref: PullRef): PullDetail | undefined {
-    return this.#entries.get(buildPullKey(ref))?.pr
+    return this.entries.get(buildPullKey(ref))?.pr
   }
 }

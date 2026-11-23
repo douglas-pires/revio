@@ -79,152 +79,152 @@ function mergeFiles(directory: string, names: string[], local: SyncSnapshot) {
  * conflict copies iCloud made), merges them with this Mac's copy, takes in what changed and writes the result back.
  */
 export class IcloudSync {
-  #status: SyncStatus = OFF
-  #watcher: FSWatcher | null = null
-  #timer: ReturnType<typeof setInterval> | null = null
-  #pending: ReturnType<typeof setTimeout> | null = null
-  readonly #deps: IcloudSyncDeps
+  private currentStatus: SyncStatus = OFF
+  private watcher: FSWatcher | null = null
+  private timer: ReturnType<typeof setInterval> | null = null
+  private pending: ReturnType<typeof setTimeout> | null = null
+  private readonly deps: IcloudSyncDeps
 
   constructor(deps: IcloudSyncDeps) {
-    this.#deps = deps
+    this.deps = deps
   }
 
   get status(): SyncStatus {
-    return this.#status
+    return this.currentStatus
   }
 
-  get #dir() {
-    return join(this.#deps.drive, FOLDER)
+  private get dir() {
+    return join(this.deps.drive, FOLDER)
   }
 
   /** Starts or stops syncing to match the setting, syncing at once when it is on. */
   refresh(): SyncStatus {
-    if (!this.#deps.enabled()) {
+    if (!this.deps.enabled()) {
       this.stop()
-      return this.#set(OFF, false)
+      return this.setStatus(OFF, false)
     }
     const status = this.syncNow()
-    this.#watch()
-    this.#timer ??= setInterval(() => this.syncNow(), SYNC_EVERY_MS)
+    this.watch()
+    this.timer ??= setInterval(() => this.syncNow(), SYNC_EVERY_MS)
     return status
   }
 
   stop() {
-    this.#watcher?.close()
-    this.#watcher = null
-    if (this.#timer) {
-      clearInterval(this.#timer)
-      this.#timer = null
+    this.watcher?.close()
+    this.watcher = null
+    if (this.timer) {
+      clearInterval(this.timer)
+      this.timer = null
     }
-    this.#cancelPending()
+    this.cancelPending()
   }
 
   /** Something synced changed on this Mac: sync shortly, once for a burst of changes. */
   localChanged() {
-    if (this.#deps.enabled()) {
-      this.#later()
+    if (this.deps.enabled()) {
+      this.later()
     }
   }
 
   /** Syncs a change still waiting to go out, e.g. before quitting. */
   flush() {
-    if (this.#pending) {
-      this.#cancelPending()
+    if (this.pending) {
+      this.cancelPending()
       this.syncNow()
     }
   }
 
   syncNow(): SyncStatus {
-    this.#cancelPending()
-    if (!this.#deps.enabled()) {
-      return this.#set(OFF, false)
+    this.cancelPending()
+    if (!this.deps.enabled()) {
+      return this.setStatus(OFF, false)
     }
-    if (!existsSync(this.#deps.drive)) {
-      return this.#set(
+    if (!existsSync(this.deps.drive)) {
+      return this.setStatus(
         { state: 'unavailable', lastSyncedAt: null, message: 'Turn on iCloud Drive for this Mac in System Settings.' },
         false,
       )
     }
     try {
-      return this.#sync()
+      return this.sync()
     } catch (failure) {
-      return this.#set({ ...this.#status, state: 'error', message: readErrorMessage(failure) }, false)
+      return this.setStatus({ ...this.currentStatus, state: 'error', message: readErrorMessage(failure) }, false)
     }
   }
 
-  #sync(): SyncStatus {
-    const directory = this.#dir
+  private sync(): SyncStatus {
+    const directory = this.dir
     mkdirSync(directory, { recursive: true })
     const names = readdirSync(directory)
     if (!names.includes(FILE) && names.includes(NOT_DOWNLOADED)) {
-      ;(this.#deps.download ?? downloadWithBrctl)(join(directory, FILE))
-      return this.#set({ ...this.#status, state: 'downloading', message: null }, false)
+      ;(this.deps.download ?? downloadWithBrctl)(join(directory, FILE))
+      return this.setStatus({ ...this.currentStatus, state: 'downloading', message: null }, false)
     }
     const copies = names.filter((name) => CONFLICT_COPY.test(name))
-    const local = this.#deps.local()
+    const local = this.deps.local()
     const read = mergeFiles(
       directory,
       [FILE, ...copies].filter((fileName) => names.includes(fileName)),
       local,
     )
     if ('error' in read) {
-      return this.#set({ ...this.#status, state: 'error', message: read.error }, false)
+      return this.setStatus({ ...this.currentStatus, state: 'error', message: read.error }, false)
     }
     const { merged, remote } = read
     const applied = !sameSnapshot(merged, local)
     if (applied) {
-      this.#deps.apply(merged)
+      this.deps.apply(merged)
     }
     if (!(remote && sameSnapshot(merged, remote)) || copies.length > 0) {
-      this.#write(merged)
+      this.write(merged)
       for (const copy of copies) {
         rmSync(join(directory, copy), { force: true })
       }
     }
-    return this.#set({ state: 'synced', lastSyncedAt: new Date().toISOString(), message: null }, applied)
+    return this.setStatus({ state: 'synced', lastSyncedAt: new Date().toISOString(), message: null }, applied)
   }
 
   /** Writes the file whole, so iCloud never uploads half of it. */
-  #write(snapshot: SyncSnapshot) {
-    const temporaryPath = join(this.#dir, `.${FILE}.tmp`)
+  private write(snapshot: SyncSnapshot) {
+    const temporaryPath = join(this.dir, `.${FILE}.tmp`)
     writeFileSync(temporaryPath, JSON.stringify(snapshot, null, 2))
-    renameSync(temporaryPath, join(this.#dir, FILE))
+    renameSync(temporaryPath, join(this.dir, FILE))
   }
 
-  #watch() {
-    if (this.#watcher || !existsSync(this.#dir)) {
+  private watch() {
+    if (this.watcher || !existsSync(this.dir)) {
       return
     }
     try {
-      this.#watcher = watch(this.#dir, (_event, name) => {
+      this.watcher = watch(this.dir, (_event, name) => {
         // Our own temporary file comes and goes on every write.
         if (name !== `.${FILE}.tmp`) {
-          this.#later()
+          this.later()
         }
       })
-      this.#watcher.on('error', () => {
-        this.#watcher = null
+      this.watcher.on('error', () => {
+        this.watcher = null
       })
     } catch (failure) {
       console.error('Could not watch the iCloud sync folder; syncing on a timer instead', failure)
     }
   }
 
-  #later() {
-    this.#cancelPending()
-    this.#pending = setTimeout(() => this.syncNow(), SETTLE_MS)
+  private later() {
+    this.cancelPending()
+    this.pending = setTimeout(() => this.syncNow(), SETTLE_MS)
   }
 
-  #cancelPending() {
-    if (this.#pending) {
-      clearTimeout(this.#pending)
-      this.#pending = null
+  private cancelPending() {
+    if (this.pending) {
+      clearTimeout(this.pending)
+      this.pending = null
     }
   }
 
-  #set(status: SyncStatus, applied: boolean): SyncStatus {
-    this.#status = status
-    this.#deps.onStatus(status, applied)
+  private setStatus(status: SyncStatus, applied: boolean): SyncStatus {
+    this.currentStatus = status
+    this.deps.onStatus(status, applied)
     return status
   }
 }

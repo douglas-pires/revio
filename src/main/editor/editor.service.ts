@@ -56,32 +56,32 @@ export function listInstalledEditors(): EditorInfo[] {
 /** Finds and remembers where your clones of GitHub repositories live, and opens their files in your editor. */
 export class EditorService {
   /** Clones found by the last scan, by lowercased `owner/name`. */
-  #clones = new Map<string, string>()
-  readonly #settings: () => { editor: string; codeFolders: string[] }
+  private clones = new Map<string, string>()
+  private readonly settings: () => { editor: string; codeFolders: string[] }
 
   constructor(settings: () => { editor: string; codeFolders: string[] }) {
-    this.#settings = settings
+    this.settings = settings
   }
 
   /** Your code folders (with "~" expanded) and your home folder: where clones are looked for. */
-  #listSearchRoots() {
-    return [...this.#settings().codeFolders.map((folder) => folder.replace(HOME_PREFIX, homedir())), homedir()]
+  private listSearchRoots() {
+    return [...this.settings().codeFolders.map((folder) => folder.replace(HOME_PREFIX, homedir())), homedir()]
   }
 
   /** The clone of `repo` in your code folders or your home folder (up to three folders below them), or null. */
   findClone(repo: string): string | null {
     const key = repo.toLowerCase()
-    const known = this.#clones.get(key)
+    const known = this.clones.get(key)
     if (known && existsSync(known)) {
       return known
     }
     // Not found, or moved since: scan again, which also picks up clones made since the last scan.
-    this.#clones = findClones(this.#listSearchRoots())
-    return this.#clones.get(key) ?? null
+    this.clones = findClones(this.listSearchRoots())
+    return this.clones.get(key) ?? null
   }
 
-  #editor(): { spec: EditorSpec; appPath: string } {
-    const chosen = this.#settings().editor
+  private editor(): { spec: EditorSpec; appPath: string } {
+    const chosen = this.settings().editor
     let order = EDITORS
     if (chosen) {
       order = EDITORS.filter((editor) => editor.id === chosen)
@@ -111,7 +111,7 @@ export class EditorService {
       throw new Error(`${target.path} is not in ${clone}. Check out the PR's branch there to open it.`)
     }
     const line = validateLine(target.line)
-    const { spec, appPath } = this.#editor()
+    const { spec, appPath } = this.editor()
     const launch = launchFor(spec, appPath, file, line)
     if ('url' in launch) {
       await shell.openExternal(launch.url)
