@@ -1,6 +1,7 @@
 import type { AskThread, BriefingRecord } from './claude.types.ts'
 import type { EditorInfo, EditorTarget } from './editor.types.ts'
 import type { MainEvent } from './event.types.ts'
+import type { FeedbackInput, FeedbackResult, SystemInfo } from './feedback.types.ts'
 import type { CiState, CommitCheck, CommitDetail, LogPage, PullLogQuery } from './git-log.types.ts'
 import type { Guideline, ResolvedGuideline } from './guideline.types.ts'
 import type { BlameRange, CommitFile, CommitRef, FileAtCommit, FileHistoryEntry, PullCommit } from './history.types.ts'
@@ -98,6 +99,13 @@ export interface RevioApi {
   getCommitCi: (repo: string, hashes: string[]) => Promise<Record<string, CiState>>
   /** Each GitHub check on a commit, failing first. */
   getCommitChecks: (repo: string, hash: string) => Promise<CommitCheck[]>
+
+  /** Basic facts about this Mac and this Revio, shown before a bug report includes them. */
+  getSystemInfo: () => Promise<SystemInfo>
+  /** "owner/name" of the repository feedback goes to, or null when this build does not know it. */
+  getFeedbackRepo: () => Promise<string | null>
+  /** Opens an issue for a bug report or feature request, or its prefilled form in the browser when that fails. */
+  submitFeedback: (input: FeedbackInput) => Promise<FeedbackResult>
 
   openExternal: (url: string) => Promise<void>
   onEvent: (listener: (event: MainEvent) => void) => () => void

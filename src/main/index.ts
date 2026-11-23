@@ -103,7 +103,7 @@ const sync = new IcloudSync({
   onStatus: (status, applied) => window.send({ type: 'sync', status, applied }),
 })
 store.onSyncedChange(() => sync.localChanged())
-registerApi({ store, tokens, poller, pulls, history, updates, threads, mentions, editor, sync, window })
+registerApi({ store, tokens, poller, pulls, history, updates, threads, mentions, editor, sync, window, releaseSource })
 
 app.setName('Revio')
 

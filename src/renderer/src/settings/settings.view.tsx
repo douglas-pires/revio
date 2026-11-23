@@ -5,6 +5,7 @@ import { Screen, ScreenBody, ScreenHeader } from '../common/screen.component.tsx
 import { useAsyncAction } from '../common/use-async-action.hook.ts'
 import { UpdateSettings } from '../updates/update-settings.component.tsx'
 import { EditorSettings } from './editor-settings.component.tsx'
+import { FeedbackSettings } from './feedback-settings.component.tsx'
 import { GithubTokenSettings } from './github-token-settings.component.tsx'
 import { Group, Num, Row, Toggle } from './settings-form.component.tsx'
 import { SyncSettings } from './sync-settings.component.tsx'
@@ -199,7 +200,7 @@ export function Settings() {
       header={
         <ScreenHeader
           title="Settings"
-          subtitle="GitHub, alerts, your editor, Claude and sync"
+          subtitle="GitHub, alerts, your editor, Claude, sync and feedback"
           actions={Boolean(message) && <span className="text-muted">{message}</span>}
         />
       }
@@ -234,6 +235,10 @@ export function Settings() {
 
           <Group title="Sync">
             <SyncSettings settings={settings} status={syncStatus} update={update} />
+          </Group>
+
+          <Group title="Feedback">
+            <FeedbackSettings />
           </Group>
         </div>
       </ScreenBody>

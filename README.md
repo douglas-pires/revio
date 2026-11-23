@@ -65,6 +65,11 @@ Check for Updates…** and **Settings → Updates** check on demand. When a newe
 **Download** (the dmg for this Mac) and **What's new**; install it by dragging the new Revio into Applications.
 Only releases are offered, not the pre-releases built from every merge; see [Releasing Revio](docs/releasing.md).
 
+**Feedback:** **Settings → Feedback** opens a bug report or feature request as an issue on Revio's GitHub
+repository, as your GitHub account. A bug report can add basic system info (Revio version, macOS version, chip and
+memory, Electron, Chrome and Node versions, locale), shown before you send it. When your token cannot open issues
+there, GitHub's new-issue form opens in the browser, filled in.
+
 All data stays on your Mac, in `~/Library/Application Support/Revio/`.
 
 ## Features
@@ -151,6 +156,10 @@ bar shows the open count and hides or shows the panel (remembered). The Ask Clau
 - "Viewed" resets automatically when a file changes in a new push.
 - **⌘F** finds text in the changed files, including files you have not scrolled to yet: **↵** / **⌘G** next match,
   **⇧↵** / **⇧⌘G** previous, **Aa** to match case, **Esc** to close.
+- **⌘P** goes to a changed file: type part of its path (matched fuzzily, file names first), then **↵**.
+- Drag the inner edge of a side panel (files, comments, file history, the Claude chat, commit details, guides) to
+  make it wider or narrower; **← / →** on the focused edge works too, and double-click returns to the default width.
+  Each panel remembers its width, up to half the window.
 - **Keyboard:** `j` / `k` next / previous file, `v` toggles viewed and jumps to the next unviewed file (ignored while typing).
 - **Unified / Split** toggle above the files; code is syntax highlighted (Shiki, per hunk, no WebAssembly).
 - Click a branch name in the PR header to copy it (e.g. to `git checkout` it locally).

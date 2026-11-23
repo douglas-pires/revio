@@ -69,6 +69,9 @@ const methods = [
   'getCommitDetail',
   'getCommitCi',
   'getCommitChecks',
+  'getSystemInfo',
+  'getFeedbackRepo',
+  'submitFeedback',
   'openExternal',
   'onEvent',
 ] as const satisfies readonly (keyof RevioApi)[]
