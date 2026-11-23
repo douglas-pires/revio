@@ -4,6 +4,7 @@ import { CopyButton } from '../common/copy-button.component.tsx'
 import { formatAge, joinClassNames, readErrorMessage } from '../common/format.util.ts'
 import { toggleOpen } from '../common/group.util.ts'
 import { PanelHeader } from '../common/panel-header.component.tsx'
+import { ResizablePanel } from '../common/resizable-panel.component.tsx'
 import { parsePatch } from './diff.util.ts'
 import { StaticDiff } from './static-diff.component.tsx'
 
@@ -134,7 +135,14 @@ export function FileHistoryPanel(props: {
   }, [repo, headSha, path, pull])
 
   return (
-    <aside data-file-history={true} className="flex w-96 shrink-0 flex-col border-l border-line bg-panel">
+    <ResizablePanel
+      name="file-history"
+      edge="left"
+      defaultWidth={384}
+      minWidth={280}
+      label="Resize the file history"
+      className="flex flex-col border-l border-line bg-panel"
+    >
       <PanelHeader
         title="History"
         detail={
@@ -164,6 +172,6 @@ export function FileHistoryPanel(props: {
           ))}
         </ol>
       </div>
-    </aside>
+    </ResizablePanel>
   )
 }

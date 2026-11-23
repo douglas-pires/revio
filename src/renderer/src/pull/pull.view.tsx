@@ -9,6 +9,7 @@ import { PullHeader } from './pull-header.component.tsx'
 import { PullLoading } from './pull-loading.component.tsx'
 import { PullSidePanels } from './pull-side-panels.component.tsx'
 import { PullTabs } from './pull-tabs.component.tsx'
+import { QuickOpen } from './quick-open.component.tsx'
 import { StackBar } from './stack-bar.component.tsx'
 import { UnsentScopeContext } from './unsent-comments.util.ts'
 import type { CommitPick } from './use-pull-git-log.hook.ts'
@@ -136,6 +137,14 @@ export function PullView(props: PullViewProps) {
                 openPath={readOpenPath(view)}
                 commitPick={commitPick}
               />
+              {Boolean(view.quickOpen.open) && (
+                <QuickOpen
+                  files={view.orderedFiles}
+                  viewed={view.local.viewed}
+                  onPick={(path) => view.nav.goTo(path)}
+                  onClose={view.quickOpen.close}
+                />
+              )}
             </div>
           </ThreadFoldContext>
         </UnsentScopeContext>

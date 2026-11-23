@@ -2,6 +2,7 @@ import type { CiState, CommitDetail, FileChange, FileChangeStatus } from '@share
 import { CopyButton } from '../common/copy-button.component.tsx'
 import { countOf, joinClassNames } from '../common/format.util.ts'
 import { groupBy } from '../common/group.util.ts'
+import { ResizablePanel } from '../common/resizable-panel.component.tsx'
 import { useCommitChecks } from './use-commit-extras.hook.ts'
 
 const STATUS_LOOK: Record<FileChangeStatus, { className: string; title: string }> = {
@@ -177,24 +178,41 @@ export function CommitDetailPanel(props: {
 }) {
   if (!props.hash) {
     return (
-      <aside className="flex w-96 shrink-0 items-center justify-center border-l border-line bg-panel p-6 text-center text-muted">
+      <ResizablePanel
+        name="commit-detail"
+        edge="left"
+        defaultWidth={384}
+        minWidth={280}
+        label="Resize the commit details"
+        className="flex items-center justify-center border-l border-line bg-panel p-6 text-center text-muted"
+      >
         Pick a commit to see its files and message.
-      </aside>
+      </ResizablePanel>
     )
   }
   const { detail } = props
   return (
-    <aside className="flex w-96 shrink-0 flex-col overflow-y-auto border-l border-line bg-panel">
-      {Boolean(props.error) && <div className="p-3 text-[12px] text-danger">{props.error}</div>}
-      {!(detail || props.error) && <div className="p-3 text-[12px] text-muted">Reading the commit…</div>}
-      {detail !== null && (
-        <>
-          <div className="border-b border-line p-3">
-            <ChangedFiles files={detail.files} openFile={props.openFile} onOpenFile={props.onOpenFile} />
-          </div>
-          <CommitSummary repo={props.repo} detail={detail} ci={props.ci} />
-        </>
-      )}
-    </aside>
+    <ResizablePanel
+      name="commit-detail"
+      edge="left"
+      defaultWidth={384}
+      minWidth={280}
+      label="Resize the commit details"
+      className="border-l border-line bg-panel"
+    >
+      {/* The scrolling lives inside, so the resize edge on the panel's border is not clipped. */}
+      <div className="h-full overflow-y-auto">
+        {Boolean(props.error) && <div className="p-3 text-[12px] text-danger">{props.error}</div>}
+        {!(detail || props.error) && <div className="p-3 text-[12px] text-muted">Reading the commit…</div>}
+        {detail !== null && (
+          <>
+            <div className="border-b border-line p-3">
+              <ChangedFiles files={detail.files} openFile={props.openFile} onOpenFile={props.onOpenFile} />
+            </div>
+            <CommitSummary repo={props.repo} detail={detail} ci={props.ci} />
+          </>
+        )}
+      </div>
+    </ResizablePanel>
   )
 }

@@ -5,6 +5,7 @@ import { ListSkeleton } from '../common/list-skeleton.component.tsx'
 import { MascotLoading } from '../common/mascot-loading.component.tsx'
 import type { OpenPull } from '../common/navigation.types.ts'
 import { PanelHeader } from '../common/panel-header.component.tsx'
+import { ResizablePanel } from '../common/resizable-panel.component.tsx'
 import { ScreenHeader } from '../common/screen.component.tsx'
 import { BranchNames } from './branch-names.component.tsx'
 import type { PullTab } from './pull-tabs.util.ts'
@@ -62,12 +63,18 @@ export function PullLoading(props: {
       <LoadingHeader pull={props.pull} />
       {props.stack !== null && <StackBar stack={props.stack} pull={props.pull} onOpen={props.onOpenPull} />}
       <div className="flex min-h-0 flex-1">
-        <aside className="flex w-72 shrink-0 flex-col border-r border-line bg-panel">
+        <ResizablePanel
+          name="files"
+          edge="right"
+          defaultWidth={288}
+          label="Resize the files list"
+          className="flex flex-col border-r border-line bg-panel"
+        >
           <PanelHeader title="Files" />
           <div className="p-3">
             <ListSkeleton rows={FILE_ROWS} rowHeight="h-5" onPanel={true} />
           </div>
-        </aside>
+        </ResizablePanel>
         <div className="flex min-w-0 flex-1 flex-col">
           <InnerTabs tabs={listPullTabs(undefined)} value={props.tab} onChange={props.onTab} />
           <MascotLoading label={`Reading #${props.pull.number}…`} />

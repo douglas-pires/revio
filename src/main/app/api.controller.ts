@@ -8,6 +8,7 @@ import { generateBriefing } from '../claude/briefing.service.ts'
 import { isWebUrl } from '../common/web-url.util.ts'
 import type { EditorService } from '../editor/editor.service.ts'
 import { listInstalledEditors } from '../editor/editor.service.ts'
+import { buildFeedbackApi } from '../feedback/feedback.api.ts'
 import { getGithubClient, resetClient } from '../github/github.client.ts'
 import type { GithubTokens } from '../github/github-tokens.service.ts'
 import { buildGitLogApi } from '../gitlog/git-log.api.ts'
@@ -26,6 +27,7 @@ import type { store as appStore } from '../store/store.service.ts'
 import type { IcloudSync } from '../sync/icloud-sync.service.ts'
 import type { ThreadCache } from '../threads/threads.cache.ts'
 import { replyToThread, setThreadResolved } from '../threads/threads.service.ts'
+import type { ReleaseSource } from '../updates/release.util.ts'
 import type { UpdatePoller } from '../updates/update.poller.ts'
 import type { AppWindow } from './app.window.ts'
 
@@ -223,6 +225,8 @@ export interface ApiDeps {
   editor: EditorService
   sync: IcloudSync
   window: AppWindow
+  /** Revio's own repository: where feedback goes. */
+  releaseSource: ReleaseSource | null
 }
 
 /** Answers renderer calls on the single IPC channel by delegating to the services. */
@@ -238,6 +242,7 @@ export function registerApi(deps: ApiDeps) {
     ...buildGuidelinesApi(deps.store, deps.poller),
     ...buildClaudeHandlers(deps),
     ...buildGitLogApi(),
+    ...buildFeedbackApi(deps.releaseSource),
     listEditors: () => listInstalledEditors(),
     openInEditor: (target) => deps.editor.open(target),
     openExternal: async (url) => {

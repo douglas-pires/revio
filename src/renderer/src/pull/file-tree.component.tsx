@@ -2,6 +2,7 @@ import type { PullFile } from '@shared/pull.types.ts'
 import { memo } from 'react'
 import { joinClassNames } from '../common/format.util.ts'
 import { PanelHeader } from '../common/panel-header.component.tsx'
+import { ResizablePanel } from '../common/resizable-panel.component.tsx'
 import { groupByDir } from './files.util.ts'
 
 const PERCENT = 100
@@ -18,7 +19,13 @@ export const FileTree = memo(function FileTreeView(props: {
 }) {
   const viewedCount = props.files.filter((file) => props.viewed[file.path] === file.sha).length
   return (
-    <aside className="flex w-72 shrink-0 flex-col border-r border-line bg-panel">
+    <ResizablePanel
+      name="files"
+      edge="right"
+      defaultWidth={288}
+      label="Resize the files list"
+      className="flex flex-col border-r border-line bg-panel"
+    >
       <PanelHeader
         title="Files"
         detail={props.files.length}
@@ -80,6 +87,6 @@ export const FileTree = memo(function FileTreeView(props: {
           </li>
         ))}
       </ul>
-    </aside>
+    </ResizablePanel>
   )
 })

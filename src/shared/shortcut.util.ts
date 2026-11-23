@@ -27,6 +27,7 @@ const SYMBOLS: Record<string, string> = {
 /** Shortcuts Revio or macOS already use, and what for; a new shortcut on one of them would clash. */
 const RESERVED_SHORTCUTS: Record<string, string> = {
   'Cmd+F': 'Find in the changed files',
+  'Cmd+P': 'Go to a changed file',
   'Cmd+G': 'Next find match',
   'Cmd+Shift+G': 'Previous find match',
   'Cmd+Enter': 'Send a comment or review',
