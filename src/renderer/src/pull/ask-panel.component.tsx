@@ -5,6 +5,7 @@ import { CopyButton } from '../common/copy-button.component.tsx'
 import { Markdown } from '../common/markdown.component.tsx'
 import { addPositions } from '../common/numbered-lines.util.ts'
 import { PanelHeader } from '../common/panel-header.component.tsx'
+import { ResizablePanel } from '../common/resizable-panel.component.tsx'
 import { ToggleButton } from '../common/toggle-button.component.tsx'
 import { FinishedActivity, PendingAnswer } from './ask-activity.component.tsx'
 import { PendingContext, SentContext } from './ask-context.component.tsx'
@@ -230,6 +231,26 @@ function AskHeader(props: { chats: number; listing: boolean; setListing: (on: bo
   )
 }
 
+/** Every chat on this PR, in place of the current one; picking the current one goes back to it. */
+function ChatList({ props, onBack }: { props: AskPanelProps; onBack: () => void }) {
+  return (
+    <div className="min-h-0 flex-1 overflow-y-auto px-3 py-3">
+      <AskHistory
+        threads={props.history}
+        currentId={props.thread.id}
+        onOpen={(id) => {
+          if (id === props.thread.id) {
+            onBack()
+          } else {
+            props.onSelect(id)
+          }
+        }}
+        onDelete={props.onDelete}
+      />
+    </div>
+  )
+}
+
 export function AskPanel(props: AskPanelProps) {
   const { thread } = props
   const chat = useAskConversation(props.pull, thread, props.onChange)
@@ -249,24 +270,16 @@ export function AskPanel(props: AskPanelProps) {
   const stick = useChatScroll(scroller, thread, chat.pending)
 
   return (
-    <aside className="flex w-[440px] shrink-0 flex-col border-l border-line bg-panel">
+    <ResizablePanel
+      name="ask"
+      edge="left"
+      defaultWidth={440}
+      minWidth={320}
+      label="Resize the Claude chat"
+      className="flex flex-col border-l border-line bg-panel"
+    >
       <AskHeader chats={props.history.length} listing={listing} setListing={setListing} onClose={props.onClose} />
-      {Boolean(listing) && (
-        <div className="min-h-0 flex-1 overflow-y-auto px-3 py-3">
-          <AskHistory
-            threads={props.history}
-            currentId={thread.id}
-            onOpen={(id) => {
-              if (id === thread.id) {
-                setListing(false)
-              } else {
-                props.onSelect(id)
-              }
-            }}
-            onDelete={props.onDelete}
-          />
-        </div>
-      )}
+      {Boolean(listing) && <ChatList props={props} onBack={() => setListing(false)} />}
       {!listing && (
         <div className="relative flex min-h-0 flex-1 flex-col">
           <AskConversation props={props} chat={chat} scroller={scroller} onScroll={stick.onScroll} />
@@ -293,6 +306,6 @@ export function AskPanel(props: AskPanelProps) {
         />
       )}
       {!listing && <QuestionBox input={input} thread={thread} chat={chat} onClose={props.onClose} />}
-    </aside>
+    </ResizablePanel>
   )
 }

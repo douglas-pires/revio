@@ -3,6 +3,7 @@ import { memo, useState } from 'react'
 import { joinClassNames } from '../common/format.util.ts'
 import { groupBy } from '../common/group.util.ts'
 import { PanelHeader } from '../common/panel-header.component.tsx'
+import { ResizablePanel } from '../common/resizable-panel.component.tsx'
 import { ToggleButton } from '../common/toggle-button.component.tsx'
 import { CommentSearch } from './comment-search.component.tsx'
 import { CommentThreadItem, type JumpTo } from './comment-thread-item.component.tsx'
@@ -140,7 +141,14 @@ export const CommentsPanel = memo(function CommentsPanelView(props: {
   const conversation = searchConversation(props.conversation, query)
   const shownCount = visible.length + drafts.length + conversation.length
   return (
-    <aside className="flex w-80 shrink-0 flex-col border-l border-line bg-panel">
+    <ResizablePanel
+      name="comments"
+      edge="left"
+      defaultWidth={320}
+      minWidth={260}
+      label="Resize the comments panel"
+      className="flex flex-col border-l border-line bg-panel"
+    >
       <PanelHeader
         title="Comments"
         detail={
@@ -177,6 +185,6 @@ export const CommentsPanel = memo(function CommentsPanelView(props: {
           onJump={props.onJump}
         />
       </div>
-    </aside>
+    </ResizablePanel>
   )
 })

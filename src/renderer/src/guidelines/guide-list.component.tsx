@@ -1,5 +1,6 @@
 import type { Guideline } from '@shared/guideline.types.ts'
 import { joinClassNames } from '../common/format.util.ts'
+import { ResizablePanel } from '../common/resizable-panel.component.tsx'
 import { SectionHeading } from '../common/section-heading.component.tsx'
 import type { GuideDrafts } from './guide-drafts.util.ts'
 import { buildDefaultTitle, type Draft, groupGuides } from './guidelines.util.ts'
@@ -23,7 +24,13 @@ export function GuideList({
 }) {
   const newGuide = drafts.new
   return (
-    <aside className="flex w-72 shrink-0 flex-col border-r border-line bg-panel">
+    <ResizablePanel
+      name="guides"
+      edge="right"
+      defaultWidth={288}
+      label="Resize the guides list"
+      className="flex flex-col border-r border-line bg-panel"
+    >
       <div className="min-h-0 flex-1 overflow-y-auto px-2 py-4">
         {newGuide !== undefined && (
           <button
@@ -67,6 +74,6 @@ export function GuideList({
           Claude alongside the files it covers.
         </p>
       </div>
-    </aside>
+    </ResizablePanel>
   )
 }
