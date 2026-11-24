@@ -18,6 +18,7 @@ import { buildGuidelinesApi } from '../guidelines/guidelines.api.ts'
 import { resolveGuidelines } from '../guidelines/guidelines.service.ts'
 import type { HistoryCache } from '../history/history.cache.ts'
 import type { InboxPoller } from '../inbox/inbox.poller.ts'
+import { listMentionables } from '../mentionables/mentionables.service.ts'
 import type { MentionWatcher } from '../mentions/mentions.watcher.ts'
 import type { PullCache } from '../pulls/pull.cache.ts'
 import { fetchFileAt } from '../pulls/pull.service.ts'
@@ -249,6 +250,7 @@ export function registerApi(deps: ApiDeps) {
     ...buildGitLogApi(),
     ...buildFeedbackApi(deps.releaseSource),
     listEmojis: () => listEmojis(),
+    listMentionables: (repo) => listMentionables(repo),
     listEditors: () => listInstalledEditors(),
     openInEditor: (target) => deps.editor.open(target),
     openExternal: async (url) => {

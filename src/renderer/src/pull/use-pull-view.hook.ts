@@ -4,6 +4,7 @@ import { useCallback, useMemo, useState } from 'react'
 import { groupBy } from '../common/group.util.ts'
 import type { PullTarget } from '../common/navigation.types.ts'
 import { useStoredChoice } from '../common/use-stored-choice.hook.ts'
+import type { MentionScope } from '../mentionables/mention-scope.context.ts'
 import { groupCommentThreads } from './comment-threads.util.ts'
 import type { AskSelection, DiffView } from './diff-file.types.ts'
 import { collectNewSideLines, computeInitialCollapsed, groupByDir } from './files.util.ts'
@@ -60,6 +61,15 @@ function usePullIndexes(pr: ReturnType<typeof usePullDetail>['pr'], local: PullL
     rightLines: useMemo(() => collectNewSideLines(pr), [pr]),
     patchOf: useCallback((path: string) => pr?.files.find((file) => file.path === path)?.patch, [pr]),
   }
+}
+
+/** Where you are writing, for suggesting mentions: the repository, and the PR's author and commenters. */
+function useMentionScope(pull: PullRef, pr: ReturnType<typeof usePullDetail>['pr']): MentionScope {
+  return useMemo(() => {
+    const comments = [...(pr?.comments ?? []), ...(pr?.conversation ?? [])]
+    const authors = comments.map((comment) => comment.author)
+    return { repo: pull.repo, participants: new Set([pr?.author ?? '', ...authors]) }
+  }, [pull, pr])
 }
 
 /** Which tab, which side panel and which display choices the PR view shows. */
@@ -209,6 +219,7 @@ export function usePullView(pullRef: PullRef, initialTarget: PullTarget | undefi
 
   return {
     pull,
+    mentionScope: useMentionScope(pull, detail.pr),
     ...choices,
     ...detail,
     ...local,
