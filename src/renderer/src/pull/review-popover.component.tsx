@@ -3,6 +3,8 @@ import { formatShortcut, matchesShortcut } from '@shared/shortcut.util.ts'
 import { useState } from 'react'
 import { joinClassNames, readErrorMessage } from '../common/format.util.ts'
 import { useShortcuts } from '../shortcuts/shortcuts.context.ts'
+import { SuggestingTextBox } from '../suggestions/suggesting-text-box.component.tsx'
+import { useCommentSuggesters } from './use-comment-suggesters.hook.ts'
 
 type ReviewState = NonNullable<PullDetail['myReview']>['state']
 
@@ -151,6 +153,7 @@ export function ReviewPopover(props: {
   // A plain comment review needs something to say: a summary or at least one pending comment.
   const empty = event === 'COMMENT' && !props.body.trim() && props.draftCount === 0
   const { shortcuts } = useShortcuts()
+  const suggesters = useCommentSuggesters()
   const canSubmit = !(busy || empty)
   const submitIfReady = () => {
     if (canSubmit) {
@@ -159,7 +162,8 @@ export function ReviewPopover(props: {
   }
   return (
     <div className="absolute top-full right-0 z-30 mt-2 w-[440px] rounded-lg border border-line bg-panel p-3 shadow-2xl">
-      <textarea
+      <SuggestingTextBox
+        suggesters={suggesters}
         // biome-ignore lint/a11y/noAutofocus: the popover opens because the reviewer chose to finish the review; focus goes where they type.
         autoFocus={true}
         className="input mb-2 min-h-28 resize-y"
