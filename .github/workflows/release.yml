@@ -1,13 +1,14 @@
 # Builds an installable Revio for macOS.
 #
-# - Every push to main publishes a pre-release, e.g. 0.2.0-dev.43: something to install and try. GitHub never marks a
+# - Every push to main publishes a pre-release of the next patch, e.g. 0.2.4-dev.43: something to install and try. GitHub never marks a
 #   pre-release as the latest release, so the app's "Check for updates" does not offer it to anyone.
 # - A release happens only when you ask for one: run this workflow by hand (Actions → Release → Run workflow, or
-#   `gh workflow run release.yml`), or push a tag like v0.2.0. It publishes a normal release with every change since
+#   `gh workflow run release.yml`), or push a tag like v0.2.4. It publishes a normal release with every change since
 #   the last one, and the app offers it as an update.
 #
-# The version to release is package.json's `version` (the next release), unless you give one when running the
-# workflow or push a tag. After releasing, raise package.json's version to the next one. See docs/releasing.md.
+# Versions follow the highest release tag: running the workflow raises it by the patch, minor or major you pick, unless
+# you type a version or push a tag. package.json's version is a placeholder that this sets for the build, so nothing
+# needs raising after a release. See docs/releasing.md.
 #
 # Signing and notarization use these repository secrets; without all of them the build is ad-hoc signed, which macOS
 # blocks on first launch:
@@ -24,8 +25,13 @@ on:
     tags: ["v*"]
   workflow_dispatch:
     inputs:
+      bump:
+        description: What to raise from the last release
+        type: choice
+        options: [patch, minor, major]
+        default: patch
       version:
-        description: Version to release, e.g. 0.2.0 (empty = package.json's version)
+        description: An exact version instead, e.g. 0.3.0
         required: false
         type: string
 
@@ -66,9 +72,16 @@ jobs:
         id: version
         env:
           REQUESTED: ${{ inputs.version }}
+          BUMP: ${{ inputs.bump || 'patch' }}
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: |
-          next=$(node -p "require('./package.json').version")
+          last=$(git tag --list 'v*' --sort=-v:refname | grep -E '^v[0-9]+\.[0-9]+\.[0-9]+$' | head -1 || true)
+          IFS=. read -r major minor patch <<< "${last#v}"
+          case "$BUMP" in
+            major) next="$((major + 1)).0.0" ;;
+            minor) next="$((major)).$((minor + 1)).0" ;;
+            *) next="$((major)).$((minor)).$((patch + 1))" ;;
+          esac
           if [ "$GITHUB_REF_TYPE" = tag ]; then
             version="${GITHUB_REF_NAME#v}"
             kind=release
@@ -85,7 +98,7 @@ jobs:
             exit 1
           fi
           if [ "$kind" = release ] && gh release view "v$version" >/dev/null 2>&1; then
-            echo "::error::v$version is already released. Raise package.json's version, or pass a newer one."
+            echo "::error::v$version is already released. Give a newer version."
             exit 1
           fi
           pnpm pkg set version="$version"
