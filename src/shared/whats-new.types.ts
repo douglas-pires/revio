@@ -1,10 +1,12 @@
-/** One change of a release, from its Conventional Commits line. */
+/** One change of a release, from its line in the notes. */
 export interface ReleaseChange {
   text: string
   /** The area it is about, when the line names one. */
   scope: string | null
   /** It changes how something worked. */
   breaking: boolean
+  /** The pull request that made it; null for a commit without one. */
+  pull: { number: number; url: string } | null
 }
 
 /** What a release brought, sorted by what it means to someone using Revio. */

@@ -22,6 +22,7 @@ export async function fetchReleaseNotes(octokit: Octokit, source: ReleaseSource)
           url: release.html_url,
         },
         release.body ?? '',
+        `https://github.com/${source.owner}/${source.repo}`,
       ),
     )
 }

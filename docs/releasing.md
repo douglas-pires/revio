@@ -29,6 +29,12 @@ Mac calls itself, so it is offered the latest release as an update.
 
 The workflow stops with an error if that version is already released, or isn't a plain `major.minor.patch`.
 
+## What the notes say
+
+The notes list each pull request since the last release by its title, with its number, so a clear title is all they
+need. Revio's What's new page shows them sorted: `feat` and `perf` as Added, `fix` as Fixed, the rest folded away. Edit
+the release on GitHub to add a paragraph or an image above the list; it shows there too.
+
 ## How it reaches people
 
 Installed copies of Revio install a release themselves: they read `latest-mac.yml` from it, download the zip, check it
