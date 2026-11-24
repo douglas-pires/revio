@@ -1,12 +1,6 @@
-import { SectionHeading } from '../common/section-heading.component.tsx'
-
-export function Group({ title, children }: { title: string; children: React.ReactNode }) {
-  return (
-    <section>
-      <SectionHeading title={title} />
-      <div className="card divide-y divide-line">{children}</div>
-    </section>
-  )
+/** A card of settings, one per row. */
+export function Group({ children }: { children: React.ReactNode }) {
+  return <div className="card divide-y divide-line">{children}</div>
 }
 
 export function Row({ label, hint, children }: { label: string; hint?: string; children: React.ReactNode }) {
