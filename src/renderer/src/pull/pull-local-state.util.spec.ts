@@ -33,6 +33,10 @@ describe('pull local state updates', () => {
     expect(setViewed({ 'a.ts': 'sha' }, 'a.ts', null)).toEqual({})
   })
 
+  it('puts the file marked last at the end', () => {
+    expect(Object.keys(setViewed({ 'a.ts': 'old', 'b.ts': 'sha' }, 'a.ts', 'sha'))).toEqual(['b.ts', 'a.ts'])
+  })
+
   it('keeps asked conversations first and drops unasked ones', () => {
     expect(saveThread([makeThread('a', true)], makeThread('b', true)).map((savedThread) => savedThread.id)).toEqual([
       'b',

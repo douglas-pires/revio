@@ -13,13 +13,12 @@ export function updateDraftBody(drafts: readonly DraftComment[], id: string, bod
 
 /** Viewed files after marking one viewed at `sha`, or not viewed (null). */
 export function setViewed(viewed: Readonly<Record<string, string>>, path: string, sha: string | null) {
-  const next = { ...viewed }
+  const { [path]: _previous, ...others } = viewed
   if (sha === null) {
-    delete next[path]
-  } else {
-    next[path] = sha
+    return others
   }
-  return next
+  // Last in the record, which keeps the order files were marked in.
+  return { ...others, [path]: sha }
 }
 
 /** Saved conversations with this one first; one with no questions yet is not kept. */

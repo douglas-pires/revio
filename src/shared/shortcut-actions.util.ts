@@ -15,6 +15,7 @@ const ACTIONS = {
   'next-file': { label: 'Next file', group: 'Files changed', defaultShortcut: 'J' },
   'previous-file': { label: 'Previous file', group: 'Files changed', defaultShortcut: 'K' },
   'toggle-viewed': { label: 'Mark the file viewed, or not', group: 'Files changed', defaultShortcut: 'V' },
+  unview: { label: 'Unview the file and select it', group: 'Files changed', defaultShortcut: 'Cmd+Shift+V' },
   'copy-file': { label: 'Copy the selected file’s path', group: 'Files changed', defaultShortcut: 'Cmd+Shift+C' },
   'open-in-editor': { label: 'Open in editor', group: 'Files changed', defaultShortcut: 'Cmd+O' },
 } as const satisfies Record<string, Omit<ShortcutAction, 'id'>>

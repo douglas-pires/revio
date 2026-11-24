@@ -1,6 +1,8 @@
 import type { PullFile } from '@shared/pull.types.ts'
+import { showNotice } from '../common/notice.service.ts'
 import { useShortcut } from '../shortcuts/use-shortcut.hook.ts'
 import { findFileInView } from './file-in-view.util.ts'
+import { pickFileToUnview } from './last-viewed.util.ts'
 import { useOpenInEditorShortcut } from './use-open-in-editor-shortcut.hook.ts'
 
 interface NavState {
@@ -36,6 +38,17 @@ function toggleViewedAndMove(state: NavState, index: number) {
   state.goTo((after ?? file).path, Boolean(after))
 }
 
+/** Unviews the file you are reading, or the last one you marked, and selects it. */
+function unviewAndSelect(state: NavState) {
+  const file = pickFileToUnview(state.files, state.viewed, findFileInView(state.current))
+  if (!file) {
+    showNotice('No viewed file')
+    return
+  }
+  state.markViewed(file.path, file.sha, false)
+  state.goTo(file.path, true)
+}
+
 /** The file a step away, clamped to the list; starts at the first file when nothing is current. */
 function stepIndex(index: number, step: 1 | -1, length: number) {
   if (index < 0) {
@@ -53,7 +66,7 @@ function findNextUnviewed(files: PullFile[], index: number, viewed: Record<strin
 /**
  * Shortcuts (J and K unless changed) move between files; another (V) toggles "viewed" on the file you are reading (the
  * one you clicked or jumped to while it is on screen, else the one at the top of the diff) and moves on to the next
- * unviewed file. The Open in editor shortcut works alongside them (`useOpenInEditorShortcut`).
+ * unviewed file, and one more (⌘⇧V) takes that back. The Open in editor shortcut works alongside them (`useOpenInEditorShortcut`).
  */
 export function useFileKeyboardNav(state: NavState) {
   useOpenInEditorShortcut({ enabled: state.enabled, currentFile: state.current })
@@ -76,6 +89,10 @@ export function useFileKeyboardNav(state: NavState) {
   useShortcut(
     'previous-file',
     whenEnabled(() => moveBy(-1)),
+  )
+  useShortcut(
+    'unview',
+    whenEnabled(() => unviewAndSelect(state)),
   )
   useShortcut(
     'toggle-viewed',
