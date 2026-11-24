@@ -1,40 +1,27 @@
 import type { BriefingRecord } from '@shared/claude.types.ts'
 import { buildPullKey, type PullRef } from '@shared/pull.types.ts'
-import { useEffect, useState } from 'react'
-import { readErrorMessage } from '../common/format.util.ts'
+import { useCallback, useEffect, useRef, useSyncExternalStore } from 'react'
+import { BriefingRuns } from './briefing-runs.service.ts'
 
-const IDLE: BriefingStatus = { loading: false, progress: null, error: null }
+const runs = new BriefingRuns({
+  generate: (pull) => globalThis.revio.generateBriefing(pull),
+  watchProgress: (key, onProgress) =>
+    globalThis.revio.onEvent((event) => {
+      if (event.type === 'briefing-progress' && event.key === key) {
+        onProgress(event.message)
+      }
+    }),
+})
 
-export interface BriefingStatus {
-  loading: boolean
-  progress: string | null
-  error: string | null
-}
-
-/** Generates Claude's briefing for a PR, following its progress events. */
+/** Claude's briefing for a PR: how it stands, even if it was started before you left the PR, and starting one. */
 export function useBriefing(pull: PullRef, onRecord: (record: BriefingRecord) => void) {
-  const [status, setStatus] = useState<BriefingStatus>(IDLE)
   const key = buildPullKey(pull)
-
-  useEffect(
-    () =>
-      globalThis.revio.onEvent((event) => {
-        if (event.type === 'briefing-progress' && event.key === key) {
-          setStatus((current) => ({ ...current, progress: event.message }))
-        }
-      }),
-    [key],
+  const status = useSyncExternalStore(
+    useCallback((listener) => runs.watchStatus(key, listener), [key]),
+    () => runs.status(key),
   )
-
-  const generate = async () => {
-    setStatus({ loading: true, progress: null, error: null })
-    try {
-      onRecord(await globalThis.revio.generateBriefing(pull))
-      setStatus(IDLE)
-    } catch (failure) {
-      setStatus({ ...IDLE, error: readErrorMessage(failure) })
-    }
-  }
-
-  return { status, generate }
+  const latestOnRecord = useRef(onRecord)
+  latestOnRecord.current = onRecord
+  useEffect(() => runs.watchRecord(key, (record) => latestOnRecord.current(record)), [key])
+  return { status, generate: () => runs.start(pull) }
 }
