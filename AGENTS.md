@@ -14,9 +14,9 @@ Pull request titles and commit messages must follow [Conventional Commits](https
 - **Description:** imperative, starting with a lowercase letter, no full stop at the end.
 - **Breaking change:** `!` before the colon, and a `BREAKING CHANGE:` footer saying what to do.
 
-| Write | Not |
-|---|---|
-| `feat: copy the branch name with ⌘⇧B` | `Copy the branch name with ⌘⇧B` |
-| `fix(inbox): keep the search when going back` | `Fixed search.` |
+| Write                                         | Not                             |
+| --------------------------------------------- | ------------------------------- |
+| `feat: copy the branch name with ⌘⇧B`         | `Copy the branch name with ⌘⇧B` |
+| `fix(inbox): keep the search when going back` | `Fixed search.`                 |
 
 A pull request's title says what the whole pull request does, so it need not repeat any one commit.
