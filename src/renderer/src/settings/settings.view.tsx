@@ -2,7 +2,9 @@ import type { Settings as AppSettings, SettingsPatch } from '@shared/settings.ty
 import { useCallback, useEffect, useState } from 'react'
 import { readErrorMessage } from '../common/format.util.ts'
 import { Screen, ScreenBody, ScreenHeader } from '../common/screen.component.tsx'
+import { SectionHeading } from '../common/section-heading.component.tsx'
 import { useAsyncAction } from '../common/use-async-action.hook.ts'
+import { ShortcutList } from '../shortcuts/shortcut-list.component.tsx'
 import { UpdateSettings } from '../updates/update-settings.component.tsx'
 import { EditorSettings } from './editor-settings.component.tsx'
 import { FeedbackSettings } from './feedback-settings.component.tsx'
@@ -228,6 +230,11 @@ export function Settings() {
           <Group title="Editor">
             <EditorSettings settings={settings} update={update} />
           </Group>
+
+          <section>
+            <SectionHeading title="Shortcuts" />
+            <ShortcutList />
+          </section>
 
           <AlertsGroup key={`alerts-${revision}`} settings={settings} update={update} />
 

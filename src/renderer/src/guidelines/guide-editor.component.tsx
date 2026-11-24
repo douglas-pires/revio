@@ -1,6 +1,8 @@
+import { formatShortcut, matchesShortcut } from '@shared/shortcut.util.ts'
 import { useId, useState } from 'react'
 import { Markdown } from '../common/markdown.component.tsx'
 import { SegmentedControl } from '../common/segmented-control.component.tsx'
+import { useShortcuts } from '../shortcuts/shortcuts.context.ts'
 import { buildDefaultTitle, type Draft } from './guidelines.util.ts'
 
 type Change = (draft: Draft) => void
@@ -65,9 +67,10 @@ function ScopeFields({ draft, repos, onChange }: { draft: Draft; repos: readonly
   )
 }
 
-/** The guide's markdown: written in a text box (⌘S saves), or previewed. */
+/** The guide's markdown: written in a text box (its shortcut saves), or previewed. */
 function GuideBody(props: { draft: Draft; onChange: Change; onSave: () => void; actions: React.ReactNode }) {
   const { draft, onChange, onSave } = props
+  const { shortcuts } = useShortcuts()
   const [mode, setMode] = useState<'write' | 'preview'>('write')
   const preview = mode === 'preview'
   return (
@@ -93,7 +96,7 @@ function GuideBody(props: { draft: Draft; onChange: Change; onSave: () => void; 
             value={draft.body}
             onChange={(event) => onChange({ ...draft, body: event.target.value })}
             onKeyDown={(event) => {
-              if (event.key === 's' && event.metaKey) {
+              if (matchesShortcut(event, shortcuts['save-guide'])) {
                 event.preventDefault()
                 onSave()
               }
@@ -107,6 +110,7 @@ function GuideBody(props: { draft: Draft; onChange: Change; onSave: () => void; 
 
 /** Above a guide with unsaved edits: they are a draft, kept here until saved or thrown away. */
 function DraftWarning({ isNew, onDiscard }: { isNew: boolean; onDiscard: () => void }) {
+  const { shortcuts } = useShortcuts()
   let what = 'Unsaved changes to this guide.'
   if (isNew) {
     what = 'This new guide is not saved yet.'
@@ -118,7 +122,8 @@ function DraftWarning({ isNew, onDiscard }: { isNew: boolean; onDiscard: () => v
     >
       <span className="chip bg-warn/20 py-0 text-[10.5px]">Draft</span>
       <span className="min-w-0 flex-1">
-        {what} Revio keeps it as a draft until you save (⌘S) or discard it; Claude only sees saved guides.
+        {what} Revio keeps it as a draft until you save ({formatShortcut(shortcuts['save-guide'])}) or discard it;
+        Claude only sees saved guides.
       </span>
       <button type="button" className="btn btn-ghost py-0 text-[12px] text-warn" onClick={onDiscard}>
         Discard changes

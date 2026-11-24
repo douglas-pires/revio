@@ -24,17 +24,8 @@ const SYMBOLS: Record<string, string> = {
   ' ': 'Space',
 }
 
-/** Shortcuts Revio or macOS already use, and what for; a new shortcut on one of them would clash. */
+/** Shortcuts of macOS and Revio's menus, and what for; another use of one of them would clash. */
 const RESERVED_SHORTCUTS: Record<string, string> = {
-  'Cmd+F': 'Find in the changed files',
-  'Cmd+P': 'Go to a changed file',
-  'Cmd+G': 'Next find match',
-  'Cmd+Shift+G': 'Previous find match',
-  'Cmd+Enter': 'Send a comment or review',
-  J: 'Next file',
-  K: 'Previous file',
-  V: 'Mark the file viewed',
-  '/': 'Search',
   'Cmd+C': 'Copy',
   'Cmd+V': 'Paste',
   'Cmd+X': 'Cut',
@@ -46,7 +37,13 @@ const RESERVED_SHORTCUTS: Record<string, string> = {
   'Cmd+H': 'Hide Revio',
   'Cmd+M': 'Minimize the window',
   'Cmd+R': 'Reload',
-  'Cmd+,': 'Settings',
+  'Cmd+Shift+R': 'Force reload',
+  'Cmd+0': 'Actual size',
+  'Cmd+-': 'Zoom out',
+  'Cmd++': 'Zoom in',
+  'Cmd+=': 'Zoom in',
+  'Cmd+[': 'Back',
+  'Cmd+]': 'Forward',
 }
 
 const LETTER_OR_DIGIT = /^(?:Key(?<letter>[A-Z])|Digit(?<digit>\d))$/u
@@ -74,12 +71,6 @@ function splitShortcut(shortcut: string) {
   }
   return shortcut.split('+')
 }
-
-/** The Open in editor shortcut until you change it in Settings. */
-export const DEFAULT_OPEN_IN_EDITOR_SHORTCUT = 'Cmd+O'
-
-/** The Git log panel shortcut until you change it. */
-export const DEFAULT_GIT_LOG_SHORTCUT = 'Ctrl+G'
 
 /** The parts of a key press a shortcut is made of (a DOM KeyboardEvent has them all). */
 export interface KeyPress {
@@ -120,20 +111,20 @@ export function formatShortcut(shortcut: string): string {
     .join('')
 }
 
-/** Another shortcut you have set, by what it does. */
+/** Another shortcut in use, by what it does. */
 export interface TakenShortcut {
   shortcut: string
   action: string
 }
 
 /**
- * What `shortcut` would clash with: one of Revio's or macOS's own shortcuts, or another one you have set (`taken`).
+ * What `shortcut` would clash with: one of macOS's or the menus' shortcuts, or another one in use (`taken`).
  * Null when it is free, or empty (off).
  */
 export function findShortcutConflict(shortcut: string, taken: readonly TakenShortcut[]): string | null {
   if (!shortcut) {
     return null
   }
-  const setByYou = taken.find((candidate) => candidate.shortcut === shortcut)
-  return setByYou?.action ?? RESERVED_SHORTCUTS[shortcut] ?? null
+  const inUse = taken.find((candidate) => candidate.shortcut === shortcut)
+  return inUse?.action ?? RESERVED_SHORTCUTS[shortcut] ?? null
 }

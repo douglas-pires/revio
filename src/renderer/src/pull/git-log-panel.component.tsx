@@ -1,13 +1,13 @@
-import { DEFAULT_GIT_LOG_SHORTCUT, formatShortcut } from '@shared/shortcut.util.ts'
-import { type PointerEvent, type ReactNode, useCallback, useEffect, useMemo, useRef, useState } from 'react'
+import { formatShortcut } from '@shared/shortcut.util.ts'
+import { type PointerEvent, type ReactNode, useEffect, useMemo, useRef, useState } from 'react'
 import { ErrorBanner } from '../common/error-banner.component.tsx'
 import { joinClassNames } from '../common/format.util.ts'
-import { ShortcutPopover } from '../common/shortcut-popover.component.tsx'
 import { CommitDetailPanel } from '../gitlog/commit-detail.component.tsx'
 import { CommitFileDiff } from '../gitlog/commit-file-diff.component.tsx'
 import { CommitList } from '../gitlog/commit-list.component.tsx'
+import { ShortcutEditor } from '../shortcuts/shortcut-editor.component.tsx'
+import { useShortcuts } from '../shortcuts/shortcuts.context.ts'
 import { listPathSuggestions } from './pull-git-log.util.ts'
-import { useGitLogShortcut } from './use-git-log-shortcut.hook.ts'
 import { usePanelLayout } from './use-panel-layout.hook.ts'
 import { type CommitPick, type PullGitLogState, type PullLogSource, usePullGitLog } from './use-pull-git-log.hook.ts'
 
@@ -66,53 +66,15 @@ function ResizeHandle({ height, onResize }: { height: number; onResize: (height:
   )
 }
 
-type GitLogShortcut = ReturnType<typeof useGitLogShortcut>
-
 /** The file name the log follows, shown in the bar. */
 const readFileName = (path: string) => path.slice(path.lastIndexOf('/') + 1)
-
-/** The shortcut beside "Git log": click it to change it in a popover above the bar. */
-function ShortcutChip({ gitLogShortcut }: { gitLogShortcut: GitLogShortcut }) {
-  const [editing, setEditing] = useState(false)
-  const closeEditor = useCallback(() => setEditing(false), [])
-  return (
-    <span className="relative">
-      <button
-        type="button"
-        className="kbd cursor-pointer hover:border-accent hover:text-fg"
-        title="Change the git log shortcut"
-        aria-haspopup="dialog"
-        aria-expanded={editing}
-        onClick={() => setEditing(!editing)}
-      >
-        {formatShortcut(gitLogShortcut.shortcut) || 'Set shortcut'}
-      </button>
-      {Boolean(editing) && (
-        <ShortcutPopover
-          className="bottom-full left-0 mb-2"
-          title="Git log shortcut"
-          value={gitLogShortcut.shortcut}
-          defaultValue={DEFAULT_GIT_LOG_SHORTCUT}
-          findConflict={gitLogShortcut.findConflict}
-          onSave={gitLogShortcut.save}
-          onClose={closeEditor}
-        />
-      )}
-    </span>
-  )
-}
 
 /**
  * The bar along the bottom of the PR: the Git log toggle with its shortcut and the file it follows. The rest of the
  * bar is left free for other tools to dock here.
  */
-function PanelBar(props: {
-  open: boolean
-  onToggle: () => void
-  gitLogShortcut: GitLogShortcut
-  followedPath: string | null
-}) {
-  const shortcutHint = formatShortcut(props.gitLogShortcut.shortcut)
+function PanelBar(props: { open: boolean; onToggle: () => void; followedPath: string | null }) {
+  const shortcutHint = formatShortcut(useShortcuts().shortcuts['git-log'])
   let title = 'Show or hide the git log'
   if (shortcutHint) {
     title = `${title} (${shortcutHint})`
@@ -129,7 +91,7 @@ function PanelBar(props: {
         <span className={joinClassNames('text-[10px] transition', !props.open && 'rotate-180')}>▾</span>
         Git log
       </button>
-      <ShortcutChip gitLogShortcut={props.gitLogShortcut} />
+      <ShortcutEditor action="git-log" />
       {props.followedPath !== null && (
         <span className="ml-2 min-w-0 truncate" title={props.followedPath}>
           history of <span className="font-mono text-fg">{readFileName(props.followedPath)}</span>
@@ -239,8 +201,7 @@ function PullGitLogBody(props: PullGitLogProps & { followPath: boolean; onFollow
  * opened, then keeps its place while closed.
  */
 export function GitLogPanel(props: PullGitLogProps) {
-  const gitLogShortcut = useGitLogShortcut()
-  const layout = usePanelLayout(gitLogShortcut.shortcut)
+  const layout = usePanelLayout()
   const [followPath, setFollowPath] = useState(true)
   let followedPath: string | null = null
   if (followPath && props.openPath) {
@@ -255,12 +216,7 @@ export function GitLogPanel(props: PullGitLogProps) {
   return (
     <section aria-label="Git log" className="flex shrink-0 flex-col border-t border-line bg-panel">
       {Boolean(layout.open) && <ResizeHandle height={layout.height} onResize={layout.resize} />}
-      <PanelBar
-        open={layout.open}
-        onToggle={layout.toggle}
-        gitLogShortcut={gitLogShortcut}
-        followedPath={followedPath}
-      />
+      <PanelBar open={layout.open} onToggle={layout.toggle} followedPath={followedPath} />
       {Boolean(mounted) && (
         <div
           hidden={!layout.open}

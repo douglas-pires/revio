@@ -1,5 +1,6 @@
 import type { PullFile } from '@shared/pull.types.ts'
-import { useEffect, useMemo, useRef, useState } from 'react'
+import { useEffect, useMemo, useState } from 'react'
+import { useShortcut } from '../shortcuts/use-shortcut.hook.ts'
 import { parsePatch } from './diff.util.ts'
 import { type DiffMatch, searchDiffs, stepMatch } from './diff-search.util.ts'
 import { findMatchCell, findRangesIn } from './find-highlights.util.ts'
@@ -18,14 +19,6 @@ function delayFor(query: string) {
     return SHORT_QUERY_DELAY_MS
   }
   return QUERY_DELAY_MS
-}
-
-/** ⌘G steps forward, ⇧⌘G back. */
-function pickDirection(shift: boolean): 1 | -1 {
-  if (shift) {
-    return -1
-  }
-  return 1
 }
 
 /** The query once typing pauses, so a big PR is not searched on every keystroke. */
@@ -94,31 +87,23 @@ function useMatches(files: readonly PullFile[], open: boolean, query: string, ca
   return { deferred, matches }
 }
 
-/** ⌘F opens the bar (and selects its text again); ⌘G and ⇧⌘G step through the matches while it is open. */
+/** One shortcut opens the bar (and selects its text again); two more step through the matches while it is open. */
 function useFindShortcuts(
   state: { go: (direction: 1 | -1) => void; open: boolean; showFiles: () => void },
   onOpen: () => void,
 ) {
-  const latest = useRef({ ...state, onOpen })
-  latest.current = { ...state, onOpen }
-  useEffect(() => {
-    const onKey = (event: KeyboardEvent) => {
-      if (!event.metaKey || event.ctrlKey || event.altKey) {
-        return
-      }
-      const key = event.key.toLowerCase()
-      if (key === 'f') {
-        event.preventDefault()
-        latest.current.showFiles()
-        latest.current.onOpen()
-      } else if (key === 'g' && latest.current.open) {
-        event.preventDefault()
-        latest.current.go(pickDirection(event.shiftKey))
-      }
+  const stepWhenOpen = (direction: 1 | -1) => {
+    if (!state.open) {
+      return null
     }
-    globalThis.addEventListener('keydown', onKey)
-    return () => globalThis.removeEventListener('keydown', onKey)
-  }, [])
+    return () => state.go(direction)
+  }
+  useShortcut('find', () => {
+    state.showFiles()
+    onOpen()
+  })
+  useShortcut('find-next', stepWhenOpen(1), { repeats: true })
+  useShortcut('find-previous', stepWhenOpen(-1), { repeats: true })
 }
 
 /**

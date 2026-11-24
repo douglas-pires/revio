@@ -1,6 +1,5 @@
 import type { PullFile } from '@shared/pull.types.ts'
-import { useEffect, useRef } from 'react'
-import { isTyping } from '../common/keyboard.util.ts'
+import { useShortcut } from '../shortcuts/use-shortcut.hook.ts'
 import { findFileInView } from './file-in-view.util.ts'
 import { useOpenInEditorShortcut } from './use-open-in-editor-shortcut.hook.ts'
 
@@ -13,9 +12,6 @@ interface NavState {
   markViewed: (path: string, sha: string, viewed: boolean) => void
 }
 
-/** j goes down the list, k up. */
-const STEPS = { j: 1, k: -1 } as const
-
 /** Where a file sits in the list, -1 for none. */
 function indexOfPath(state: NavState, path: string | null) {
   if (!path) {
@@ -24,7 +20,7 @@ function indexOfPath(state: NavState, path: string | null) {
   return state.files.findIndex((file) => file.path === path)
 }
 
-/** v: marks the file you are reading viewed (see `fileInView`) and moves on to the next unviewed one; unmarking keeps it open. */
+/** Marks the file you are reading viewed (see `fileInView`) and moves on to the next unviewed one; unmarking keeps it open. */
 function toggleViewedAndMove(state: NavState, index: number) {
   const file = state.files[Math.max(0, index)]
   if (!file) {
@@ -40,12 +36,12 @@ function toggleViewedAndMove(state: NavState, index: number) {
   state.goTo((after ?? file).path, Boolean(after))
 }
 
-/** Next file index for j/k, clamped to the list; starts at the first file when nothing is current. */
-function stepIndex(index: number, key: 'j' | 'k', length: number) {
+/** The file a step away, clamped to the list; starts at the first file when nothing is current. */
+function stepIndex(index: number, step: 1 | -1, length: number) {
   if (index < 0) {
     return 0
   }
-  return Math.min(length - 1, Math.max(0, index + STEPS[key]))
+  return Math.min(length - 1, Math.max(0, index + step))
 }
 
 /** The first unviewed file after `index`, wrapping around. */
@@ -55,44 +51,34 @@ function findNextUnviewed(files: PullFile[], index: number, viewed: Record<strin
 }
 
 /**
- * j/k move between files; v toggles "viewed" on the file you are reading (the one you clicked or jumped to while it is
- * on screen, else the one at the top of the diff) and moves on to the next unviewed file.
- * The Open in editor shortcut works alongside them (`useOpenInEditorShortcut`).
- * Reads the latest state through a ref so the window listener is attached once.
+ * Shortcuts (J and K unless changed) move between files; another (V) toggles "viewed" on the file you are reading (the
+ * one you clicked or jumped to while it is on screen, else the one at the top of the diff) and moves on to the next
+ * unviewed file. The Open in editor shortcut works alongside them (`useOpenInEditorShortcut`).
  */
 export function useFileKeyboardNav(state: NavState) {
   useOpenInEditorShortcut({ enabled: state.enabled, currentFile: state.current })
-  const latest = useRef(state)
-  latest.current = state
-
-  useEffect(() => {
-    const onKey = (event: KeyboardEvent) => {
-      const navState = latest.current
-      if (
-        !navState.enabled ||
-        event.metaKey ||
-        event.ctrlKey ||
-        event.altKey ||
-        event.repeat ||
-        isTyping(event.target)
-      ) {
-        return
-      }
-      if (event.key !== 'j' && event.key !== 'k' && event.key !== 'v') {
-        return
-      }
-      event.preventDefault()
-      if (event.key === 'v') {
-        toggleViewedAndMove(navState, indexOfPath(navState, findFileInView(navState.current)))
-        return
-      }
-      const index = indexOfPath(navState, navState.current)
-      const target = navState.files[stepIndex(index, event.key, navState.files.length)]
-      if (target) {
-        navState.goTo(target.path, false)
-      }
+  const moveBy = (step: 1 | -1) => {
+    const target = state.files[stepIndex(indexOfPath(state, state.current), step, state.files.length)]
+    if (target) {
+      state.goTo(target.path, false)
     }
-    globalThis.addEventListener('keydown', onKey)
-    return () => globalThis.removeEventListener('keydown', onKey)
-  }, [])
+  }
+  const whenEnabled = (run: () => void) => {
+    if (!state.enabled) {
+      return null
+    }
+    return run
+  }
+  useShortcut(
+    'next-file',
+    whenEnabled(() => moveBy(1)),
+  )
+  useShortcut(
+    'previous-file',
+    whenEnabled(() => moveBy(-1)),
+  )
+  useShortcut(
+    'toggle-viewed',
+    whenEnabled(() => toggleViewedAndMove(state, indexOfPath(state, findFileInView(state.current)))),
+  )
 }

@@ -1,8 +1,10 @@
-import { useEffect, useRef } from 'react'
+import { formatShortcut } from '@shared/shortcut.util.ts'
+import { useRef } from 'react'
 import { countOf } from '../common/format.util.ts'
-import { isTyping } from '../common/keyboard.util.ts'
+import { useShortcuts } from '../shortcuts/shortcuts.context.ts'
+import { useShortcut } from '../shortcuts/use-shortcut.hook.ts'
 
-/** Filters the comments panel; `/` focuses it and Escape clears it. Shows the match count while searching. */
+/** Filters the comments panel; its shortcut focuses it and Escape clears it. Shows the match count while searching. */
 export function CommentSearch({
   query,
   onChange,
@@ -13,24 +15,15 @@ export function CommentSearch({
   matches: number | null
 }) {
   const input = useRef<HTMLInputElement>(null)
-  useEffect(() => {
-    const focusOnSlash = (event: KeyboardEvent) => {
-      if (event.key !== '/' || event.metaKey || event.ctrlKey || isTyping(event.target)) {
-        return
-      }
-      event.preventDefault()
-      input.current?.focus()
-    }
-    globalThis.addEventListener('keydown', focusOnSlash)
-    return () => globalThis.removeEventListener('keydown', focusOnSlash)
-  }, [])
+  const { shortcuts } = useShortcuts()
+  useShortcut('search', () => input.current?.focus())
   return (
     <div className="px-3 pb-2">
       <input
         ref={input}
         type="search"
         aria-label="Search comments"
-        placeholder="Search comments  /"
+        placeholder={`Search comments  ${formatShortcut(shortcuts.search)}`}
         className="input py-1 text-[12px]"
         value={query}
         onChange={(event) => onChange(event.target.value)}

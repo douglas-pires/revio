@@ -72,9 +72,8 @@ describe('formatShortcut', () => {
 describe('findShortcutConflict', () => {
   const taken = [{ shortcut: 'Cmd+O', action: 'Open in editor' }]
 
-  it('names what a shortcut clashes with: one you set, or one of Revio or macOS', () => {
+  it('names what a shortcut clashes with: another one in use, or one of macOS', () => {
     expect(findShortcutConflict('Cmd+O', taken)).toBe('Open in editor')
-    expect(findShortcutConflict('Cmd+F', taken)).toBe('Find in the changed files')
     expect(findShortcutConflict('Cmd+Q', taken)).toBe('Quit Revio')
   })
 

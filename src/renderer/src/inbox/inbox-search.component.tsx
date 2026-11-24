@@ -1,5 +1,7 @@
+import { formatShortcut } from '@shared/shortcut.util.ts'
 import { useRef, useState } from 'react'
-import { useSlashToFocus } from './use-slash-to-focus.hook.ts'
+import { useShortcuts } from '../shortcuts/shortcuts.context.ts'
+import { useShortcut } from '../shortcuts/use-shortcut.hook.ts'
 
 const EXAMPLES: [string, string][] = [
   ['user-review-requested:@me', 'Requested from you directly'],
@@ -25,7 +27,11 @@ function toggleQualifier(value: string, qualifier: string) {
 export function InboxSearch({ value, onChange }: { value: string; onChange: (text: string) => void }) {
   const input = useRef<HTMLInputElement>(null)
   const [focused, setFocused] = useState(false)
-  useSlashToFocus(input)
+  const { shortcuts } = useShortcuts()
+  useShortcut('search', () => {
+    input.current?.focus()
+    input.current?.select()
+  })
 
   const insert = (qualifier: string) => {
     onChange(toggleQualifier(value, qualifier))
@@ -52,7 +58,7 @@ export function InboxSearch({ value, onChange }: { value: string; onChange: (tex
         }}
       />
       <kbd className="pointer-events-none absolute top-1/2 right-2 -translate-y-1/2 rounded border border-line px-1 text-[10px] text-muted">
-        /
+        {formatShortcut(shortcuts.search)}
       </kbd>
       {Boolean(focused && !value.trim()) && (
         <ul className="absolute top-full right-0 z-20 mt-1 w-[26rem] overflow-hidden rounded-md border border-line bg-panel py-1 shadow-lg">
