@@ -79,7 +79,7 @@ export function PullView(props: PullViewProps) {
   const view = usePullView(props.pull, props.initialTarget)
   const [commitPick, setCommitPick] = useState<CommitPick | null>(null)
   const { pr } = view
-  useCopyShortcuts(pr)
+  useCopyShortcuts(pr, view.nav.current)
   if (view.error) {
     return (
       <Screen
