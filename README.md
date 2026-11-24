@@ -62,7 +62,9 @@ clone by its GitHub remote, in those folders and your home folder and one level 
 
 **Updates:** installed builds check the latest GitHub release a little after launch and every 6 hours; **Revio →
 Check for Updates…** and **Settings → Updates** check on demand. When a newer version is out, a bar at the top offers
-**Download** (the dmg for this Mac) and **What's new**; install it by dragging the new Revio into Applications.
+**Update** and **What's new**. Update downloads it in the background, then **Restart to update** replaces Revio and
+opens it again (quitting installs it too). A copy that cannot replace itself, such as one run from the dmg, offers the
+dmg for this Mac to drag into Applications instead.
 Only releases are offered, not the pre-releases built from every merge; see [Releasing Revio](docs/releasing.md).
 
 **Feedback:** **Settings → Feedback** opens a bug report or feature request as an issue on Revio's GitHub

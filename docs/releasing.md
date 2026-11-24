@@ -26,6 +26,13 @@ ones are deleted. Install one to try what is on `main` before releasing it.
 
 The workflow stops with an error if that version is already released, or isn't a plain `major.minor.patch`.
 
+## How it reaches people
+
+Installed copies of Revio install a release themselves: they read `latest-mac.yml` from it, download the zip, check it
+against the checksum in there, and macOS checks that it is signed by the same team as the running copy. So a release
+needs the zip and `latest-mac.yml` (the workflow uploads both), and must be signed: an ad-hoc build cannot be installed
+over a signed one.
+
 ## Which number to pick
 
 - **Patch** (`0.2.1`): fixes only.
