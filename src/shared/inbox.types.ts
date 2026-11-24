@@ -21,6 +21,9 @@ export interface PullSummary {
   headRef: string
   baseRef: string
   reviewDecision: string | null
+  /** Logins of those whose latest verdict approves it, and of those whose verdict asks for changes. */
+  approvedBy: string[]
+  changesRequestedBy: string[]
   /** Repository default branch, to tell stacked PRs apart. */
   defaultBranch: string
   /** Set when this PR is part of a stack: 1-based position from the bottom. */

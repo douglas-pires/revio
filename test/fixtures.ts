@@ -24,6 +24,8 @@ export function makeSummary(over: Partial<PullSummary> = {}): PullSummary {
     headRef: 'feature',
     baseRef: 'main',
     reviewDecision: null,
+    approvedBy: [],
+    changesRequestedBy: [],
     defaultBranch: 'main',
     stale: false,
     waitingHours: 1,
