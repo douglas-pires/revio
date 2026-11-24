@@ -1,14 +1,15 @@
 import type { Settings as AppSettings, SettingsPatch } from '@shared/settings.types.ts'
 import { useCallback, useEffect, useState } from 'react'
 import { readErrorMessage } from '../common/format.util.ts'
-import { Screen, ScreenBody, ScreenHeader } from '../common/screen.component.tsx'
-import { SectionHeading } from '../common/section-heading.component.tsx'
+import { Screen, ScreenHeader } from '../common/screen.component.tsx'
 import { useAsyncAction } from '../common/use-async-action.hook.ts'
+import { useStoredChoice } from '../common/use-stored-choice.hook.ts'
 import { ShortcutList } from '../shortcuts/shortcut-list.component.tsx'
 import { UpdateSettings } from '../updates/update-settings.component.tsx'
 import { EditorSettings } from './editor-settings.component.tsx'
 import { FeedbackSettings } from './feedback-settings.component.tsx'
 import { GithubTokenSettings } from './github-token-settings.component.tsx'
+import { CategoryNav, CategoryPane, SETTINGS_CATEGORIES } from './settings-categories.component.tsx'
 import { Group, Num, Row, Toggle } from './settings-form.component.tsx'
 import { SyncSettings } from './sync-settings.component.tsx'
 import { useSyncStatus } from './use-sync-status.hook.ts'
@@ -46,7 +47,7 @@ function TestNotification() {
       setWasShown(await globalThis.revio.testNotification())
     })
   return (
-    <div className="flex flex-col gap-1">
+    <div className="flex flex-col gap-1 px-4 py-3">
       <div>
         <button type="button" className="btn" disabled={sending.busy} onClick={sendTestNotification}>
           Send a test notification
@@ -61,7 +62,7 @@ function TestNotification() {
 /** Which notifications to show, how often to poll, and when a review turns stale. */
 function AlertsGroup({ settings, update }: { settings: AppSettings; update: Update }) {
   return (
-    <Group title="Alerts">
+    <Group>
       <Toggle
         label="Notify when a review is requested"
         checked={settings.notifyOnRequest}
@@ -112,7 +113,7 @@ function AlertsGroup({ settings, update }: { settings: AppSettings; update: Upda
 function ClaudeGroup({ settings, update }: { settings: AppSettings; update: Update }) {
   const [apiKey, setApiKey] = useState('')
   return (
-    <Group title="Claude">
+    <Group>
       <Row
         label="Connection"
         hint="Auto uses the Anthropic API when a key is set, otherwise your local Claude Code login (`claude -p`)."
@@ -166,7 +167,36 @@ function ClaudeGroup({ settings, update }: { settings: AppSettings; update: Upda
   )
 }
 
+/** Your account, and which of its PRs reach the inbox. */
+function GithubGroup({
+  settings,
+  update,
+  onTokenSaved,
+}: {
+  settings: AppSettings
+  update: Update
+  onTokenSaved: () => void
+}) {
+  return (
+    <Group>
+      <GithubTokenSettings onSaved={onTokenSaved} />
+      <Toggle
+        label="Include team review requests"
+        checked={settings.includeTeamRequests}
+        onChange={(checked) => update({ includeTeamRequests: checked })}
+      />
+      <Toggle
+        label="Hide draft PRs"
+        checked={settings.ignoreDrafts}
+        onChange={(checked) => update({ ignoreDrafts: checked })}
+      />
+    </Group>
+  )
+}
+
+/** The settings, by category; the last one open is remembered. */
 export function Settings() {
+  const [category, setCategory] = useStoredChoice('revio.settingsCategory', SETTINGS_CATEGORIES, 'github')
   const [settings, setSettings] = useState<AppSettings | null>(null)
   const [message, setMsg] = useState<string | null>(null)
   // Bumped when another Mac's settings come in, so the fields that keep their own text show the new values.
@@ -179,9 +209,10 @@ export function Settings() {
   }, [])
   const syncStatus = useSyncStatus(reload)
 
-  useEffect(() => {
+  const reread = useCallback(() => {
     globalThis.revio.getSettings().then(setSettings)
   }, [])
+  useEffect(reread, [reread])
 
   const update = async (patch: SettingsPatch) => {
     try {
@@ -200,55 +231,44 @@ export function Settings() {
   return (
     <Screen
       header={
-        <ScreenHeader
-          title="Settings"
-          subtitle="GitHub, alerts, your editor, Claude, sync and feedback"
-          actions={Boolean(message) && <span className="text-muted">{message}</span>}
-        />
+        <ScreenHeader title="Settings" actions={Boolean(message) && <span className="text-muted">{message}</span>} />
       }
     >
-      <ScreenBody narrow={true}>
-        <div className="space-y-8">
-          <Group title="Updates">
-            <UpdateSettings />
-          </Group>
-
-          <Group title="GitHub">
-            <GithubTokenSettings onSaved={() => globalThis.revio.getSettings().then(setSettings)} />
-            <Toggle
-              label="Include team review requests"
-              checked={settings.includeTeamRequests}
-              onChange={(checked) => update({ includeTeamRequests: checked })}
-            />
-            <Toggle
-              label="Hide draft PRs"
-              checked={settings.ignoreDrafts}
-              onChange={(checked) => update({ ignoreDrafts: checked })}
-            />
-          </Group>
-
-          <Group title="Editor">
+      <div className="flex min-h-0 flex-1">
+        <CategoryNav active={category} onPick={setCategory} />
+        <CategoryPane category="github" active={category}>
+          <GithubGroup settings={settings} update={update} onTokenSaved={reread} />
+        </CategoryPane>
+        <CategoryPane category="alerts" active={category}>
+          <AlertsGroup key={`alerts-${revision}`} settings={settings} update={update} />
+        </CategoryPane>
+        <CategoryPane category="editor" active={category}>
+          <Group>
             <EditorSettings settings={settings} update={update} />
           </Group>
-
-          <section>
-            <SectionHeading title="Shortcuts" />
-            <ShortcutList />
-          </section>
-
-          <AlertsGroup key={`alerts-${revision}`} settings={settings} update={update} />
-
+        </CategoryPane>
+        <CategoryPane category="shortcuts" active={category}>
+          <ShortcutList />
+        </CategoryPane>
+        <CategoryPane category="claude" active={category}>
           <ClaudeGroup key={`claude-${revision}`} settings={settings} update={update} />
-
-          <Group title="Sync">
+        </CategoryPane>
+        <CategoryPane category="sync" active={category}>
+          <Group>
             <SyncSettings settings={settings} status={syncStatus} update={update} />
           </Group>
-
-          <Group title="Feedback">
+        </CategoryPane>
+        <CategoryPane category="updates" active={category}>
+          <Group>
+            <UpdateSettings />
+          </Group>
+        </CategoryPane>
+        <CategoryPane category="feedback" active={category}>
+          <Group>
             <FeedbackSettings />
           </Group>
-        </div>
-      </ScreenBody>
+        </CategoryPane>
+      </div>
     </Screen>
   )
 }

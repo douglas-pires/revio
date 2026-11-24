@@ -14,6 +14,7 @@ import { Inbox } from './inbox/inbox.view.tsx'
 import { countPullsNeedingYou } from './my-pulls/my-pulls.util.ts'
 import { ShortcutsContext } from './shortcuts/shortcuts.context.ts'
 import { ShortcutsDialog } from './shortcuts/shortcuts-dialog.component.tsx'
+import { useShortcut } from './shortcuts/use-shortcut.hook.ts'
 import { useShortcutSettings } from './shortcuts/use-shortcut-settings.hook.ts'
 import { UpdateBanner } from './updates/update-banner.component.tsx'
 import { useUpdateStatus } from './updates/use-update-status.hook.ts'
@@ -81,6 +82,18 @@ const SETTINGS_ICON =
   'M12 15a3 3 0 1 0 0-6 3 3 0 0 0 0 6zM19.4 15a1.7 1.7 0 0 0 .3 1.8l.1.1a2 2 0 1 1-2.8 2.8l-.1-.1a1.7 1.7 0 0 0-1.8-.3 1.7 1.7 0 0 0-1 1.5V21a2 2 0 1 1-4 0v-.1a1.7 1.7 0 0 0-1.1-1.5 1.7 1.7 0 0 0-1.8.3l-.1.1a2 2 0 1 1-2.8-2.8l.1-.1a1.7 1.7 0 0 0 .3-1.8 1.7 1.7 0 0 0-1.5-1H3a2 2 0 1 1 0-4h.1a1.7 1.7 0 0 0 1.5-1.1 1.7 1.7 0 0 0-.3-1.8l-.1-.1a2 2 0 1 1 2.8-2.8l.1.1a1.7 1.7 0 0 0 1.8.3H9a1.7 1.7 0 0 0 1-1.5V3a2 2 0 1 1 4 0v.1a1.7 1.7 0 0 0 1 1.5 1.7 1.7 0 0 0 1.8-.3l.1-.1a2 2 0 1 1 2.8 2.8l-.1.1a1.7 1.7 0 0 0-.3 1.8V9a1.7 1.7 0 0 0 1.5 1H21a2 2 0 1 1 0 4h-.1a1.7 1.7 0 0 0-1.5 1z'
 
 type RouteHistory = ReturnType<typeof useRouteHistory>
+
+/** Its shortcut (⌘. unless changed) opens the settings, and from there goes back to where you were. */
+function SettingsShortcut({ history }: { history: RouteHistory }) {
+  useShortcut('settings', () => {
+    if (history.route.view === 'settings' && history.canGoBack) {
+      history.back()
+    } else {
+      history.go({ view: 'settings' })
+    }
+  })
+  return null
+}
 
 /** The inbox and mentions as the main process sends them, kept current by its events. */
 function useLiveData(setRoute: RouteHistory['go']) {
@@ -230,6 +243,7 @@ export function App() {
               </div>
             </main>
           </div>
+          <SettingsShortcut history={history} />
           <ShortcutsDialog />
           <Notice />
         </ShortcutsContext>
