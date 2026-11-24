@@ -20,3 +20,5 @@ Pull request titles and commit messages must follow [Conventional Commits](https
 | `fix(inbox): keep the search when going back` | `Fixed search.`                 |
 
 A pull request's title says what the whole pull request does, so it need not repeat any one commit.
+
+The **PR title** check (`.github/workflows/pr-title.yml`) fails on a title without this form.

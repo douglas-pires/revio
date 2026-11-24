@@ -1,0 +1,29 @@
+# Every pull request title follows Conventional Commits (see AGENTS.md). Runs again when the title is edited.
+name: PR title
+
+on:
+  pull_request:
+    types: [opened, edited, synchronize, reopened]
+
+permissions: {}
+
+concurrency:
+  group: pr-title-${{ github.event.pull_request.number }}
+  cancel-in-progress: true
+
+jobs:
+  pr-title:
+    runs-on: ubuntu-latest
+    steps:
+      # The title reaches the script as a variable, never as part of it: anyone can write one.
+      - name: Check the title
+        env:
+          TITLE: ${{ github.event.pull_request.title }}
+        run: |
+          pattern='^(feat|fix|refactor|perf|test|docs|style|build|ci|chore|revert)(\([a-z0-9/-]+\))?!?: [^ ].*$'
+          if [[ "$TITLE" =~ $pattern ]]; then
+            echo "The title follows Conventional Commits."
+          else
+            echo "::error::The title must follow Conventional Commits, like \"feat: copy the branch name\" or \"fix(inbox): keep the search\". See AGENTS.md."
+            exit 1
+          fi
