@@ -3,6 +3,7 @@ import { useState } from 'react'
 import { ErrorBanner } from '../common/error-banner.component.tsx'
 import type { OpenPull, PullTarget } from '../common/navigation.types.ts'
 import { Screen, ScreenBody, ScreenHeader } from '../common/screen.component.tsx'
+import { MentionScopeContext } from '../mentionables/mention-scope.context.ts'
 import { FileTree } from './file-tree.component.tsx'
 import { GitLogPanel } from './git-log-panel.component.tsx'
 import { PullHeader } from './pull-header.component.tsx'
@@ -109,46 +110,48 @@ export function PullView(props: PullViewProps) {
     <ReactionsContext value={view.setReaction}>
       <ReplyTargetContext value={view.replyTarget}>
         <UnsentScopeContext value={`${props.pull.repo}#${props.pull.number}`}>
-          <ThreadFoldContext value={view.threadFold}>
-            <div className="flex h-full flex-col">
-              <PullViewHeader view={view} pr={pr} props={props} />
-              {view.stack !== null && <StackBar stack={view.stack} pull={view.pull} onOpen={props.onOpenPull} />}
-              <div className="flex min-h-0 flex-1">
-                <FileTree
-                  files={pr.files}
-                  viewed={view.local.viewed}
-                  current={view.nav.current}
-                  focusPaths={view.focusPaths}
-                  ignorePaths={view.ignorePaths}
-                  draftCounts={view.draftCounts}
-                  onSelect={view.nav.goTo}
-                />
-                <PullTabs
-                  view={view}
-                  pr={pr}
-                  onEditGuidelines={props.onEditGuidelines}
-                  onOpenCommit={(sha) => setCommitPick({ sha })}
-                />
-                <PullSidePanels view={view} pr={pr} />
-              </div>
-              <GitLogPanel
-                repo={view.pull.repo}
-                headSha={pr.headSha}
-                headRef={pr.headRef}
-                files={view.orderedFiles}
-                openPath={readOpenPath(view)}
-                commitPick={commitPick}
-              />
-              {Boolean(view.quickOpen.open) && (
-                <QuickOpen
+          <MentionScopeContext value={view.mentionScope}>
+            <ThreadFoldContext value={view.threadFold}>
+              <div className="flex h-full flex-col">
+                <PullViewHeader view={view} pr={pr} props={props} />
+                {view.stack !== null && <StackBar stack={view.stack} pull={view.pull} onOpen={props.onOpenPull} />}
+                <div className="flex min-h-0 flex-1">
+                  <FileTree
+                    files={pr.files}
+                    viewed={view.local.viewed}
+                    current={view.nav.current}
+                    focusPaths={view.focusPaths}
+                    ignorePaths={view.ignorePaths}
+                    draftCounts={view.draftCounts}
+                    onSelect={view.nav.goTo}
+                  />
+                  <PullTabs
+                    view={view}
+                    pr={pr}
+                    onEditGuidelines={props.onEditGuidelines}
+                    onOpenCommit={(sha) => setCommitPick({ sha })}
+                  />
+                  <PullSidePanels view={view} pr={pr} />
+                </div>
+                <GitLogPanel
+                  repo={view.pull.repo}
+                  headSha={pr.headSha}
+                  headRef={pr.headRef}
                   files={view.orderedFiles}
-                  viewed={view.local.viewed}
-                  onPick={(path) => view.nav.goTo(path)}
-                  onClose={view.quickOpen.close}
+                  openPath={readOpenPath(view)}
+                  commitPick={commitPick}
                 />
-              )}
-            </div>
-          </ThreadFoldContext>
+                {Boolean(view.quickOpen.open) && (
+                  <QuickOpen
+                    files={view.orderedFiles}
+                    viewed={view.local.viewed}
+                    onPick={(path) => view.nav.goTo(path)}
+                    onClose={view.quickOpen.close}
+                  />
+                )}
+              </div>
+            </ThreadFoldContext>
+          </MentionScopeContext>
         </UnsentScopeContext>
       </ReplyTargetContext>
     </ReactionsContext>

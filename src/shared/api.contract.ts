@@ -8,6 +8,7 @@ import type { Guideline, ResolvedGuideline } from './guideline.types.ts'
 import type { BlameRange, CommitFile, CommitRef, FileAtCommit, FileHistoryEntry, PullCommit } from './history.types.ts'
 import type { Inbox, Stack, StackPrComments } from './inbox.types.ts'
 import type { MentionsInbox } from './mention.types.ts'
+import type { Mentionable } from './mentionable.types.ts'
 import type { DraftComment, PullDetail, PullLocalState, PullRef, SubmitReviewInput } from './pull.types.ts'
 import type { ReactionContent, ReactionSummary } from './reaction.types.ts'
 import type { GithubAuthStatus, Settings, SettingsPatch, SyncStatus } from './settings.types.ts'
@@ -110,6 +111,9 @@ export interface RevioApi {
 
   /** GitHub's emojis, for writing comments. */
   listEmojis: () => Promise<Emoji[]>
+
+  /** Who can be mentioned in a repository. */
+  listMentionables: (repo: string) => Promise<Mentionable[]>
 
   openExternal: (url: string) => Promise<void>
   onEvent: (listener: (event: MainEvent) => void) => () => void

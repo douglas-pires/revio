@@ -66,6 +66,7 @@ const methods = [
   'checkForUpdates',
   'testNotification',
   'listEmojis',
+  'listMentionables',
   'getPullLog',
   'getCommitDetail',
   'getCommitCi',
