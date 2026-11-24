@@ -1,10 +1,11 @@
 import { type ApiMethod, IPC, type RevioApi } from '@shared/api.contract.ts'
-import type { AskActivity } from '@shared/claude.types.ts'
+import type { AskActivity, BriefingRecord } from '@shared/claude.types.ts'
 import { buildPullKey, type PullRef } from '@shared/pull.types.ts'
 import { ipcMain, shell } from 'electron'
 import { sendTestNotification } from '../alerts/notification.service.ts'
 import { ask } from '../claude/ask.service.ts'
 import { generateBriefing } from '../claude/briefing.service.ts'
+import { InFlight } from '../common/in-flight.util.ts'
 import { isWebUrl } from '../common/web-url.util.ts'
 import type { EditorService } from '../editor/editor.service.ts'
 import { listInstalledEditors } from '../editor/editor.service.ts'
@@ -188,18 +189,21 @@ function buildClaudeHandlers({ store, pulls, window }: ApiDeps): Pick<ApiHandler
       ),
     }
   }
+  const briefings = new InFlight<BriefingRecord>()
+  const writeBriefing = async (ref: PullRef) => {
+    const key = buildPullKey(ref)
+    const { pr, guidelines } = await loadContext(ref)
+    const record = await generateBriefing(pr, guidelines, (message) =>
+      window.send({ type: 'briefing-progress', key, message }),
+    )
+    store.updatePull(key, (pullState) => {
+      pullState.briefing = record
+    })
+    return record
+  }
   return {
-    generateBriefing: async (ref) => {
-      const key = buildPullKey(ref)
-      const { pr, guidelines } = await loadContext(ref)
-      const record = await generateBriefing(pr, guidelines, (message) =>
-        window.send({ type: 'briefing-progress', key, message }),
-      )
-      store.updatePull(key, (pullState) => {
-        pullState.briefing = record
-      })
-      return record
-    },
+    // One request per PR: asking again while it runs (after a reload, say) waits for the same briefing.
+    generateBriefing: (ref) => briefings.run(buildPullKey(ref), () => writeBriefing(ref)),
     askClaude: async (ref, thread) => {
       const onActivity = (activity: AskActivity) => window.send({ type: 'ask-activity', threadId: thread.id, activity })
       onActivity({ kind: 'step', label: 'Loading the PR and your review guides' })
