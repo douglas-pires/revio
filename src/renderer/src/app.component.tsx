@@ -7,6 +7,7 @@ import { joinClassNames } from './common/format.util.ts'
 import { HistoryContext } from './common/history.context.ts'
 import { MascotLoading } from './common/mascot-loading.component.tsx'
 import type { OpenPull } from './common/navigation.types.ts'
+import { Notice } from './common/notice.component.tsx'
 import { useRouteHistory } from './common/use-route-history.hook.ts'
 import { HighlighterContext, WorkerHighlighter } from './highlight/highlight.service.ts'
 import { Inbox } from './inbox/inbox.view.tsx'
@@ -230,6 +231,7 @@ export function App() {
             </main>
           </div>
           <ShortcutsDialog />
+          <Notice />
         </ShortcutsContext>
       </HistoryContext>
     </HighlighterContext>
