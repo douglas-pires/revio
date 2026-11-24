@@ -11,6 +11,9 @@ import { useRouteHistory } from './common/use-route-history.hook.ts'
 import { HighlighterContext, WorkerHighlighter } from './highlight/highlight.service.ts'
 import { Inbox } from './inbox/inbox.view.tsx'
 import { countPullsNeedingYou } from './my-pulls/my-pulls.util.ts'
+import { ShortcutsContext } from './shortcuts/shortcuts.context.ts'
+import { ShortcutsDialog } from './shortcuts/shortcuts-dialog.component.tsx'
+import { useShortcutSettings } from './shortcuts/use-shortcut-settings.hook.ts'
 import { UpdateBanner } from './updates/update-banner.component.tsx'
 import { useUpdateStatus } from './updates/use-update-status.hook.ts'
 
@@ -208,6 +211,7 @@ export function App() {
   const history = useRouteHistory({ view: 'inbox' })
   const { inbox, mentions } = useLiveData(history.go)
   const updateStatus = useUpdateStatus()
+  const shortcuts = useShortcutSettings()
   // Lives here so the inbox search survives opening a PR and coming back.
   const inboxSearch = useState('')
   const [highlighter] = useState(() => new WorkerHighlighter())
@@ -215,15 +219,18 @@ export function App() {
   return (
     <HighlighterContext value={highlighter}>
       <HistoryContext value={history}>
-        <div className="flex h-full">
-          <NavRail history={history} inbox={inbox} mentions={mentions} />
-          <main className="flex min-w-0 flex-1 flex-col">
-            <UpdateBanner status={updateStatus} />
-            <div className="min-h-0 flex-1">
-              <Screen history={history} inbox={inbox} mentions={mentions} inboxSearch={inboxSearch} />
-            </div>
-          </main>
-        </div>
+        <ShortcutsContext value={shortcuts}>
+          <div className="flex h-full">
+            <NavRail history={history} inbox={inbox} mentions={mentions} />
+            <main className="flex min-w-0 flex-1 flex-col">
+              <UpdateBanner status={updateStatus} />
+              <div className="min-h-0 flex-1">
+                <Screen history={history} inbox={inbox} mentions={mentions} inboxSearch={inboxSearch} />
+              </div>
+            </main>
+          </div>
+          <ShortcutsDialog />
+        </ShortcutsContext>
       </HistoryContext>
     </HighlighterContext>
   )

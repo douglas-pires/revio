@@ -1,7 +1,9 @@
+import { formatShortcut, matchesShortcut } from '@shared/shortcut.util.ts'
 import { useEffect, useState } from 'react'
 import { joinClassNames } from '../common/format.util.ts'
 import { Markdown } from '../common/markdown.component.tsx'
 import { buildMarkdownLink } from '../common/markdown-link.util.ts'
+import { useShortcuts } from '../shortcuts/shortcuts.context.ts'
 import { forgetUnsentComment, keepUnsentComment, readUnsentComment } from './unsent-comments.util.ts'
 
 interface ComposerProps {
@@ -177,6 +179,39 @@ function ComposerButtons({
   )
 }
 
+/** Where the comment is written; it grows with what you type or paste, up to most of the window, then scrolls. */
+function ComposerTextBox(props: {
+  label: string
+  body: string
+  addsToReview: boolean
+  onChange: (body: string) => void
+  onSubmit: () => void
+  onClose: () => void
+}) {
+  const { shortcuts } = useShortcuts()
+  return (
+    <textarea
+      // biome-ignore lint/a11y/noAutofocus: the composer opens because the reviewer chose to write; focus goes where they type.
+      autoFocus={true}
+      aria-label={props.label}
+      className="input max-h-[60vh] min-h-20 resize-y font-sans [field-sizing:content]"
+      placeholder={`Leave a comment (markdown). ${formatShortcut(shortcuts.send)} to ${submitVerb(props.addsToReview)}, Esc to close and keep it`}
+      value={props.body}
+      onChange={(event) => props.onChange(event.target.value)}
+      onPaste={pasteAsLink}
+      onKeyDown={(event) => {
+        if (matchesShortcut(event, shortcuts.send)) {
+          event.preventDefault()
+          props.onSubmit()
+        }
+        if (event.key === 'Escape') {
+          props.onClose()
+        }
+      }}
+    />
+  )
+}
+
 export function Composer(props: ComposerProps) {
   const [restored] = useState(() => props.unsentKey !== undefined && readUnsentComment(props.unsentKey) !== undefined)
   const [body, setBody] = useState(() => buildOpeningBody(props))
@@ -228,24 +263,13 @@ export function Composer(props: ComposerProps) {
         </div>
       )}
       {!preview && (
-        <textarea
-          // biome-ignore lint/a11y/noAutofocus: the composer opens because the reviewer chose to write; focus goes where they type.
-          autoFocus={true}
-          aria-label={props.label}
-          // Grows with what you type or paste, up to most of the window, then scrolls.
-          className="input max-h-[60vh] min-h-20 resize-y font-sans [field-sizing:content]"
-          placeholder={`Leave a comment (markdown). ⌘↵ to ${submitVerb(Boolean(props.onSubmit))}, Esc to close and keep it`}
-          value={body}
-          onChange={(event) => setBody(event.target.value)}
-          onPaste={pasteAsLink}
-          onKeyDown={(event) => {
-            if (event.key === 'Enter' && event.metaKey) {
-              submit()
-            }
-            if (event.key === 'Escape') {
-              props.onCancel()
-            }
-          }}
+        <ComposerTextBox
+          label={props.label}
+          body={body}
+          addsToReview={Boolean(props.onSubmit)}
+          onChange={setBody}
+          onSubmit={submit}
+          onClose={props.onCancel}
         />
       )}
       <ComposerButtons props={props} body={body} busy={busy} sendNow={sendNow} submit={submit} discard={discard} />

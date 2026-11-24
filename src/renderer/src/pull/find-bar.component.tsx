@@ -1,3 +1,5 @@
+import { formatShortcut } from '@shared/shortcut.util.ts'
+import { useShortcuts } from '../shortcuts/shortcuts.context.ts'
 import { useEffect, useRef } from 'react'
 import { joinClassNames } from '../common/format.util.ts'
 import { MAX_MATCHES } from './diff-search.util.ts'
@@ -50,12 +52,13 @@ function onFindKey(event: React.KeyboardEvent, find: DiffFind) {
 
 /** Previous, next and close. */
 function FindSteps({ find, hasMatches }: { find: DiffFind; hasMatches: boolean }) {
+  const { shortcuts } = useShortcuts()
   return (
     <>
       <button
         type="button"
         className="btn btn-ghost px-1.5 py-0"
-        title="Previous match (⇧↵ or ⇧⌘G)"
+        title={`Previous match (⇧↵ or ${formatShortcut(shortcuts['find-previous'])})`}
         aria-label="Previous match"
         disabled={!hasMatches}
         onClick={find.previous}
@@ -65,7 +68,7 @@ function FindSteps({ find, hasMatches }: { find: DiffFind; hasMatches: boolean }
       <button
         type="button"
         className="btn btn-ghost px-1.5 py-0"
-        title="Next match (↵ or ⌘G)"
+        title={`Next match (↵ or ${formatShortcut(shortcuts['find-next'])})`}
         aria-label="Next match"
         disabled={!hasMatches}
         onClick={find.next}

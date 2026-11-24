@@ -1,6 +1,8 @@
 import type { PullDetail, ReviewEvent } from '@shared/pull.types.ts'
+import { formatShortcut, matchesShortcut } from '@shared/shortcut.util.ts'
 import { useState } from 'react'
 import { joinClassNames, readErrorMessage } from '../common/format.util.ts'
+import { useShortcuts } from '../shortcuts/shortcuts.context.ts'
 
 type ReviewState = NonNullable<PullDetail['myReview']>['state']
 
@@ -53,11 +55,11 @@ function pickStartingEvent(isAuthor: boolean, picked: ReviewEvent): ReviewEvent 
   return picked
 }
 
-function describeSummaryPlaceholder(event: ReviewEvent) {
+function describeSummaryPlaceholder(event: ReviewEvent, sendShortcut: string) {
   if (event === 'APPROVE') {
     return 'Optional comment, e.g. LGTM 🚀'
   }
-  return 'Leave a summary comment (optional). ⌘↵ to submit'
+  return `Leave a summary comment (optional). ${formatShortcut(sendShortcut)} to submit`
 }
 
 /** The review kinds as radio buttons; an author can only comment on their own pull request. */
@@ -148,6 +150,7 @@ export function ReviewPopover(props: {
   const { busy, error, submit } = useSubmitReview(props.onSubmit)
   // A plain comment review needs something to say: a summary or at least one pending comment.
   const empty = event === 'COMMENT' && !props.body.trim() && props.draftCount === 0
+  const { shortcuts } = useShortcuts()
   const canSubmit = !(busy || empty)
   const submitIfReady = () => {
     if (canSubmit) {
@@ -160,11 +163,12 @@ export function ReviewPopover(props: {
         // biome-ignore lint/a11y/noAutofocus: the popover opens because the reviewer chose to finish the review; focus goes where they type.
         autoFocus={true}
         className="input mb-2 min-h-28 resize-y"
-        placeholder={describeSummaryPlaceholder(event)}
+        placeholder={describeSummaryPlaceholder(event, shortcuts.send)}
         value={props.body}
         onChange={(changeEvent) => props.setBody(changeEvent.target.value)}
         onKeyDown={(keyEvent) => {
-          if (keyEvent.key === 'Enter' && keyEvent.metaKey) {
+          if (matchesShortcut(keyEvent, shortcuts.send)) {
+            keyEvent.preventDefault()
             submitIfReady()
           }
           if (keyEvent.key === 'Escape') {

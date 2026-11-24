@@ -1,23 +1,13 @@
-import { useEffect, useState } from 'react'
+import { useState } from 'react'
+import { useShortcut } from '../shortcuts/use-shortcut.hook.ts'
 
-/** Whether ⌘P is exactly what was pressed (no Shift, Option or Control). */
-const isQuickOpenKey = (event: KeyboardEvent) =>
-  event.metaKey && !event.shiftKey && !event.altKey && !event.ctrlKey && event.code === 'KeyP'
-
-/** ⌘P opens the quick file list (and switches to Files changed); pressing it again while open closes it. */
+/** Its shortcut (⌘P) opens the quick file list and switches to Files changed; pressed again while open, it closes it. */
 export function useQuickOpen(showFiles: () => void) {
   const [open, setOpen] = useState(false)
-  useEffect(() => {
-    const onKey = (event: KeyboardEvent) => {
-      if (event.repeat || !isQuickOpenKey(event)) {
-        return
-      }
-      event.preventDefault()
-      showFiles()
-      setOpen((wasOpen) => !wasOpen)
-    }
-    globalThis.addEventListener('keydown', onKey)
-    return () => globalThis.removeEventListener('keydown', onKey)
-  }, [showFiles])
+  const toggle = () => {
+    showFiles()
+    setOpen(!open)
+  }
+  useShortcut('quick-open', toggle, { overDialogs: open })
   return { open, close: () => setOpen(false) }
 }

@@ -1,6 +1,6 @@
 import { formatShortcut, type KeyPress, readShortcut } from '@shared/shortcut.util.ts'
 import { type KeyboardEvent, useEffect, useRef, useState } from 'react'
-import { joinClassNames } from './format.util.ts'
+import { joinClassNames } from '../common/format.util.ts'
 
 /** What a key press does in the recorder. */
 type RecorderStep = { kind: 'save' } | { kind: 'cancel' } | { kind: 'set'; shortcut: string } | { kind: 'wait' }
@@ -91,7 +91,7 @@ export function ShortcutPopover(props: {
       role="dialog"
       aria-label={props.title}
       className={joinClassNames(
-        'absolute z-30 w-72 space-y-2 rounded-lg border border-line bg-panel p-3 text-[12px] shadow-lg',
+        'w-72 space-y-2 rounded-lg border border-line bg-panel p-3 text-[12px] shadow-lg',
         props.className,
       )}
     >
@@ -116,7 +116,10 @@ export function ShortcutPopover(props: {
           type="button"
           className="btn btn-ghost"
           disabled={draft === props.defaultValue && props.value === props.defaultValue}
-          onClick={() => save(props.defaultValue)}
+          onClick={() => {
+            setDraft(props.defaultValue)
+            save(props.defaultValue)
+          }}
         >
           Reset to {formatShortcut(props.defaultValue)}
         </button>
