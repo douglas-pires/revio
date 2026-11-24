@@ -109,12 +109,12 @@ jobs:
             echo "short=${version%%-*}"
           } >> "$GITHUB_OUTPUT"
 
-      # Everything since the last release (pre-releases do not count), so a release lists every change it brings.
+      # The pull requests since the last release (pre-releases do not count), so a release lists all it brings.
       - name: Release notes
         run: |
           previous=$(git describe --tags --abbrev=0 --match 'v*' --exclude '*-dev.*' HEAD^ 2>/dev/null || true)
           range=${previous:+$previous..}HEAD
-          git log --no-merges --format='- %s' "$range" | head -100 > release-notes.md
+          scripts/release-notes.sh "$range" > release-notes.md
 
       - run: pnpm build
 

@@ -4,6 +4,20 @@ import { Markdown } from '../common/markdown.component.tsx'
 
 const DATE_FORMAT = new Intl.DateTimeFormat(undefined, { dateStyle: 'long' })
 
+/** The pull request behind a change, opened on GitHub. */
+function PullLink({ pull }: { pull: NonNullable<ReleaseChange['pull']> }) {
+  return (
+    <button
+      type="button"
+      className="ml-1.5 text-muted hover:text-accent hover:underline"
+      title={`Open pull request #${pull.number} on GitHub`}
+      onClick={() => globalThis.revio.openExternal(pull.url)}
+    >
+      #{pull.number}
+    </button>
+  )
+}
+
 function ChangeItem({ change }: { change: ReleaseChange }) {
   return (
     <li className="flex gap-2">
@@ -14,6 +28,7 @@ function ChangeItem({ change }: { change: ReleaseChange }) {
         {Boolean(change.breaking) && <span className="chip mr-1.5 bg-warn/20 text-warn">Breaking</span>}
         {Boolean(change.scope) && <span className="text-muted">{change.scope}: </span>}
         {change.text}
+        {change.pull !== null && <PullLink pull={change.pull} />}
       </span>
     </li>
   )
