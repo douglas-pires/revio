@@ -3,6 +3,7 @@ import { formatAge, formatDuration, joinClassNames } from '../common/format.util
 import { onActivateKey } from '../common/keyboard.util.ts'
 import type { OpenPull } from '../common/navigation.types.ts'
 import { usePrefetchOnHover } from './use-prefetch-on-hover.hook.ts'
+import { describeVerdict } from './verdict-label.util.ts'
 
 /** Size labels by changed lines (additions + deletions): below each limit, that label; XL above them all. */
 const SIZE_LIMITS = { XS: 50, S: 200, M: 600, L: 1500 } as const
@@ -31,6 +32,43 @@ function StackChip({ stack, onStack }: { stack: NonNullable<PullSummary['stack']
       }}
     >
       ⧉ stack {stack.position}/{stack.size}
+    </button>
+  )
+}
+
+/** Where the reviews stand, and who said so; every name is in the tooltip. */
+function VerdictChip({ pr }: { pr: PullSummary }) {
+  if (pr.reviewDecision === 'APPROVED') {
+    return (
+      <span className="chip shrink-0 bg-ok/15 text-ok" title={pr.approvedBy.join(', ')}>
+        {describeVerdict('approved', pr.approvedBy)}
+      </span>
+    )
+  }
+  if (pr.reviewDecision === 'CHANGES_REQUESTED') {
+    return (
+      <span className="chip shrink-0 bg-danger/15 text-danger" title={pr.changesRequestedBy.join(', ')}>
+        {describeVerdict('changes requested', pr.changesRequestedBy)}
+      </span>
+    )
+  }
+  return null
+}
+
+/** Opens the PR on GitHub, without opening it here. */
+function GithubButton({ url }: { url: string }) {
+  return (
+    <button
+      type="button"
+      className="btn btn-ghost shrink-0 px-1.5 py-0.5 text-muted"
+      title="Open on GitHub"
+      aria-label="Open on GitHub"
+      onClick={(event) => {
+        event.stopPropagation()
+        globalThis.revio.openExternal(url)
+      }}
+    >
+      ↗
     </button>
   )
 }
@@ -124,16 +162,14 @@ export function InboxRow({
             {Boolean(pr.isDraft) && <span className="chip bg-panel-2 text-muted">draft</span>}
             {pr.stack !== undefined && <StackChip stack={pr.stack} onStack={onStack} />}
             {pr.viaTeam !== null && <span className="chip bg-panel-2 text-muted">@{pr.viaTeam}</span>}
-            {pr.reviewDecision === 'CHANGES_REQUESTED' && (
-              <span className="chip bg-danger/15 text-danger">changes requested</span>
-            )}
-            {pr.reviewDecision === 'APPROVED' && <span className="chip bg-ok/15 text-ok">approved</span>}
+            <VerdictChip pr={pr} />
           </div>
           <div className="mt-0.5 truncate text-[12px] text-muted">
             {pr.repo}#{pr.number} · {pr.author} · {pr.headRef} → {pr.baseRef}
           </div>
         </div>
         <RowStats pr={pr} time={time} />
+        <GithubButton url={pr.url} />
       </div>
     </li>
   )

@@ -12,6 +12,7 @@ import {
   type RequestEvent,
   type ReviewRequest,
 } from './review-request.util.ts'
+import { listReviewersByVerdict, type Verdict } from './verdict.util.ts'
 
 const SCOPE_ERROR = /scopes/iu
 
@@ -36,6 +37,7 @@ const searchQuery = (teamSlugs: boolean) => /* GraphQL */ `
     repository { nameWithOwner defaultBranchRef { name } }
     author { login avatarUrl(size: 64) }
     latestReviews(first: 30) { nodes { author { login } submittedAt } }
+    latestOpinionatedReviews(first: 20) { nodes { author { login } state } }
     reviewRequests(first: 20) {
       nodes { requestedReviewer { __typename ... on User { login } ${buildTeamField(teamSlugs)} } }
     }
@@ -67,6 +69,7 @@ interface RawPr {
   repository: { nameWithOwner: string; defaultBranchRef: { name: string } | null }
   author: { login: string; avatarUrl: string } | null
   latestReviews: { nodes: ({ author: { login: string } | null; submittedAt: string | null } | null)[] }
+  latestOpinionatedReviews: { nodes: (Verdict | null)[] } | null
   reviewRequests: { nodes: ({ requestedReviewer: RawReviewer } | null)[] }
   timelineItems: { nodes: (RequestEvent | null)[] }
 }
@@ -85,6 +88,7 @@ const findLastReviewAt = (pr: RawPr, viewer: string) =>
 /** `request` is set for PRs waiting on your review, null for ones you already reviewed. */
 function toSummary(pr: RawPr, staleAfterHours: number, request: ReviewRequest | null, viewer: string): PullSummary {
   const isRequested = Boolean(request)
+  const verdicts = pr.latestOpinionatedReviews?.nodes ?? []
   const { viaTeam, requestedAt } = request ?? { viaTeam: null, requestedAt: null }
   const since = new Date(requestedAt ?? pr.createdAt).getTime()
   const waitingHours = (Date.now() - since) / MS_PER_HOUR
@@ -108,6 +112,8 @@ function toSummary(pr: RawPr, staleAfterHours: number, request: ReviewRequest | 
     headRef: pr.headRefName,
     baseRef: pr.baseRefName,
     reviewDecision: pr.reviewDecision,
+    approvedBy: listReviewersByVerdict(verdicts, 'APPROVED'),
+    changesRequestedBy: listReviewersByVerdict(verdicts, 'CHANGES_REQUESTED'),
     defaultBranch: pr.repository.defaultBranchRef?.name ?? 'main',
     waitingHours,
     stale: isRequested && waitingHours >= staleAfterHours,
