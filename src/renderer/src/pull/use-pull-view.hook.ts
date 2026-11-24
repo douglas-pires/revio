@@ -22,8 +22,6 @@ import { useQuickOpen } from './use-quick-open.hook.ts'
 import type { SetReaction } from './use-reactions.hook.ts'
 import { useThreadFoldState } from './use-thread-fold.hook.ts'
 
-const DIFF_VIEWS: readonly DiffView[] = ['unified', 'split']
-
 /** Lookups over the PR and its local state that several parts of the view share. */
 function usePullIndexes(pr: ReturnType<typeof usePullDetail>['pr'], local: PullLocalStateApi['local']) {
   const focusByPath = useMemo(
@@ -168,6 +166,9 @@ function useViewedToggle(
 function useReactionSetter(pull: PullRef): SetReaction {
   return useCallback((subjectId, content, on) => globalThis.revio.setReaction(pull, subjectId, content, on), [pull])
 }
+
+/** How the diff can be laid out. */
+export const DIFF_VIEWS = ['unified', 'split'] as const satisfies readonly DiffView[]
 
 export const PANEL_STATES = ['open', 'closed'] as const
 

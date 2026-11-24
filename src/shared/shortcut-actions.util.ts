@@ -3,6 +3,7 @@ import { findShortcutConflict } from './shortcut.util.ts'
 /** Everything a shortcut can do: the keys until you change them, by where it works. */
 const ACTIONS = {
   'show-shortcuts': { label: 'Show the shortcuts', group: 'Anywhere', defaultShortcut: 'Cmd+Shift+S' },
+  palette: { label: 'Show the actions for this screen', group: 'Anywhere', defaultShortcut: 'Cmd+K' },
   settings: { label: 'Open or leave the settings', group: 'Anywhere', defaultShortcut: 'Cmd+.' },
   search: { label: 'Search', group: 'Anywhere', defaultShortcut: '/' },
   'save-guide': { label: 'Save the review guide', group: 'Anywhere', defaultShortcut: 'Cmd+S' },

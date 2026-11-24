@@ -3,6 +3,7 @@ import { useCallback, useEffect, useState } from 'react'
 import { EmptyState } from '../common/empty-state.component.tsx'
 import { readErrorMessage } from '../common/format.util.ts'
 import { Screen, ScreenHeader } from '../common/screen.component.tsx'
+import { usePalettePage } from '../palette/use-palette-page.hook.ts'
 import {
   applyDraft,
   buildDraftKey,
@@ -164,6 +165,14 @@ export function Guidelines({
 }) {
   const editing = useGuideEditing(initialRepo, initialPath)
   const { draft, saving } = editing
+  const openNew = () => editing.open(makeNewDraft(editing.repos[0] ?? '*'))
+  usePalettePage({
+    name: 'Review guides',
+    actions: [
+      { id: 'new', label: 'New review guide', run: openNew },
+      { id: 'save', label: 'Save the review guide', shortcut: 'save-guide', run: saving.save },
+    ],
+  })
   return (
     <Screen
       header={
@@ -171,7 +180,7 @@ export function Guidelines({
           title="Review guides"
           subtitle="What Claude should look for, by repository and folder"
           actions={
-            <button type="button" className="btn" onClick={() => editing.open(makeNewDraft(editing.repos[0] ?? '*'))}>
+            <button type="button" className="btn" onClick={openNew}>
               + New guide
             </button>
           }

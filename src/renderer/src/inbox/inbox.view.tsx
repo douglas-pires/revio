@@ -9,6 +9,8 @@ import { RefreshControl } from '../common/refresh-control.component.tsx'
 import { Screen, ScreenBody, ScreenHeader } from '../common/screen.component.tsx'
 import { SegmentedControl } from '../common/segmented-control.component.tsx'
 import { useAsyncAction } from '../common/use-async-action.hook.ts'
+import { buildShortcutEntries } from '../palette/shortcut-entries.util.ts'
+import { usePalettePage } from '../palette/use-palette-page.hook.ts'
 import { countWaitingOnYou } from '../threads/thread-edits.util.ts'
 import { ThreadList } from '../threads/thread-list.component.tsx'
 import { useThreads } from '../threads/use-threads.hook.ts'
@@ -29,7 +31,16 @@ import { InboxSearch } from './inbox-search.component.tsx'
 import { InboxSection } from './inbox-section.component.tsx'
 import { StackList } from './stack-list.component.tsx'
 
-type Mode = 'queue' | 'stacks' | 'threads'
+const MODES = ['queue', 'stacks', 'threads'] as const
+
+type Mode = (typeof MODES)[number]
+
+/** What the palette calls going to each. */
+const MODE_ACTIONS: Record<Mode, string> = {
+  queue: 'Show the queue',
+  stacks: 'Show stacks',
+  threads: 'Show threads',
+}
 
 /** Placeholder rows while the inbox loads. */
 const SKELETON_ROWS = 5
@@ -43,7 +54,7 @@ function ModeSwitch({
   labels: { stacks: number; waitingOnYou: number }
   onChange: (mode: Mode) => void
 }) {
-  const segments = (['queue', 'stacks', 'threads'] as const).map((segmentMode) => ({
+  const segments = MODES.map((segmentMode) => ({
     value: segmentMode,
     label: describeMode(segmentMode, labels.stacks, labels.waitingOnYou),
   }))
@@ -235,6 +246,19 @@ export function Inbox({
     )
   }
   const refresh = () => refreshAction.run(() => Promise.all([globalThis.revio.refreshInbox(), threadsState.reload()]))
+  usePalettePage({
+    name: 'Inbox',
+    actions: [
+      { id: 'refresh', label: 'Refresh the inbox', run: refresh },
+      ...MODES.filter((other) => other !== mode).map((other) => ({
+        id: other,
+        label: MODE_ACTIONS[other],
+        run: () => setMode(other),
+      })),
+      ...buildShortcutEntries(['search']),
+      { id: 'clear', label: 'Clear the search', run: () => onSearch('') },
+    ],
+  })
   // The first load fills the screen with the mascot; once there is an inbox (or an error to show), the body takes over.
   const loadingFirstInbox = mode !== 'threads' && inbox === null && refreshAction.error === null
   const labels = {

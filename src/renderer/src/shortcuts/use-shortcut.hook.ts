@@ -2,6 +2,7 @@ import { hasCommandModifier, matchesShortcut } from '@shared/shortcut.util.ts'
 import type { ShortcutActionId } from '@shared/shortcut-actions.util.ts'
 import { useEffect, useRef } from 'react'
 import { isTyping } from '../common/keyboard.util.ts'
+import { addShortcutRunner } from './shortcut-runners.service.ts'
 import { useShortcuts } from './shortcuts.context.ts'
 
 interface ShortcutOptions {
@@ -27,6 +28,7 @@ export function useShortcut(id: ShortcutActionId, run: (() => void) | null, opti
   const shortcut = useShortcuts().shortcuts[id]
   const latest = useRef({ run, options, shortcut })
   latest.current = { run, options, shortcut }
+  useEffect(() => addShortcutRunner(id, () => latest.current.run?.()), [id])
   useEffect(() => {
     const runOnShortcut = (event: KeyboardEvent) => {
       const { current } = latest

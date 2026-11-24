@@ -1,5 +1,6 @@
 import type { ReactNode } from 'react'
 import { joinClassNames } from '../common/format.util.ts'
+import { usePalettePage } from '../palette/use-palette-page.hook.ts'
 
 /** The settings' categories, as listed: what each is called and what is in it. */
 const CATEGORIES = {
@@ -48,6 +49,19 @@ export function CategoryNav({
       ))}
     </nav>
   )
+}
+
+/** The settings' actions in the palette: going to each category. */
+export function CategoryActions({ onPick }: { onPick: (category: SettingsCategory) => void }) {
+  usePalettePage({
+    name: 'Settings',
+    actions: SETTINGS_CATEGORIES.map((category) => ({
+      id: category,
+      label: `Show ${CATEGORIES[category].label} settings`,
+      run: () => onPick(category),
+    })),
+  })
+  return null
 }
 
 /** One category's settings; it stays mounted while another is open, so what you typed in it is not lost. */

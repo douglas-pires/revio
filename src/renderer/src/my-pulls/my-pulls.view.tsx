@@ -7,6 +7,7 @@ import { Screen, ScreenBody, ScreenHeader } from '../common/screen.component.tsx
 import { SectionHeading } from '../common/section-heading.component.tsx'
 import { useAsyncAction } from '../common/use-async-action.hook.ts'
 import { InboxRow } from '../inbox/inbox-row.component.tsx'
+import { usePalettePage } from '../palette/use-palette-page.hook.ts'
 import { groupMyPulls } from './my-pulls.util.ts'
 
 /** Your PRs carry no stack chip (stacks are found for review requests), so there is no stack to open. */
@@ -42,6 +43,7 @@ export function MyPulls({ inbox, onOpen }: { inbox: InboxData | null; onOpen: Op
   const refreshAction = useAsyncAction()
   const groups = groupMyPulls(inbox?.authored ?? [])
   const refresh = () => refreshAction.run(() => globalThis.revio.refreshInbox())
+  usePalettePage({ name: 'My PRs', actions: [{ id: 'refresh', label: 'Refresh my PRs', run: refresh }] })
   return (
     <Screen
       header={
