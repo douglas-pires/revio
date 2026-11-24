@@ -4,7 +4,7 @@ import { useState } from 'react'
 import { matchFuzzy } from '../common/fuzzy-match.util.ts'
 import { groupBy } from '../common/group.util.ts'
 import { SectionHeading } from '../common/section-heading.component.tsx'
-import { ShortcutEditor } from './shortcut-editor.component.tsx'
+import { ShortcutInput } from './shortcut-input.component.tsx'
 import { useShortcuts } from './shortcuts.context.ts'
 
 /** Shortcuts of macOS menus and text fields, listed but not changed here. */
@@ -22,9 +22,9 @@ function matchesSearch(query: string, label: string, shortcut: string) {
 
 function ActionRow({ action }: { action: ShortcutAction }) {
   return (
-    <li className="flex flex-wrap items-center justify-between gap-x-3 px-4 py-2">
-      <span>{action.label}</span>
-      <ShortcutEditor action={action.id} className="contents" popoverClassName="mt-2 w-full" />
+    <li className="flex items-start justify-between gap-3 px-4 py-1.5">
+      <span className="py-0.5">{action.label}</span>
+      <ShortcutInput action={action.id} />
     </li>
   )
 }
@@ -64,7 +64,7 @@ function FixedShortcuts({ query }: { query: string }) {
   )
 }
 
-/** Every shortcut, searched by name or keys; click the keys to change them. */
+/** Every shortcut, searched by name or keys; press others in an action's input to change them. */
 export function ShortcutList() {
   const { shortcuts, resetAll } = useShortcuts()
   const [query, setQuery] = useState('')
