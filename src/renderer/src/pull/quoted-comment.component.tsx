@@ -3,6 +3,7 @@ import { useEffect, useRef, useState } from 'react'
 import { formatAge, readErrorMessage } from '../common/format.util.ts'
 import { Markdown } from '../common/markdown.component.tsx'
 import type { ConversationQuote } from '../common/navigation.types.ts'
+import { ClosedReply } from './closed-reply.component.tsx'
 import { Composer } from './composer.component.tsx'
 
 const AVATAR_PX = 20
@@ -54,6 +55,7 @@ export function QuotedComment({
   onDismiss: () => void
 }) {
   const { quote } = quoted
+  const unsentKey = `mention:${quote.url}`
   const ref = useRef<HTMLElement>(null)
   const [replying, setReplying] = useState(quoted.openedFrom === 'mention')
   const [sentUrl, setSentUrl] = useState<string | null>(null)
@@ -93,7 +95,7 @@ export function QuotedComment({
             <Composer
               label="Reply in the conversation"
               initial={quoteReply(quote.body, quote.author)}
-              unsentKey={`mention:${quote.url}`}
+              unsentKey={unsentKey}
               onCancel={() => setReplying(false)}
               onSubmitNow={async (body) => {
                 setError(null)
@@ -107,11 +109,7 @@ export function QuotedComment({
             {error !== null && <div className="mt-1 text-[12px] text-danger">{error}</div>}
           </>
         )}
-        {sentUrl === null && !replying && (
-          <button type="button" className="input text-left text-muted" onClick={() => setReplying(true)}>
-            Reply…
-          </button>
-        )}
+        {sentUrl === null && !replying && <ClosedReply unsentKey={unsentKey} onOpen={() => setReplying(true)} />}
       </div>
     </section>
   )

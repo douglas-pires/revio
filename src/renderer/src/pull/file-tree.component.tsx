@@ -4,6 +4,7 @@ import { joinClassNames } from '../common/format.util.ts'
 import { PanelHeader } from '../common/panel-header.component.tsx'
 import { ResizablePanel } from '../common/resizable-panel.component.tsx'
 import { groupByDir } from './files.util.ts'
+import { useUnsentPaths } from './unsent-comments.util.ts'
 
 const PERCENT = 100
 
@@ -17,6 +18,7 @@ export const FileTree = memo(function FileTreeView(props: {
   draftCounts: ReadonlyMap<string, number>
   onSelect: (path: string) => void
 }) {
+  const unsentPaths = useUnsentPaths()
   const viewedCount = props.files.filter((file) => props.viewed[file.path] === file.sha).length
   return (
     <ResizablePanel
@@ -78,6 +80,11 @@ export const FileTree = memo(function FileTreeView(props: {
                   <span className="min-w-0 flex-1 truncate font-mono text-[11.5px]">
                     {file.path.slice(directory.length)}
                   </span>
+                  {unsentPaths.has(file.path) && (
+                    <span className="text-warn" title="You left a comment here without sending it">
+                      ✎
+                    </span>
+                  )}
                   {drafts > 0 && <span className="chip bg-warn/20 text-warn">{drafts}</span>}
                   <span className="font-mono text-[10.5px] text-muted">{file.additions + file.deletions}</span>
                   {Boolean(viewed) && <span className="text-ok">✓</span>}
