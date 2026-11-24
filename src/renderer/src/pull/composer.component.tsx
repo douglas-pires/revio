@@ -4,6 +4,7 @@ import { joinClassNames } from '../common/format.util.ts'
 import { Markdown } from '../common/markdown.component.tsx'
 import { buildMarkdownLink } from '../common/markdown-link.util.ts'
 import { useShortcuts } from '../shortcuts/shortcuts.context.ts'
+import { SuggestingTextBox } from '../suggestions/suggesting-text-box.component.tsx'
 import {
   forgetUnsentComment,
   keepUnsentComment,
@@ -11,6 +12,7 @@ import {
   readUnsentComment,
   useUnsentScope,
 } from './unsent-comments.util.ts'
+import { useCommentSuggesters } from './use-comment-suggesters.hook.ts'
 import type { LineSelection } from './use-line-selection.hook.ts'
 
 interface ComposerProps {
@@ -198,8 +200,10 @@ function ComposerTextBox(props: {
   onClose: () => void
 }) {
   const { shortcuts } = useShortcuts()
+  const suggesters = useCommentSuggesters()
   return (
-    <textarea
+    <SuggestingTextBox
+      suggesters={suggesters}
       // biome-ignore lint/a11y/noAutofocus: the composer opens because the reviewer chose to write; focus goes where they type.
       autoFocus={true}
       aria-label={props.label}

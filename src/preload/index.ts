@@ -65,6 +65,7 @@ const methods = [
   'getUpdateStatus',
   'checkForUpdates',
   'testNotification',
+  'listEmojis',
   'getPullLog',
   'getCommitDetail',
   'getCommitCi',

@@ -8,6 +8,7 @@ import { generateBriefing } from '../claude/briefing.service.ts'
 import { isWebUrl } from '../common/web-url.util.ts'
 import type { EditorService } from '../editor/editor.service.ts'
 import { listInstalledEditors } from '../editor/editor.service.ts'
+import { listEmojis } from '../emojis/emojis.service.ts'
 import { buildFeedbackApi } from '../feedback/feedback.api.ts'
 import { getGithubClient, resetClient } from '../github/github.client.ts'
 import type { GithubTokens } from '../github/github-tokens.service.ts'
@@ -243,6 +244,7 @@ export function registerApi(deps: ApiDeps) {
     ...buildClaudeHandlers(deps),
     ...buildGitLogApi(),
     ...buildFeedbackApi(deps.releaseSource),
+    listEmojis: () => listEmojis(),
     listEditors: () => listInstalledEditors(),
     openInEditor: (target) => deps.editor.open(target),
     openExternal: async (url) => {

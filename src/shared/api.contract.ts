@@ -1,5 +1,6 @@
 import type { AskThread, BriefingRecord } from './claude.types.ts'
 import type { EditorInfo, EditorTarget } from './editor.types.ts'
+import type { Emoji } from './emoji.types.ts'
 import type { MainEvent } from './event.types.ts'
 import type { FeedbackInput, FeedbackResult, SystemInfo } from './feedback.types.ts'
 import type { CiState, CommitCheck, CommitDetail, LogPage, PullLogQuery } from './git-log.types.ts'
@@ -106,6 +107,9 @@ export interface RevioApi {
   getFeedbackRepo: () => Promise<string | null>
   /** Opens an issue for a bug report or feature request, or its prefilled form in the browser when that fails. */
   submitFeedback: (input: FeedbackInput) => Promise<FeedbackResult>
+
+  /** GitHub's emojis, for writing comments. */
+  listEmojis: () => Promise<Emoji[]>
 
   openExternal: (url: string) => Promise<void>
   onEvent: (listener: (event: MainEvent) => void) => () => void
