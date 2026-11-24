@@ -2,7 +2,8 @@ import type { DraftComment, ReviewComment } from '@shared/pull.types.ts'
 import { SectionHeading } from '../common/section-heading.component.tsx'
 import { Composer } from './composer.component.tsx'
 import { type CommentActions, DraftView, ReviewThread } from './review-comments.component.tsx'
-import { useUnsentScope } from './unsent-comments.util.ts'
+import { forgetUnsentComment, useUnsentComment, useUnsentScope } from './unsent-comments.util.ts'
+import { UnsentNote } from './unsent-note.component.tsx'
 
 /** Comments on the file as a whole: GitHub's file threads, your drafts for them, and the box to add one. */
 export function FileComments(props: {
@@ -11,13 +12,16 @@ export function FileComments(props: {
   /** Every draft on this file; file-level ones and replies to file threads are picked out here. */
   drafts: readonly DraftComment[]
   composing: boolean
+  onOpenComposer: () => void
   onCloseComposer: () => void
   actions: CommentActions
 }) {
   const { actions } = props
   const scope = useUnsentScope()
+  const unsentKey = `${scope}:file:${props.path}`
+  const unsentBody = useUnsentComment(unsentKey)
   const fileDrafts = props.drafts.filter((draft) => draft.line === null && !draft.inReplyTo)
-  if (!(props.threads.length > 0 || fileDrafts.length > 0 || props.composing)) {
+  if (!(props.threads.length > 0 || fileDrafts.length > 0 || props.composing || unsentBody !== undefined)) {
     return null
   }
   return (
@@ -35,11 +39,19 @@ export function FileComments(props: {
       {fileDrafts.map((draft) => (
         <DraftView key={draft.id} draft={draft} onUpdate={actions.onUpdateDraft} onDelete={actions.onDeleteDraft} />
       ))}
+      {!props.composing && unsentBody !== undefined && (
+        <UnsentNote
+          label="On this file"
+          body={unsentBody}
+          onContinue={props.onOpenComposer}
+          onDiscard={() => forgetUnsentComment(unsentKey)}
+        />
+      )}
       {Boolean(props.composing) && (
         <Composer
           label="Comment on file"
           codePath={props.path}
-          unsentKey={`${scope}:file:${props.path}`}
+          unsentKey={unsentKey}
           onCancel={props.onCloseComposer}
           onSubmit={(body) => {
             actions.onAddDraft({ path: props.path, side: 'RIGHT', line: null, body })

@@ -68,6 +68,7 @@ function DiffFileBody(props: {
   drafts: readonly DraftComment[]
   actions: CommentActions
   composingFileComment: boolean
+  onOpenComposer: () => void
   onCloseComposer: () => void
   contextError: string | null
   table: DiffTableProps
@@ -81,6 +82,7 @@ function DiffFileBody(props: {
         threads={props.index.fileThreads}
         drafts={props.drafts}
         composing={props.composingFileComment}
+        onOpenComposer={props.onOpenComposer}
         onCloseComposer={props.onCloseComposer}
         actions={props.actions}
       />
@@ -240,6 +242,7 @@ export const DiffFile = memo(function DiffFileView(props: DiffFileProps) {
             drafts={props.drafts}
             actions={actions}
             composingFileComment={composingFileComment}
+            onOpenComposer={() => setComposingFileComment(true)}
             onCloseComposer={() => setComposingFileComment(false)}
             contextError={context.error}
             table={table}

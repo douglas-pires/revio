@@ -1,7 +1,7 @@
 import { formatShortcut } from '@shared/shortcut.util.ts'
-import { useShortcuts } from '../shortcuts/shortcuts.context.ts'
 import { useEffect, useRef } from 'react'
 import { joinClassNames } from '../common/format.util.ts'
+import { useShortcuts } from '../shortcuts/shortcuts.context.ts'
 import { MAX_MATCHES } from './diff-search.util.ts'
 import type { useDiffFind } from './use-diff-find.hook.ts'
 

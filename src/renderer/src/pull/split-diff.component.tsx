@@ -29,7 +29,7 @@ function renderSideLine(
   }
   const row = rows[index] as LineRow
   const anchor = findRowAnchor(row, side)
-  return { row, idx: index, anchor, notes: notesFor(listRowKeys(row, side), anchor) }
+  return { row, idx: index, anchor, notes: notesFor(listRowKeys(row, side)) }
 }
 
 /** Line number, sign and code, for the old side then the new. */

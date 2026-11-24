@@ -28,7 +28,7 @@ export function UnifiedDiff({
             return <HunkRow key={buildRowKey(row)} row={row} span={COLUMNS} onExpand={onExpand} />
           }
           const anchor = findRowAnchor(row)
-          const notes = notesFor(listRowKeys(row), anchor)
+          const notes = notesFor(listRowKeys(row))
           return (
             <RowGroup key={buildRowKey(row)}>
               <tr

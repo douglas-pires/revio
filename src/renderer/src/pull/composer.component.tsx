@@ -4,7 +4,14 @@ import { joinClassNames } from '../common/format.util.ts'
 import { Markdown } from '../common/markdown.component.tsx'
 import { buildMarkdownLink } from '../common/markdown-link.util.ts'
 import { useShortcuts } from '../shortcuts/shortcuts.context.ts'
-import { forgetUnsentComment, keepUnsentComment, readUnsentComment } from './unsent-comments.util.ts'
+import {
+  forgetUnsentComment,
+  keepUnsentComment,
+  publishUnsentComments,
+  readUnsentComment,
+  useUnsentScope,
+} from './unsent-comments.util.ts'
+import type { LineSelection } from './use-line-selection.hook.ts'
 
 interface ComposerProps {
   label: string
@@ -17,6 +24,8 @@ interface ComposerProps {
    * again when it reopens. Cancel and sending forget it. Without a key, closing the box drops the text.
    */
   unsentKey?: string | undefined
+  /** The lines commented on, so the place can be marked while the box is closed with text in it. */
+  unsentSelection?: LineSelection | undefined
   onCancel: () => void
   /** Adds the comment to your pending review. Without it, the box only replies right away. */
   onSubmit?: (body: string) => void
@@ -212,19 +221,27 @@ function ComposerTextBox(props: {
   )
 }
 
+/** Keeps every change as you type, so however the box closes (Escape, a click elsewhere, leaving the PR), it is there. */
+function useKeptComment(props: ComposerProps, body: string) {
+  const scope = useUnsentScope()
+  const { unsentKey, codePath, unsentSelection } = props
+  const initial = props.initial ?? ''
+  useEffect(() => {
+    if (unsentKey !== undefined) {
+      const place = { scope, path: codePath, selection: unsentSelection }
+      keepUnsentComment(unsentKey, { body, place }, initial)
+    }
+  }, [unsentKey, body, initial, scope, codePath, unsentSelection])
+  useEffect(() => publishUnsentComments, [])
+}
+
 export function Composer(props: ComposerProps) {
   const [restored] = useState(() => props.unsentKey !== undefined && readUnsentComment(props.unsentKey) !== undefined)
   const [body, setBody] = useState(() => buildOpeningBody(props))
   const [busy, setBusy] = useState(false)
   const [preview, setPreview] = useState(false)
   const { unsentKey } = props
-  const initial = props.initial ?? ''
-  // Every change is kept as you type, so however the box closes (Escape, a click elsewhere, leaving the PR), it is there.
-  useEffect(() => {
-    if (unsentKey !== undefined) {
-      keepUnsentComment(unsentKey, body, initial)
-    }
-  }, [unsentKey, body, initial])
+  useKeptComment(props, body)
   const sendNow = async () => {
     if (!(props.onSubmitNow && body.trim()) || busy) {
       return
