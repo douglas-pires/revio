@@ -91,7 +91,7 @@ function PanelBar(props: { open: boolean; onToggle: () => void; followedPath: st
         <span className={joinClassNames('text-[10px] transition', !props.open && 'rotate-180')}>▾</span>
         Git log
       </button>
-      <ShortcutEditor action="git-log" popoverClassName="absolute bottom-full left-0 z-30 mb-2" />
+      <ShortcutEditor action="git-log" popoverClassName="absolute bottom-full left-0 z-30 mb-2 w-72" />
       {props.followedPath !== null && (
         <span className="ml-2 min-w-0 truncate" title={props.followedPath}>
           history of <span className="font-mono text-fg">{readFileName(props.followedPath)}</span>

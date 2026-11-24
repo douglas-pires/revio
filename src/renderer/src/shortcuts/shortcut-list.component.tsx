@@ -24,7 +24,7 @@ function ActionRow({ action }: { action: ShortcutAction }) {
   return (
     <li className="flex flex-wrap items-center justify-between gap-x-3 px-4 py-2">
       <span>{action.label}</span>
-      <ShortcutEditor action={action.id} className="contents" popoverClassName="mt-2 ml-auto" />
+      <ShortcutEditor action={action.id} className="contents" popoverClassName="mt-2 w-full" />
     </li>
   )
 }

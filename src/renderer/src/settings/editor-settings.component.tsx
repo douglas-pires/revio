@@ -41,7 +41,7 @@ export function EditorSettings({
       </div>
       <div className="px-4 py-3">
         <div className="mb-1.5 font-medium">Open in editor shortcut</div>
-        <ShortcutEditor action="open-in-editor" className="block" popoverClassName="mt-2" />
+        <ShortcutEditor action="open-in-editor" className="block" popoverClassName="mt-2 w-72" />
         <div className="mt-1.5 text-[12px] text-muted">
           Opens the file you are reading, at the selected line, from a PR's Files changed tab. Click the keys to choose
           others.

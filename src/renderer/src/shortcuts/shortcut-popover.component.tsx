@@ -91,7 +91,7 @@ export function ShortcutPopover(props: {
       role="dialog"
       aria-label={props.title}
       className={joinClassNames(
-        'w-72 space-y-2 rounded-lg border border-line bg-panel p-3 text-[12px] shadow-lg',
+        'space-y-2 rounded-lg border border-line bg-panel p-3 text-[12px] shadow-lg',
         props.className,
       )}
     >
