@@ -1,5 +1,6 @@
 import type { DiffSide } from '@shared/pull.types.ts'
 import { useEffect, useState } from 'react'
+import { buildAnchorKey } from './diff.util.ts'
 
 export interface LineSelection {
   side: DiffSide
@@ -61,10 +62,19 @@ export function useLineSelection() {
         anchor.line >= selection.start &&
         anchor.line <= selection.end,
     )
-  const isComposerAt = (anchor: Anchor | null) =>
-    Boolean(!dragging && anchor && selection && selection.side === anchor.side && selection.end === anchor.line)
+  /** Whether the comment box goes under the row that owns these line keys. */
+  const isComposerAt = (keys: readonly string[]) =>
+    Boolean(!dragging && selection && keys.includes(buildAnchorKey(selection.side, selection.end)))
 
-  return { sel: selection, clear: () => setSel(null), press, over: hoverAnchor, contains, composerAt: isComposerAt }
+  return {
+    sel: selection,
+    select: setSel,
+    clear: () => setSel(null),
+    press,
+    over: hoverAnchor,
+    contains,
+    composerAt: isComposerAt,
+  }
 }
 
 export type LineSelectionApi = ReturnType<typeof useLineSelection>

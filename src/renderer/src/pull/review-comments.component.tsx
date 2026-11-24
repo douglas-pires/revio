@@ -3,8 +3,11 @@ import { useCallback, useState } from 'react'
 import { CopyButton } from '../common/copy-button.component.tsx'
 import { countOf, formatAge } from '../common/format.util.ts'
 import { Markdown } from '../common/markdown.component.tsx'
+import { ClosedReply } from './closed-reply.component.tsx'
 import { Composer } from './composer.component.tsx'
 import { ReactionBar } from './reaction-bar.component.tsx'
+import { forgetUnsentComment, useUnsentComment } from './unsent-comments.util.ts'
+import { UnsentNote } from './unsent-note.component.tsx'
 import { useOpenReplyIfTarget } from './use-reply-target.hook.ts'
 import { useThreadFold } from './use-thread-fold.hook.ts'
 
@@ -28,6 +31,7 @@ function Thread(props: {
   const openReply = useCallback(() => setReplying(true), [])
   const ids = props.thread.map((comment) => comment.id)
   useOpenReplyIfTarget(ids, openReply)
+  const unsentKey = `reply:${props.thread[0]?.id}`
   const fold = useThreadFold()
   if (fold?.isFolded(ids)) {
     return (
@@ -61,7 +65,7 @@ function Thread(props: {
         <Composer
           label="Reply"
           codePath={props.thread[0]?.path}
-          unsentKey={`reply:${props.thread[0]?.id}`}
+          unsentKey={unsentKey}
           onCancel={() => setReplying(false)}
           onSubmit={(body) => {
             props.onReplyLater(body)
@@ -73,11 +77,7 @@ function Thread(props: {
           }}
         />
       )}
-      {!replying && (
-        <button type="button" className="input text-left text-muted" onClick={() => setReplying(true)}>
-          Reply…
-        </button>
-      )}
+      {!replying && <ClosedReply unsentKey={unsentKey} onOpen={openReply} />}
     </div>
   )
 }
@@ -94,6 +94,7 @@ function FoldedThread({
 }) {
   const [root] = thread
   const last = thread.at(-1)
+  const unsentBody = useUnsentComment(`reply:${root?.id}`)
   if (!(root && last)) {
     return null
   }
@@ -115,6 +116,9 @@ function FoldedThread({
         <span className="chip shrink-0 bg-warn/20 py-0 text-[10.5px] text-warn">
           {countOf(pendingReplies, 'pending reply', 'pending replies')}
         </span>
+      )}
+      {unsentBody !== undefined && (
+        <span className="chip shrink-0 bg-warn/20 py-0 text-[10.5px] text-warn">✎ Reply not sent</span>
       )}
       <span className="min-w-0 flex-1 truncate text-muted">
         {last.author}: {readFirstLineAsText(last.body)}
@@ -213,12 +217,14 @@ export function DraftView({
   onDelete: (id: string) => void
 }) {
   const [editing, setEditing] = useState(false)
+  const unsentKey = `draft:${draft.id}`
+  const unsentBody = useUnsentComment(unsentKey)
   if (editing) {
     return (
       <Composer
         label="Edit draft"
         codePath={draft.path}
-        unsentKey={`draft:${draft.id}`}
+        unsentKey={unsentKey}
         initial={draft.body}
         onCancel={() => setEditing(false)}
         onSubmit={(body) => {
@@ -248,6 +254,15 @@ export function DraftView({
       <Markdown className="text-[12.5px]" codePath={draft.path}>
         {draft.body}
       </Markdown>
+      {unsentBody !== undefined && (
+        <UnsentNote
+          className="mt-2"
+          label="Edit not saved"
+          body={unsentBody}
+          onContinue={() => setEditing(true)}
+          onDiscard={() => forgetUnsentComment(unsentKey)}
+        />
+      )}
     </div>
   )
 }
