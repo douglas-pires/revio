@@ -126,10 +126,10 @@ function buildPullHandlers({ store, poller, pulls }: ApiDeps): Pick<ApiHandlers,
       }),
     setViewed: (ref, path, sha) =>
       store.updatePull(buildPullKey(ref), (pullState) => {
+        // Removed first, so the record keeps the order files were marked in.
+        delete pullState.viewed[path]
         if (sha) {
           pullState.viewed[path] = sha
-        } else {
-          delete pullState.viewed[path]
         }
       }),
     submitReview: async (input) => {
