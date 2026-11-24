@@ -33,6 +33,8 @@ interface Db {
   pulls: Record<string, PullLocalState>
   alerts: AlertState
   sync: SyncState
+  /** The last release used here, to show what is new after an update. */
+  seenRelease?: string | undefined
 }
 
 const DEFAULT_SETTINGS: StoredSettings = {
@@ -79,6 +81,8 @@ const DEFAULT_GUIDELINES: Guideline[] = [
 const findStoreFile = () => join(app.getPath('userData'), 'revio.json')
 
 let loadedDatabase: Db | null = null
+/** Whether Revio was used on this Mac before this run. */
+let usedBefore = false
 
 function load(): Db {
   if (loadedDatabase) {
@@ -94,7 +98,9 @@ function load(): Db {
   try {
     if (existsSync(findStoreFile())) {
       const raw = JSON.parse(readFileSync(findStoreFile(), 'utf8')) as Partial<Db>
+      usedBefore = true
       loadedDatabase = {
+        seenRelease: raw.seenRelease,
         settings: { ...DEFAULT_SETTINGS, ...moveFormerShortcuts({ ...raw.settings }) },
         guidelines: raw.guidelines ?? fresh.guidelines,
         pulls: pruneStalePulls(raw.pulls ?? {}),
@@ -279,4 +285,13 @@ export const store = {
 
   alerts: () => load().alerts,
   saveAlerts: () => save(),
+  seenRelease: (): string | null => load().seenRelease ?? null,
+  saveSeenRelease(version: string) {
+    load().seenRelease = version
+    save()
+  },
+  usedBefore() {
+    load()
+    return usedBefore
+  },
 }

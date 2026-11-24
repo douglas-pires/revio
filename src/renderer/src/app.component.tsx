@@ -20,6 +20,7 @@ import { useShortcut } from './shortcuts/use-shortcut.hook.ts'
 import { useShortcutSettings } from './shortcuts/use-shortcut-settings.hook.ts'
 import { UpdateBanner } from './updates/update-banner.component.tsx'
 import { useUpdateStatus } from './updates/use-update-status.hook.ts'
+import { useWhatsNewOnUpdate } from './whats-new/use-whats-new-on-update.hook.ts'
 
 // The inbox is the first screen; everything else (markdown, diff, highlighting) loads when first opened.
 const PullView = lazy(() => import('./pull/pull.view.tsx').then((module) => ({ default: module.PullView })))
@@ -33,6 +34,8 @@ const MyPulls = lazy(() => import('./my-pulls/my-pulls.view.tsx').then((module) 
 const Mentions = lazy(() => import('./mentions/mentions.view.tsx').then((module) => ({ default: module.Mentions })))
 
 const Settings = lazy(() => import('./settings/settings.view.tsx').then((module) => ({ default: module.Settings })))
+
+const WhatsNew = lazy(() => import('./whats-new/whats-new.view.tsx').then((module) => ({ default: module.WhatsNew })))
 
 function NavButton(props: {
   active: boolean
@@ -219,6 +222,7 @@ function Screen({
       {route.view === 'my-pulls' && <MyPulls inbox={inbox} onOpen={openPull} />}
       {route.view === 'mentions' && <Mentions mentions={mentions} onOpen={openPull} />}
       {route.view === 'settings' && <Settings />}
+      {route.view === 'whats-new' && <WhatsNew update={route.update} onDone={() => setRoute({ view: 'inbox' })} />}
     </Suspense>
   )
 }
@@ -226,6 +230,7 @@ function Screen({
 export function App() {
   const history = useRouteHistory({ view: 'inbox' })
   const { inbox, mentions } = useLiveData(history.go)
+  useWhatsNewOnUpdate(history.go)
   const updateStatus = useUpdateStatus()
   const shortcuts = useShortcutSettings()
   // Lives here so the inbox search survives opening a PR and coming back.
