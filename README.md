@@ -65,6 +65,9 @@ Check for Updates…** and **Settings → Updates** check on demand. When a newe
 **Update** and **What's new**. Update downloads it in the background, then **Restart to update** replaces Revio and
 opens it again (quitting installs it too). A copy that cannot replace itself, such as one run from the dmg, offers the
 dmg for this Mac to drag into Applications instead.
+The first time Revio opens after an update, **What's new** shows what the releases since brought; it is also in
+**Settings → Updates** and the actions (⌘K). It reads the release notes, so a paragraph added to a release on GitHub
+shows there.
 Only releases are offered, not the pre-releases built from every merge; see [Releasing Revio](docs/releasing.md).
 
 **Feedback:** **Settings → Feedback** opens a bug report or feature request as an issue on Revio's GitHub

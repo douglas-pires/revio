@@ -1,6 +1,7 @@
 import type { UpdateStatus } from '@shared/update.types.ts'
-import { useState } from 'react'
+import { useContext, useState } from 'react'
 import { formatAge, readErrorMessage } from '../common/format.util.ts'
+import { HistoryContext } from '../common/history.context.ts'
 import { UpdateButton } from './update-button.component.tsx'
 import { useUpdateStatus } from './use-update-status.hook.ts'
 
@@ -24,6 +25,7 @@ function UpdateState({ status, problem }: { status: UpdateStatus; problem: strin
 /** Settings row: the running version, the last check, and Check now / Update. */
 export function UpdateSettings() {
   const status = useUpdateStatus()
+  const history = useContext(HistoryContext)
   const [error, setError] = useState<string | null>(null)
   if (!status) {
     return null
@@ -45,6 +47,9 @@ export function UpdateSettings() {
           <UpdateState status={status} problem={problem} />
         </div>
       </div>
+      <button type="button" className="btn btn-ghost" onClick={() => history?.go({ view: 'whats-new' })}>
+        What’s new
+      </button>
       {Boolean(status.available) && <UpdateButton status={status} />}
       <button type="button" className="btn" disabled={status.checking} onClick={() => check()}>
         Check for updates

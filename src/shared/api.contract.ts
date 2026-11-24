@@ -14,6 +14,7 @@ import type { ReactionContent, ReactionSummary } from './reaction.types.ts'
 import type { GithubAuthStatus, Settings, SettingsPatch, SyncStatus } from './settings.types.ts'
 import type { ThreadComment, ThreadsInbox } from './thread.types.ts'
 import type { UpdateStatus } from './update.types.ts'
+import type { ReleaseNotes, UnseenUpdate } from './whats-new.types.ts'
 
 /** Everything the renderer can ask the main process to do. Exposed as `window.revio`. */
 export interface RevioApi {
@@ -112,6 +113,13 @@ export interface RevioApi {
   getFeedbackRepo: () => Promise<string | null>
   /** Opens an issue for a bug report or feature request, or its prefilled form in the browser when that fails. */
   submitFeedback: (input: FeedbackInput) => Promise<FeedbackResult>
+
+  /** The update installed since you last used Revio, or null. */
+  getUnseenUpdate: () => Promise<UnseenUpdate | null>
+  /** Remembers the running release as seen. */
+  markUpdateSeen: () => Promise<void>
+  /** What the latest releases brought, newest first. */
+  listReleaseNotes: () => Promise<ReleaseNotes[]>
 
   /** GitHub's emojis, for writing comments. */
   listEmojis: () => Promise<Emoji[]>

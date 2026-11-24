@@ -7,6 +7,7 @@ const SCREENS = [
   { view: 'my-pulls', label: 'Go to my PRs' },
   { view: 'mentions', label: 'Go to mentions' },
   { view: 'guidelines', label: 'Go to the review guides' },
+  { view: 'whats-new', label: 'What’s new in Revio' },
 ] as const
 
 /** The palette's actions that work on every screen: going to the others, settings and the shortcuts. */

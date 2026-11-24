@@ -1,4 +1,5 @@
 import type { PullRef } from '@shared/pull.types.ts'
+import type { UnseenUpdate } from '@shared/whats-new.types.ts'
 import type { PullTarget } from './navigation.types.ts'
 
 /** Where the screen jumps to on arrival, which going back or forward should not repeat. */
@@ -17,6 +18,8 @@ export type Route =
   | { view: 'mentions' }
   | { view: 'my-pulls' }
   | { view: 'settings' }
+  /** `update` when it opened because Revio was updated. */
+  | { view: 'whats-new'; update?: UnseenUpdate | undefined }
 
 /** The same screen, whatever it was opened to jump to. */
 export const sameRoute = (left: Route, right: Route) =>

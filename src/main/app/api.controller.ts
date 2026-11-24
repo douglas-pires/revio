@@ -33,6 +33,7 @@ import { replyToThread, setThreadResolved } from '../threads/threads.service.ts'
 import type { ReleaseSource } from '../updates/release.util.ts'
 import type { UpdateInstaller } from '../updates/update.installer.ts'
 import type { UpdatePoller } from '../updates/update.poller.ts'
+import { buildWhatsNewApi } from '../whats-new/whats-new.api.ts'
 import type { AppWindow } from './app.window.ts'
 
 type ApiHandlers = {
@@ -253,6 +254,7 @@ export function registerApi(deps: ApiDeps) {
     ...buildClaudeHandlers(deps),
     ...buildGitLogApi(),
     ...buildFeedbackApi(deps.releaseSource),
+    ...buildWhatsNewApi({ store: deps.store, source: deps.releaseSource, current: deps.updates.status.current }),
     listEmojis: () => listEmojis(),
     listMentionables: (repo) => listMentionables(repo),
     listEditors: () => listInstalledEditors(),
