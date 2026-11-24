@@ -90,6 +90,10 @@ export interface RevioApi {
   getUpdateStatus: () => Promise<UpdateStatus>
   /** Checks GitHub for a newer release now. */
   checkForUpdates: () => Promise<UpdateStatus>
+  /** Downloads the available update, reporting in the update status. */
+  downloadUpdate: () => Promise<void>
+  /** Quits, replaces Revio with the downloaded update and opens it again. */
+  restartToUpdate: () => Promise<void>
 
   /** Shows a sample notification; false when macOS refused it (notifications off for Revio). */
   testNotification: () => Promise<boolean>

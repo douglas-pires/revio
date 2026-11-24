@@ -64,6 +64,8 @@ const methods = [
   'saveAsks',
   'getUpdateStatus',
   'checkForUpdates',
+  'downloadUpdate',
+  'restartToUpdate',
   'testNotification',
   'listEmojis',
   'listMentionables',

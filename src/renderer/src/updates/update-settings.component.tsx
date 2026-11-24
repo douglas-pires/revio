@@ -1,7 +1,7 @@
 import type { UpdateStatus } from '@shared/update.types.ts'
 import { useState } from 'react'
 import { formatAge, readErrorMessage } from '../common/format.util.ts'
-import { downloadLinkOf, openLink } from './update-links.util.ts'
+import { UpdateButton } from './update-button.component.tsx'
 import { useUpdateStatus } from './use-update-status.hook.ts'
 
 /** What the last check found: checking, a problem, a new version, up to date, or not checked yet. */
@@ -21,7 +21,7 @@ function UpdateState({ status, problem }: { status: UpdateStatus; problem: strin
   return 'Not checked yet. Installed builds check every few hours.'
 }
 
-/** Settings row: the running version, the last check, and Check now / Download. */
+/** Settings row: the running version, the last check, and Check now / Update. */
 export function UpdateSettings() {
   const status = useUpdateStatus()
   const [error, setError] = useState<string | null>(null)
@@ -45,11 +45,7 @@ export function UpdateSettings() {
           <UpdateState status={status} problem={problem} />
         </div>
       </div>
-      {Boolean(status.available) && (
-        <button type="button" className="btn btn-primary" onClick={() => openLink(downloadLinkOf(status))}>
-          Download {status.latest}
-        </button>
-      )}
+      {Boolean(status.available) && <UpdateButton status={status} />}
       <button type="button" className="btn" disabled={status.checking} onClick={() => check()}>
         Check for updates
       </button>

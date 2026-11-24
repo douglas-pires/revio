@@ -23,7 +23,10 @@ import { flush, store } from './store/store.service.ts'
 import { ICLOUD_DRIVE, IcloudSync } from './sync/icloud-sync.service.ts'
 import { ThreadCache } from './threads/threads.cache.ts'
 import { fetchThreads } from './threads/threads.service.ts'
+import { canReplaceItself } from './updates/install-support.service.ts'
 import { releaseSourceOf } from './updates/release.util.ts'
+import { createReleaseInstaller } from './updates/release-installer.service.ts'
+import { UpdateInstaller } from './updates/update.installer.ts'
 import { UpdatePoller } from './updates/update.poller.ts'
 import { showUpdateResult } from './updates/update-dialog.service.ts'
 import { fetchLatestRelease } from './updates/updates.service.ts'
@@ -52,8 +55,14 @@ configureTokenResolver(() => tokens.resolve())
 const pulls = new PullCache(fetchPull)
 const history = new HistoryCache(getGithubClient)
 const releaseSource = releaseSourceOf(JSON.parse(readFileSync(join(app.getAppPath(), 'package.json'), 'utf8')))
+const installer = new UpdateInstaller({
+  supported: canReplaceItself(),
+  createInstaller: createReleaseInstaller,
+  onChange: (install) => updates.setInstall(install),
+})
 const updates = new UpdatePoller({
   current: app.getVersion(),
+  install: installer.status,
   sourceName: releaseSource && `${releaseSource.owner}/${releaseSource.repo}`,
   loadLatest: async () => {
     if (!releaseSource) {
@@ -103,14 +112,28 @@ const sync = new IcloudSync({
   onStatus: (status, applied) => window.send({ type: 'sync', status, applied }),
 })
 store.onSyncedChange(() => sync.localChanged())
-registerApi({ store, tokens, poller, pulls, history, updates, threads, mentions, editor, sync, window, releaseSource })
+registerApi({
+  store,
+  tokens,
+  poller,
+  pulls,
+  history,
+  updates,
+  installer,
+  threads,
+  mentions,
+  editor,
+  sync,
+  window,
+  releaseSource,
+})
 
 app.setName('Revio')
 
 app.whenReady().then(() => {
   installAppMenu({
     navigate: (direction) => window.send({ type: 'navigate', direction }),
-    checkForUpdates: async () => showUpdateResult(await updates.check()),
+    checkForUpdates: async () => showUpdateResult(await updates.check(), installer),
   })
   // Development runs from source, where a release would always look newer; check there only from the menu.
   if (app.isPackaged) {

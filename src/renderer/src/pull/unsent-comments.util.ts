@@ -48,6 +48,9 @@ export function readUnsentComment(key: string): string | undefined {
   return unsent.get(key)?.body
 }
 
+/** How many boxes hold text you did not send. */
+export const countUnsentComments = () => unsent.size
+
 /** Remembers `body` for this box, unless it is empty or still just what the box opened with. */
 export function keepUnsentComment(key: string, comment: UnsentComment, initial: string) {
   if (comment.body.trim() === '' || comment.body === initial) {

@@ -31,6 +31,7 @@ import type { IcloudSync } from '../sync/icloud-sync.service.ts'
 import type { ThreadCache } from '../threads/threads.cache.ts'
 import { replyToThread, setThreadResolved } from '../threads/threads.service.ts'
 import type { ReleaseSource } from '../updates/release.util.ts'
+import type { UpdateInstaller } from '../updates/update.installer.ts'
 import type { UpdatePoller } from '../updates/update.poller.ts'
 import type { AppWindow } from './app.window.ts'
 
@@ -226,6 +227,7 @@ export interface ApiDeps {
   pulls: PullCache
   history: HistoryCache
   updates: UpdatePoller
+  installer: UpdateInstaller
   threads: ThreadCache
   mentions: MentionWatcher
   editor: EditorService
@@ -244,6 +246,8 @@ export function registerApi(deps: ApiDeps) {
     ...buildHistoryHandlers(deps),
     getUpdateStatus: () => deps.updates.status,
     checkForUpdates: () => deps.updates.check(),
+    downloadUpdate: () => deps.installer.download(),
+    restartToUpdate: () => deps.installer.restart(),
     testNotification: () => sendTestNotification(() => deps.window.show()),
     ...buildGuidelinesApi(deps.store, deps.poller),
     ...buildClaudeHandlers(deps),
