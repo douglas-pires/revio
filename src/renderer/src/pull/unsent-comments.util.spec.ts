@@ -1,5 +1,6 @@
 import { afterEach, describe, expect, it } from 'vitest'
 import {
+  countUnsentComments,
   forgetUnsentComment,
   keepUnsentComment,
   listUnsentLineComments,
@@ -31,6 +32,14 @@ describe('unsent comments', () => {
     expect(readUnsentComment(KEY)).toBeUndefined()
     keep('> quoted\n\n', '> quoted\n\n')
     expect(readUnsentComment(KEY)).toBeUndefined()
+  })
+})
+
+describe('countUnsentComments', () => {
+  it('counts boxes holding text, open or closed', () => {
+    expect(countUnsentComments()).toBe(0)
+    keep('half a thought')
+    expect(countUnsentComments()).toBe(1)
   })
 })
 

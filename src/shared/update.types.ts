@@ -1,3 +1,13 @@
+/** Where installing the available update from Revio stands. */
+export type UpdateInstall =
+  /** This copy of Revio cannot replace itself (run from source or the dmg); the update is downloaded instead. */
+  | { phase: 'unsupported' }
+  | { phase: 'idle' }
+  | { phase: 'downloading'; percent: number }
+  /** Downloaded: it replaces Revio on restarting, or on quitting. */
+  | { phase: 'ready'; version: string }
+  | { phase: 'failed'; message: string }
+
 /** What the last update check found. */
 export interface UpdateStatus {
   /** The running version. */
@@ -13,4 +23,5 @@ export interface UpdateStatus {
   checkedAt: string | null
   checking: boolean
   error: string | null
+  install: UpdateInstall
 }

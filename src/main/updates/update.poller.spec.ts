@@ -13,6 +13,7 @@ describe('UpdatePoller', () => {
     const onStatus = vi.fn()
     const poller = new UpdatePoller({
       current: '0.1.3',
+      install: { phase: 'idle' },
       sourceName: 'o/r',
       loadLatest: async () => release('0.1.7'),
       onStatus,
@@ -31,6 +32,7 @@ describe('UpdatePoller', () => {
   it('is up to date on the same or an older release', async () => {
     const poller = new UpdatePoller({
       current: '0.1.7',
+      install: { phase: 'idle' },
       sourceName: 'o/r',
       loadLatest: async () => release('0.1.7'),
       onStatus: () => undefined,
@@ -41,6 +43,7 @@ describe('UpdatePoller', () => {
   it('explains when there is no release or it fails, and shares a running check', async () => {
     const none = new UpdatePoller({
       current: '0.1.0',
+      install: { phase: 'idle' },
       sourceName: 'o/r',
       loadLatest: async () => null,
       onStatus: () => undefined,
@@ -49,6 +52,7 @@ describe('UpdatePoller', () => {
     const load = vi.fn(async () => Promise.reject(new Error('Bad credentials')))
     const failing = new UpdatePoller({
       current: '0.1.0',
+      install: { phase: 'idle' },
       sourceName: 'o/r',
       loadLatest: load,
       onStatus: () => undefined,
