@@ -9,7 +9,7 @@ import { UpdateSettings } from '../updates/update-settings.component.tsx'
 import { EditorSettings } from './editor-settings.component.tsx'
 import { FeedbackSettings } from './feedback-settings.component.tsx'
 import { GithubTokenSettings } from './github-token-settings.component.tsx'
-import { CategoryNav, CategoryPane, SETTINGS_CATEGORIES } from './settings-categories.component.tsx'
+import { CategoryActions, CategoryNav, CategoryPane, SETTINGS_CATEGORIES } from './settings-categories.component.tsx'
 import { Group, Num, Row, Toggle } from './settings-form.component.tsx'
 import { SyncSettings } from './sync-settings.component.tsx'
 import { useSyncStatus } from './use-sync-status.hook.ts'
@@ -235,6 +235,7 @@ export function Settings() {
       }
     >
       <div className="flex min-h-0 flex-1">
+        <CategoryActions onPick={setCategory} />
         <CategoryNav active={category} onPick={setCategory} />
         <CategoryPane category="github" active={category}>
           <GithubGroup settings={settings} update={update} onTokenSaved={reread} />

@@ -15,6 +15,7 @@ import { StackBar } from './stack-bar.component.tsx'
 import { UnsentScopeContext } from './unsent-comments.util.ts'
 import { useCopyShortcuts } from './use-copy-shortcuts.hook.ts'
 import type { CommitPick } from './use-pull-git-log.hook.ts'
+import { usePullPalette } from './use-pull-palette.hook.ts'
 import { type PullViewState, usePullView } from './use-pull-view.hook.ts'
 import { ReactionsContext } from './use-reactions.hook.ts'
 import { ReplyTargetContext } from './use-reply-target.hook.ts'
@@ -81,6 +82,7 @@ export function PullView(props: PullViewProps) {
   const [commitPick, setCommitPick] = useState<CommitPick | null>(null)
   const { pr } = view
   useCopyShortcuts(pr, view.nav.current)
+  usePullPalette(view)
   if (view.error) {
     return (
       <Screen

@@ -11,6 +11,7 @@ import { RefreshControl } from '../common/refresh-control.component.tsx'
 import { Screen, ScreenBody, ScreenHeader } from '../common/screen.component.tsx'
 import { SectionHeading } from '../common/section-heading.component.tsx'
 import { useAsyncAction } from '../common/use-async-action.hook.ts'
+import { usePalettePage } from '../palette/use-palette-page.hook.ts'
 import {
   countAudiences,
   describeAudience,
@@ -240,6 +241,7 @@ export function Mentions({ mentions, onOpen }: { mentions: MentionsInbox | null;
   const refreshAction = useAsyncAction()
   const readAction = useAsyncAction()
   const refresh = () => refreshAction.run(() => globalThis.revio.refreshMentions())
+  usePalettePage({ name: 'Mentions', actions: [{ id: 'refresh', label: 'Refresh mentions', run: refresh }] })
   const markRead = async (mention: Mention) => {
     await readAction.run(() => globalThis.revio.markMentionRead({ repo: mention.repo, number: mention.number }))
   }

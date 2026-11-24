@@ -12,6 +12,8 @@ import { useRouteHistory } from './common/use-route-history.hook.ts'
 import { HighlighterContext, WorkerHighlighter } from './highlight/highlight.service.ts'
 import { Inbox } from './inbox/inbox.view.tsx'
 import { countPullsNeedingYou } from './my-pulls/my-pulls.util.ts'
+import { AnywherePage } from './palette/anywhere-page.component.tsx'
+import { Palette } from './palette/palette.component.tsx'
 import { ShortcutsContext } from './shortcuts/shortcuts.context.ts'
 import { ShortcutsDialog } from './shortcuts/shortcuts-dialog.component.tsx'
 import { useShortcut } from './shortcuts/use-shortcut.hook.ts'
@@ -244,6 +246,8 @@ export function App() {
             </main>
           </div>
           <SettingsShortcut history={history} />
+          <AnywherePage go={history.go} />
+          <Palette />
           <ShortcutsDialog />
           <Notice />
         </ShortcutsContext>

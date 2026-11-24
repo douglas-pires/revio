@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest'
-import { rankFiles, splitMatchedPath, stepResult } from './quick-open.util.ts'
+import { rankFiles, splitMatchedPath } from './quick-open.util.ts'
 
 const files = [
   { path: 'src/main/app/api.controller.ts' },
@@ -29,14 +29,5 @@ describe('splitMatchedPath', () => {
       namePositions: [0, 1],
     })
     expect(splitMatchedPath('README.md', [0])).toMatchObject({ folder: '', name: 'README.md', namePositions: [0] })
-  })
-})
-
-describe('stepResult', () => {
-  it('moves through the results and wraps around', () => {
-    expect(stepResult(0, 1, 3)).toBe(1)
-    expect(stepResult(2, 1, 3)).toBe(0)
-    expect(stepResult(0, -1, 3)).toBe(2)
-    expect(stepResult(0, 1, 0)).toBe(0)
   })
 })
