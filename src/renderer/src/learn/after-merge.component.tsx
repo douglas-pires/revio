@@ -86,8 +86,8 @@ function Coverage({ report }: { report: AfterMergeReport }) {
   }
   return (
     <p className="mb-1.5 text-[12px] text-muted">
-      Checked {report.examined} PRs you approved that merged{span}. A later PR is listed only when it reverted one,
-      said it fixed one, or rewrote lines it added.
+      Checked {report.examined} PRs you approved that merged{span}. A later PR is listed only when it reverted one, said
+      it fixed one, or rewrote lines it added.
     </p>
   )
 }

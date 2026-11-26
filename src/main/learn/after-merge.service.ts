@@ -15,9 +15,9 @@ import {
 import { countRewrittenLines } from './rewritten-lines.util.ts'
 
 /** The approved PRs looked at, most recent first. */
-const MAX_APPROVED = 100
+const MAX_APPROVED = 400
 /** Approved PRs read per GitHub request. */
-const BATCH_SIZE = 15
+const BATCH_SIZE = 6
 /** Repositories searched for fixes, and fixes read from each. */
 const MAX_REPOS = 8
 const FIXES_PER_REPO = 100
@@ -122,7 +122,7 @@ async function fetchFixes(octokit: Octokit, approved: readonly ApprovedCandidate
 }
 
 /** Pairs of diffs compared at most per run: each needs both PRs' diffs. */
-const MAX_LINE_CHECKS = 40
+const MAX_LINE_CHECKS = 120
 /** Lines of the approved PR a fix must remove or rewrite to count as fixing it. */
 const MIN_REWRITTEN_LINES = 2
 
