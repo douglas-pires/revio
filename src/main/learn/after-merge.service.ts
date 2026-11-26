@@ -1,14 +1,23 @@
 import type { Octokit } from '@octokit/rest'
-import type { ApprovedPull } from '@shared/learn.types.ts'
+import type { AfterMergeReport, FollowUp } from '@shared/learn.types.ts'
 import { isPresent } from '@shared/presence.util.ts'
 import type { PastReview } from '@shared/review-history.types.ts'
 import { splitRepo } from '../github/repo-name.util.ts'
-import { type ApprovedCandidate, type MergedPull, matchFollowUps } from './follow-ups.util.ts'
+import {
+  type ApprovedCandidate,
+  collectApproved,
+  findLinkedFixes,
+  type LineCheck,
+  listLineChecks,
+  type MergedPull,
+  toFollowUp,
+} from './follow-ups.util.ts'
+import { countRewrittenLines } from './rewritten-lines.util.ts'
 
 /** The approved PRs looked at, most recent first. */
-const MAX_APPROVED = 60
+const MAX_APPROVED = 400
 /** Approved PRs read per GitHub request. */
-const BATCH_SIZE = 15
+const BATCH_SIZE = 6
 /** Repositories searched for fixes, and fixes read from each. */
 const MAX_REPOS = 8
 const FIXES_PER_REPO = 100
@@ -18,6 +27,7 @@ const MENTIONS_PER_PULL = 30
 interface RawMerged {
   number?: number
   title: string
+  body: string
   url: string
   mergedAt: string | null
   author: { login: string } | null
@@ -25,7 +35,7 @@ interface RawMerged {
   files: { nodes: ({ path: string } | null)[] } | null
 }
 
-const MERGED_FIELDS = `number title url mergedAt author { login } repository { nameWithOwner }
+const MERGED_FIELDS = `number title body url mergedAt author { login } repository { nameWithOwner }
   files(first: ${FILES_PER_PULL}) { nodes { path } }`
 
 function toMergedPull(raw: RawMerged | null | undefined): MergedPull | null {
@@ -36,6 +46,7 @@ function toMergedPull(raw: RawMerged | null | undefined): MergedPull | null {
     repo: raw.repository.nameWithOwner,
     number: raw.number,
     title: raw.title,
+    body: raw.body,
     url: raw.url,
     author: raw.author?.login ?? 'ghost',
     mergedAt: raw.mergedAt,
@@ -110,13 +121,53 @@ async function fetchFixes(octokit: Octokit, approved: readonly ApprovedCandidate
   return Object.values(data).flatMap((result) => result.nodes.map(toMergedPull).filter(isPresent))
 }
 
-/** The PRs you approved in the last year that later needed fixing, with the fixes. */
-export async function findAfterMergeFixes(octokit: Octokit, reviews: readonly PastReview[]): Promise<ApprovedPull[]> {
+/** Pairs of diffs compared at most per run: each needs both PRs' diffs. */
+const MAX_LINE_CHECKS = 120
+/** Lines of the approved PR a fix must remove or rewrite to count as fixing it. */
+const MIN_REWRITTEN_LINES = 2
+
+/** A PR's diff by file, as `loadPatches` gives it. */
+type LoadPatches = (pull: MergedPull) => Promise<Readonly<Record<string, string | undefined>>>
+
+/** The fixes among the pairs that rewrote enough of the approved PR's lines. */
+async function checkRewrittenLines(checks: readonly LineCheck[], loadPatches: LoadPatches) {
+  const found: { approved: ApprovedCandidate; followUp: FollowUp }[] = []
+  // One pair at a time: each loads two PRs' diffs.
+  for (const { approved, fix, sharedFiles } of checks.slice(0, MAX_LINE_CHECKS)) {
+    const rewritten = countRewrittenLines(await loadPatches(approved), await loadPatches(fix), sharedFiles)
+    if (rewritten >= MIN_REWRITTEN_LINES) {
+      found.push({ approved, followUp: toFollowUp(fix, 'rewrote-lines', approved, rewritten) })
+    }
+  }
+  return found
+}
+
+/**
+ * The PRs you approved that later needed fixing, and which approved PRs were looked at. A later PR counts only on
+ * evidence: it reverts the approved PR, says it fixes it, or removed or rewrote lines the approved PR added.
+ */
+export async function findAfterMergeFixes(
+  octokit: Octokit,
+  reviews: readonly PastReview[],
+  loadPatches: LoadPatches,
+): Promise<AfterMergeReport> {
   const approved = listApprovedMerged(reviews)
   const candidates: ApprovedCandidate[] = []
   // One batch at a time, to stay well inside GitHub's limits on concurrent requests.
   for (let start = 0; start < approved.length; start += BATCH_SIZE) {
     candidates.push(...(await fetchBatch(octokit, approved.slice(start, start + BATCH_SIZE))))
   }
-  return matchFollowUps(candidates, await fetchFixes(octokit, candidates))
+  const followUps = new Map(candidates.map((candidate) => [candidate, [...findLinkedFixes(candidate).values()]]))
+  const fixes = await fetchFixes(octokit, candidates)
+  const checks = candidates.flatMap((candidate) => listLineChecks(candidate, fixes, findLinkedFixes(candidate)))
+  for (const { approved: candidate, followUp } of await checkRewrittenLines(checks, loadPatches)) {
+    followUps.get(candidate)?.push(followUp)
+  }
+  const merges = candidates.map((candidate) => candidate.mergedAt).sort((left, right) => left.localeCompare(right))
+  return {
+    pulls: collectApproved(candidates, followUps),
+    examined: candidates.length,
+    from: merges[0] ?? null,
+    to: merges.at(-1) ?? null,
+  }
 }

@@ -13,6 +13,8 @@ export interface PullPoints {
   title: string
   url: string
   author: string
+  /** When you last reviewed it. */
+  reviewedAt: string
   points: RaisedPoint[]
 }
 
@@ -30,7 +32,7 @@ function sameSpot(left: RaisedPoint, right: RaisedPoint) {
 /** Whether a point came from a bot or an AI reviewer: GitHub says so, or the name is a known one. */
 const isFromBot = (point: { author: string; fromBot: boolean }) => point.fromBot || BOT_NAMES.test(point.author)
 
-/** One PR seen from your side, or null when nobody else reviewed it. */
+/** One PR seen from your side: their points away from yours; null when nobody else reviewed it. */
 function compareOne(viewer: string, pull: PullPoints, includeBots: boolean): SharedReview | null {
   const reviewerPoints = pull.points.filter(
     (point) => point.author !== pull.author && (includeBots || !isFromBot(point)),
@@ -40,19 +42,16 @@ function compareOne(viewer: string, pull: PullPoints, includeBots: boolean): Sha
   if (theirs.length === 0) {
     return null
   }
-  const both = mine.filter((point) => theirs.some((other) => sameSpot(point, other))).length
   const { author: _author, points: _points, ...rest } = pull
   return {
     ...rest,
     reviewers: [...new Set(theirs.map((point) => point.author))],
     theyRaised: theirs.filter((point) => !mine.some((own) => sameSpot(point, own))),
-    onlyYou: mine.length - both,
-    both,
   }
 }
 
 /**
- * The PRs others reviewed with you, newest first as given: their points you did not raise, and the overlap. Bots and
+ * The PRs others reviewed with you, newest first as given, with their points on code you did not comment near. Bots and
  * AI reviewers count only when `includeBots`; the PR's author never does.
  */
 export function compareReviewers(viewer: string, pulls: readonly PullPoints[], includeBots = false): SharedReview[] {

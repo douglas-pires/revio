@@ -8,10 +8,15 @@ export interface FollowUp {
   url: string
   author: string
   mergedAt: string
-  /** It names the approved PR (a revert, "fixes #12"), or it fixed files the approved PR had just changed. */
-  reason: 'mentions' | 'same-files'
+  /**
+   * Why it counts as a fix of the approved PR: it reverts it, it says it fixes it ("fixes #12", a link after a fix
+   * word, or a fix title carrying its number), or it removed or rewrote lines the approved PR added.
+   */
+  reason: 'reverts' | 'says-fixes' | 'rewrote-lines'
   /** Files both PRs changed. */
   sharedFiles: string[]
+  /** How many lines the approved PR added that this one removed or rewrote (0 unless that is the reason). */
+  rewrittenLines: number
   /** What Claude learned from it, once asked. */
   lesson: MissLesson | null
   /** Claude is still writing the lesson (asked before you left the screen). */
@@ -28,11 +33,20 @@ export interface ApprovedPull {
   mergedAt: string
   followUps: FollowUp[]
 }
+/** The fixes after PRs you approved, and which approved PRs were looked at, to say what the list covers. */
+export interface AfterMergeReport {
+  pulls: ApprovedPull[]
+  /** How many merged PRs you approved were checked, and when the oldest and newest of them merged. */
+  examined: number
+  from: string | null
+  to: string | null
+}
 /** What a fix after merge teaches about the review that approved the original. */
 export interface MissLesson {
   /** What went wrong in the original PR, in a sentence or two. */
   whatWentWrong: string
-  couldReviewCatch: 'yes' | 'maybe' | 'no'
+  /** 'unrelated' when, on reading both, the later PR does not fix anything the approved one did. */
+  couldReviewCatch: 'yes' | 'maybe' | 'no' | 'unrelated'
   /** Where in the original diff the sign was, or why there was none. */
   clue: string
   /** The file the clue is in, or null. */
@@ -60,9 +74,8 @@ export interface SharedReview {
   reviewers: string[]
   /** Their points on code you did not comment on nearby. */
   theyRaised: RaisedPoint[]
-  /** How many of your points nobody else raised, and how many someone else raised too. */
-  onlyYou: number
-  both: number
+  /** When you last reviewed it. */
+  reviewedAt: string
 }
 /** Claude's grouping of what others raised, as saved: when, and whether bots and AI reviewers were counted. */
 export interface SavedCatchThemes {

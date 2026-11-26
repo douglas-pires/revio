@@ -9,7 +9,7 @@ import type { Guideline, ResolvedGuideline } from './guideline.types.ts'
 import type { BlameRange, CommitFile, CommitRef, FileAtCommit, FileHistoryEntry, PullCommit } from './history.types.ts'
 import type { Inbox, Stack, StackPrComments } from './inbox.types.ts'
 import type {
-  ApprovedPull,
+  AfterMergeReport,
   HabitsFilter,
   MissLesson,
   ReviewHabits,
@@ -132,16 +132,16 @@ export interface RevioApi {
   /** Opens an issue for a bug report or feature request, or its prefilled form in the browser when that fails. */
   submitFeedback: (input: FeedbackInput) => Promise<FeedbackResult>
 
-  /** PRs you approved in the last year that later needed fixing, with the fixes. */
-  listAfterMergeFixes: () => Promise<ApprovedPull[]>
+  /** PRs you approved in the last `days` that later needed fixing (on evidence: a revert, a stated fix, rewritten lines). */
+  listAfterMergeFixes: (days: number) => Promise<AfterMergeReport>
   /** Claude on what a later fix says about the review that approved the original PR. */
   explainMiss: (original: PullRef, fix: PullRef) => Promise<MissLesson>
-  /** PRs you reviewed in the last year that others reviewed too: what they raised that you did not. */
-  listSharedReviews: (includeBots: boolean) => Promise<SharedReview[]>
-  /** Claude's grouping of what other reviewers raised, as saved last time, or null. */
-  getOtherCatches: (includeBots: boolean) => Promise<SavedCatchThemes | null>
+  /** PRs you reviewed in the last `days` that others reviewed too: what they raised on code you did not comment near. */
+  listSharedReviews: (includeBots: boolean, days: number) => Promise<SharedReview[]>
+  /** Claude's grouping of what other reviewers raised over the period, as saved last time, or null. */
+  getOtherCatches: (includeBots: boolean, days: number) => Promise<SavedCatchThemes | null>
   /** Has Claude group what other reviewers raised that you did not, with a check to add for each, and saves it. */
-  summarizeOtherCatches: (includeBots: boolean) => Promise<SavedCatchThemes>
+  summarizeOtherCatches: (includeBots: boolean, days: number) => Promise<SavedCatchThemes>
   /** What your reviews in the filter's period and scope show about how you review, with comments' kinds sorted so far. */
   getReviewHabits: (filter: HabitsFilter) => Promise<ReviewHabits>
   /** Has Claude sort the filter's comments not sorted yet (a run's worth), then returns the habits again. */

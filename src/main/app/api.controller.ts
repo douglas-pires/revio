@@ -2,13 +2,11 @@ import { type ApiMethod, IPC, type RevioApi } from '@shared/api.contract.ts'
 import type { AskActivity, BriefingRecord } from '@shared/claude.types.ts'
 import type { FileExplanationRecord } from '@shared/explanation.types.ts'
 import { buildPullKey, type PullRef } from '@shared/pull.types.ts'
-import type { PastReview } from '@shared/review-history.types.ts'
 import { ipcMain, shell } from 'electron'
 import { sendTestNotification } from '../alerts/notification.service.ts'
 import { ask } from '../claude/ask.service.ts'
 import { generateBriefing } from '../claude/briefing.service.ts'
 import { explainFile } from '../claude/explain.service.ts'
-import type { ExpiringValue } from '../common/expiring-value.ts'
 import { InFlight } from '../common/in-flight.util.ts'
 import { isWebUrl } from '../common/web-url.util.ts'
 import type { EditorService } from '../editor/editor.service.ts'
@@ -30,6 +28,7 @@ import { fetchFileAt } from '../pulls/pull.service.ts'
 import { commentOnPull, replyToComment, submitReview } from '../pulls/review-submit.service.ts'
 import { setReaction } from '../reactions/reactions.service.ts'
 import { findUnfamiliarFiles } from '../reviews/familiarity.util.ts'
+import type { ReviewHistoryCache } from '../reviews/review-history.cache.ts'
 import { fetchStackComments } from '../stacks/stack-comments.service.ts'
 import { fetchStack } from '../stacks/stacks.service.ts'
 import type { store as appStore } from '../store/store.service.ts'
@@ -264,7 +263,7 @@ export interface ApiDeps {
   installer: UpdateInstaller
   threads: ThreadCache
   /** The reviews you sent before. */
-  reviewHistory: ExpiringValue<PastReview[]>
+  reviewHistory: ReviewHistoryCache
   mentions: MentionWatcher
   editor: EditorService
   sync: IcloudSync

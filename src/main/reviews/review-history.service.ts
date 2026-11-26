@@ -5,10 +5,8 @@ import { MS_PER_DAY } from '@shared/time.util.ts'
 
 /** PRs per page; GitHub allows up to 100. */
 const PAGE_SIZE = 100
-/** At most this many pages of PRs. */
-const MAX_PAGES = 3
-/** How far back to look. */
-const LOOKBACK_DAYS = 365
+/** GitHub search returns at most 1,000 results: ten pages, enough for a busy year. */
+const MAX_PAGES = 10
 /** Your reviews read per PR, and comments per review. */
 const REVIEWS_PER_PULL = 20
 const COMMENTS_PER_REVIEW = 50
@@ -75,19 +73,24 @@ function toPastReviews(pull: RawPull): PastReview[] {
   })
 }
 
-/** The search for others' PRs you reviewed, updated within the last year. */
-function buildSearch(now: number) {
-  const since = new Date(now - LOOKBACK_DAYS * MS_PER_DAY).toISOString().slice(0, 'yyyy-mm-dd'.length)
+/** The search for others' PRs you reviewed, updated within the last `days`. */
+function buildSearch(days: number, now: number) {
+  const since = new Date(now - days * MS_PER_DAY).toISOString().slice(0, 'yyyy-mm-dd'.length)
   return `is:pr reviewed-by:@me -author:@me updated:>=${since} sort:updated-desc`
 }
 
 /**
- * The reviews you sent in the last year, newest first. Found through search, because GitHub leaves reviews in
+ * The reviews you sent in the last `days`, newest first. Found through search, because GitHub leaves reviews in
  * private organisation repositories out of your contribution history.
  */
-export async function fetchReviewHistory(octokit: Octokit, login: string, now = Date.now()): Promise<PastReview[]> {
+export async function fetchReviewHistory(
+  octokit: Octokit,
+  login: string,
+  days: number,
+  now = Date.now(),
+): Promise<PastReview[]> {
   const reviews: PastReview[] = []
-  const search = buildSearch(now)
+  const search = buildSearch(days, now)
   let after: string | null = null
   for (let page = 0; page < MAX_PAGES; page++) {
     const data: Data = await octokit.graphql<Data>(QUERY, { search, login, after })
@@ -97,5 +100,9 @@ export async function fetchReviewHistory(octokit: Octokit, login: string, now = 
     }
     after = data.search.pageInfo.endCursor
   }
-  return reviews.sort((left, right) => right.submittedAt.localeCompare(left.submittedAt))
+  // The search finds PRs updated in the period; reviews you sent on them before it are left out.
+  const since = new Date(now - days * MS_PER_DAY).toISOString()
+  return reviews
+    .filter((review) => review.submittedAt >= since)
+    .sort((left, right) => right.submittedAt.localeCompare(left.submittedAt))
 }

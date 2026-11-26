@@ -6,21 +6,11 @@ import { ErrorBanner } from '../common/error-banner.component.tsx'
 import { countOf, joinClassNames } from '../common/format.util.ts'
 import { MascotLoading } from '../common/mascot-loading.component.tsx'
 import { SectionHeading } from '../common/section-heading.component.tsx'
-import { type Segment, SegmentedControl } from '../common/segmented-control.component.tsx'
 import { useAsyncAction } from '../common/use-async-action.hook.ts'
-import { useStoredChoice } from '../common/use-stored-choice.hook.ts'
 import { buildScopeOptions, describeCoverage, shortenFolder } from './habits-scope.util.ts'
 import { useLoaded } from './use-loaded.hook.ts'
 
 const PERCENT = 100
-
-const PERIODS: readonly Segment<'30' | '90' | '182' | '365'>[] = [
-  { value: '30', label: '30 days' },
-  { value: '90', label: '3 months' },
-  { value: '182', label: '6 months' },
-  { value: '365', label: 'Year', title: 'The most Revio reads: GitHub search covers the last year' },
-]
-const PERIOD_VALUES = PERIODS.map((period) => period.value)
 
 function Tile({ value, label }: { value: React.ReactNode; label: string }) {
   return (
@@ -166,52 +156,40 @@ function HabitsView({
   )
 }
 
-/** The period and the repositories counted, and a line saying exactly what the numbers are drawn from. */
-function HabitsControls(props: {
-  habits: ReviewHabits | null
-  period: (typeof PERIOD_VALUES)[number]
-  onPeriod: (period: (typeof PERIOD_VALUES)[number]) => void
-  scope: string
-  onScope: (scope: string) => void
-}) {
+/** The repositories counted, and a line saying exactly what the numbers are drawn from. */
+function HabitsControls(props: { habits: ReviewHabits | null; scope: string; onScope: (scope: string) => void }) {
   const options = buildScopeOptions(props.habits?.repos ?? [])
   if (props.scope && !options.some((option) => option.value === props.scope)) {
     options.push({ value: props.scope, label: props.scope })
   }
   return (
     <div className="mb-4">
-      <div className="mb-1.5 flex flex-wrap items-center gap-2">
-        <SegmentedControl segments={PERIODS} value={props.period} onChange={props.onPeriod} />
-        <select
-          className="input w-auto py-0.5 text-[12px]"
-          aria-label="Repositories counted"
-          value={props.scope}
-          onChange={(event) => props.onScope(event.target.value)}
-        >
-          {options.map((option) => (
-            <option key={option.value} value={option.value}>
-              {option.label}
-            </option>
-          ))}
-        </select>
-      </div>
+      <select
+        className="input mb-1.5 w-auto py-0.5 text-[12px]"
+        aria-label="Repositories counted"
+        value={props.scope}
+        onChange={(event) => props.onScope(event.target.value)}
+      >
+        {options.map((option) => (
+          <option key={option.value} value={option.value}>
+            {option.label}
+          </option>
+        ))}
+      </select>
       {props.habits !== null && <p className="text-[12px] text-muted">{describeCoverage(props.habits)}</p>}
     </div>
   )
 }
 
-/** How you review, from your past reviews in the period and repositories picked: what you comment on, and where. */
-export function Habits() {
-  const [period, setPeriod] = useStoredChoice('revio.habitsPeriod', PERIOD_VALUES, '365')
+/** How you review, from your reviews in Learn's period and the repositories picked: what you comment on, and where. */
+export function Habits({ days }: { days: number }) {
   const [scope, setScope] = useState('')
-  const filter: HabitsFilter = { days: Number(period), scope }
-  const load = useCallback(() => globalThis.revio.getReviewHabits({ days: Number(period), scope }), [period, scope])
+  const filter: HabitsFilter = { days, scope }
+  const load = useCallback(() => globalThis.revio.getReviewHabits({ days, scope }), [days, scope])
   const loaded = useLoaded(load)
   const [habits, setHabits] = useState<ReviewHabits | null>(null)
   useEffect(() => setHabits(loaded.value), [loaded.value])
-  const controls = (
-    <HabitsControls habits={habits} period={period} onPeriod={setPeriod} scope={scope} onScope={setScope} />
-  )
+  const controls = <HabitsControls habits={habits} scope={scope} onScope={setScope} />
   if (loaded.error !== null) {
     return <ErrorBanner>{loaded.error}</ErrorBanner>
   }
@@ -222,7 +200,7 @@ export function Habits() {
     return (
       <>
         {controls}
-        <EmptyState title="No reviews here">Pick a longer period or more repositories.</EmptyState>
+        <EmptyState title="No reviews here">Pick a longer period at the top, or more repositories.</EmptyState>
       </>
     )
   }

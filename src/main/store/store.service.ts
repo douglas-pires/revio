@@ -41,12 +41,9 @@ interface Db {
   commentKinds?: Record<string, CommentKind[]> | undefined
   /** What Claude learned from fixes after PRs you approved, by "approved PR>fix" key. */
   missLessons?: Record<string, MissLesson> | undefined
-  /** Claude's grouping of what other reviewers raised: counting people only, or bots and AI reviewers too. */
-  catchThemes?: Partial<Record<CatchThemesScope, SavedCatchThemes>> | undefined
+  /** Claude's grouping of what other reviewers raised, by whose points and over which period ("people:90"). */
+  catchThemes?: Record<string, SavedCatchThemes> | undefined
 }
-
-/** Whose points the themes were drawn from. */
-type CatchThemesScope = 'people' | 'everyone'
 
 const DEFAULT_SETTINGS: StoredSettings = {
   pollIntervalMinutes: 3,
@@ -312,8 +309,8 @@ export const store = {
     database.missLessons = { ...database.missLessons, [key]: lesson }
     save()
   },
-  catchThemes: (scope: CatchThemesScope): SavedCatchThemes | null => load().catchThemes?.[scope] ?? null,
-  saveCatchThemes(scope: CatchThemesScope, themes: SavedCatchThemes) {
+  catchThemes: (scope: string): SavedCatchThemes | null => load().catchThemes?.[scope] ?? null,
+  saveCatchThemes(scope: string, themes: SavedCatchThemes) {
     const database = load()
     database.catchThemes = { ...database.catchThemes, [scope]: themes }
     save()

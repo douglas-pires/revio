@@ -7,8 +7,8 @@ import { requestJson } from '../claude/claude-json.service.ts'
 import { splitRepo } from '../github/repo-name.util.ts'
 import type { PullPoints } from './compare-reviewers.util.ts'
 
-/** The PRs compared, most recently reviewed first. */
-const MAX_PULLS = 40
+/** The PRs compared at most, most recently reviewed first. */
+const MAX_PULLS = 150
 /** PRs read per GitHub request, and threads read per PR. */
 const BATCH_SIZE = 10
 const THREADS_PER_PULL = 100
@@ -86,6 +86,7 @@ async function fetchBatch(octokit: Octokit, batch: readonly PastReview[]): Promi
         title: pull.title,
         url: pull.url,
         author: pull.author?.login ?? 'ghost',
+        reviewedAt: review.submittedAt,
         points: pull.reviewThreads.nodes.map((thread) => toPoint(thread?.comments.nodes[0])).filter(isPresent),
       },
     ]

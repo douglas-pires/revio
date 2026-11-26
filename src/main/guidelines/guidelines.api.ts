@@ -1,7 +1,6 @@
 import type { RevioApi } from '@shared/api.contract.ts'
-import type { PastReview } from '@shared/review-history.types.ts'
-import type { ExpiringValue } from '../common/expiring-value.ts'
 import type { InboxPoller } from '../inbox/inbox.poller.ts'
+import type { ReviewHistoryCache } from '../reviews/review-history.cache.ts'
 import { findSimilarComments } from '../reviews/similar-comments.util.ts'
 import type { store as appStore } from '../store/store.service.ts'
 import { addGuideEntry, deleteGuideline, resolveGuidelines, saveGuideline } from './guidelines.service.ts'
@@ -34,7 +33,7 @@ function listKnownRepos(store: typeof appStore, poller: Pick<InboxPoller, 'lates
 export function buildGuidelinesApi(deps: {
   store: typeof appStore
   poller: InboxPoller
-  reviewHistory: ExpiringValue<PastReview[]>
+  reviewHistory: ReviewHistoryCache
 }): Pick<RevioApi, GuidelineMethods> {
   const { store, poller, reviewHistory } = deps
   return {

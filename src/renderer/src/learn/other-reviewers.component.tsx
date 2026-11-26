@@ -97,16 +97,22 @@ function SharedReviewCard({ review, onOpen }: { review: SharedReview; onOpen: Op
   )
 }
 
-/** Totals across the PRs, said as what happened rather than as a score. */
+const formatDay = (iso: string) =>
+  new Date(iso).toLocaleDateString(undefined, { day: 'numeric', month: 'short', year: 'numeric' })
+
+/** What the list covers and what it found, said as what happened rather than as a score. */
 function Totals({ reviews }: { reviews: readonly SharedReview[] }) {
   const theirs = reviews.reduce((total, review) => total + review.theyRaised.length, 0)
-  const yours = reviews.reduce((total, review) => total + review.onlyYou, 0)
-  const both = reviews.reduce((total, review) => total + review.both, 0)
+  const dates = reviews.map((review) => review.reviewedAt).sort((left, right) => left.localeCompare(right))
+  let span = ''
+  if (dates[0] && dates.at(-1)) {
+    span = ` between ${formatDay(dates[0])} and ${formatDay(dates.at(-1) ?? dates[0])}`
+  }
   return (
     <p className="mb-3 text-[12.5px] text-muted">
-      On {countOf(reviews.length, 'PR', 'PRs')} others reviewed with you, they raised{' '}
-      {countOf(theirs, 'point', 'points')} you didn’t, you raised {yours} nobody else did, and you both raised {both}.
-      Every reviewer sees different things; theirs are worth a look.
+      On {countOf(reviews.length, 'PR', 'PRs')} you reviewed{span} where others commented too, they raised{' '}
+      {countOf(theirs, 'point', 'points')} on code you didn’t comment near. Every reviewer sees different things; theirs
+      are worth a look.
     </p>
   )
 }
@@ -127,20 +133,30 @@ function BotsSwitch({ value, onChange }: { value: boolean; onChange: (value: boo
  * The PRs you reviewed alongside others: what they raised that you did not, and the kinds of things they catch.
  * Bots and AI reviewers are left out unless you include them.
  */
-export function OtherReviewers({ onOpen }: { onOpen: OpenPull }) {
+export function OtherReviewers({ days, onOpen }: { days: number; onOpen: OpenPull }) {
   const [bots, setBots] = useStoredChoice('revio.learnBots', BOTS_CHOICES, 'without')
   const includeBots = bots === 'with'
-  const load = useCallback(() => globalThis.revio.listSharedReviews(includeBots), [includeBots])
+  const load = useCallback(() => globalThis.revio.listSharedReviews(includeBots, days), [includeBots, days])
   const botsSwitch = (
     <BotsSwitch value={includeBots} onChange={(checked) => setBots(BOTS_CHOICES[Number(checked)] ?? 'without')} />
   )
-  return <SharedReviews key={bots} load={load} includeBots={includeBots} botsSwitch={botsSwitch} onOpen={onOpen} />
+  return (
+    <SharedReviews
+      key={bots}
+      load={load}
+      includeBots={includeBots}
+      days={days}
+      botsSwitch={botsSwitch}
+      onOpen={onOpen}
+    />
+  )
 }
 
 /** The comparison itself, for the reviewers counted; the bots switch shows once there is something to switch. */
 function SharedReviews(props: {
   load: () => Promise<SharedReview[]>
   includeBots: boolean
+  days: number
   botsSwitch: React.ReactNode
   onOpen: OpenPull
 }) {
@@ -157,7 +173,7 @@ function SharedReviews(props: {
       <>
         {props.botsSwitch}
         <EmptyState title="Nobody else commented">
-          None of the PRs you reviewed recently had comments from another reviewer.
+          None of the PRs you reviewed in this period had comments from another reviewer.
         </EmptyState>
       </>
     )
@@ -166,7 +182,7 @@ function SharedReviews(props: {
     <>
       {props.botsSwitch}
       <Totals reviews={reviews} />
-      <CatchThemes repo={findMainRepo(reviews)} includeBots={props.includeBots} />
+      <CatchThemes repo={findMainRepo(reviews)} includeBots={props.includeBots} days={props.days} />
       {reviews.map((review) => (
         <SharedReviewCard key={`${review.repo}#${review.number}`} review={review} onOpen={onOpen} />
       ))}

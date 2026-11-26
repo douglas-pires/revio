@@ -13,7 +13,7 @@ const pull = (number: number, reviews: { state: string; submittedAt: string | nu
 })
 
 describe('fetchReviewHistory', () => {
-  it('reads every page, one past review per review sent, newest first', async () => {
+  it('reads every page, one past review per review sent in the period, newest first', async () => {
     const graphql = vi
       .fn()
       .mockResolvedValueOnce({
@@ -28,19 +28,20 @@ describe('fetchReviewHistory', () => {
           nodes: [
             pull(2, [
               { state: 'APPROVED', submittedAt: '2026-11-01T00:00:00Z' },
+              { state: 'COMMENTED', submittedAt: '2026-05-01T00:00:00Z' },
               { state: 'PENDING', submittedAt: null },
             ]),
           ],
         },
       })
     const octokit = { graphql } as unknown as Octokit
-    const reviews = await fetchReviewHistory(octokit, 'ana', Date.parse('2026-11-25T00:00:00Z'))
+    const reviews = await fetchReviewHistory(octokit, 'ana', 90, Date.parse('2026-11-25T00:00:00Z'))
     expect(reviews.map((review) => [review.number, review.state, review.comments.length])).toEqual([
       [2, 'APPROVED', 0],
       [1, 'COMMENTED', 0],
     ])
     expect(graphql.mock.calls[0]?.[1]).toMatchObject({
-      search: 'is:pr reviewed-by:@me -author:@me updated:>=2025-11-25 sort:updated-desc',
+      search: 'is:pr reviewed-by:@me -author:@me updated:>=2026-08-27 sort:updated-desc',
       login: 'ana',
     })
     expect(graphql.mock.calls[1]?.[1]).toMatchObject({ after: 'c1' })

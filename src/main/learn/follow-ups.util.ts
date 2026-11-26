@@ -1,17 +1,22 @@
 import type { ApprovedPull, FollowUp } from '@shared/learn.types.ts'
 import { MS_PER_DAY } from '@shared/time.util.ts'
 
-/** A fix this long after the approved PR merged is no longer counted as following it, unless it names it. */
+/** A fix this long after the approved PR merged is no longer checked for rewriting its lines. */
 const FOLLOW_UP_DAYS = 60
 const FIX_TITLE = /\b(?:fix(?:e[ds])?|bug|hotfix|revert(?:s|ed)?|regression|broken|crash(?:es)?)\b/iu
+const REVERT_TITLE = /^revert\b/iu
 /** Files too shared for changing both to mean anything. */
 const NOISE_FILES = /(?:^|\/)(?:pnpm-lock\.yaml|package-lock\.json|yarn\.lock|package\.json|CHANGELOG\.md|.+\.snap)$/u
+/** Words that, right before a reference to the approved PR, say the later PR fixes it. */
+const FIX_WORDS = String.raw`(?:fix(?:e[sd])?|resolve[sd]?|close[sd]?|revert(?:s|ed)?|regression\s+(?:from|in|of)|broken\s+(?:by|in)|follow[-\s]?up\s+(?:fix\s+)?(?:for|to|of))`
+const REGEX_SPECIALS = /[.*+?^${}()|[\]\\]/gu
 
-/** A merged PR, with the files it changed. */
+/** A merged PR, with the files it changed and its description. */
 export interface MergedPull {
   repo: string
   number: number
   title: string
+  body: string
   url: string
   author: string
   mergedAt: string
@@ -24,53 +29,105 @@ export interface ApprovedCandidate extends MergedPull {
   mentionedBy: MergedPull[]
 }
 
-export const looksLikeFix = (title: string) => FIX_TITLE.test(title)
+/** A pair whose diffs must be compared before it counts: a fix of files the approved PR changed. */
+export interface LineCheck {
+  approved: ApprovedCandidate
+  fix: MergedPull
+  sharedFiles: string[]
+}
+
+const escapeRegex = (text: string) => text.replaceAll(REGEX_SPECIALS, String.raw`\$&`)
 
 const keyOf = (pull: { repo: string; number: number }) => `${pull.repo.toLowerCase()}#${pull.number}`
+
+export const looksLikeFix = (title: string) => FIX_TITLE.test(title)
 
 function listSharedFiles(left: readonly string[], right: readonly string[]) {
   const other = new Set(right)
   return left.filter((path) => other.has(path) && !NOISE_FILES.test(path))
 }
 
-function toFollowUp(pull: MergedPull, reason: FollowUp['reason'], sharedFiles: string[]): FollowUp {
-  const { files: _files, ...rest } = pull
-  return { ...rest, reason, sharedFiles, lesson: null, lessonPending: false }
+/**
+ * How a later PR says it fixes the approved one, or null when it only mentions it: a revert of it, a fix word right
+ * before its number or link ("fixes #12", "regression from acme/web#12"), or a fix title carrying its number.
+ */
+export function findExplicitLink(approved: MergedPull, later: MergedPull): FollowUp['reason'] | null {
+  const reference = String.raw`(?:${escapeRegex(approved.repo)})?#${approved.number}\b|${escapeRegex(approved.url)}\b`
+  const text = `${later.title}\n${later.body}`
+  const sameRepo = later.repo.toLowerCase() === approved.repo.toLowerCase()
+  const namesIt = new RegExp(reference, 'iu').test(text) && (sameRepo || text.includes(approved.url))
+  if (!namesIt) {
+    return null
+  }
+  if (REVERT_TITLE.test(later.title)) {
+    return 'reverts'
+  }
+  const fixWordBefore = new RegExp(String.raw`${FIX_WORDS}\s*:?\s*(?:${reference})`, 'iu').test(text)
+  const titleCarriesIt = looksLikeFix(later.title) && new RegExp(reference, 'iu').test(later.title)
+  if (fixWordBefore || titleCarriesIt) {
+    return 'says-fixes'
+  }
+  return null
 }
 
-/** Whether `later` merged after `approved`, and within the window when that is required. */
-function mergedAfter(approved: MergedPull, later: MergedPull, withinWindow: boolean) {
+function mergedWithinWindow(approved: MergedPull, later: MergedPull) {
   const gap = Date.parse(later.mergedAt) - Date.parse(approved.mergedAt)
-  return gap > 0 && (!withinWindow || gap <= FOLLOW_UP_DAYS * MS_PER_DAY)
+  return gap > 0 && gap <= FOLLOW_UP_DAYS * MS_PER_DAY
 }
 
-/** The fixes that followed one approved PR: those naming it first, then fixes of the same files soon after. */
-function findFollowUps(approved: ApprovedCandidate, fixes: readonly MergedPull[]): FollowUp[] {
+export function toFollowUp(pull: MergedPull, reason: FollowUp['reason'], approved: MergedPull, rewrittenLines = 0) {
+  const { files: _files, body: _body, ...rest } = pull
+  const followUp: FollowUp = {
+    ...rest,
+    reason,
+    sharedFiles: listSharedFiles(approved.files, pull.files),
+    rewrittenLines,
+    lesson: null,
+    lessonPending: false,
+  }
+  return followUp
+}
+
+/** The later PRs that say they fix the approved one, by key. */
+export function findLinkedFixes(approved: ApprovedCandidate): Map<string, FollowUp> {
   const found = new Map<string, FollowUp>()
   for (const mention of approved.mentionedBy) {
-    if (keyOf(mention) !== keyOf(approved) && mergedAfter(approved, mention, false) && looksLikeFix(mention.title)) {
-      found.set(keyOf(mention), toFollowUp(mention, 'mentions', listSharedFiles(approved.files, mention.files)))
+    const reason = findExplicitLink(approved, mention)
+    if (keyOf(mention) !== keyOf(approved) && Date.parse(mention.mergedAt) > Date.parse(approved.mergedAt) && reason) {
+      found.set(keyOf(mention), toFollowUp(mention, reason, approved))
     }
   }
-  for (const fix of fixes) {
-    const shared = listSharedFiles(approved.files, fix.files)
-    const sameRepo = fix.repo.toLowerCase() === approved.repo.toLowerCase()
-    if (sameRepo && shared.length > 0 && !found.has(keyOf(fix)) && mergedAfter(approved, fix, true)) {
-      found.set(keyOf(fix), toFollowUp(fix, 'same-files', shared))
-    }
-  }
-  return [...found.values()].sort((left, right) => left.mergedAt.localeCompare(right.mergedAt))
+  return found
 }
 
-/**
- * The PRs you approved that later needed fixing, most recent first: a merged fix named them (a revert, "fixes #12"),
- * or fixed files they had changed within the following weeks.
- */
-export function matchFollowUps(approved: readonly ApprovedCandidate[], fixes: readonly MergedPull[]): ApprovedPull[] {
+/** Fixes in the same repository, soon after, touching the approved PR's files, not already linked: to compare. */
+export function listLineChecks(
+  approved: ApprovedCandidate,
+  fixes: readonly MergedPull[],
+  linked: ReadonlyMap<string, FollowUp>,
+): LineCheck[] {
+  return fixes.flatMap((fix) => {
+    const sharedFiles = listSharedFiles(approved.files, fix.files)
+    const sameRepo = fix.repo.toLowerCase() === approved.repo.toLowerCase()
+    if (!(sameRepo && sharedFiles.length > 0 && !linked.has(keyOf(fix)) && mergedWithinWindow(approved, fix))) {
+      return []
+    }
+    return [{ approved, fix, sharedFiles }]
+  })
+}
+
+/** The approved PRs with their fixes, those with none left out, most recent merge first. */
+export function collectApproved(
+  approved: readonly ApprovedCandidate[],
+  followUps: ReadonlyMap<ApprovedCandidate, FollowUp[]>,
+): ApprovedPull[] {
   return approved
     .map((candidate) => {
-      const { files: _files, mentionedBy: _mentionedBy, ...rest } = candidate
-      return { ...rest, followUps: findFollowUps(candidate, fixes) }
+      const { files: _files, mentionedBy: _mentionedBy, body: _body, ...rest } = candidate
+      const fixes = [...(followUps.get(candidate) ?? [])].sort((left, right) =>
+        left.mergedAt.localeCompare(right.mergedAt),
+      )
+      return { ...rest, followUps: fixes }
     })
     .filter((pull) => pull.followUps.length > 0)
     .sort((left, right) => right.mergedAt.localeCompare(left.mergedAt))
