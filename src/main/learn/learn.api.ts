@@ -20,11 +20,18 @@ const MERGED_PULL_MAX_AGE_MS = 86_400_000
 /** The key a lesson is saved under: the approved PR, then the fix. */
 const buildLessonKey = (original: PullRef, fix: PullRef) => `${buildPullKey(original)}>${buildPullKey(fix)}`
 
-/** The list with the lessons learned so far filled in. */
-function attachLessons(pulls: readonly ApprovedPull[], lessons: Readonly<Record<string, MissLesson>>): ApprovedPull[] {
+/** The list with the lessons learned so far filled in, and those Claude is still writing marked. */
+function attachLessons(
+  pulls: readonly ApprovedPull[],
+  lessons: Readonly<Record<string, MissLesson>>,
+  pending: ReadonlySet<string>,
+): ApprovedPull[] {
   return pulls.map((pull) => ({
     ...pull,
-    followUps: pull.followUps.map((fix) => ({ ...fix, lesson: lessons[buildLessonKey(pull, fix)] ?? null })),
+    followUps: pull.followUps.map((fix) => {
+      const key = buildLessonKey(pull, fix)
+      return { ...fix, lesson: lessons[key] ?? null, lessonPending: pending.has(key) }
+    }),
   }))
 }
 
@@ -40,17 +47,27 @@ export function buildLearnApi(deps: {
     AFTER_MERGE_MAX_AGE_MS,
   )
   const lessons = new InFlight<MissLesson>()
-  const learn = async (original: PullRef, fix: PullRef) => {
-    const lesson = await writeMissLesson(
-      await deps.pulls.get(original, MERGED_PULL_MAX_AGE_MS),
-      await deps.pulls.get(fix, MERGED_PULL_MAX_AGE_MS),
-    )
-    store.saveMissLesson(buildLessonKey(original, fix), lesson)
-    return lesson
+  /** Lessons Claude is writing, so a screen opened meanwhile can wait for them instead of asking again. */
+  const pending = new Set<string>()
+  const learn = async (key: string, original: PullRef, fix: PullRef) => {
+    pending.add(key)
+    try {
+      const lesson = await writeMissLesson(
+        await deps.pulls.get(original, MERGED_PULL_MAX_AGE_MS),
+        await deps.pulls.get(fix, MERGED_PULL_MAX_AGE_MS),
+      )
+      store.saveMissLesson(key, lesson)
+      return lesson
+    } finally {
+      pending.delete(key)
+    }
   }
   return {
-    listAfterMergeFixes: async () => attachLessons(await afterMerge.get(), store.missLessons()),
-    // Kept on disk, so it is there after leaving the screen (or while it is still being written when you come back).
-    explainMiss: (original, fix) => lessons.run(buildLessonKey(original, fix), () => learn(original, fix)),
+    listAfterMergeFixes: async () => attachLessons(await afterMerge.get(), store.missLessons(), pending),
+    // Kept on disk, so it is there after leaving the screen; asking while it is being written waits for that answer.
+    explainMiss: (original, fix) => {
+      const key = buildLessonKey(original, fix)
+      return lessons.run(key, () => learn(key, original, fix))
+    },
   }
 }

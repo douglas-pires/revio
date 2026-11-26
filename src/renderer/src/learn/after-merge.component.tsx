@@ -10,8 +10,14 @@ import { useLoaded } from './use-loaded.hook.ts'
 const loadFixes = () => globalThis.revio.listAfterMergeFixes()
 
 const REASONS: Record<FollowUp['reason'], { label: string; hint: string }> = {
-  mentions: { label: 'names it', hint: 'This fix links to the PR you approved: a revert, or "fixes #…"' },
-  'same-files': { label: 'same files', hint: 'A fix of files the PR you approved had changed, within the next weeks' },
+  mentions: {
+    label: 'links back to it',
+    hint: 'This fix mentions the PR you approved: a revert, "fixes #…", or a link to it.',
+  },
+  'same-files': {
+    label: 'fixed the same files',
+    hint: 'A fix of files the PR you approved had changed, merged within 60 days of it. It may be unrelated: check the files.',
+  },
 }
 
 /** A PR title that opens the PR in Revio. */
@@ -41,7 +47,7 @@ function FollowUpRow({ original, fix, onOpen }: { original: ApprovedPull; fix: F
           {fix.sharedFiles.join(' · ')}
         </div>
       )}
-      <MissLessonButton original={original} fix={fix} saved={fix.lesson} />
+      <MissLessonButton original={original} fix={fix} saved={fix.lesson} pending={fix.lessonPending} />
     </li>
   )
 }
