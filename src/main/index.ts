@@ -56,8 +56,8 @@ const tokens = new GithubTokens({
 configureTokenResolver(() => tokens.resolve())
 const pulls = new PullCache(fetchPull)
 const history = new HistoryCache(getGithubClient)
-const reviewHistory = new ReviewHistoryCache(async () =>
-  fetchReviewHistory(await getGithubClient(), await getViewerLogin()),
+const reviewHistory = new ReviewHistoryCache(async (days) =>
+  fetchReviewHistory(await getGithubClient(), await getViewerLogin(), days),
 )
 const releaseSource = releaseSourceOf(JSON.parse(readFileSync(join(app.getAppPath(), 'package.json'), 'utf8')))
 const installer = new UpdateInstaller({

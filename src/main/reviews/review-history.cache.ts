@@ -1,32 +1,35 @@
+import { DEFAULT_LOOKBACK_DAYS } from '@shared/lookback.util.ts'
 import type { PastReview } from '@shared/review-history.types.ts'
 import { InFlight } from '../common/in-flight.util.ts'
 
-/** Half an hour: past reviews change only when you send one, which drops the copy. */
+/** Half an hour: past reviews change only when you send one, which drops the copies. */
 const MAX_AGE_MS = 1_800_000
 
-/** Your past reviews, fetched at most every half hour; requests while one fetch runs share it. */
+/** Your past reviews over each span asked for, fetched at most every half hour; requests during a fetch share it. */
 export class ReviewHistoryCache {
-  private latest: { at: number; reviews: PastReview[] } | null = null
+  private readonly latest = new Map<number, { at: number; reviews: PastReview[] }>()
   private readonly inFlight = new InFlight<PastReview[]>()
-  private readonly fetch: () => Promise<PastReview[]>
+  private readonly fetch: (days: number) => Promise<PastReview[]>
 
-  constructor(fetch: () => Promise<PastReview[]>) {
+  constructor(fetch: (days: number) => Promise<PastReview[]>) {
     this.fetch = fetch
   }
 
-  get(): Promise<PastReview[]> {
-    if (this.latest && Date.now() - this.latest.at <= MAX_AGE_MS) {
-      return Promise.resolve(this.latest.reviews)
+  /** The reviews you sent in the last `days`. */
+  get(days = DEFAULT_LOOKBACK_DAYS): Promise<PastReview[]> {
+    const cached = this.latest.get(days)
+    if (cached && Date.now() - cached.at <= MAX_AGE_MS) {
+      return Promise.resolve(cached.reviews)
     }
-    return this.inFlight.run('history', async () => {
-      const reviews = await this.fetch()
-      this.latest = { at: Date.now(), reviews }
+    return this.inFlight.run(String(days), async () => {
+      const reviews = await this.fetch(days)
+      this.latest.set(days, { at: Date.now(), reviews })
       return reviews
     })
   }
 
-  /** Drops the copy, e.g. after you send a review. */
+  /** Drops every copy, e.g. after you send a review. */
   forget(): void {
-    this.latest = null
+    this.latest.clear()
   }
 }
