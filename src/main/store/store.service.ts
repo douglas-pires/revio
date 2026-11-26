@@ -1,5 +1,6 @@
 import { existsSync, mkdirSync, readFileSync, renameSync, writeFileSync } from 'node:fs'
 import { join } from 'node:path'
+import type { CommentKind } from '@shared/comment-kinds.util.ts'
 import type { Guideline } from '@shared/guideline.types.ts'
 import type { PullLocalState } from '@shared/pull.types.ts'
 import type { Settings } from '@shared/settings.types.ts'
@@ -35,6 +36,8 @@ interface Db {
   sync: SyncState
   /** The last release used here, to show what is new after an update. */
   seenRelease?: string | undefined
+  /** What each of your past review comments is about, as Claude sorted them, by the comment's link. */
+  commentKinds?: Record<string, CommentKind[]> | undefined
 }
 
 const DEFAULT_SETTINGS: StoredSettings = {
@@ -101,6 +104,7 @@ function load(): Db {
       usedBefore = true
       loadedDatabase = {
         seenRelease: raw.seenRelease,
+        commentKinds: raw.commentKinds,
         settings: { ...DEFAULT_SETTINGS, ...moveFormerShortcuts({ ...raw.settings }) },
         guidelines: raw.guidelines ?? fresh.guidelines,
         pulls: pruneStalePulls(raw.pulls ?? {}),
@@ -285,6 +289,13 @@ export const store = {
 
   alerts: () => load().alerts,
   saveAlerts: () => save(),
+  commentKinds: (): Readonly<Record<string, CommentKind[]>> => load().commentKinds ?? {},
+  /** Adds what newly sorted comments are about. */
+  saveCommentKinds(kinds: Record<string, CommentKind[]>) {
+    const database = load()
+    database.commentKinds = { ...database.commentKinds, ...kinds }
+    save()
+  },
   seenRelease: (): string | null => load().seenRelease ?? null,
   saveSeenRelease(version: string) {
     load().seenRelease = version

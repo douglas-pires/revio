@@ -1,3 +1,5 @@
+import type { CommentKind } from './comment-kinds.util.ts'
+
 /** A merged PR that followed one you approved, and why it looks like a fix of it. */
 export interface FollowUp {
   repo: string
@@ -64,4 +66,21 @@ export interface CatchTheme {
   count: number
   /** One check to add to your own reviews. */
   tip: string
+}
+/** What your past reviews show about how you review. */
+export interface ReviewHabits {
+  reviews: number
+  pulls: number
+  comments: number
+  /** PRs you approved, and those you approved without commenting on any line. */
+  approvals: number
+  silentApprovals: number
+  /** The folders you comment in most. */
+  topFolders: { folder: string; count: number }[]
+  /** How many of your sorted comments are about each kind, most first. */
+  kinds: { kind: CommentKind; count: number }[]
+  /** Comments sorted by kind so far, of `comments`. */
+  sorted: number
+  /** Kinds of code concern you seldom comment on; empty until enough comments are sorted to say. */
+  rarelyChecked: CommentKind[]
 }

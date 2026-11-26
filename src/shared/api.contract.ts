@@ -8,7 +8,7 @@ import type { CiState, CommitCheck, CommitDetail, LogPage, PullLogQuery } from '
 import type { Guideline, ResolvedGuideline } from './guideline.types.ts'
 import type { BlameRange, CommitFile, CommitRef, FileAtCommit, FileHistoryEntry, PullCommit } from './history.types.ts'
 import type { Inbox, Stack, StackPrComments } from './inbox.types.ts'
-import type { ApprovedPull, CatchTheme, MissLesson, SharedReview } from './learn.types.ts'
+import type { ApprovedPull, CatchTheme, MissLesson, ReviewHabits, SharedReview } from './learn.types.ts'
 import type { MentionsInbox } from './mention.types.ts'
 import type { Mentionable } from './mentionable.types.ts'
 import type { DraftComment, PullDetail, PullLocalState, PullRef, SubmitReviewInput } from './pull.types.ts'
@@ -133,6 +133,10 @@ export interface RevioApi {
   listSharedReviews: () => Promise<SharedReview[]>
   /** Claude's grouping of what other reviewers raised that you did not, with a check to add for each. */
   summarizeOtherCatches: () => Promise<CatchTheme[]>
+  /** What your past reviews show about how you review, with your comments' kinds as sorted so far. */
+  getReviewHabits: () => Promise<ReviewHabits>
+  /** Has Claude sort the comments not sorted yet (a run's worth), then returns the habits again. */
+  sortCommentKinds: () => Promise<ReviewHabits>
 
   /** The update installed since you last used Revio, or null. */
   getUnseenUpdate: () => Promise<UnseenUpdate | null>

@@ -75,6 +75,8 @@ const methods = [
   'explainMiss',
   'listSharedReviews',
   'summarizeOtherCatches',
+  'getReviewHabits',
+  'sortCommentKinds',
   'getUnseenUpdate',
   'markUpdateSeen',
   'listReleaseNotes',

@@ -3,11 +3,13 @@ import type { OpenPull } from '../common/navigation.types.ts'
 import { Screen, ScreenBody, ScreenHeader } from '../common/screen.component.tsx'
 import { useStoredChoice } from '../common/use-stored-choice.hook.ts'
 import { AfterMerge } from './after-merge.component.tsx'
+import { Habits } from './habits.component.tsx'
 import { OtherReviewers } from './other-reviewers.component.tsx'
 
 const LEARN_TABS = [
   { value: 'after-merge', label: 'After merge' },
   { value: 'other-reviewers', label: 'Other reviewers' },
+  { value: 'habits', label: 'Your habits' },
 ] as const
 
 const TAB_VALUES = LEARN_TABS.map((tab) => tab.value)
@@ -21,6 +23,7 @@ export function Learn({ onOpen }: { onOpen: OpenPull }) {
       <ScreenBody narrow={true}>
         {tab === 'after-merge' && <AfterMerge onOpen={onOpen} />}
         {tab === 'other-reviewers' && <OtherReviewers onOpen={onOpen} />}
+        {tab === 'habits' && <Habits />}
       </ScreenBody>
     </Screen>
   )
