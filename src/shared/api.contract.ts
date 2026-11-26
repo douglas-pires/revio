@@ -11,6 +11,7 @@ import type { MentionsInbox } from './mention.types.ts'
 import type { Mentionable } from './mentionable.types.ts'
 import type { DraftComment, PullDetail, PullLocalState, PullRef, SubmitReviewInput } from './pull.types.ts'
 import type { ReactionContent, ReactionSummary } from './reaction.types.ts'
+import type { GuideEntry, SimilarComment } from './review-history.types.ts'
 import type { GithubAuthStatus, Settings, SettingsPatch, SyncStatus } from './settings.types.ts'
 import type { ThreadComment, ThreadsInbox } from './thread.types.ts'
 import type { UpdateStatus } from './update.types.ts'
@@ -81,6 +82,10 @@ export interface RevioApi {
   deleteGuideline: (id: string) => Promise<void>
   resolveGuidelines: (repo: string, paths: string[]) => Promise<ResolvedGuideline[]>
   knownRepos: () => Promise<string[]>
+  /** Adds a line to the guide for a repository and folder, starting that guide when there is none. */
+  addGuideEntry: (entry: GuideEntry) => Promise<Guideline>
+  /** Comments you sent in past reviews that read like `body`, most alike first. */
+  findSimilarComments: (body: string) => Promise<SimilarComment[]>
 
   generateBriefing: (ref: PullRef) => Promise<BriefingRecord>
   /** Answers the last user message of `thread`. Streams text via `ask-delta` events. */

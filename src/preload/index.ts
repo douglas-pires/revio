@@ -59,6 +59,8 @@ const methods = [
   'deleteGuideline',
   'resolveGuidelines',
   'knownRepos',
+  'addGuideEntry',
+  'findSimilarComments',
   'generateBriefing',
   'askClaude',
   'saveAsks',

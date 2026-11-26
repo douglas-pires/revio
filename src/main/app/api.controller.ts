@@ -24,6 +24,7 @@ import type { PullCache } from '../pulls/pull.cache.ts'
 import { fetchFileAt } from '../pulls/pull.service.ts'
 import { commentOnPull, replyToComment, submitReview } from '../pulls/review-submit.service.ts'
 import { setReaction } from '../reactions/reactions.service.ts'
+import type { ReviewHistoryCache } from '../reviews/review-history.cache.ts'
 import { fetchStackComments } from '../stacks/stack-comments.service.ts'
 import { fetchStack } from '../stacks/stacks.service.ts'
 import type { store as appStore } from '../store/store.service.ts'
@@ -119,7 +120,7 @@ type PullMethods =
   | 'commentOnPull'
   | 'saveAsks'
 
-function buildPullHandlers({ store, poller, pulls }: ApiDeps): Pick<ApiHandlers, PullMethods> {
+function buildPullHandlers({ store, poller, pulls, reviewHistory }: ApiDeps): Pick<ApiHandlers, PullMethods> {
   return {
     getPull: (ref, maxAgeMs = 0) => pulls.get(ref, maxAgeMs),
     getStack: (ref) => fetchStack(ref, poller.latest),
@@ -145,6 +146,7 @@ function buildPullHandlers({ store, poller, pulls }: ApiDeps): Pick<ApiHandlers,
       })
       // The review changed the PR; the next open should fetch it fresh.
       pulls.forget(input)
+      reviewHistory.forget()
       poller.poll()
       return result
     },
@@ -230,6 +232,8 @@ export interface ApiDeps {
   updates: UpdatePoller
   installer: UpdateInstaller
   threads: ThreadCache
+  /** The reviews you sent before. */
+  reviewHistory: ReviewHistoryCache
   mentions: MentionWatcher
   editor: EditorService
   sync: IcloudSync
@@ -250,7 +254,7 @@ export function registerApi(deps: ApiDeps) {
     downloadUpdate: () => deps.installer.download(),
     restartToUpdate: () => deps.installer.restart(),
     testNotification: () => sendTestNotification(() => deps.window.show()),
-    ...buildGuidelinesApi(deps.store, deps.poller),
+    ...buildGuidelinesApi(deps),
     ...buildClaudeHandlers(deps),
     ...buildGitLogApi(),
     ...buildFeedbackApi(deps.releaseSource),

@@ -1,7 +1,5 @@
 import type { Guideline } from '@shared/guideline.types.ts'
 
-const TRAILING_SLASH = /\/$/u
-
 const ALL_REPOSITORIES = 'All repositories'
 
 const groupNameOf = (guideline: Guideline) => {
@@ -41,17 +39,6 @@ What this project/folder is and who owns it.
 /** A new guide for `repo` (and optionally a folder in it), starting from the template. */
 export function makeNewDraft(repo: string, path = ''): Draft {
   return { repo, path, title: '', body: TEMPLATE, enabled: true }
-}
-
-/** The title a guide gets when left blank: Global, its folder, or its repository's name. */
-export function buildDefaultTitle(draft: Draft) {
-  if (draft.repo === '*') {
-    return 'Global'
-  }
-  if (draft.path) {
-    return draft.path.replace(TRAILING_SLASH, '')
-  }
-  return draft.repo.split('/')[1] || 'Guide'
 }
 
 /** Guides grouped by repository for the list, each group sorted by folder. */
