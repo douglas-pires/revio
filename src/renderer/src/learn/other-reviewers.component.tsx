@@ -131,16 +131,19 @@ export function OtherReviewers({ onOpen }: { onOpen: OpenPull }) {
   const [bots, setBots] = useStoredChoice('revio.learnBots', BOTS_CHOICES, 'without')
   const includeBots = bots === 'with'
   const load = useCallback(() => globalThis.revio.listSharedReviews(includeBots), [includeBots])
-  return (
-    <>
-      <BotsSwitch value={includeBots} onChange={(checked) => setBots(BOTS_CHOICES[Number(checked)] ?? 'without')} />
-      <SharedReviews key={bots} load={load} includeBots={includeBots} onOpen={onOpen} />
-    </>
+  const botsSwitch = (
+    <BotsSwitch value={includeBots} onChange={(checked) => setBots(BOTS_CHOICES[Number(checked)] ?? 'without')} />
   )
+  return <SharedReviews key={bots} load={load} includeBots={includeBots} botsSwitch={botsSwitch} onOpen={onOpen} />
 }
 
-/** The comparison itself, for the reviewers counted. */
-function SharedReviews(props: { load: () => Promise<SharedReview[]>; includeBots: boolean; onOpen: OpenPull }) {
+/** The comparison itself, for the reviewers counted; the bots switch shows once there is something to switch. */
+function SharedReviews(props: {
+  load: () => Promise<SharedReview[]>
+  includeBots: boolean
+  botsSwitch: React.ReactNode
+  onOpen: OpenPull
+}) {
   const { onOpen } = props
   const { value: reviews, error } = useLoaded(props.load)
   if (error !== null) {
@@ -151,13 +154,17 @@ function SharedReviews(props: { load: () => Promise<SharedReview[]>; includeBots
   }
   if (reviews.length === 0) {
     return (
-      <EmptyState title="Nobody else commented">
-        None of the PRs you reviewed recently had comments from another reviewer.
-      </EmptyState>
+      <>
+        {props.botsSwitch}
+        <EmptyState title="Nobody else commented">
+          None of the PRs you reviewed recently had comments from another reviewer.
+        </EmptyState>
+      </>
     )
   }
   return (
     <>
+      {props.botsSwitch}
       <Totals reviews={reviews} />
       <CatchThemes repo={findMainRepo(reviews)} includeBots={props.includeBots} />
       {reviews.map((review) => (
