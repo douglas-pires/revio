@@ -16,26 +16,23 @@ const LEARN_TABS = [
 
 const TAB_VALUES = LEARN_TABS.map((tab) => tab.value)
 
-/** What your past reviews can teach, by tab, over the period picked (three months at first); both are remembered. */
+/**
+ * What your past reviews can teach, by tab, over one period picked in the tab (three months at first); both are
+ * remembered. Your habits shows the picker beside its repository picker.
+ */
 export function Learn({ onOpen }: { onOpen: OpenPull }) {
   const [tab, setTab] = useStoredChoice('revio.learnTab', TAB_VALUES, 'after-merge')
   const [period, setPeriod] = useStoredChoice('revio.learnPeriod', LEARN_PERIOD_VALUES, DEFAULT_LEARN_PERIOD)
   const days = Number(period)
+  const periodPicker = <SegmentedControl segments={LEARN_PERIODS} value={period} onChange={setPeriod} />
   return (
-    <Screen
-      header={
-        <ScreenHeader
-          title="Learn"
-          subtitle="From the reviews you sent on GitHub"
-          actions={<SegmentedControl segments={LEARN_PERIODS} value={period} onChange={setPeriod} />}
-        />
-      }
-    >
+    <Screen header={<ScreenHeader title="Learn" subtitle="From the reviews you sent on GitHub" />}>
       <InnerTabs tabs={LEARN_TABS} value={tab} onChange={setTab} />
       <ScreenBody narrow={true}>
+        {tab !== 'habits' && <div className="mb-3 flex">{periodPicker}</div>}
         {tab === 'after-merge' && <AfterMerge key={days} days={days} onOpen={onOpen} />}
         {tab === 'other-reviewers' && <OtherReviewers key={days} days={days} onOpen={onOpen} />}
-        {tab === 'habits' && <Habits key={days} days={days} />}
+        {tab === 'habits' && <Habits days={days} periodPicker={periodPicker} />}
       </ScreenBody>
     </Screen>
   )

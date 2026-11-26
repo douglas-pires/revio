@@ -156,40 +156,58 @@ function HabitsView({
   )
 }
 
-/** The repositories counted, and a line saying exactly what the numbers are drawn from. */
-function HabitsControls(props: { habits: ReviewHabits | null; scope: string; onScope: (scope: string) => void }) {
+/** The period and the repositories counted, and a line saying exactly what the numbers are drawn from. */
+function HabitsControls(props: {
+  habits: ReviewHabits | null
+  periodPicker: React.ReactNode
+  loading: boolean
+  scope: string
+  onScope: (scope: string) => void
+}) {
   const options = buildScopeOptions(props.habits?.repos ?? [])
   if (props.scope && !options.some((option) => option.value === props.scope)) {
     options.push({ value: props.scope, label: props.scope })
   }
   return (
     <div className="mb-4">
-      <select
-        className="input mb-1.5 w-auto py-0.5 text-[12px]"
-        aria-label="Repositories counted"
-        value={props.scope}
-        onChange={(event) => props.onScope(event.target.value)}
-      >
-        {options.map((option) => (
-          <option key={option.value} value={option.value}>
-            {option.label}
-          </option>
-        ))}
-      </select>
+      <div className="mb-1.5 flex flex-wrap items-center gap-2">
+        {props.periodPicker}
+        <select
+          className="input w-auto py-0.5 text-[12px]"
+          aria-label="Repositories counted"
+          value={props.scope}
+          onChange={(event) => props.onScope(event.target.value)}
+        >
+          {options.map((option) => (
+            <option key={option.value} value={option.value}>
+              {option.label}
+            </option>
+          ))}
+        </select>
+        {Boolean(props.loading) && <span className="text-[12px] text-muted">Loading…</span>}
+      </div>
       {props.habits !== null && <p className="text-[12px] text-muted">{describeCoverage(props.habits)}</p>}
     </div>
   )
 }
 
-/** How you review, from your reviews in Learn's period and the repositories picked: what you comment on, and where. */
-export function Habits({ days }: { days: number }) {
+/** How you review, from your reviews in the period and repositories picked: what you comment on, and where. */
+export function Habits({ days, periodPicker }: { days: number; periodPicker: React.ReactNode }) {
   const [scope, setScope] = useState('')
   const filter: HabitsFilter = { days, scope }
   const load = useCallback(() => globalThis.revio.getReviewHabits({ days, scope }), [days, scope])
   const loaded = useLoaded(load)
   const [habits, setHabits] = useState<ReviewHabits | null>(null)
   useEffect(() => setHabits(loaded.value), [loaded.value])
-  const controls = <HabitsControls habits={habits} scope={scope} onScope={setScope} />
+  const controls = (
+    <HabitsControls
+      habits={habits}
+      periodPicker={periodPicker}
+      loading={loaded.loading}
+      scope={scope}
+      onScope={setScope}
+    />
+  )
   if (loaded.error !== null) {
     return <ErrorBanner>{loaded.error}</ErrorBanner>
   }
@@ -200,7 +218,7 @@ export function Habits({ days }: { days: number }) {
     return (
       <>
         {controls}
-        <EmptyState title="No reviews here">Pick a longer period at the top, or more repositories.</EmptyState>
+        <EmptyState title="No reviews here">Pick a longer period or more repositories.</EmptyState>
       </>
     )
   }
