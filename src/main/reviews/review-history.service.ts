@@ -100,5 +100,9 @@ export async function fetchReviewHistory(
     }
     after = data.search.pageInfo.endCursor
   }
-  return reviews.sort((left, right) => right.submittedAt.localeCompare(left.submittedAt))
+  // The search finds PRs updated in the period; reviews you sent on them before it are left out.
+  const since = new Date(now - days * MS_PER_DAY).toISOString()
+  return reviews
+    .filter((review) => review.submittedAt >= since)
+    .sort((left, right) => right.submittedAt.localeCompare(left.submittedAt))
 }
