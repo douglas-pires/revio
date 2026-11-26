@@ -74,6 +74,7 @@ const methods = [
   'listAfterMergeFixes',
   'explainMiss',
   'listSharedReviews',
+  'getOtherCatches',
   'summarizeOtherCatches',
   'getUnseenUpdate',
   'markUpdateSeen',

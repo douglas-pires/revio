@@ -39,6 +39,8 @@ export interface MissLesson {
 /** A point a reviewer raised: the first comment of a thread they started. */
 export interface RaisedPoint {
   author: string
+  /** Written by a bot or an AI reviewer rather than a person. */
+  fromBot: boolean
   path: string
   line: number | null
   body: string
@@ -57,6 +59,11 @@ export interface SharedReview {
   /** How many of your points nobody else raised, and how many someone else raised too. */
   onlyYou: number
   both: number
+}
+/** Claude's grouping of what others raised, as saved: when, and whether bots and AI reviewers were counted. */
+export interface SavedCatchThemes {
+  createdAt: string
+  themes: CatchTheme[]
 }
 /** A kind of thing other reviewers catch, from Claude's reading of their points. */
 export interface CatchTheme {
