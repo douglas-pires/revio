@@ -14,6 +14,8 @@ export interface FollowUp {
   sharedFiles: string[]
   /** What Claude learned from it, once asked. */
   lesson: MissLesson | null
+  /** Claude is still writing the lesson (asked before you left the screen). */
+  lessonPending: boolean
 }
 /** A PR you approved that later needed fixing. */
 export interface ApprovedPull {

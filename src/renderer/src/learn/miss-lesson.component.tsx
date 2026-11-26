@@ -1,6 +1,6 @@
 import type { MissLesson } from '@shared/learn.types.ts'
 import type { PullRef } from '@shared/pull.types.ts'
-import { useState } from 'react'
+import { useEffect, useRef, useState } from 'react'
 import { joinClassNames, readErrorMessage } from '../common/format.util.ts'
 import { Markdown } from '../common/markdown.component.tsx'
 import { GuideEntryDialog } from '../guidelines/guide-entry-dialog.component.tsx'
@@ -48,11 +48,14 @@ export function MissLessonButton({
   original,
   fix,
   saved,
+  pending,
 }: {
   original: PullRef
   fix: PullRef
   /** The lesson learned before, kept from an earlier visit. */
   saved: MissLesson | null
+  /** Claude is still writing it, asked for before you left: wait for that answer. */
+  pending: boolean
 }) {
   const [lesson, setLesson] = useState<MissLesson | null>(saved)
   const [busy, setBusy] = useState(false)
@@ -68,6 +71,14 @@ export function MissLessonButton({
       setBusy(false)
     }
   }
+  // Joins the request still running in the background; it does not ask Claude again.
+  const joined = useRef(false)
+  useEffect(() => {
+    if (pending && !joined.current) {
+      joined.current = true
+      ask()
+    }
+  })
   if (lesson) {
     return <LessonView lesson={lesson} repo={original.repo} />
   }
