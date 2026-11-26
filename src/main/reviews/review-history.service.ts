@@ -5,8 +5,8 @@ import { MS_PER_DAY } from '@shared/time.util.ts'
 
 /** PRs per page; GitHub allows up to 100. */
 const PAGE_SIZE = 100
-/** At most this many pages of PRs. */
-const MAX_PAGES = 3
+/** GitHub search returns at most 1,000 results: ten pages, enough for a year of reviews. */
+const MAX_PAGES = 10
 /** How far back to look. */
 const LOOKBACK_DAYS = 365
 /** Your reviews read per PR, and comments per review. */
