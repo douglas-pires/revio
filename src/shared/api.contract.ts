@@ -8,7 +8,14 @@ import type { CiState, CommitCheck, CommitDetail, LogPage, PullLogQuery } from '
 import type { Guideline, ResolvedGuideline } from './guideline.types.ts'
 import type { BlameRange, CommitFile, CommitRef, FileAtCommit, FileHistoryEntry, PullCommit } from './history.types.ts'
 import type { Inbox, Stack, StackPrComments } from './inbox.types.ts'
-import type { ApprovedPull, MissLesson, ReviewHabits, SavedCatchThemes, SharedReview } from './learn.types.ts'
+import type {
+  ApprovedPull,
+  HabitsFilter,
+  MissLesson,
+  ReviewHabits,
+  SavedCatchThemes,
+  SharedReview,
+} from './learn.types.ts'
 import type { MentionsInbox } from './mention.types.ts'
 import type { Mentionable } from './mentionable.types.ts'
 import type { DraftComment, PullDetail, PullLocalState, PullRef, SubmitReviewInput } from './pull.types.ts'
@@ -135,10 +142,10 @@ export interface RevioApi {
   getOtherCatches: (includeBots: boolean) => Promise<SavedCatchThemes | null>
   /** Has Claude group what other reviewers raised that you did not, with a check to add for each, and saves it. */
   summarizeOtherCatches: (includeBots: boolean) => Promise<SavedCatchThemes>
-  /** What your past reviews show about how you review, with your comments' kinds as sorted so far. */
-  getReviewHabits: () => Promise<ReviewHabits>
-  /** Has Claude sort the comments not sorted yet (a run's worth), then returns the habits again. */
-  sortCommentKinds: () => Promise<ReviewHabits>
+  /** What your reviews in the filter's period and scope show about how you review, with comments' kinds sorted so far. */
+  getReviewHabits: (filter: HabitsFilter) => Promise<ReviewHabits>
+  /** Has Claude sort the filter's comments not sorted yet (a run's worth), then returns the habits again. */
+  sortCommentKinds: (filter: HabitsFilter) => Promise<ReviewHabits>
 
   /** The update installed since you last used Revio, or null. */
   getUnseenUpdate: () => Promise<UnseenUpdate | null>

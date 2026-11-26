@@ -1,6 +1,7 @@
 import { CHECKED_KINDS, type CommentKind } from '@shared/comment-kinds.util.ts'
-import type { ReviewHabits } from '@shared/learn.types.ts'
+import type { HabitsFilter, ReviewHabits } from '@shared/learn.types.ts'
 import type { PastReview } from '@shared/review-history.types.ts'
+import { MS_PER_DAY } from '@shared/time.util.ts'
 
 const TOP_FOLDERS = 5
 /** Below this many sorted comments, a kind you never commented on says little. */
@@ -47,11 +48,40 @@ function countKinds(urls: readonly string[], kinds: Readonly<Record<string, Comm
   return { counts, sorted }
 }
 
-/** Your review habits from your past reviews and what Claude sorted your comments into so far. */
+/** Whether a review is in the scope: every repository, one organisation ("owner") or one repository. */
+function inScope(review: PastReview, scope: string) {
+  const repo = review.repo.toLowerCase()
+  const wanted = scope.toLowerCase()
+  return !wanted || repo === wanted || repo.startsWith(`${wanted}/`)
+}
+
+/** Repositories by how many of the reviews are in them, most first. */
+function rankRepos(reviews: readonly PastReview[]) {
+  const counts = new Map<string, number>()
+  for (const review of reviews) {
+    counts.set(review.repo, (counts.get(review.repo) ?? 0) + 1)
+  }
+  return [...counts]
+    .map(([repo, count]) => ({ repo, reviews: count }))
+    .sort((left, right) => right.reviews - left.reviews || left.repo.localeCompare(right.repo))
+}
+
+/** The reviews in the period, then those also in the scope (newest first, as given). */
+export function filterReviews(reviews: readonly PastReview[], filter: HabitsFilter, now = Date.now()) {
+  const since = new Date(now - filter.days * MS_PER_DAY).toISOString()
+  const inPeriod = reviews.filter((review) => review.submittedAt >= since)
+  return { inPeriod, counted: inPeriod.filter((review) => inScope(review, filter.scope)) }
+}
+
+/** Your review habits in the filter's period and scope, with what Claude sorted your comments into so far. */
 export function summarizeHabits(
-  reviews: readonly PastReview[],
+  allReviews: readonly PastReview[],
   kinds: Readonly<Record<string, CommentKind[]>>,
+  filter: HabitsFilter,
+  now = Date.now(),
 ): ReviewHabits {
+  const { inPeriod, counted: reviews } = filterReviews(allReviews, filter, now)
+  const dates = reviews.map((review) => review.submittedAt).sort()
   const urls = reviews.flatMap((review) => review.comments.map((comment) => comment.url))
   const { counts, sorted } = countKinds(urls, kinds)
   let rarelyChecked: CommentKind[] = []
@@ -59,6 +89,10 @@ export function summarizeHabits(
     rarelyChecked = CHECKED_KINDS.filter((kind) => (counts.get(kind) ?? 0) / sorted < RARE_SHARE)
   }
   return {
+    from: dates[0] ?? null,
+    to: dates.at(-1) ?? null,
+    repos: rankRepos(inPeriod),
+    repoCount: new Set(reviews.map((review) => review.repo)).size,
     reviews: reviews.length,
     pulls: new Set(reviews.map(keyOf)).size,
     comments: urls.length,

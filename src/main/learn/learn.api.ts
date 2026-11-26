@@ -1,5 +1,5 @@
 import type { RevioApi } from '@shared/api.contract.ts'
-import type { ApprovedPull, MissLesson, SavedCatchThemes } from '@shared/learn.types.ts'
+import type { ApprovedPull, HabitsFilter, MissLesson, SavedCatchThemes } from '@shared/learn.types.ts'
 import { buildPullKey, type PullRef } from '@shared/pull.types.ts'
 import type { PastReview } from '@shared/review-history.types.ts'
 import { ExpiringValue } from '../common/expiring-value.ts'
@@ -10,7 +10,7 @@ import type { store as appStore } from '../store/store.service.ts'
 import { findAfterMergeFixes } from './after-merge.service.ts'
 import { sortNewComments } from './comment-kinds.service.ts'
 import { compareReviewers, type PullPoints } from './compare-reviewers.util.ts'
-import { summarizeHabits } from './habits.util.ts'
+import { filterReviews, summarizeHabits } from './habits.util.ts'
 import { writeMissLesson } from './miss-lesson.service.ts'
 import { fetchReviewPoints, summarizeOtherCatches } from './other-reviewers.service.ts'
 
@@ -54,7 +54,8 @@ export function buildLearnApi(deps: {
   store: typeof appStore
 }): Pick<RevioApi, LearnMethods> {
   const { store } = deps
-  const summarize = async () => summarizeHabits(await deps.reviewHistory.get(), store.commentKinds())
+  const summarize = async (filter: HabitsFilter) =>
+    summarizeHabits(await deps.reviewHistory.get(), store.commentKinds(), filter)
   const afterMerge = new ExpiringValue<ApprovedPull[]>(
     async () => findAfterMergeFixes(await getGithubClient(), await deps.reviewHistory.get()),
     AFTER_MERGE_MAX_AGE_MS,
@@ -89,11 +90,11 @@ export function buildLearnApi(deps: {
     summarizeOtherCatches: (includeBots) => themes.run(readThemesScope(includeBots), () => groupCatches(includeBots)),
     explainMiss: (original, fix) => lessons.run(buildLessonKey(original, fix), () => learn(original, fix)),
     getReviewHabits: summarize,
-    sortCommentKinds: async () => {
-      await sortNewComments(await deps.reviewHistory.get(), store.commentKinds(), (kinds) =>
-        store.saveCommentKinds(kinds),
-      )
-      return summarize()
+    // The comments in the period and scope shown are sorted first.
+    sortCommentKinds: async (filter) => {
+      const { counted } = filterReviews(await deps.reviewHistory.get(), filter)
+      await sortNewComments(counted, store.commentKinds(), (kinds) => store.saveCommentKinds(kinds))
+      return summarize(filter)
     },
   }
 }

@@ -1,16 +1,26 @@
 import { COMMENT_KIND_LABELS } from '@shared/comment-kinds.util.ts'
-import type { ReviewHabits } from '@shared/learn.types.ts'
-import { useEffect, useState } from 'react'
+import type { HabitsFilter, ReviewHabits } from '@shared/learn.types.ts'
+import { useCallback, useEffect, useState } from 'react'
 import { EmptyState } from '../common/empty-state.component.tsx'
 import { ErrorBanner } from '../common/error-banner.component.tsx'
 import { countOf, joinClassNames } from '../common/format.util.ts'
 import { MascotLoading } from '../common/mascot-loading.component.tsx'
 import { SectionHeading } from '../common/section-heading.component.tsx'
+import { type Segment, SegmentedControl } from '../common/segmented-control.component.tsx'
 import { useAsyncAction } from '../common/use-async-action.hook.ts'
+import { useStoredChoice } from '../common/use-stored-choice.hook.ts'
+import { buildScopeOptions, describeCoverage, shortenFolder } from './habits-scope.util.ts'
 import { useLoaded } from './use-loaded.hook.ts'
 
-const loadHabits = () => globalThis.revio.getReviewHabits()
 const PERCENT = 100
+
+const PERIODS: readonly Segment<'30' | '90' | '182' | '365'>[] = [
+  { value: '30', label: '30 days' },
+  { value: '90', label: '3 months' },
+  { value: '182', label: '6 months' },
+  { value: '365', label: 'Year', title: 'The most Revio reads: GitHub search covers the last year' },
+]
+const PERIOD_VALUES = PERIODS.map((period) => period.value)
 
 function Tile({ value, label }: { value: React.ReactNode; label: string }) {
   return (
@@ -24,11 +34,14 @@ function Tile({ value, label }: { value: React.ReactNode; label: string }) {
 /** A labelled bar, its length the count's share of the largest. */
 function Bar({
   label,
+  title,
   count,
   largest,
   mono = false,
 }: {
   label: string
+  /** The full text, when the label is shortened. */
+  title?: string
   count: number
   largest: number
   mono?: boolean
@@ -36,8 +49,8 @@ function Bar({
   return (
     <li className="flex items-center gap-3 text-[12.5px]">
       <span
-        className={joinClassNames('shrink-0 truncate', mono && 'w-64 font-mono text-[11.5px]', !mono && 'w-44')}
-        title={label}
+        className={joinClassNames('shrink-0 truncate', mono && 'w-80 font-mono text-[11.5px]', !mono && 'w-44')}
+        title={title ?? label}
       >
         {label}
       </span>
@@ -51,9 +64,17 @@ function Bar({
 }
 
 /** What your comments are about, once sorted; the button sorts them (or the rest) with Claude. */
-function CommentKinds({ habits, onSorted }: { habits: ReviewHabits; onSorted: (habits: ReviewHabits) => void }) {
+function CommentKinds({
+  habits,
+  filter,
+  onSorted,
+}: {
+  habits: ReviewHabits
+  filter: HabitsFilter
+  onSorted: (habits: ReviewHabits) => void
+}) {
   const sorting = useAsyncAction()
-  const sort = () => sorting.run(async () => onSorted(await globalThis.revio.sortCommentKinds()))
+  const sort = () => sorting.run(async () => onSorted(await globalThis.revio.sortCommentKinds(filter)))
   const largest = habits.kinds[0]?.count ?? 1
   return (
     <section className="mb-6">
@@ -105,7 +126,15 @@ function RarelyChecked({ habits }: { habits: ReviewHabits }) {
   )
 }
 
-function HabitsView({ habits, onSorted }: { habits: ReviewHabits; onSorted: (habits: ReviewHabits) => void }) {
+function HabitsView({
+  habits,
+  filter,
+  onSorted,
+}: {
+  habits: ReviewHabits
+  filter: HabitsFilter
+  onSorted: (habits: ReviewHabits) => void
+}) {
   const largestFolder = habits.topFolders[0]?.count ?? 1
   return (
     <>
@@ -114,14 +143,21 @@ function HabitsView({ habits, onSorted }: { habits: ReviewHabits; onSorted: (hab
         <Tile value={habits.comments} label="comments on code" />
         <Tile value={`${habits.silentApprovals} of ${habits.approvals}`} label="approvals without a comment on code" />
       </div>
-      <CommentKinds habits={habits} onSorted={onSorted} />
+      <CommentKinds habits={habits} filter={filter} onSorted={onSorted} />
       <RarelyChecked habits={habits} />
       {habits.topFolders.length > 0 && (
         <section className="mb-6">
           <SectionHeading title="Where you comment most" />
           <ul className="card space-y-2 px-4 py-3">
             {habits.topFolders.map(({ folder, count }) => (
-              <Bar key={folder} label={folder} count={count} largest={largestFolder} mono={true} />
+              <Bar
+                key={folder}
+                label={shortenFolder(folder, filter.scope)}
+                title={folder}
+                count={count}
+                largest={largestFolder}
+                mono={true}
+              />
             ))}
           </ul>
         </section>
@@ -130,11 +166,52 @@ function HabitsView({ habits, onSorted }: { habits: ReviewHabits; onSorted: (hab
   )
 }
 
-/** How you review, from your past reviews: what you comment on, what you seldom raise, and where. */
+/** The period and the repositories counted, and a line saying exactly what the numbers are drawn from. */
+function HabitsControls(props: {
+  habits: ReviewHabits | null
+  period: (typeof PERIOD_VALUES)[number]
+  onPeriod: (period: (typeof PERIOD_VALUES)[number]) => void
+  scope: string
+  onScope: (scope: string) => void
+}) {
+  const options = buildScopeOptions(props.habits?.repos ?? [])
+  if (props.scope && !options.some((option) => option.value === props.scope)) {
+    options.push({ value: props.scope, label: props.scope })
+  }
+  return (
+    <div className="mb-4">
+      <div className="mb-1.5 flex flex-wrap items-center gap-2">
+        <SegmentedControl segments={PERIODS} value={props.period} onChange={props.onPeriod} />
+        <select
+          className="input w-auto py-0.5 text-[12px]"
+          aria-label="Repositories counted"
+          value={props.scope}
+          onChange={(event) => props.onScope(event.target.value)}
+        >
+          {options.map((option) => (
+            <option key={option.value} value={option.value}>
+              {option.label}
+            </option>
+          ))}
+        </select>
+      </div>
+      {props.habits !== null && <p className="text-[12px] text-muted">{describeCoverage(props.habits)}</p>}
+    </div>
+  )
+}
+
+/** How you review, from your past reviews in the period and repositories picked: what you comment on, and where. */
 export function Habits() {
-  const loaded = useLoaded(loadHabits)
+  const [period, setPeriod] = useStoredChoice('revio.habitsPeriod', PERIOD_VALUES, '365')
+  const [scope, setScope] = useState('')
+  const filter: HabitsFilter = { days: Number(period), scope }
+  const load = useCallback(() => globalThis.revio.getReviewHabits({ days: Number(period), scope }), [period, scope])
+  const loaded = useLoaded(load)
   const [habits, setHabits] = useState<ReviewHabits | null>(null)
   useEffect(() => setHabits(loaded.value), [loaded.value])
+  const controls = (
+    <HabitsControls habits={habits} period={period} onPeriod={setPeriod} scope={scope} onScope={setScope} />
+  )
   if (loaded.error !== null) {
     return <ErrorBanner>{loaded.error}</ErrorBanner>
   }
@@ -142,7 +219,17 @@ export function Habits() {
     return <MascotLoading label="Reading your past reviews…" />
   }
   if (habits.reviews === 0) {
-    return <EmptyState title="No reviews yet">Reviews you send on others’ PRs show up here.</EmptyState>
+    return (
+      <>
+        {controls}
+        <EmptyState title="No reviews here">Pick a longer period or more repositories.</EmptyState>
+      </>
+    )
   }
-  return <HabitsView habits={habits} onSorted={setHabits} />
+  return (
+    <>
+      {controls}
+      <HabitsView habits={habits} filter={filter} onSorted={setHabits} />
+    </>
+  )
 }

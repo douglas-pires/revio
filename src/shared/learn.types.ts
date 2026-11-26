@@ -76,8 +76,22 @@ export interface CatchTheme {
   /** One check to add to your own reviews. */
   tip: string
 }
+/** Which reviews the habits are drawn from. */
+export interface HabitsFilter {
+  /** How many days back, at most the year Revio reads. */
+  days: number
+  /** '' for every repository, "owner" for one organisation, "owner/name" for one repository. */
+  scope: string
+}
 /** What your past reviews show about how you review. */
 export interface ReviewHabits {
+  /** The first and last review counted; null when there are none. */
+  from: string | null
+  to: string | null
+  /** Every repository you reviewed in the period, with how many reviews, most first: what the scope can pick. */
+  repos: { repo: string; reviews: number }[]
+  /** How many repositories the counted reviews are in. */
+  repoCount: number
   reviews: number
   pulls: number
   comments: number
