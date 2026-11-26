@@ -4,6 +4,7 @@ import { isPresent } from '@shared/presence.util.ts'
 import type { PastReview } from '@shared/review-history.types.ts'
 import { z } from 'zod'
 import { requestJson } from '../claude/claude-json.service.ts'
+import { queryWithRetry } from '../github/graphql-retry.util.ts'
 import { splitRepo } from '../github/repo-name.util.ts'
 import type { PullPoints } from './compare-reviewers.util.ts'
 
@@ -71,7 +72,8 @@ async function fetchBatch(octokit: Octokit, batch: readonly PastReview[]): Promi
       }
     }`
   })
-  const data = await octokit.graphql<Record<string, { pullRequest: RawPull | null } | null>>(
+  const data = await queryWithRetry<Record<string, { pullRequest: RawPull | null } | null>>(
+    octokit,
     `query { ${fields.join('\n')} }`,
   )
   return batch.flatMap((review, index) => {
