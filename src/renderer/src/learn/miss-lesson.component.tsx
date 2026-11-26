@@ -19,13 +19,14 @@ function LessonView({ lesson, repo }: { lesson: MissLesson; repo: string }) {
     <div className="mt-2 space-y-2 rounded-md border border-line bg-panel-2 p-3 text-[12.5px]">
       <span className={joinClassNames('chip', verdict.tone)}>{verdict.label}</span>
       <Markdown className="text-[12.5px]">{lesson.whatWentWrong}</Markdown>
-      <div className="text-muted">
-        {lesson.path !== null && <span className="mr-1.5 font-mono text-[11.5px] text-fg">{lesson.path}</span>}
-        <Markdown className="inline text-[12.5px]">{lesson.clue}</Markdown>
+      <div>
+        <div className="mb-0.5 text-[11px] font-semibold tracking-wide text-muted uppercase">Where it showed</div>
+        {lesson.path !== null && <div className="font-mono text-[11.5px]">{lesson.path}</div>}
+        <Markdown className="text-[12.5px] text-muted">{lesson.clue}</Markdown>
       </div>
       <div className="flex items-start gap-2 rounded-md bg-accent/10 px-2.5 py-2">
         <span aria-hidden={true}>💡</span>
-        <span className="flex-1 font-medium">{lesson.lesson}</span>
+        <Markdown className="flex-1 text-[12.5px] font-medium">{lesson.lesson}</Markdown>
         <button type="button" className="btn btn-ghost shrink-0 py-0 text-accent" onClick={() => setAdding(true)}>
           Add to a guide
         </button>
@@ -42,9 +43,18 @@ function LessonView({ lesson, repo }: { lesson: MissLesson; repo: string }) {
   )
 }
 
-/** "What could the review have caught?" for one fix, and Claude's answer once asked. */
-export function MissLessonButton({ original, fix }: { original: PullRef; fix: PullRef }) {
-  const [lesson, setLesson] = useState<MissLesson | null>(null)
+/** "What could the review have caught?" for one fix, and Claude's answer once asked (kept for later visits). */
+export function MissLessonButton({
+  original,
+  fix,
+  saved,
+}: {
+  original: PullRef
+  fix: PullRef
+  /** The lesson learned before, kept from an earlier visit. */
+  saved: MissLesson | null
+}) {
+  const [lesson, setLesson] = useState<MissLesson | null>(saved)
   const [busy, setBusy] = useState(false)
   const [error, setError] = useState<string | null>(null)
   const ask = async () => {

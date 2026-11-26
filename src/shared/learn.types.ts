@@ -10,6 +10,8 @@ export interface FollowUp {
   reason: 'mentions' | 'same-files'
   /** Files both PRs changed. */
   sharedFiles: string[]
+  /** What Claude learned from it, once asked. */
+  lesson: MissLesson | null
 }
 /** A PR you approved that later needed fixing. */
 export interface ApprovedPull {
