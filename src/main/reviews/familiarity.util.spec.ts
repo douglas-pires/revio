@@ -7,6 +7,8 @@ const reviewWith = (repo: string, paths: string[]): PastReview => ({
   number: 1,
   title: '',
   url: '',
+  author: 'bo',
+  mergedAt: null,
   state: 'COMMENTED',
   submittedAt: '2026-10-01T00:00:00Z',
   comments: paths.map((path) => ({ body: '', path, url: '', createdAt: '' })),

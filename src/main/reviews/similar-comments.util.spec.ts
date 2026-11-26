@@ -8,6 +8,8 @@ function review(number: number, bodies: string[]): PastReview {
     number,
     title: `PR ${number}`,
     url: `https://github.com/acme/web/pull/${number}`,
+    author: 'bo',
+    mergedAt: null,
     state: 'COMMENTED',
     submittedAt: '2026-10-01T00:00:00Z',
     comments: bodies.map((body, index) => ({

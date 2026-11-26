@@ -71,6 +71,8 @@ const methods = [
   'downloadUpdate',
   'restartToUpdate',
   'testNotification',
+  'listAfterMergeFixes',
+  'explainMiss',
   'getUnseenUpdate',
   'markUpdateSeen',
   'listReleaseNotes',

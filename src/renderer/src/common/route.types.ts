@@ -17,6 +17,7 @@ export type Route =
   | { view: 'guidelines'; repo?: string | undefined; path?: string | undefined }
   | { view: 'mentions' }
   | { view: 'my-pulls' }
+  | { view: 'learn' }
   | { view: 'settings' }
   /** `update` when it opened because Revio was updated. */
   | { view: 'whats-new'; update?: UnseenUpdate | undefined }

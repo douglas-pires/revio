@@ -23,6 +23,8 @@ interface RawPull {
   number?: number
   title: string
   url: string
+  mergedAt: string | null
+  author: { login: string } | null
   repository: { nameWithOwner: string }
   reviews: { nodes: (RawReview | null)[] } | null
 }
@@ -38,7 +40,7 @@ const QUERY = `query ($search: String!, $login: String!, $after: String) {
   search(query: $search, type: ISSUE, first: ${PAGE_SIZE}, after: $after) {
     pageInfo { hasNextPage endCursor }
     nodes { ... on PullRequest {
-      number title url repository { nameWithOwner }
+      number title url mergedAt author { login } repository { nameWithOwner }
       reviews(author: $login, first: ${REVIEWS_PER_PULL}) { nodes {
         state submittedAt
         comments(first: ${COMMENTS_PER_REVIEW}) { nodes { body path url createdAt } }
@@ -63,6 +65,8 @@ function toPastReviews(pull: RawPull): PastReview[] {
         number,
         title: pull.title,
         url: pull.url,
+        author: pull.author?.login ?? 'ghost',
+        mergedAt: pull.mergedAt,
         state: review.state,
         submittedAt: review.submittedAt,
         comments: review.comments.nodes.filter(isPresent),

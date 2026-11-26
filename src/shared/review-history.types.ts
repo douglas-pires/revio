@@ -11,6 +11,10 @@ export interface PastReview {
   number: number
   title: string
   url: string
+  /** Who opened the PR. */
+  author: string
+  /** When the PR was merged; null while open or when closed unmerged. */
+  mergedAt: string | null
   state: 'APPROVED' | 'CHANGES_REQUESTED' | 'COMMENTED' | 'DISMISSED' | 'PENDING'
   submittedAt: string
   comments: PastComment[]

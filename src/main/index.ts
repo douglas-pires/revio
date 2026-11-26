@@ -6,6 +6,7 @@ import { applySettingsChanges, registerApi } from './app/api.controller.ts'
 import { installAppMenu } from './app/app.menu.ts'
 import { AppWindow } from './app/app.window.ts'
 import { env } from './common/env.config.ts'
+import { ExpiringValue } from './common/expiring-value.ts'
 import { runWithInput } from './common/shell.util.ts'
 import { EditorService } from './editor/editor.service.ts'
 import { configureTokenResolver, getGithubClient, getViewerLogin } from './github/github.client.ts'
@@ -18,7 +19,6 @@ import { fetchMentions } from './mentions/mentions.service.ts'
 import { MentionWatcher } from './mentions/mentions.watcher.ts'
 import { PullCache } from './pulls/pull.cache.ts'
 import { fetchPull } from './pulls/pull.service.ts'
-import { ReviewHistoryCache } from './reviews/review-history.cache.ts'
 import { fetchReviewHistory } from './reviews/review-history.service.ts'
 import { StackFinder } from './stacks/stacks.service.ts'
 import { flush, store } from './store/store.service.ts'
@@ -56,8 +56,11 @@ const tokens = new GithubTokens({
 configureTokenResolver(() => tokens.resolve())
 const pulls = new PullCache(fetchPull)
 const history = new HistoryCache(getGithubClient)
-const reviewHistory = new ReviewHistoryCache(async () =>
-  fetchReviewHistory(await getGithubClient(), await getViewerLogin()),
+/** Half an hour: past reviews change only when you send one, which drops them. */
+const REVIEW_HISTORY_MAX_AGE_MS = 1_800_000
+const reviewHistory = new ExpiringValue(
+  async () => fetchReviewHistory(await getGithubClient(), await getViewerLogin()),
+  REVIEW_HISTORY_MAX_AGE_MS,
 )
 const releaseSource = releaseSourceOf(JSON.parse(readFileSync(join(app.getAppPath(), 'package.json'), 'utf8')))
 const installer = new UpdateInstaller({

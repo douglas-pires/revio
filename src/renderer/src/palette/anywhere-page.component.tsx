@@ -7,6 +7,7 @@ const SCREENS = [
   { view: 'my-pulls', label: 'Go to my PRs' },
   { view: 'mentions', label: 'Go to mentions' },
   { view: 'guidelines', label: 'Go to the review guides' },
+  { view: 'learn', label: 'Go to Learn: lessons from your reviews' },
   { view: 'whats-new', label: 'What’s new in Revio' },
 ] as const
 

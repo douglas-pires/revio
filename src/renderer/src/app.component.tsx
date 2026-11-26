@@ -33,6 +33,8 @@ const MyPulls = lazy(() => import('./my-pulls/my-pulls.view.tsx').then((module) 
 
 const Mentions = lazy(() => import('./mentions/mentions.view.tsx').then((module) => ({ default: module.Mentions })))
 
+const Learn = lazy(() => import('./learn/learn.view.tsx').then((module) => ({ default: module.Learn })))
+
 const Settings = lazy(() => import('./settings/settings.view.tsx').then((module) => ({ default: module.Settings })))
 
 const WhatsNew = lazy(() => import('./whats-new/whats-new.view.tsx').then((module) => ({ default: module.WhatsNew })))
@@ -172,6 +174,9 @@ function NavRail({
       <NavButton active={route.view === 'guidelines'} label="Guides" onClick={() => setRoute({ view: 'guidelines' })}>
         <path d="M5 4h11l3 3v13H5zM9 9h6M9 13h6M9 17h4" />
       </NavButton>
+      <NavButton active={route.view === 'learn'} label="Learn" onClick={() => setRoute({ view: 'learn' })}>
+        <path d="M9 18h6M10 21h4M12 3a6 6 0 0 0-4 10.5c.7.7 1 1.5 1 2.5h6c0-1 .3-1.8 1-2.5A6 6 0 0 0 12 3z" />
+      </NavButton>
       <div className="flex-1" />
       <NavButton active={route.view === 'settings'} label="Settings" onClick={() => setRoute({ view: 'settings' })}>
         <path d={SETTINGS_ICON} />
@@ -221,6 +226,7 @@ function Screen({
       {route.view === 'guidelines' && <Guidelines initialRepo={route.repo} initialPath={route.path} />}
       {route.view === 'my-pulls' && <MyPulls inbox={inbox} onOpen={openPull} />}
       {route.view === 'mentions' && <Mentions mentions={mentions} onOpen={openPull} />}
+      {route.view === 'learn' && <Learn onOpen={openPull} />}
       {route.view === 'settings' && <Settings />}
       {route.view === 'whats-new' && <WhatsNew update={route.update} onDone={() => setRoute({ view: 'inbox' })} />}
     </Suspense>

@@ -6,6 +6,8 @@ const pull = (number: number, reviews: { state: string; submittedAt: string | nu
   number,
   title: `PR ${number}`,
   url: `https://github.com/acme/web/pull/${number}`,
+  mergedAt: null,
+  author: { login: 'bo' },
   repository: { nameWithOwner: 'acme/web' },
   reviews: { nodes: reviews.map((review) => ({ ...review, comments: { nodes: [null] } })) },
 })
