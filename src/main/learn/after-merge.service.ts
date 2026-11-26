@@ -2,6 +2,8 @@ import type { Octokit } from '@octokit/rest'
 import type { AfterMergeReport, FollowUp } from '@shared/learn.types.ts'
 import { isPresent } from '@shared/presence.util.ts'
 import type { PastReview } from '@shared/review-history.types.ts'
+import { countRewrittenLines } from '@shared/rewritten-lines.util.ts'
+import { queryWithRetry } from '../github/graphql-retry.util.ts'
 import { splitRepo } from '../github/repo-name.util.ts'
 import {
   type ApprovedCandidate,
@@ -12,7 +14,6 @@ import {
   type MergedPull,
   toFollowUp,
 } from './follow-ups.util.ts'
-import { countRewrittenLines } from './rewritten-lines.util.ts'
 
 /** The approved PRs looked at, most recent first. */
 const MAX_APPROVED = 400
@@ -20,7 +21,7 @@ const MAX_APPROVED = 400
 const BATCH_SIZE = 6
 /** Repositories searched for fixes, and fixes read from each. */
 const MAX_REPOS = 8
-const FIXES_PER_REPO = 100
+const FIXES_PER_REPO = 50
 const FILES_PER_PULL = 100
 const MENTIONS_PER_PULL = 30
 
@@ -85,7 +86,7 @@ async function fetchBatch(octokit: Octokit, batch: ReturnType<typeof listApprove
       }
     }`
   })
-  const data = await octokit.graphql<Record<string, RawMentions | null>>(`query { ${fields.join('\n')} }`)
+  const data = await queryWithRetry<Record<string, RawMentions | null>>(octokit, `query { ${fields.join('\n')} }`)
   return batch.flatMap((review, index): ApprovedCandidate[] => {
     const raw = data[`p${index}`]?.pullRequest
     const pull = toMergedPull(raw)
@@ -115,7 +116,8 @@ async function fetchFixes(octokit: Octokit, approved: readonly ApprovedCandidate
   if (searches.length === 0) {
     return []
   }
-  const data = await octokit.graphql<Record<string, { nodes: (RawMerged | null)[] }>>(
+  const data = await queryWithRetry<Record<string, { nodes: (RawMerged | null)[] }>>(
+    octokit,
     `query { ${searches.join('\n')} }`,
   )
   return Object.values(data).flatMap((result) => result.nodes.map(toMergedPull).filter(isPresent))

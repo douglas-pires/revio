@@ -3,20 +3,20 @@ const MIN_LINE_CHARS = 12
 const IMPORT_LINE = /^(?:import\b|from\s|export\s+\{|export\s+\*|require\()/u
 
 /** A line as compared: its text without surrounding spaces, or null when it is too generic to count. */
-function readMeaningfulLine(line: string) {
-  const text = line.slice(1).trim()
-  if (text.length < MIN_LINE_CHARS || IMPORT_LINE.test(text)) {
+export function readMeaningfulLine(text: string) {
+  const trimmed = text.trim()
+  if (trimmed.length < MIN_LINE_CHARS || IMPORT_LINE.test(trimmed)) {
     return null
   }
-  return text
+  return trimmed
 }
 
 /** The meaningful lines a unified diff adds ('+') or removes ('-'). */
-function collectLines(patch: string, marker: '+' | '-') {
+export function collectLines(patch: string, marker: '+' | '-') {
   const lines = new Set<string>()
   for (const line of patch.split('\n')) {
     if (line.startsWith(marker) && !line.startsWith(`${marker}${marker}${marker}`)) {
-      const text = readMeaningfulLine(line)
+      const text = readMeaningfulLine(line.slice(1))
       if (text !== null) {
         lines.add(text)
       }
