@@ -8,9 +8,9 @@ const LessonSchema = z.object({
     .string()
     .describe('Markdown, 1-3 short sentences: what the fix had to correct. `code` for identifiers and paths.'),
   couldReviewCatch: z
-    .enum(['yes', 'maybe', 'no'])
+    .enum(['yes', 'maybe', 'no', 'unrelated'])
     .describe(
-      'Could a careful reviewer of the original diff have seen it? "no" when it needed knowledge the diff lacked.',
+      'First: does the later PR actually fix something the approved PR did? If not, "unrelated" (and say why in whatWentWrong). Otherwise: could a careful reviewer of the original diff have seen it? "no" when it needed knowledge the diff lacked.',
     ),
   clue: z
     .string()
@@ -26,7 +26,8 @@ const LessonSchema = z.object({
 })
 
 const SYSTEM = `You help a code reviewer learn from a bug that got past their review.
-You get a pull request they approved and a later pull request that fixed something in it. Work out what went wrong,
+You get a pull request they approved and a later pull request that may have fixed something in it. First check that
+it really does: the match was made automatically and can be wrong. If it does, work out what went wrong,
 whether a careful reviewer could have seen it in the original diff, and the lesson worth keeping.
 Be fair: some bugs only show up in production or need context the diff did not have; say so plainly.
 Be concrete and short, written to be skimmed: markdown, short sentences, inline code for identifiers.

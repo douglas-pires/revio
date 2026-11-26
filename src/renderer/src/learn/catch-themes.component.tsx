@@ -43,8 +43,8 @@ function GroupButton({ grouped, busy, onClick }: { grouped: boolean; busy: boole
  * "What kinds of things do others catch?" and Claude's grouping, saved so it is there on the next visit; separate for
  * people only and for bots and AI reviewers too.
  */
-export function CatchThemes({ repo, includeBots }: { repo: string; includeBots: boolean }) {
-  const loadSaved = useCallback(() => globalThis.revio.getOtherCatches(includeBots), [includeBots])
+export function CatchThemes({ repo, includeBots, days }: { repo: string; includeBots: boolean; days: number }) {
+  const loadSaved = useCallback(() => globalThis.revio.getOtherCatches(includeBots, days), [includeBots, days])
   const saved = useLoaded(loadSaved)
   const [fresh, setFresh] = useState<{ includeBots: boolean; themes: SavedCatchThemes } | null>(null)
   const grouping = useAsyncAction()
@@ -54,7 +54,7 @@ export function CatchThemes({ repo, includeBots }: { repo: string; includeBots: 
   }
   const group = () =>
     grouping.run(async () =>
-      setFresh({ includeBots, themes: await globalThis.revio.summarizeOtherCatches(includeBots) }),
+      setFresh({ includeBots, themes: await globalThis.revio.summarizeOtherCatches(includeBots, days) }),
     )
   return (
     <div className="mb-5">

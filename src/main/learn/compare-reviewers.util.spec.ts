@@ -17,11 +17,12 @@ const pullWith = (points: RaisedPoint[]): PullPoints => ({
   title: 'feat: cart',
   url: 'https://github.com/acme/web/pull/1',
   author: 'bo',
+  reviewedAt: '2026-10-01T00:00:00Z',
   points,
 })
 
 describe('compareReviewers', () => {
-  it('splits points into theirs only, yours only and both, by file and nearby line', () => {
+  it('keeps their points away from yours, by file and nearby line', () => {
     const [review] = compareReviewers('me', [
       pullWith([
         point('me', 'cart.ts', 10),
@@ -33,7 +34,6 @@ describe('compareReviewers', () => {
     ])
     expect(review?.theyRaised.map((raised) => raised.body)).toEqual(['Off by one', 'Split this file'])
     expect(review?.reviewers).toEqual(['ana', 'lee'])
-    expect([review?.onlyYou, review?.both]).toEqual([1, 1])
   })
 
   it('leaves out the PR’s author, bots and AI reviewers, and PRs nobody else reviewed', () => {

@@ -1,4 +1,5 @@
-import type { ApprovedPull, FollowUp } from '@shared/learn.types.ts'
+import type { AfterMergeReport, ApprovedPull, FollowUp } from '@shared/learn.types.ts'
+import { useCallback } from 'react'
 import { EmptyState } from '../common/empty-state.component.tsx'
 import { ErrorBanner } from '../common/error-banner.component.tsx'
 import { countOf, formatAge } from '../common/format.util.ts'
@@ -7,17 +8,21 @@ import type { OpenPull } from '../common/navigation.types.ts'
 import { MissLessonButton } from './miss-lesson.component.tsx'
 import { useLoaded } from './use-loaded.hook.ts'
 
-const loadFixes = () => globalThis.revio.listAfterMergeFixes()
-
-const REASONS: Record<FollowUp['reason'], { label: string; hint: string }> = {
-  mentions: {
-    label: 'links back to it',
-    hint: 'This fix mentions the PR you approved: a revert, "fixes #…", or a link to it.',
-  },
-  'same-files': {
-    label: 'fixed the same files',
-    hint: 'A fix of files the PR you approved had changed, merged within 60 days of it. It may be unrelated: check the files.',
-  },
+/** Why a later PR is listed: always on evidence, said plainly, with more on hover. */
+function describeReason(fix: FollowUp) {
+  if (fix.reason === 'reverts') {
+    return { label: 'reverted it', hint: 'A revert of the PR you approved.' }
+  }
+  if (fix.reason === 'says-fixes') {
+    return {
+      label: 'says it fixes it',
+      hint: 'It says it fixes the PR you approved: "fixes #…", "regression from #…", or a fix title carrying its number.',
+    }
+  }
+  return {
+    label: `rewrote ${fix.rewrittenLines} of its lines`,
+    hint: 'A fix, merged within 60 days, that removed or rewrote lines the PR you approved had added.',
+  }
 }
 
 /** A PR title that opens the PR in Revio. */
@@ -30,7 +35,7 @@ function PullLink({ pull, onOpen }: { pull: { repo: string; number: number; titl
 }
 
 function FollowUpRow({ original, fix, onOpen }: { original: ApprovedPull; fix: FollowUp; onOpen: OpenPull }) {
-  const reason = REASONS[fix.reason]
+  const reason = describeReason(fix)
   return (
     <li className="border-t border-line px-4 py-2.5">
       <div className="flex flex-wrap items-baseline gap-x-2 gap-y-1 text-[12.5px]">
@@ -70,28 +75,51 @@ function ApprovedCard({ pull, onOpen }: { pull: ApprovedPull; onOpen: OpenPull }
   )
 }
 
+const formatDay = (iso: string) =>
+  new Date(iso).toLocaleDateString(undefined, { day: 'numeric', month: 'short', year: 'numeric' })
+
+/** What the list covers: which approved PRs were checked, and what counts as a fix. */
+function Coverage({ report }: { report: AfterMergeReport }) {
+  let span = ''
+  if (report.from && report.to) {
+    span = ` between ${formatDay(report.from)} and ${formatDay(report.to)}`
+  }
+  return (
+    <p className="mb-1.5 text-[12px] text-muted">
+      Checked {report.examined} PRs you approved that merged{span}. A later PR is listed only when it reverted one, said
+      it fixed one, or rewrote lines it added.
+    </p>
+  )
+}
+
 /** PRs you approved that later needed fixing, each with its fixes and what the review could have caught. */
-export function AfterMerge({ onOpen }: { onOpen: OpenPull }) {
-  const { value: pulls, error } = useLoaded(loadFixes)
+export function AfterMerge({ days, onOpen }: { days: number; onOpen: OpenPull }) {
+  const load = useCallback(() => globalThis.revio.listAfterMergeFixes(days), [days])
+  const { value: report, error } = useLoaded(load)
   if (error !== null) {
     return <ErrorBanner>{error}</ErrorBanner>
   }
-  if (pulls === null) {
+  if (report === null) {
     return <MascotLoading label="Looking for fixes after the PRs you approved…" />
   }
+  const { pulls } = report
   if (pulls.length === 0) {
     return (
-      <EmptyState title="Nothing came back">
-        None of the PRs you approved in the last year was followed by a fix that names it, or by a fix of its files.
-      </EmptyState>
+      <>
+        <Coverage report={report} />
+        <EmptyState title="Nothing came back">
+          No later PR reverted these, said it fixed them, or rewrote their lines.
+        </EmptyState>
+      </>
     )
   }
   const fixCount = pulls.reduce((total, pull) => total + pull.followUps.length, 0)
   return (
     <>
+      <Coverage report={report} />
       <p className="mb-3 text-[12.5px] text-muted">
-        {countOf(pulls.length, 'PR', 'PRs')} you approved needed {countOf(fixCount, 'fix', 'fixes')} after merging. Not
-        every bug is visible in a diff: ask Claude to compare, and keep the lessons worth keeping in a guide.
+        {pulls.length} of them needed {countOf(fixCount, 'fix', 'fixes')} after merging. Not every bug is visible in a
+        diff: ask Claude to compare, and keep the lessons worth keeping.
       </p>
       {pulls.map((pull) => (
         <ApprovedCard key={`${pull.repo}#${pull.number}`} pull={pull} onOpen={onOpen} />
