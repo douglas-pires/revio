@@ -114,6 +114,7 @@ async function fetchFixes(octokit: Octokit, approved: readonly ApprovedCandidate
 export async function findAfterMergeFixes(octokit: Octokit, reviews: readonly PastReview[]): Promise<ApprovedPull[]> {
   const approved = listApprovedMerged(reviews)
   const candidates: ApprovedCandidate[] = []
+  // One batch at a time, to stay well inside GitHub's limits on concurrent requests.
   for (let start = 0; start < approved.length; start += BATCH_SIZE) {
     candidates.push(...(await fetchBatch(octokit, approved.slice(start, start + BATCH_SIZE))))
   }

@@ -73,6 +73,8 @@ const methods = [
   'testNotification',
   'listAfterMergeFixes',
   'explainMiss',
+  'listSharedReviews',
+  'summarizeOtherCatches',
   'getUnseenUpdate',
   'markUpdateSeen',
   'listReleaseNotes',
