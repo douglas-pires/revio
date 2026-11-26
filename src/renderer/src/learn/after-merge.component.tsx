@@ -5,6 +5,7 @@ import { ErrorBanner } from '../common/error-banner.component.tsx'
 import { countOf, formatAge } from '../common/format.util.ts'
 import { MascotLoading } from '../common/mascot-loading.component.tsx'
 import type { OpenPull } from '../common/navigation.types.ts'
+import { FixDiffs } from './fix-diffs.component.tsx'
 import { MissLessonButton } from './miss-lesson.component.tsx'
 import { useLoaded } from './use-loaded.hook.ts'
 
@@ -52,6 +53,7 @@ function FollowUpRow({ original, fix, onOpen }: { original: ApprovedPull; fix: F
           {fix.sharedFiles.join(' · ')}
         </div>
       )}
+      <FixDiffs original={original} fix={fix} />
       <MissLessonButton original={original} fix={fix} saved={fix.lesson} pending={fix.lessonPending} />
     </li>
   )

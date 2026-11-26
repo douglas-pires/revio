@@ -2,7 +2,7 @@ import { useEffect, useState } from 'react'
 import { joinClassNames } from '../common/format.util.ts'
 import { type Tok, useHighlighter } from '../highlight/highlight.service.ts'
 import { TokenText } from '../highlight/token-text.component.tsx'
-import type { DiffRow } from './diff.util.ts'
+import type { DiffRow, LineRow } from './diff.util.ts'
 import { buildRowKey, DIFF_SIGNS, pickRowBackground } from './diff-look.util.ts'
 
 function useStaticTokens(path: string, rows: readonly DiffRow[], sourceLength: number) {
@@ -26,17 +26,22 @@ function useStaticTokens(path: string, rows: readonly DiffRow[], sourceLength: n
   return tokens
 }
 
-/** Read-only, highlighted diff rows (hunk headers included); `markLine` (new side) gets the focus marker. */
+/**
+ * Read-only, highlighted diff rows (hunk headers included); `markLine` (new side), and any row `isMarked` picks, get
+ * the focus marker.
+ */
 export function StaticDiff({
   path,
   rows,
   sourceLength,
   markLine,
+  isMarked,
 }: {
   path: string
   rows: readonly DiffRow[]
   sourceLength: number
   markLine?: number
+  isMarked?: (row: LineRow) => boolean
 }) {
   const tokens = useStaticTokens(path, rows, sourceLength)
   return (
@@ -52,7 +57,7 @@ export function StaticDiff({
               </tr>
             )
           }
-          const marked = row.kind !== 'del' && row.newNo === markLine
+          const marked = (row.kind !== 'del' && row.newNo === markLine) || Boolean(isMarked?.(row))
           return (
             <tr
               key={buildRowKey(row)}
