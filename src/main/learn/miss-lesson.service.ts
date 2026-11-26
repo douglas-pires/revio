@@ -4,7 +4,9 @@ import { z } from 'zod'
 import { requestJson } from '../claude/claude-json.service.ts'
 
 const LessonSchema = z.object({
-  whatWentWrong: z.string().describe('1-2 sentences: what the fix had to correct in the original PR.'),
+  whatWentWrong: z
+    .string()
+    .describe('Markdown, 1-3 short sentences: what the fix had to correct. `code` for identifiers and paths.'),
   couldReviewCatch: z
     .enum(['yes', 'maybe', 'no'])
     .describe(
@@ -12,18 +14,23 @@ const LessonSchema = z.object({
     ),
   clue: z
     .string()
-    .describe('Where in the original diff the sign was (file and what to notice), or why there was none.'),
+    .describe(
+      'Markdown: where in the original diff the sign was, or why there was none. Short; bullets when there are several reasons. `code` for identifiers.',
+    ),
   path: z.string().nullable().describe('The original PR file the clue is in, or null.'),
   lesson: z
     .string()
-    .describe('One sentence to remember, phrased as something to check in future reviews. Specific, not "test more".'),
+    .describe(
+      'Markdown, one or two sentences to remember, phrased as something to check in future reviews. Specific, not "test more". `code` for identifiers.',
+    ),
 })
 
 const SYSTEM = `You help a code reviewer learn from a bug that got past their review.
 You get a pull request they approved and a later pull request that fixed something in it. Work out what went wrong,
 whether a careful reviewer could have seen it in the original diff, and the lesson worth keeping.
 Be fair: some bugs only show up in production or need context the diff did not have; say so plainly.
-Be concrete and short. Reference real files from the diffs. Never invent code you cannot see.`
+Be concrete and short, written to be skimmed: markdown, short sentences, inline code for identifiers.
+Reference real files from the diffs. Never invent code you cannot see.`
 
 const MAX_LESSON_TOKENS = 4000
 /** Each PR's diffs are cut to this many characters: about 50k tokens. */

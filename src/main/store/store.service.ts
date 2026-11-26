@@ -1,6 +1,7 @@
 import { existsSync, mkdirSync, readFileSync, renameSync, writeFileSync } from 'node:fs'
 import { join } from 'node:path'
 import type { Guideline } from '@shared/guideline.types.ts'
+import type { MissLesson } from '@shared/learn.types.ts'
 import type { PullLocalState } from '@shared/pull.types.ts'
 import type { Settings } from '@shared/settings.types.ts'
 import { moveFormerShortcuts } from '@shared/shortcut-actions.util.ts'
@@ -35,6 +36,8 @@ interface Db {
   sync: SyncState
   /** The last release used here, to show what is new after an update. */
   seenRelease?: string | undefined
+  /** What Claude learned from fixes after PRs you approved, by "approved PR>fix" key. */
+  missLessons?: Record<string, MissLesson> | undefined
 }
 
 const DEFAULT_SETTINGS: StoredSettings = {
@@ -101,6 +104,7 @@ function load(): Db {
       usedBefore = true
       loadedDatabase = {
         seenRelease: raw.seenRelease,
+        missLessons: raw.missLessons,
         settings: { ...DEFAULT_SETTINGS, ...moveFormerShortcuts({ ...raw.settings }) },
         guidelines: raw.guidelines ?? fresh.guidelines,
         pulls: pruneStalePulls(raw.pulls ?? {}),
@@ -285,6 +289,12 @@ export const store = {
 
   alerts: () => load().alerts,
   saveAlerts: () => save(),
+  missLessons: (): Readonly<Record<string, MissLesson>> => load().missLessons ?? {},
+  saveMissLesson(key: string, lesson: MissLesson) {
+    const database = load()
+    database.missLessons = { ...database.missLessons, [key]: lesson }
+    save()
+  },
   seenRelease: (): string | null => load().seenRelease ?? null,
   saveSeenRelease(version: string) {
     load().seenRelease = version

@@ -1,11 +1,12 @@
 import type { RevioApi } from '@shared/api.contract.ts'
 import type { ApprovedPull, MissLesson } from '@shared/learn.types.ts'
-import { buildPullKey } from '@shared/pull.types.ts'
+import { buildPullKey, type PullRef } from '@shared/pull.types.ts'
 import type { PastReview } from '@shared/review-history.types.ts'
 import { ExpiringValue } from '../common/expiring-value.ts'
-import { MemoCache } from '../common/memo.cache.ts'
+import { InFlight } from '../common/in-flight.util.ts'
 import { getGithubClient } from '../github/github.client.ts'
 import type { PullCache } from '../pulls/pull.cache.ts'
+import type { store as appStore } from '../store/store.service.ts'
 import { findAfterMergeFixes } from './after-merge.service.ts'
 import { writeMissLesson } from './miss-lesson.service.ts'
 
@@ -16,24 +17,40 @@ const AFTER_MERGE_MAX_AGE_MS = 7_200_000
 /** A PR's diff is fetched again if older than this; a merged PR does not change. */
 const MERGED_PULL_MAX_AGE_MS = 86_400_000
 
+/** The key a lesson is saved under: the approved PR, then the fix. */
+const buildLessonKey = (original: PullRef, fix: PullRef) => `${buildPullKey(original)}>${buildPullKey(fix)}`
+
+/** The list with the lessons learned so far filled in. */
+function attachLessons(pulls: readonly ApprovedPull[], lessons: Readonly<Record<string, MissLesson>>): ApprovedPull[] {
+  return pulls.map((pull) => ({
+    ...pull,
+    followUps: pull.followUps.map((fix) => ({ ...fix, lesson: lessons[buildLessonKey(pull, fix)] ?? null })),
+  }))
+}
+
 /** What your past reviews can teach: fixes that followed PRs you approved, and what those reviews missed. */
 export function buildLearnApi(deps: {
   reviewHistory: ExpiringValue<PastReview[]>
   pulls: PullCache
+  store: typeof appStore
 }): Pick<RevioApi, LearnMethods> {
+  const { store } = deps
   const afterMerge = new ExpiringValue<ApprovedPull[]>(
     async () => findAfterMergeFixes(await getGithubClient(), await deps.reviewHistory.get()),
     AFTER_MERGE_MAX_AGE_MS,
   )
-  const lessons = new MemoCache<MissLesson>()
+  const lessons = new InFlight<MissLesson>()
+  const learn = async (original: PullRef, fix: PullRef) => {
+    const lesson = await writeMissLesson(
+      await deps.pulls.get(original, MERGED_PULL_MAX_AGE_MS),
+      await deps.pulls.get(fix, MERGED_PULL_MAX_AGE_MS),
+    )
+    store.saveMissLesson(buildLessonKey(original, fix), lesson)
+    return lesson
+  }
   return {
-    listAfterMergeFixes: () => afterMerge.get(),
-    explainMiss: (original, fix) =>
-      lessons.get(`${buildPullKey(original)}>${buildPullKey(fix)}`, async () =>
-        writeMissLesson(
-          await deps.pulls.get(original, MERGED_PULL_MAX_AGE_MS),
-          await deps.pulls.get(fix, MERGED_PULL_MAX_AGE_MS),
-        ),
-      ),
+    listAfterMergeFixes: async () => attachLessons(await afterMerge.get(), store.missLessons()),
+    // Kept on disk, so it is there after leaving the screen (or while it is still being written when you come back).
+    explainMiss: (original, fix) => lessons.run(buildLessonKey(original, fix), () => learn(original, fix)),
   }
 }
