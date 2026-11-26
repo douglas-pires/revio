@@ -1,15 +1,14 @@
 import type { RaisedPoint, SharedReview } from '@shared/learn.types.ts'
-import { useState } from 'react'
+import { useCallback, useState } from 'react'
 import { EmptyState } from '../common/empty-state.component.tsx'
 import { ErrorBanner } from '../common/error-banner.component.tsx'
 import { countOf } from '../common/format.util.ts'
 import { Markdown } from '../common/markdown.component.tsx'
 import { MascotLoading } from '../common/mascot-loading.component.tsx'
 import type { OpenPull } from '../common/navigation.types.ts'
+import { useStoredChoice } from '../common/use-stored-choice.hook.ts'
 import { CatchThemes } from './catch-themes.component.tsx'
 import { useLoaded } from './use-loaded.hook.ts'
-
-const loadSharedReviews = () => globalThis.revio.listSharedReviews()
 
 /** The repository most of these PRs are in: where a guide entry most likely belongs. */
 function findMainRepo(reviews: readonly SharedReview[]) {
@@ -112,9 +111,38 @@ function Totals({ reviews }: { reviews: readonly SharedReview[] }) {
   )
 }
 
-/** The PRs you reviewed alongside others: what they raised that you did not, and the kinds of things they catch. */
+const BOTS_CHOICES = ['without', 'with'] as const
+
+/** Whether bots and AI reviewers count, as a switch remembered on this Mac. Off at first. */
+function BotsSwitch({ value, onChange }: { value: boolean; onChange: (value: boolean) => void }) {
+  return (
+    <label className="mb-3 flex w-fit cursor-pointer items-center gap-2 text-[12.5px] text-muted">
+      <input type="checkbox" checked={value} onChange={(event) => onChange(event.target.checked)} />
+      Include bots and AI reviewers (Copilot, Codex, Semgrep…)
+    </label>
+  )
+}
+
+/**
+ * The PRs you reviewed alongside others: what they raised that you did not, and the kinds of things they catch.
+ * Bots and AI reviewers are left out unless you include them.
+ */
 export function OtherReviewers({ onOpen }: { onOpen: OpenPull }) {
-  const { value: reviews, error } = useLoaded(loadSharedReviews)
+  const [bots, setBots] = useStoredChoice('revio.learnBots', BOTS_CHOICES, 'without')
+  const includeBots = bots === 'with'
+  const load = useCallback(() => globalThis.revio.listSharedReviews(includeBots), [includeBots])
+  return (
+    <>
+      <BotsSwitch value={includeBots} onChange={(checked) => setBots(BOTS_CHOICES[Number(checked)] ?? 'without')} />
+      <SharedReviews key={bots} load={load} includeBots={includeBots} onOpen={onOpen} />
+    </>
+  )
+}
+
+/** The comparison itself, for the reviewers counted. */
+function SharedReviews(props: { load: () => Promise<SharedReview[]>; includeBots: boolean; onOpen: OpenPull }) {
+  const { onOpen } = props
+  const { value: reviews, error } = useLoaded(props.load)
   if (error !== null) {
     return <ErrorBanner>{error}</ErrorBanner>
   }
@@ -131,7 +159,7 @@ export function OtherReviewers({ onOpen }: { onOpen: OpenPull }) {
   return (
     <>
       <Totals reviews={reviews} />
-      <CatchThemes repo={findMainRepo(reviews)} />
+      <CatchThemes repo={findMainRepo(reviews)} includeBots={props.includeBots} />
       {reviews.map((review) => (
         <SharedReviewCard key={`${review.repo}#${review.number}`} review={review} onOpen={onOpen} />
       ))}

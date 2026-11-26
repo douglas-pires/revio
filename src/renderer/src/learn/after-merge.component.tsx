@@ -41,7 +41,7 @@ function FollowUpRow({ original, fix, onOpen }: { original: ApprovedPull; fix: F
           {fix.sharedFiles.join(' · ')}
         </div>
       )}
-      <MissLessonButton original={original} fix={fix} />
+      <MissLessonButton original={original} fix={fix} saved={fix.lesson} />
     </li>
   )
 }

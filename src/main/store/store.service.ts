@@ -2,6 +2,7 @@ import { existsSync, mkdirSync, readFileSync, renameSync, writeFileSync } from '
 import { join } from 'node:path'
 import type { CommentKind } from '@shared/comment-kinds.util.ts'
 import type { Guideline } from '@shared/guideline.types.ts'
+import type { MissLesson, SavedCatchThemes } from '@shared/learn.types.ts'
 import type { PullLocalState } from '@shared/pull.types.ts'
 import type { Settings } from '@shared/settings.types.ts'
 import { moveFormerShortcuts } from '@shared/shortcut-actions.util.ts'
@@ -38,7 +39,14 @@ interface Db {
   seenRelease?: string | undefined
   /** What each of your past review comments is about, as Claude sorted them, by the comment's link. */
   commentKinds?: Record<string, CommentKind[]> | undefined
+  /** What Claude learned from fixes after PRs you approved, by "approved PR>fix" key. */
+  missLessons?: Record<string, MissLesson> | undefined
+  /** Claude's grouping of what other reviewers raised: counting people only, or bots and AI reviewers too. */
+  catchThemes?: Partial<Record<CatchThemesScope, SavedCatchThemes>> | undefined
 }
+
+/** Whose points the themes were drawn from. */
+type CatchThemesScope = 'people' | 'everyone'
 
 const DEFAULT_SETTINGS: StoredSettings = {
   pollIntervalMinutes: 3,
@@ -105,6 +113,8 @@ function load(): Db {
       loadedDatabase = {
         seenRelease: raw.seenRelease,
         commentKinds: raw.commentKinds,
+        missLessons: raw.missLessons,
+        catchThemes: raw.catchThemes,
         settings: { ...DEFAULT_SETTINGS, ...moveFormerShortcuts({ ...raw.settings }) },
         guidelines: raw.guidelines ?? fresh.guidelines,
         pulls: pruneStalePulls(raw.pulls ?? {}),
@@ -294,6 +304,18 @@ export const store = {
   saveCommentKinds(kinds: Record<string, CommentKind[]>) {
     const database = load()
     database.commentKinds = { ...database.commentKinds, ...kinds }
+    save()
+  },
+  missLessons: (): Readonly<Record<string, MissLesson>> => load().missLessons ?? {},
+  saveMissLesson(key: string, lesson: MissLesson) {
+    const database = load()
+    database.missLessons = { ...database.missLessons, [key]: lesson }
+    save()
+  },
+  catchThemes: (scope: CatchThemesScope): SavedCatchThemes | null => load().catchThemes?.[scope] ?? null,
+  saveCatchThemes(scope: CatchThemesScope, themes: SavedCatchThemes) {
+    const database = load()
+    database.catchThemes = { ...database.catchThemes, [scope]: themes }
     save()
   },
   seenRelease: (): string | null => load().seenRelease ?? null,

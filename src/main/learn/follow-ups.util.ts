@@ -35,7 +35,7 @@ function listSharedFiles(left: readonly string[], right: readonly string[]) {
 
 function toFollowUp(pull: MergedPull, reason: FollowUp['reason'], sharedFiles: string[]): FollowUp {
   const { files: _files, ...rest } = pull
-  return { ...rest, reason, sharedFiles }
+  return { ...rest, reason, sharedFiles, lesson: null }
 }
 
 /** Whether `later` merged after `approved`, and within the window when that is required. */

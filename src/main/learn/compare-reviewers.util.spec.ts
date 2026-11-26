@@ -4,6 +4,7 @@ import { compareReviewers, type PullPoints } from './compare-reviewers.util.ts'
 
 const point = (author: string, path: string, line: number | null, body = ''): RaisedPoint => ({
   author,
+  fromBot: false,
   path,
   line,
   body,
@@ -35,8 +36,22 @@ describe('compareReviewers', () => {
     expect([review?.onlyYou, review?.both]).toEqual([1, 1])
   })
 
-  it('leaves out the PR’s author, bots, and PRs nobody else reviewed', () => {
-    const pulls = [pullWith([point('me', 'a.ts', 1), point('bo', 'a.ts', 9), point('renovate[bot]', 'a.ts', 20)])]
+  it('leaves out the PR’s author, bots and AI reviewers, and PRs nobody else reviewed', () => {
+    const pulls = [
+      pullWith([
+        point('me', 'a.ts', 1),
+        point('bo', 'a.ts', 9),
+        point('renovate[bot]', 'a.ts', 20),
+        point('chatgpt-codex-connector', 'a.ts', 30),
+        point('semgrep-code-acme', 'a.ts', 40),
+        { ...point('review-app', 'a.ts', 50), fromBot: true },
+      ]),
+    ]
     expect(compareReviewers('me', pulls)).toEqual([])
+  })
+
+  it('counts bots and AI reviewers when asked to', () => {
+    const pulls = [pullWith([point('me', 'a.ts', 1), point('chatgpt-codex-connector', 'a.ts', 30, 'P2')])]
+    expect(compareReviewers('me', pulls, true)[0]?.theyRaised.map((raised) => raised.body)).toEqual(['P2'])
   })
 })

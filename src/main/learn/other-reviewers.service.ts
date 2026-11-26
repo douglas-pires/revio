@@ -1,11 +1,11 @@
 import type { Octokit } from '@octokit/rest'
-import type { CatchTheme, RaisedPoint, SharedReview } from '@shared/learn.types.ts'
+import type { CatchTheme, RaisedPoint } from '@shared/learn.types.ts'
 import { isPresent } from '@shared/presence.util.ts'
 import type { PastReview } from '@shared/review-history.types.ts'
 import { z } from 'zod'
 import { requestJson } from '../claude/claude-json.service.ts'
 import { splitRepo } from '../github/repo-name.util.ts'
-import { compareReviewers, type PullPoints } from './compare-reviewers.util.ts'
+import type { PullPoints } from './compare-reviewers.util.ts'
 
 /** The PRs compared, most recently reviewed first. */
 const MAX_PULLS = 40
@@ -17,7 +17,7 @@ const MAX_POINTS_SUMMARISED = 120
 const POINT_CHARS = 500
 
 interface RawThreadComment {
-  author: { login: string } | null
+  author: { __typename: string; login: string } | null
   path: string
   line: number | null
   originalLine: number | null
@@ -52,6 +52,7 @@ function toPoint(comment: RawThreadComment | null | undefined): RaisedPoint | nu
   }
   return {
     author: comment.author?.login ?? 'ghost',
+    fromBot: comment.author?.__typename === 'Bot',
     path: comment.path,
     line: comment.line ?? comment.originalLine,
     body: comment.body,
@@ -65,7 +66,7 @@ async function fetchBatch(octokit: Octokit, batch: readonly PastReview[]): Promi
     return `p${index}: repository(owner: ${JSON.stringify(owner)}, name: ${JSON.stringify(repo)}) {
       pullRequest(number: ${review.number}) { number title url author { login }
         reviewThreads(first: ${THREADS_PER_PULL}) { nodes { comments(first: 1) {
-          nodes { author { login } path line originalLine body url }
+          nodes { author { __typename login } path line originalLine body url }
         } } }
       }
     }`
@@ -91,19 +92,15 @@ async function fetchBatch(octokit: Octokit, batch: readonly PastReview[]): Promi
   })
 }
 
-/** The PRs you reviewed in the last year that others reviewed too, with what they raised that you did not. */
-export async function findSharedReviews(
-  octokit: Octokit,
-  viewer: string,
-  reviews: readonly PastReview[],
-): Promise<SharedReview[]> {
+/** Everyone's review points on the PRs you reviewed most recently. */
+export async function fetchReviewPoints(octokit: Octokit, reviews: readonly PastReview[]): Promise<PullPoints[]> {
   const pulls = listReviewedPulls(reviews)
   const points: PullPoints[] = []
   // One batch at a time, to stay well inside GitHub's limits on concurrent requests.
   for (let start = 0; start < pulls.length; start += BATCH_SIZE) {
     points.push(...(await fetchBatch(octokit, pulls.slice(start, start + BATCH_SIZE))))
   }
-  return compareReviewers(viewer, points)
+  return points
 }
 
 const ThemesSchema = z.object({
@@ -111,9 +108,13 @@ const ThemesSchema = z.object({
     .array(
       z.object({
         name: z.string().describe('2-5 words, e.g. "Error paths", "Naming".'),
-        description: z.string().describe('One sentence: what these points have in common.'),
+        description: z.string().describe('Markdown, one sentence: what these points have in common.'),
         count: z.number().int().describe('How many of the points belong to it.'),
-        tip: z.string().describe('One check the reviewer could add to their own reviews, specific to these points.'),
+        tip: z
+          .string()
+          .describe(
+            'Markdown: one check the reviewer could add to their reviews, specific to these points. `code` for names.',
+          ),
       }),
     )
     .describe('3-6 themes, the largest first.'),
