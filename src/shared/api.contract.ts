@@ -125,8 +125,8 @@ export interface RevioApi {
   /** Opens an issue for a bug report or feature request, or its prefilled form in the browser when that fails. */
   submitFeedback: (input: FeedbackInput) => Promise<FeedbackResult>
 
-  /** PRs you approved that later needed fixing (on evidence: a revert, a stated fix, rewritten lines), and what was checked. */
-  listAfterMergeFixes: () => Promise<AfterMergeReport>
+  /** PRs you approved in the last `days` that later needed fixing (on evidence: a revert, a stated fix, rewritten lines). */
+  listAfterMergeFixes: (days: number) => Promise<AfterMergeReport>
   /** Claude on what a later fix says about the review that approved the original PR. */
   explainMiss: (original: PullRef, fix: PullRef) => Promise<MissLesson>
 

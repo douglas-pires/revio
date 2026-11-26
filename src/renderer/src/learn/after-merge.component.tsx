@@ -1,4 +1,5 @@
 import type { AfterMergeReport, ApprovedPull, FollowUp } from '@shared/learn.types.ts'
+import { useCallback } from 'react'
 import { EmptyState } from '../common/empty-state.component.tsx'
 import { ErrorBanner } from '../common/error-banner.component.tsx'
 import { countOf, formatAge } from '../common/format.util.ts'
@@ -6,8 +7,6 @@ import { MascotLoading } from '../common/mascot-loading.component.tsx'
 import type { OpenPull } from '../common/navigation.types.ts'
 import { MissLessonButton } from './miss-lesson.component.tsx'
 import { useLoaded } from './use-loaded.hook.ts'
-
-const loadFixes = () => globalThis.revio.listAfterMergeFixes()
 
 /** Why a later PR is listed: always on evidence, said plainly, with more on hover. */
 function describeReason(fix: FollowUp) {
@@ -83,19 +82,20 @@ const formatDay = (iso: string) =>
 function Coverage({ report }: { report: AfterMergeReport }) {
   let span = ''
   if (report.from && report.to) {
-    span = `, merged between ${formatDay(report.from)} and ${formatDay(report.to)}`
+    span = ` between ${formatDay(report.from)} and ${formatDay(report.to)}`
   }
   return (
     <p className="mb-1.5 text-[12px] text-muted">
-      Checked the {report.examined} most recent PRs you approved{span}. A later PR is listed only when it reverted one,
+      Checked {report.examined} PRs you approved that merged{span}. A later PR is listed only when it reverted one,
       said it fixed one, or rewrote lines it added.
     </p>
   )
 }
 
 /** PRs you approved that later needed fixing, each with its fixes and what the review could have caught. */
-export function AfterMerge({ onOpen }: { onOpen: OpenPull }) {
-  const { value: report, error } = useLoaded(loadFixes)
+export function AfterMerge({ days, onOpen }: { days: number; onOpen: OpenPull }) {
+  const load = useCallback(() => globalThis.revio.listAfterMergeFixes(days), [days])
+  const { value: report, error } = useLoaded(load)
   if (error !== null) {
     return <ErrorBanner>{error}</ErrorBanner>
   }

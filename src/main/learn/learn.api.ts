@@ -1,11 +1,11 @@
 import type { RevioApi } from '@shared/api.contract.ts'
 import type { AfterMergeReport, ApprovedPull, MissLesson } from '@shared/learn.types.ts'
 import { buildPullKey, type PullRef } from '@shared/pull.types.ts'
-import type { PastReview } from '@shared/review-history.types.ts'
 import { ExpiringValue } from '../common/expiring-value.ts'
 import { InFlight } from '../common/in-flight.util.ts'
 import { getGithubClient } from '../github/github.client.ts'
 import type { PullCache } from '../pulls/pull.cache.ts'
+import type { ReviewHistoryCache } from '../reviews/review-history.cache.ts'
 import type { store as appStore } from '../store/store.service.ts'
 import { findAfterMergeFixes } from './after-merge.service.ts'
 import { writeMissLesson } from './miss-lesson.service.ts'
@@ -16,6 +16,19 @@ type LearnMethods = 'listAfterMergeFixes' | 'explainMiss'
 const AFTER_MERGE_MAX_AGE_MS = 7_200_000
 /** A PR's diff is fetched again if older than this; a merged PR does not change. */
 const MERGED_PULL_MAX_AGE_MS = 86_400_000
+
+/** A value loaded per span of days, each kept for a while. */
+function keepPerSpan<T>(load: (days: number) => Promise<T>, maxAgeMs: number) {
+  const values = new Map<number, ExpiringValue<T>>()
+  return (days: number) => {
+    let value = values.get(days)
+    if (!value) {
+      value = new ExpiringValue(() => load(days), maxAgeMs)
+      values.set(days, value)
+    }
+    return value.get()
+  }
+}
 
 /** The key a lesson is saved under: the approved PR, then the fix. */
 const buildLessonKey = (original: PullRef, fix: PullRef) => `${buildPullKey(original)}>${buildPullKey(fix)}`
@@ -37,7 +50,7 @@ function attachLessons(
 
 /** What your past reviews can teach: fixes that followed PRs you approved, and what those reviews missed. */
 export function buildLearnApi(deps: {
-  reviewHistory: ExpiringValue<PastReview[]>
+  reviewHistory: ReviewHistoryCache
   pulls: PullCache
   store: typeof appStore
 }): Pick<RevioApi, LearnMethods> {
@@ -46,8 +59,8 @@ export function buildLearnApi(deps: {
     const detail = await deps.pulls.get({ repo: pull.repo, number: pull.number }, MERGED_PULL_MAX_AGE_MS)
     return Object.fromEntries(detail.files.map((file) => [file.path, file.patch]))
   }
-  const afterMerge = new ExpiringValue<AfterMergeReport>(
-    async () => findAfterMergeFixes(await getGithubClient(), await deps.reviewHistory.get(), loadPatches),
+  const afterMerge = keepPerSpan<AfterMergeReport>(
+    async (days) => findAfterMergeFixes(await getGithubClient(), await deps.reviewHistory.get(days), loadPatches),
     AFTER_MERGE_MAX_AGE_MS,
   )
   const lessons = new InFlight<MissLesson>()
@@ -67,8 +80,8 @@ export function buildLearnApi(deps: {
     }
   }
   return {
-    listAfterMergeFixes: async () => {
-      const report = await afterMerge.get()
+    listAfterMergeFixes: async (days) => {
+      const report = await afterMerge(days)
       return { ...report, pulls: attachLessons(report.pulls, store.missLessons(), pending) }
     },
     // Kept on disk, so it is there after leaving the screen; asking while it is being written waits for that answer.
