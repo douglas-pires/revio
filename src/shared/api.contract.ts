@@ -8,7 +8,7 @@ import type { CiState, CommitCheck, CommitDetail, LogPage, PullLogQuery } from '
 import type { Guideline, ResolvedGuideline } from './guideline.types.ts'
 import type { BlameRange, CommitFile, CommitRef, FileAtCommit, FileHistoryEntry, PullCommit } from './history.types.ts'
 import type { Inbox, Stack, StackPrComments } from './inbox.types.ts'
-import type { ApprovedPull, MissLesson } from './learn.types.ts'
+import type { AfterMergeReport, MissLesson } from './learn.types.ts'
 import type { MentionsInbox } from './mention.types.ts'
 import type { Mentionable } from './mentionable.types.ts'
 import type { DraftComment, PullDetail, PullLocalState, PullRef, SubmitReviewInput } from './pull.types.ts'
@@ -125,8 +125,8 @@ export interface RevioApi {
   /** Opens an issue for a bug report or feature request, or its prefilled form in the browser when that fails. */
   submitFeedback: (input: FeedbackInput) => Promise<FeedbackResult>
 
-  /** PRs you approved in the last year that later needed fixing, with the fixes. */
-  listAfterMergeFixes: () => Promise<ApprovedPull[]>
+  /** PRs you approved that later needed fixing (on evidence: a revert, a stated fix, rewritten lines), and what was checked. */
+  listAfterMergeFixes: () => Promise<AfterMergeReport>
   /** Claude on what a later fix says about the review that approved the original PR. */
   explainMiss: (original: PullRef, fix: PullRef) => Promise<MissLesson>
 

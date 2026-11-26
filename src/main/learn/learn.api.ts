@@ -1,5 +1,5 @@
 import type { RevioApi } from '@shared/api.contract.ts'
-import type { ApprovedPull, MissLesson } from '@shared/learn.types.ts'
+import type { AfterMergeReport, ApprovedPull, MissLesson } from '@shared/learn.types.ts'
 import { buildPullKey, type PullRef } from '@shared/pull.types.ts'
 import type { PastReview } from '@shared/review-history.types.ts'
 import { ExpiringValue } from '../common/expiring-value.ts'
@@ -42,8 +42,12 @@ export function buildLearnApi(deps: {
   store: typeof appStore
 }): Pick<RevioApi, LearnMethods> {
   const { store } = deps
-  const afterMerge = new ExpiringValue<ApprovedPull[]>(
-    async () => findAfterMergeFixes(await getGithubClient(), await deps.reviewHistory.get()),
+  const loadPatches = async (pull: PullRef) => {
+    const detail = await deps.pulls.get({ repo: pull.repo, number: pull.number }, MERGED_PULL_MAX_AGE_MS)
+    return Object.fromEntries(detail.files.map((file) => [file.path, file.patch]))
+  }
+  const afterMerge = new ExpiringValue<AfterMergeReport>(
+    async () => findAfterMergeFixes(await getGithubClient(), await deps.reviewHistory.get(), loadPatches),
     AFTER_MERGE_MAX_AGE_MS,
   )
   const lessons = new InFlight<MissLesson>()
@@ -63,7 +67,10 @@ export function buildLearnApi(deps: {
     }
   }
   return {
-    listAfterMergeFixes: async () => attachLessons(await afterMerge.get(), store.missLessons(), pending),
+    listAfterMergeFixes: async () => {
+      const report = await afterMerge.get()
+      return { ...report, pulls: attachLessons(report.pulls, store.missLessons(), pending) }
+    },
     // Kept on disk, so it is there after leaving the screen; asking while it is being written waits for that answer.
     explainMiss: (original, fix) => {
       const key = buildLessonKey(original, fix)
