@@ -11,7 +11,7 @@ const pull = (number: number, reviews: { state: string; submittedAt: string | nu
 })
 
 describe('fetchReviewHistory', () => {
-  it('reads every page, one past review per review sent, newest first', async () => {
+  it('reads every page, one past review per review sent in the period, newest first', async () => {
     const graphql = vi
       .fn()
       .mockResolvedValueOnce({
@@ -26,6 +26,7 @@ describe('fetchReviewHistory', () => {
           nodes: [
             pull(2, [
               { state: 'APPROVED', submittedAt: '2026-11-01T00:00:00Z' },
+              { state: 'COMMENTED', submittedAt: '2026-05-01T00:00:00Z' },
               { state: 'PENDING', submittedAt: null },
             ]),
           ],
