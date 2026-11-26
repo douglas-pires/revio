@@ -1,10 +1,12 @@
 import { type ApiMethod, IPC, type RevioApi } from '@shared/api.contract.ts'
 import type { AskActivity, BriefingRecord } from '@shared/claude.types.ts'
+import type { FileExplanationRecord } from '@shared/explanation.types.ts'
 import { buildPullKey, type PullRef } from '@shared/pull.types.ts'
 import { ipcMain, shell } from 'electron'
 import { sendTestNotification } from '../alerts/notification.service.ts'
 import { ask } from '../claude/ask.service.ts'
 import { generateBriefing } from '../claude/briefing.service.ts'
+import { explainFile } from '../claude/explain.service.ts'
 import { InFlight } from '../common/in-flight.util.ts'
 import { isWebUrl } from '../common/web-url.util.ts'
 import type { EditorService } from '../editor/editor.service.ts'
@@ -24,6 +26,7 @@ import type { PullCache } from '../pulls/pull.cache.ts'
 import { fetchFileAt } from '../pulls/pull.service.ts'
 import { commentOnPull, replyToComment, submitReview } from '../pulls/review-submit.service.ts'
 import { setReaction } from '../reactions/reactions.service.ts'
+import { findUnfamiliarFiles } from '../reviews/familiarity.util.ts'
 import type { ReviewHistoryCache } from '../reviews/review-history.cache.ts'
 import { fetchStackComments } from '../stacks/stack-comments.service.ts'
 import { fetchStack } from '../stacks/stacks.service.ts'
@@ -183,7 +186,9 @@ function buildHistoryHandlers({ history }: ApiDeps): Pick<ApiHandlers, HistoryMe
   }
 }
 
-function buildClaudeHandlers({ store, pulls, window }: ApiDeps): Pick<ApiHandlers, 'generateBriefing' | 'askClaude'> {
+type ClaudeMethods = 'generateBriefing' | 'askClaude' | 'explainFile' | 'listUnfamiliarFiles'
+
+function buildClaudeHandlers({ store, pulls, window, reviewHistory }: ApiDeps): Pick<ApiHandlers, ClaudeMethods> {
   /** The PR (cached if recent) and the review guides that apply to its files. */
   const loadContext = async (ref: PullRef) => {
     const pr = pulls.peek(ref) ?? (await pulls.get(ref))
@@ -207,7 +212,31 @@ function buildClaudeHandlers({ store, pulls, window }: ApiDeps): Pick<ApiHandler
     })
     return record
   }
+  const explanations = new InFlight<FileExplanationRecord>()
+  const writeExplanation = async (ref: PullRef, path: string) => {
+    const key = buildPullKey(ref)
+    const record = await explainFile({
+      octokit: await getGithubClient(),
+      pr: pulls.peek(ref) ?? (await pulls.get(ref)),
+      path,
+      loadFile: fetchFileAt,
+      onProgress: (message) => window.send({ type: 'explain-progress', key, path, message }),
+    })
+    store.updatePull(key, (pullState) => {
+      pullState.explanations = { ...pullState.explanations, [path]: record }
+    })
+    return record
+  }
   return {
+    explainFile: (ref, path) => explanations.run(`${buildPullKey(ref)}:${path}`, () => writeExplanation(ref, path)),
+    listUnfamiliarFiles: async (ref) => {
+      const pr = pulls.peek(ref) ?? (await pulls.get(ref))
+      return findUnfamiliarFiles(
+        ref.repo,
+        pr.files.map((file) => file.path),
+        await reviewHistory.get(),
+      )
+    },
     // One request per PR: asking again while it runs (after a reload, say) waits for the same briefing.
     generateBriefing: (ref) => briefings.run(buildPullKey(ref), () => writeBriefing(ref)),
     askClaude: async (ref, thread) => {
