@@ -1,6 +1,7 @@
 import type { PullDetail } from '@shared/pull.types.ts'
 import { BriefingPanel } from './briefing-panel.component.tsx'
 import { CommentableLinesContext } from './commentable-lines.context.ts'
+import { CommitBanner } from './commit-banner.component.tsx'
 import { CommitsTab } from './commits-tab.component.tsx'
 import { FilesTab } from './files-tab.component.tsx'
 import { FindBar } from './find-bar.component.tsx'
@@ -76,8 +77,17 @@ function addToOpenChat(view: PullViewState) {
   return view.ask.addContext
 }
 
-/** While only the changes since your review show: comments only on new-side lines that are part of the PR. */
+/** No new comments while one commit shows: its lines are not the PR's latest. */
+const NO_LINES = () => false
+
+/**
+ * Which lines take a new comment: none while one commit shows; only new-side lines that are part of the PR while the
+ * changes since your review show; any otherwise.
+ */
 function pickCommentableLines(view: PullViewState) {
+  if (view.commitStep.commit) {
+    return NO_LINES
+  }
   if (!view.sinceReview.on) {
     return null
   }
@@ -98,14 +108,41 @@ function describeSinceSwitch(view: PullViewState) {
   return {
     on: view.sinceReview.on,
     count: view.sinceReview.since?.files.length ?? null,
-    onToggle: view.sinceReview.toggle,
+    onToggle: view.toggleSince,
   }
+}
+
+/** The commit stepper's state for the toolbar, or null when the PR has a single commit. */
+function describeCommitStepper(view: PullViewState) {
+  if (!view.commitStep.available) {
+    return null
+  }
+  return {
+    commits: view.commitStep.commits,
+    index: view.commitStep.index,
+    onStep: view.stepCommit,
+    onPick: view.selectCommit,
+  }
+}
+
+const NOTHING_BY_PATH: ReadonlyMap<string, never[]> = new Map()
+
+/** Comments and drafts sit on the PR's latest lines, so none show while one commit's diff does. */
+function pickByCommit<T>(
+  view: PullViewState,
+  byPath: ReadonlyMap<string, readonly T[]>,
+): ReadonlyMap<string, readonly T[]> {
+  if (view.commitStep.commit) {
+    return NOTHING_BY_PATH
+  }
+  return byPath
 }
 
 function FilesPane({ view, pr }: { view: PullViewState; pr: PullDetail }) {
   return (
     <CommentableLinesContext value={pickCommentableLines(view)}>
       <SinceReviewBanner sinceReview={view.sinceReview} />
+      <CommitBanner commitStep={view.commitStep} />
       <FilesList view={view} pr={pr} />
     </CommentableLinesContext>
   )
@@ -117,11 +154,11 @@ function FilesList({ view, pr }: { view: PullViewState; pr: PullDetail }) {
       files={view.shownFiles}
       view={view.view}
       repo={view.pull.repo}
-      headSha={pr.headSha}
+      headSha={view.shownSha || pr.headSha}
       blame={view.blame === 'on'}
       onShowHistory={view.setHistoryPath}
-      commentsByPath={view.commentsByPath}
-      draftsByPath={view.draftsByPath}
+      commentsByPath={pickByCommit(view, view.commentsByPath)}
+      draftsByPath={pickByCommit(view, view.draftsByPath)}
       focusByPath={view.focusByPath}
       ignoreByPath={view.ignoreByPath}
       viewed={view.local.viewed}
@@ -173,6 +210,7 @@ export function PullTabs({
         view={view.view}
         onView={view.changeView}
         sinceReview={describeSinceSwitch(view)}
+        commitStepper={describeCommitStepper(view)}
       />
       {Boolean(view.tab === 'files' && view.find.open) && <FindBar find={view.find} />}
       <TabPane active={view.tab === 'overview'}>

@@ -1,5 +1,5 @@
 import type { AskThread } from '@shared/claude.types.ts'
-import type { PullFile, PullRef, ReviewEvent } from '@shared/pull.types.ts'
+import type { PullRef, ReviewEvent } from '@shared/pull.types.ts'
 import { useCallback, useMemo, useState } from 'react'
 import { groupBy } from '../common/group.util.ts'
 import type { PullTarget } from '../common/navigation.types.ts'
@@ -17,13 +17,13 @@ import { readStackTab, rememberStackTab } from './stack-memory.util.ts'
 import { readSelectedName } from './symbol-word.util.ts'
 import { useBriefing } from './use-briefing.hook.ts'
 import { useDiffFind } from './use-diff-find.hook.ts'
+import { useDiffScope } from './use-diff-scope.hook.ts'
 import { useFileKeyboardNav } from './use-file-keyboard-nav.hook.ts'
 import { useFileNavigation } from './use-file-navigation.hook.ts'
 import { usePullDetail } from './use-pull-detail.hook.ts'
 import { type PullLocalStateApi, usePullLocalState } from './use-pull-local-state.hook.ts'
 import { useQuickOpen } from './use-quick-open.hook.ts'
 import type { SetReaction } from './use-reactions.hook.ts'
-import { type SinceReviewState, useSinceReview } from './use-since-review.hook.ts'
 import { useThreadFoldState } from './use-thread-fold.hook.ts'
 
 /** Lookups over the PR and its local state that several parts of the view share. */
@@ -184,25 +184,6 @@ function useReactionSetter(pull: PullRef): SetReaction {
   return useCallback((subjectId, content, on) => globalThis.revio.setReaction(pull, subjectId, content, on), [pull])
 }
 
-/** The files the Files tab lists: only those changed since your review while that is on, else all of them. */
-function pickShownFiles(sinceReview: SinceReviewState, orderedFiles: PullFile[]) {
-  if (sinceReview.on) {
-    return sinceReview.files
-  }
-  return orderedFiles
-}
-
-/** What the since-review shortcut does: switch the view and show Files changed; nothing when there is no switch. */
-function pickSinceShortcut(sinceReview: SinceReviewState, showFiles: () => void) {
-  if (!sinceReview.available) {
-    return null
-  }
-  return () => {
-    showFiles()
-    sinceReview.toggle()
-  }
-}
-
 /** What the find-usages shortcut does on Files changed: open the selected name's usages, or say how. */
 function pickFindUsages(onFilesTab: boolean, setSymbolName: (name: string) => void) {
   if (!onFilesTab) {
@@ -256,9 +237,8 @@ export function usePullView(pullRef: PullRef, initialTarget: PullTarget | undefi
     nav.collapseFiles(record.briefing.ignore.map((skipped) => skipped.path))
   })
   const indexes = usePullIndexes(detail.pr, local.local)
-  const sinceReview = useSinceReview(pull, detail.pr)
-  const shownFiles = pickShownFiles(sinceReview, indexes.orderedFiles)
-  useShortcut('since-review', pickSinceShortcut(sinceReview, choices.showFiles))
+  const scope = useDiffScope(pull, detail.pr, indexes.orderedFiles, choices.showFiles)
+  const { shownFiles } = scope
   const find = useDiffFind({ files: shownFiles, jump: nav.jump, onFilesTab, showFiles: choices.showFiles })
 
   useShortcut('find-usages', pickFindUsages(onFilesTab, choices.setSymbolName))
@@ -286,8 +266,7 @@ export function usePullView(pullRef: PullRef, initialTarget: PullTarget | undefi
     nav,
     threadFold,
     briefing,
-    sinceReview,
-    shownFiles,
+    ...scope,
     find,
     setReaction,
     toggleViewed,

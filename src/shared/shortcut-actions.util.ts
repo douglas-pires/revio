@@ -25,6 +25,8 @@ const ACTIONS = {
   unview: { label: 'Unview the file and select it', group: 'Files changed', defaultShortcut: 'Cmd+Shift+V' },
   'copy-file': { label: 'Copy the selected file’s path', group: 'Files changed', defaultShortcut: 'Cmd+Shift+C' },
   'open-in-editor': { label: 'Open in editor', group: 'Files changed', defaultShortcut: 'Cmd+O' },
+  'next-commit': { label: 'Show the next commit on its own', group: 'Files changed', defaultShortcut: ']' },
+  'previous-commit': { label: 'Show the previous commit on its own', group: 'Files changed', defaultShortcut: '[' },
   'find-usages': {
     label: 'Find where the selected name is defined and used (or ⌘-click it)',
     group: 'Files changed',
