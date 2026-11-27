@@ -38,6 +38,8 @@ const methods = [
   'refreshInbox',
   'getPull',
   'getChangesSinceReview',
+  'getMergeStatus',
+  'getMergeStatuses',
   'getStack',
   'getStackComments',
   'getLocalState',
