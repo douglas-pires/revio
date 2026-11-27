@@ -1,9 +1,10 @@
+import { buildDefaultTitle } from '@shared/guide-title.util.ts'
 import type { Guideline } from '@shared/guideline.types.ts'
 import { joinClassNames } from '../common/format.util.ts'
 import { ResizablePanel } from '../common/resizable-panel.component.tsx'
 import { SectionHeading } from '../common/section-heading.component.tsx'
 import type { GuideDrafts } from './guide-drafts.util.ts'
-import { buildDefaultTitle, type Draft, groupGuides } from './guidelines.util.ts'
+import { type Draft, groupGuides } from './guidelines.util.ts'
 
 function DraftChip() {
   return <span className="chip ml-auto shrink-0 bg-warn/20 py-0 text-[10px] text-warn">draft</span>
