@@ -5,6 +5,7 @@ import { AskPanel } from './ask-panel.component.tsx'
 import { CommentsPanel } from './comments-panel.component.tsx'
 import { FileHistoryPanel } from './file-history-panel.component.tsx'
 import { askHistory, buildDraftFromAsk, keepNewSideOnly } from './pull-view.util.ts'
+import { SymbolPanel } from './symbol-panel.component.tsx'
 import type { PullViewState } from './use-pull-view.hook.ts'
 
 /** The Claude conversation about a selection, with the earlier ones to switch to. */
@@ -37,7 +38,7 @@ function AskSidePanel({ view, thread }: { view: PullViewState; thread: AskThread
   )
 }
 
-/** The panel beside the diff: a Claude conversation, else a file's history, else the comments list. */
+/** The panel beside the diff: a Claude conversation, else a name's usages, else a file's history, else the comments. */
 export function PullSidePanels({ view, pr }: { view: PullViewState; pr: PullDetail }) {
   const reviewedBy = useMemo(() => ({ viewer: pr.viewer, since: pr.lastReviewedAt }), [pr.viewer, pr.lastReviewedAt])
   const askThread = view.ask.thread
@@ -46,6 +47,16 @@ export function PullSidePanels({ view, pr }: { view: PullViewState; pr: PullDeta
   }
   if (view.tab !== 'files') {
     return null
+  }
+  if (view.symbolName !== null) {
+    return (
+      <SymbolPanel
+        pull={view.pull}
+        name={view.symbolName}
+        onJump={(path, line) => view.nav.goTo(path, line)}
+        onClose={() => view.setSymbolName(null)}
+      />
+    )
   }
   if (view.historyPath !== null) {
     return (

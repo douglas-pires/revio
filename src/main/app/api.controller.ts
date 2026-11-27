@@ -31,6 +31,7 @@ import type { ReviewHistoryCache } from '../reviews/review-history.cache.ts'
 import { fetchStackComments } from '../stacks/stack-comments.service.ts'
 import { fetchStack } from '../stacks/stacks.service.ts'
 import type { store as appStore } from '../store/store.service.ts'
+import { findSymbol } from '../symbols/symbol-search.service.ts'
 import type { IcloudSync } from '../sync/icloud-sync.service.ts'
 import type { ThreadCache } from '../threads/threads.cache.ts'
 import { replyToThread, setThreadResolved } from '../threads/threads.service.ts'
@@ -174,8 +175,9 @@ type HistoryMethods =
   | 'getCommitFiles'
   | 'getPullCommits'
   | 'getFileContent'
+  | 'findSymbol'
 
-function buildHistoryHandlers({ history }: ApiDeps): Pick<ApiHandlers, HistoryMethods> {
+function buildHistoryHandlers({ history, pulls }: ApiDeps): Pick<ApiHandlers, HistoryMethods> {
   return {
     getBlame: (at) => history.blame(at),
     getFileHistory: (ref, at) => history.fileHistory(ref, at),
@@ -183,6 +185,13 @@ function buildHistoryHandlers({ history }: ApiDeps): Pick<ApiHandlers, HistoryMe
     getCommitFiles: (at) => history.commitFiles(at),
     getPullCommits: (ref, headSha) => history.pullCommits(ref, headSha),
     getFileContent: (at) => fetchFileAt(at.repo, at.sha, at.path),
+    findSymbol: async (ref, name) =>
+      findSymbol({
+        octokit: await getGithubClient(),
+        pr: pulls.peek(ref) ?? (await pulls.get(ref)),
+        name,
+        loadFile: fetchFileAt,
+      }),
   }
 }
 

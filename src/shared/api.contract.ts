@@ -14,6 +14,7 @@ import type { DraftComment, PullDetail, PullLocalState, PullRef, SubmitReviewInp
 import type { ReactionContent, ReactionSummary } from './reaction.types.ts'
 import type { GuideEntry, SimilarComment } from './review-history.types.ts'
 import type { GithubAuthStatus, Settings, SettingsPatch, SyncStatus } from './settings.types.ts'
+import type { SymbolSearch } from './symbol.types.ts'
 import type { ThreadComment, ThreadsInbox } from './thread.types.ts'
 import type { UpdateStatus } from './update.types.ts'
 import type { ReleaseNotes, UnseenUpdate } from './whats-new.types.ts'
@@ -70,6 +71,8 @@ export interface RevioApi {
   getCommitFiles: (at: CommitRef) => Promise<CommitFile[]>
   /** The PR's commits, oldest first, as of `headSha`. */
   getPullCommits: (ref: PullRef, headSha: string) => Promise<PullCommit[]>
+  /** Where a name is defined and used, in the PR's files and elsewhere in the repository, read at the PR's head. */
+  findSymbol: (ref: PullRef, name: string) => Promise<SymbolSearch>
   /** A file's text at a commit, or null when it is missing, binary or too large. */
   getFileContent: (at: FileAtCommit) => Promise<string | null>
 
