@@ -3,11 +3,12 @@ import type { BlameRange } from '@shared/history.types.ts'
 import { findBlameAt } from '@shared/history.util.ts'
 import { isPresent } from '@shared/presence.util.ts'
 import type { DiffSide, DraftComment, PullFile } from '@shared/pull.types.ts'
-import { memo, useMemo, useRef, useState } from 'react'
+import { memo, useContext, useMemo, useRef, useState } from 'react'
 import { joinClassNames } from '../common/format.util.ts'
 import { AskClaudeButton } from './ask-claude-button.component.tsx'
 import { BlameNote } from './blame-note.component.tsx'
 import { collectCommentedLines, type FileCommentIndex, indexFileComments } from './comment-threads.util.ts'
+import { CommentableLinesContext } from './commentable-lines.context.ts'
 import {
   buildAnchorKey,
   extractDiffSnippet,
@@ -123,7 +124,8 @@ export const DiffFile = memo(function DiffFileView(props: DiffFileProps) {
   const canExpand = file.status !== 'added' && file.status !== 'removed'
   const context = useExpandedContext({ repo: props.repo, sha: props.headSha, path: file.path }, patchRows, canExpand)
   const { rows } = context
-  const selection = useLineSelection()
+  const canComment = useContext(CommentableLinesContext)
+  const selection = useLineSelection((anchor) => canComment?.(file.path, anchor.side, anchor.line) ?? true)
   const textAsk = useTextSelectionAsk(rows)
   const [composingFileComment, setComposingFileComment] = useState(false)
 

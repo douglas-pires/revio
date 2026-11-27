@@ -110,12 +110,13 @@ function findMyReview(reviews: readonly RestReview[], viewer: string, headSha: s
 }
 
 /** When you last submitted a review, of any kind. */
-function findLastReviewedAt(reviews: readonly RestReview[], viewer: string): string | null {
-  const times = reviews
+/** Your latest submitted review: when, and the commit it was on. */
+function findLastReview(reviews: readonly RestReview[], viewer: string) {
+  const latest = reviews
     .filter((review) => review.user?.login === viewer && review.state !== 'PENDING' && isPresent(review.submitted_at))
-    .map((review) => review.submitted_at ?? '')
-    .sort()
-  return times.at(-1) ?? null
+    .sort((left, right) => (left.submitted_at ?? '').localeCompare(right.submitted_at ?? ''))
+    .at(-1)
+  return { at: latest?.submitted_at ?? null, sha: latest?.commit_id ?? null }
 }
 
 function toPullFile(file: RestFile): PullFile {
@@ -174,6 +175,7 @@ export async function fetchPull(ref: PullRef): Promise<PullDetail> {
     fetchThreadMeta(octokit, ref),
   ])
   const pullData = pr.data
+  const lastReview = findLastReview(reviews, viewer)
   return {
     fetchedAt: new Date().toISOString(),
     repo: repoFull,
@@ -189,7 +191,8 @@ export async function fetchPull(ref: PullRef): Promise<PullDetail> {
     baseSha: pullData.base.sha,
     viewer,
     myReview: findMyReview(reviews, viewer, pullData.head.sha),
-    lastReviewedAt: findLastReviewedAt(reviews, viewer),
+    lastReviewedAt: lastReview.at,
+    lastReviewedSha: lastReview.sha,
     isDraft: Boolean(pullData.draft),
     additions: pullData.additions,
     deletions: pullData.deletions,

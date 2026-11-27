@@ -13,8 +13,11 @@ export interface Anchor {
   line: number
 }
 
-/** Gutter selection: press to start, drag or shift-press to extend. The composer opens under the last line once the drag ends. */
-export function useLineSelection() {
+/**
+ * Gutter selection: press to start, drag or shift-press to extend. The composer opens under the last line once the
+ * drag ends. Lines `canSelect` refuses cannot start or join a selection.
+ */
+export function useLineSelection(canSelect: (anchor: Anchor) => boolean = () => true) {
   const [selection, setSel] = useState<LineSelection | null>(null)
   const [dragging, setDragging] = useState<{ side: DiffSide; origin: number } | null>(null)
 
@@ -28,7 +31,7 @@ export function useLineSelection() {
   }, [dragging])
 
   const press = (anchor: Anchor | null, shift: boolean) => {
-    if (!anchor) {
+    if (!(anchor && canSelect(anchor))) {
       return
     }
     if (shift && selection && selection.side === anchor.side) {
@@ -44,7 +47,7 @@ export function useLineSelection() {
   }
 
   const hoverAnchor = (anchor: Anchor | null) => {
-    if (!(dragging && anchor) || anchor.side !== dragging.side) {
+    if (!(dragging && anchor && canSelect(anchor)) || anchor.side !== dragging.side) {
       return
     }
     setSel({

@@ -122,7 +122,7 @@ export function PullView(props: PullViewProps) {
                   {view.stack !== null && <StackBar stack={view.stack} pull={view.pull} onOpen={props.onOpenPull} />}
                   <div className="flex min-h-0 flex-1">
                     <FileTree
-                      files={pr.files}
+                      files={view.shownFiles}
                       viewed={view.local.viewed}
                       current={view.nav.current}
                       focusPaths={view.focusPaths}
@@ -148,7 +148,7 @@ export function PullView(props: PullViewProps) {
                   />
                   {Boolean(view.quickOpen.open) && (
                     <QuickOpen
-                      files={view.orderedFiles}
+                      files={view.shownFiles}
                       viewed={view.local.viewed}
                       onPick={(path) => view.nav.goTo(path)}
                       onClose={view.quickOpen.close}

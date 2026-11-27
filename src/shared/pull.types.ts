@@ -64,6 +64,8 @@ export interface PullDetail {
   } | null
   /** When you last submitted a review of any kind; comments by others after it are new to you. Null before your first. */
   lastReviewedAt: string | null
+  /** The commit your last review was on, to show what changed since; null before your first review. */
+  lastReviewedSha: string | null
   isDraft: boolean
   additions: number
   deletions: number
@@ -119,4 +121,13 @@ export interface PullLocalState {
   asks?: AskThread[]
   /** Claude's explanations of files, by path. */
   explanations?: Record<string, FileExplanationRecord>
+}
+/** What changed in a PR since your last review: the diff from the commit you reviewed to the head. */
+export interface SinceReview {
+  reviewedSha: string
+  reviewedAt: string
+  /** The branch was rebased or merged with its base since: changes from the base can show in these files. */
+  rebased: boolean
+  /** The PR's files that changed since, with the diff since your review; empty when nothing did. */
+  files: PullFile[]
 }

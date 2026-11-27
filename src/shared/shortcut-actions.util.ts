@@ -10,6 +10,11 @@ const ACTIONS = {
   'git-log': { label: 'Show or hide the git log', group: 'Pull request', defaultShortcut: 'Ctrl+G' },
   'quick-open': { label: 'Go to a changed file', group: 'Pull request', defaultShortcut: 'Cmd+P' },
   'copy-branch': { label: 'Copy the branch name', group: 'Pull request', defaultShortcut: 'Cmd+Shift+B' },
+  'since-review': {
+    label: 'Show only the changes since your review, or the whole PR',
+    group: 'Pull request',
+    defaultShortcut: 'S',
+  },
   send: { label: 'Send a comment or review', group: 'Pull request', defaultShortcut: 'Cmd+Enter' },
   find: { label: 'Find in the changed files', group: 'Files changed', defaultShortcut: 'Cmd+F' },
   'find-next': { label: 'Next find match', group: 'Files changed', defaultShortcut: 'Cmd+G' },

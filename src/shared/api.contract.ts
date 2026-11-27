@@ -10,7 +10,7 @@ import type { BlameRange, CommitFile, CommitRef, FileAtCommit, FileHistoryEntry,
 import type { Inbox, Stack, StackPrComments } from './inbox.types.ts'
 import type { MentionsInbox } from './mention.types.ts'
 import type { Mentionable } from './mentionable.types.ts'
-import type { DraftComment, PullDetail, PullLocalState, PullRef, SubmitReviewInput } from './pull.types.ts'
+import type { DraftComment, PullDetail, PullLocalState, PullRef, SinceReview, SubmitReviewInput } from './pull.types.ts'
 import type { ReactionContent, ReactionSummary } from './reaction.types.ts'
 import type { GuideEntry, SimilarComment } from './review-history.types.ts'
 import type { GithubAuthStatus, Settings, SettingsPatch, SyncStatus } from './settings.types.ts'
@@ -47,6 +47,8 @@ export interface RevioApi {
 
   /** PR details; a cached copy up to `maxAgeMs` old is fine (0 = always fetch). */
   getPull: (ref: PullRef, maxAgeMs?: number) => Promise<PullDetail>
+  /** What changed since your last review of the PR, or null when you have not reviewed it. */
+  getChangesSinceReview: (ref: PullRef) => Promise<SinceReview | null>
   /** The stack this PR belongs to, or null. */
   getStack: (ref: PullRef) => Promise<Stack | null>
   /** Where you commented across a stack's PRs. Empty when GitHub would not say. */

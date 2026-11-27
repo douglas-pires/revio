@@ -1,6 +1,8 @@
+import { formatShortcut } from '@shared/shortcut.util.ts'
 import { InnerTabs } from '../common/inner-tabs.component.tsx'
 import { SegmentedControl } from '../common/segmented-control.component.tsx'
 import { ToggleButton } from '../common/toggle-button.component.tsx'
+import { useShortcuts } from '../shortcuts/shortcuts.context.ts'
 import type { DiffView } from './diff-file.types.ts'
 import { listPullTabs, type PullTab } from './pull-tabs.util.ts'
 
@@ -10,6 +12,10 @@ const TOGGLE_TITLES = {
   blame: {
     true: 'Stop showing who last changed each line',
     false: 'Show who last changed each line when you hover it',
+  },
+  since: {
+    true: 'Show the whole PR again',
+    false: 'Show only what changed since your last review',
   },
   fold: {
     true: 'Show every comment thread in the diff in full',
@@ -31,11 +37,51 @@ const VIEWS = [
   { value: 'split', label: 'Split' },
 ] as const
 
-/** The files tab's controls: the comments panel, blame, minimised threads, the shortcuts and the diff layout. */
-function FilesToolbar({ props }: { props: PullTabBarProps }) {
-  const folded = String(props.threadsFolded) as 'true' | 'false'
+/** The keys after a tooltip, " (S)", or nothing when the shortcut is turned off. */
+function describeKeys(shortcut: string) {
+  if (!shortcut) {
+    return ''
+  }
+  return ` (${formatShortcut(shortcut)})`
+}
+
+/** "Since your review", or "Since review" when a side panel narrows the bar. */
+function SinceLabel() {
   return (
     <>
+      <span className="@4xl:hidden">Since review</span>
+      <span className="hidden @4xl:inline">Since your review</span>
+    </>
+  )
+}
+
+/** The files tab's controls: only the changes since your review, the comments panel, blame, minimised threads, the shortcuts and the diff layout. */
+function FilesToolbar({ props }: { props: PullTabBarProps }) {
+  const folded = String(props.threadsFolded) as 'true' | 'false'
+  const { sinceReview } = props
+  const { shortcuts } = useShortcuts()
+  const sinceKeys = describeKeys(shortcuts['since-review'])
+  return (
+    <>
+      {sinceReview === 'unchanged' && (
+        <span
+          className="mr-3 shrink-0 cursor-default self-center rounded-md px-2 py-0.5 text-[12px] whitespace-nowrap text-muted/60 @max-3xl:mr-1.5"
+          title="Nothing was pushed to this PR since your last review"
+        >
+          <SinceLabel /> · 0
+        </span>
+      )}
+      {sinceReview !== null && sinceReview !== 'unchanged' && (
+        <ToggleButton
+          on={sinceReview.on}
+          onToggle={sinceReview.onToggle}
+          title={`${TOGGLE_TITLES.since[String(sinceReview.on) as 'true' | 'false']}${sinceKeys}`}
+          className="mr-3 @max-3xl:mr-1.5"
+        >
+          <SinceLabel />
+          {sinceReview.count !== null && ` · ${sinceReview.count}`}
+        </ToggleButton>
+      )}
       <ToggleButton
         on={props.commentsPanelOpen}
         onToggle={props.onToggleCommentsPanel}
@@ -83,6 +129,11 @@ interface PullTabBarProps {
   onToggleBlame: () => void
   threadsFolded: boolean
   onToggleThreadsFolded: () => void
+  /**
+   * The switch to only the changes since your last review, with how many files changed; "unchanged" when nothing was
+   * pushed since your review; null when you have not reviewed the PR.
+   */
+  sinceReview: { on: boolean; count: number | null; onToggle: () => void } | 'unchanged' | null
 }
 
 export function PullTabBar(props: PullTabBarProps) {

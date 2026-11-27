@@ -25,6 +25,7 @@ import type { MentionWatcher } from '../mentions/mentions.watcher.ts'
 import type { PullCache } from '../pulls/pull.cache.ts'
 import { fetchFileAt } from '../pulls/pull.service.ts'
 import { commentOnPull, replyToComment, submitReview } from '../pulls/review-submit.service.ts'
+import { fetchSinceReview } from '../pulls/since-review.service.ts'
 import { setReaction } from '../reactions/reactions.service.ts'
 import { findUnfamiliarFiles } from '../reviews/familiarity.util.ts'
 import type { ReviewHistoryCache } from '../reviews/review-history.cache.ts'
@@ -113,6 +114,7 @@ function buildInboxHandlers({ poller, mentions, threads }: ApiDeps): Pick<ApiHan
 
 type PullMethods =
   | 'getPull'
+  | 'getChangesSinceReview'
   | 'getStack'
   | 'getStackComments'
   | 'getLocalState'
@@ -127,6 +129,8 @@ type PullMethods =
 function buildPullHandlers({ store, poller, pulls, reviewHistory }: ApiDeps): Pick<ApiHandlers, PullMethods> {
   return {
     getPull: (ref, maxAgeMs = 0) => pulls.get(ref, maxAgeMs),
+    getChangesSinceReview: async (ref) =>
+      fetchSinceReview(await getGithubClient(), pulls.peek(ref) ?? (await pulls.get(ref))),
     getStack: (ref) => fetchStack(ref, poller.latest),
     getStackComments: (stack) => fetchStackComments(stack),
     getLocalState: (ref) => store.pull(buildPullKey(ref)),

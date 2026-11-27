@@ -37,6 +37,7 @@ const methods = [
   'setThreadResolved',
   'refreshInbox',
   'getPull',
+  'getChangesSinceReview',
   'getStack',
   'getStackComments',
   'getLocalState',
