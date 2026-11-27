@@ -110,5 +110,9 @@ export async function fetchPullCommits(octokit: Octokit, pull: PullRef): Promise
     pull_number: pull.number,
     per_page: 100,
   })
-  return commits.map((commit) => ({ ...convertRestCommit(commit), message: commit.commit.message }))
+  return commits.map((commit) => ({
+    ...convertRestCommit(commit),
+    message: commit.commit.message,
+    isMerge: commit.parents.length > 1,
+  }))
 }

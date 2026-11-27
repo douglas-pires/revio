@@ -2,6 +2,7 @@ import { InnerTabs } from '../common/inner-tabs.component.tsx'
 import { SegmentedControl } from '../common/segmented-control.component.tsx'
 import { ToggleButton } from '../common/toggle-button.component.tsx'
 import { ShortcutHint } from '../shortcuts/shortcut-hint.component.tsx'
+import { CommitStepper, type CommitStepperProps } from './commit-stepper.component.tsx'
 import type { DiffView } from './diff-file.types.ts'
 import { listPullTabs, type PullTab } from './pull-tabs.util.ts'
 
@@ -52,6 +53,7 @@ function FilesToolbar({ props }: { props: PullTabBarProps }) {
   const { sinceReview } = props
   return (
     <>
+      {props.commitStepper !== null && <CommitStepper {...props.commitStepper} />}
       {sinceReview === 'unchanged' && (
         <span
           className="mr-3 shrink-0 cursor-default self-center rounded-md px-2 py-0.5 text-[12px] whitespace-nowrap text-muted/60 @max-3xl:mr-1.5"
@@ -124,6 +126,8 @@ interface PullTabBarProps {
    * pushed since your review; null when you have not reviewed the PR.
    */
   sinceReview: { on: boolean; count: number | null; onToggle: () => void } | 'unchanged' | null
+  /** Stepping through the PR's commits one at a time; null when it has a single commit. */
+  commitStepper: CommitStepperProps | null
 }
 
 export function PullTabBar(props: PullTabBarProps) {

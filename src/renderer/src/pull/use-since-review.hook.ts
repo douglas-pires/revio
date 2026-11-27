@@ -38,6 +38,7 @@ export function useSinceReview(pull: PullRef, pr: PullDetail | null) {
     unchanged: Boolean(pr?.lastReviewedSha && pr.lastReviewedSha === pr.headSha),
     on: on && available,
     toggle: () => setOn(!on),
+    turnOff: () => setOn(false),
     since,
     error,
     /** The files changed since, in the sidebar's folder order. */

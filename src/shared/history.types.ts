@@ -34,6 +34,8 @@ export interface FileAtCommit {
 /** One of the PR's commits, with its full message. */
 export interface PullCommit extends CommitSummary {
   message: string
+  /** A merge (two parents), such as the base branch merged in. */
+  isMerge: boolean
 }
 
 /** A file a commit changed. */
