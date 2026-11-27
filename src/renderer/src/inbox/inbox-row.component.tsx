@@ -1,6 +1,10 @@
 import type { PullSummary } from '@shared/inbox.types.ts'
+import { buildPullKey } from '@shared/pull.types.ts'
+import { useContext } from 'react'
 import { formatAge, formatDuration, joinClassNames } from '../common/format.util.ts'
 import { onActivateKey } from '../common/keyboard.util.ts'
+import { MergeChips } from '../common/merge-chips.component.tsx'
+import { MergeStatusesContext } from '../common/merge-statuses.context.ts'
 import type { OpenPull } from '../common/navigation.types.ts'
 import { usePrefetchOnHover } from './use-prefetch-on-hover.hook.ts'
 import { describeVerdict } from './verdict-label.util.ts'
@@ -53,6 +57,16 @@ function VerdictChip({ pr }: { pr: PullSummary }) {
     )
   }
   return null
+}
+
+/** What blocks the PR's merge, once its status has loaded. */
+function RowMergeChips({ pr }: { pr: PullSummary }) {
+  const { statuses, viewer } = useContext(MergeStatusesContext)
+  const status = statuses[buildPullKey(pr)]
+  if (!status) {
+    return null
+  }
+  return <MergeChips status={status} viewer={viewer} compact={true} />
 }
 
 /** Opens the PR on GitHub, without opening it here. */
@@ -164,8 +178,11 @@ export function InboxRow({
             {pr.viaTeam !== null && <span className="chip bg-panel-2 text-muted">@{pr.viaTeam}</span>}
             <VerdictChip pr={pr} />
           </div>
-          <div className="mt-0.5 truncate text-[12px] text-muted">
-            {pr.repo}#{pr.number} · {pr.author} · {pr.headRef} → {pr.baseRef}
+          <div className="mt-0.5 flex items-center gap-1.5 text-[12px] text-muted">
+            <span className="min-w-0 truncate">
+              {pr.repo}#{pr.number} · {pr.author} · {pr.headRef} → {pr.baseRef}
+            </span>
+            <RowMergeChips pr={pr} />
           </div>
         </div>
         <RowStats pr={pr} time={time} />

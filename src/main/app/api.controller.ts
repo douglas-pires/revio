@@ -22,6 +22,7 @@ import type { HistoryCache } from '../history/history.cache.ts'
 import type { InboxPoller } from '../inbox/inbox.poller.ts'
 import { listMentionables } from '../mentionables/mentionables.service.ts'
 import type { MentionWatcher } from '../mentions/mentions.watcher.ts'
+import { fetchMergeStatus, MergeStatusCache } from '../pulls/merge-status.service.ts'
 import type { PullCache } from '../pulls/pull.cache.ts'
 import { fetchFileAt } from '../pulls/pull.service.ts'
 import { commentOnPull, replyToComment, submitReview } from '../pulls/review-submit.service.ts'
@@ -114,6 +115,8 @@ function buildInboxHandlers({ poller, mentions, threads }: ApiDeps): Pick<ApiHan
 
 type PullMethods =
   | 'getPull'
+  | 'getMergeStatus'
+  | 'getMergeStatuses'
   | 'getChangesSinceReview'
   | 'getStack'
   | 'getStackComments'
@@ -127,9 +130,13 @@ type PullMethods =
   | 'saveAsks'
   | 'saveDismissedConcerns'
 
+const mergeStatuses = new MergeStatusCache()
+
 function buildPullHandlers({ store, poller, pulls, reviewHistory }: ApiDeps): Pick<ApiHandlers, PullMethods> {
   return {
     getPull: (ref, maxAgeMs = 0) => pulls.get(ref, maxAgeMs),
+    getMergeStatus: async (ref) => fetchMergeStatus(await getGithubClient(), ref),
+    getMergeStatuses: async (refs) => mergeStatuses.get(await getGithubClient(), refs),
     getChangesSinceReview: async (ref) =>
       fetchSinceReview(await getGithubClient(), pulls.peek(ref) ?? (await pulls.get(ref))),
     getStack: (ref) => fetchStack(ref, poller.latest),

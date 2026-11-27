@@ -6,6 +6,7 @@ import { Screen, ScreenBody, ScreenHeader } from '../common/screen.component.tsx
 import { MentionScopeContext } from '../mentionables/mention-scope.context.ts'
 import { FileTree } from './file-tree.component.tsx'
 import { GitLogPanel } from './git-log-panel.component.tsx'
+import { MergeBar } from './merge-bar.component.tsx'
 import { PullHeader } from './pull-header.component.tsx'
 import { PullLoading } from './pull-loading.component.tsx'
 import { PullSidePanels } from './pull-side-panels.component.tsx'
@@ -119,6 +120,7 @@ export function PullView(props: PullViewProps) {
               <ExplanationsContext value={explanations}>
                 <div className="flex h-full flex-col">
                   <PullViewHeader view={view} pr={pr} props={props} />
+                  <MergeBar pull={view.pull} fetchedAt={pr.fetchedAt} viewer={pr.viewer} />
                   {view.stack !== null && <StackBar stack={view.stack} pull={view.pull} onOpen={props.onOpenPull} />}
                   <div className="flex min-h-0 flex-1">
                     <FileTree

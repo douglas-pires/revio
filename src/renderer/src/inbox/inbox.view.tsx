@@ -4,6 +4,7 @@ import { ErrorBanner } from '../common/error-banner.component.tsx'
 import { EMPTY } from '../common/group.util.ts'
 import { ListSkeleton } from '../common/list-skeleton.component.tsx'
 import { MascotLoading } from '../common/mascot-loading.component.tsx'
+import { MergeStatusesContext, useMergeStatuses } from '../common/merge-statuses.context.ts'
 import type { OpenPull } from '../common/navigation.types.ts'
 import { RefreshControl } from '../common/refresh-control.component.tsx'
 import { Screen, ScreenBody, ScreenHeader } from '../common/screen.component.tsx'
@@ -123,6 +124,7 @@ function PullsMode(props: {
       )}
       {props.mode !== 'stacks' && (
         <QueueSections
+          viewer={props.inbox.viewer}
           requested={requested}
           reviewed={reviewed}
           filtering={props.filtering}
@@ -134,7 +136,9 @@ function PullsMode(props: {
   )
 }
 
+/** The queue: stale requests, the rest of the requests, and PRs you reviewed; each row shows what blocks its merge. */
 function QueueSections(props: {
+  viewer: string
   requested: readonly PullSummary[]
   reviewed: readonly PullSummary[]
   filtering: boolean
@@ -144,8 +148,9 @@ function QueueSections(props: {
   const stale = props.requested.filter((pull) => pull.stale)
   const fresh = props.requested.filter((pull) => !pull.stale)
   const empty = describeEmptyQueue(stale.length > 0, props.filtering)
+  const mergeStatuses = useMergeStatuses([...props.requested, ...props.reviewed])
   return (
-    <>
+    <MergeStatusesContext value={{ statuses: mergeStatuses, viewer: props.viewer }}>
       <InboxSection
         title="Stale"
         hint="waiting longer than your stale threshold"
@@ -169,7 +174,7 @@ function QueueSections(props: {
         onStack={props.onStack}
         muted={true}
       />
-    </>
+    </MergeStatusesContext>
   )
 }
 

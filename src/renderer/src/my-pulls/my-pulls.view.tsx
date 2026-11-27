@@ -1,6 +1,7 @@
 import type { Inbox as InboxData, PullSummary } from '@shared/inbox.types.ts'
 import { EmptyState } from '../common/empty-state.component.tsx'
 import { ErrorBanner } from '../common/error-banner.component.tsx'
+import { MergeStatusesContext, useMergeStatuses } from '../common/merge-statuses.context.ts'
 import type { OpenPull } from '../common/navigation.types.ts'
 import { RefreshControl } from '../common/refresh-control.component.tsx'
 import { Screen, ScreenBody, ScreenHeader } from '../common/screen.component.tsx'
@@ -9,6 +10,8 @@ import { useAsyncAction } from '../common/use-async-action.hook.ts'
 import { InboxRow } from '../inbox/inbox-row.component.tsx'
 import { usePalettePage } from '../palette/use-palette-page.hook.ts'
 import { groupMyPulls } from './my-pulls.util.ts'
+
+const NO_PULLS: readonly PullSummary[] = []
 
 /** Your PRs carry no stack chip (stacks are found for review requests), so there is no stack to open. */
 const ignoreStackClick = () => {
@@ -42,6 +45,7 @@ function PullGroup(props: {
 export function MyPulls({ inbox, onOpen }: { inbox: InboxData | null; onOpen: OpenPull }) {
   const refreshAction = useAsyncAction()
   const groups = groupMyPulls(inbox?.authored ?? [])
+  const mergeStatuses = useMergeStatuses(inbox?.authored ?? NO_PULLS)
   const refresh = () => refreshAction.run(() => globalThis.revio.refreshInbox())
   usePalettePage({ name: 'My PRs', actions: [{ id: 'refresh', label: 'Refresh my PRs', run: refresh }] })
   return (
@@ -54,23 +58,25 @@ export function MyPulls({ inbox, onOpen }: { inbox: InboxData | null; onOpen: Op
         />
       }
     >
-      <ScreenBody>
-        <ErrorBanner className="mb-4">{refreshAction.error || inbox?.error}</ErrorBanner>
-        {inbox === null && <div className="text-muted">Loading…</div>}
-        {inbox !== null && inbox.authored.length === 0 && (
-          <EmptyState title="No open PRs">PRs you open on GitHub show up here.</EmptyState>
-        )}
-        <PullGroup
-          title="Changes requested"
-          hint="your move"
-          tone="danger"
-          pulls={groups.changesRequested}
-          onOpen={onOpen}
-        />
-        <PullGroup title="Approved" hint="ready to merge" pulls={groups.approved} onOpen={onOpen} />
-        <PullGroup title="In review" hint="waiting on reviewers" pulls={groups.inReview} onOpen={onOpen} />
-        <PullGroup title="Drafts" hint="not out for review yet" pulls={groups.drafts} onOpen={onOpen} />
-      </ScreenBody>
+      <MergeStatusesContext value={{ statuses: mergeStatuses, viewer: inbox?.viewer }}>
+        <ScreenBody>
+          <ErrorBanner className="mb-4">{refreshAction.error || inbox?.error}</ErrorBanner>
+          {inbox === null && <div className="text-muted">Loading…</div>}
+          {inbox !== null && inbox.authored.length === 0 && (
+            <EmptyState title="No open PRs">PRs you open on GitHub show up here.</EmptyState>
+          )}
+          <PullGroup
+            title="Changes requested"
+            hint="your move"
+            tone="danger"
+            pulls={groups.changesRequested}
+            onOpen={onOpen}
+          />
+          <PullGroup title="Approved" hint="ready to merge" pulls={groups.approved} onOpen={onOpen} />
+          <PullGroup title="In review" hint="waiting on reviewers" pulls={groups.inReview} onOpen={onOpen} />
+          <PullGroup title="Drafts" hint="not out for review yet" pulls={groups.drafts} onOpen={onOpen} />
+        </ScreenBody>
+      </MergeStatusesContext>
     </Screen>
   )
 }

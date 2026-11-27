@@ -10,6 +10,7 @@ import type { BlameRange, CommitFile, CommitRef, FileAtCommit, FileHistoryEntry,
 import type { Inbox, Stack, StackPrComments } from './inbox.types.ts'
 import type { MentionsInbox } from './mention.types.ts'
 import type { Mentionable } from './mentionable.types.ts'
+import type { MergeStatus } from './merge-status.types.ts'
 import type { DraftComment, PullDetail, PullLocalState, PullRef, SinceReview, SubmitReviewInput } from './pull.types.ts'
 import type { ReactionContent, ReactionSummary } from './reaction.types.ts'
 import type { GuideEntry, SimilarComment } from './review-history.types.ts'
@@ -49,6 +50,10 @@ export interface RevioApi {
   getPull: (ref: PullRef, maxAgeMs?: number) => Promise<PullDetail>
   /** What changed since your last review of the PR, or null when you have not reviewed it. */
   getChangesSinceReview: (ref: PullRef) => Promise<SinceReview | null>
+  /** What stands between the PR and merging, fresh from GitHub. */
+  getMergeStatus: (ref: PullRef) => Promise<MergeStatus>
+  /** What stands between each PR and merging (without open threads), by "repo#number"; a PR GitHub could not say for is left out. */
+  getMergeStatuses: (refs: PullRef[]) => Promise<Record<string, MergeStatus>>
   /** The stack this PR belongs to, or null. */
   getStack: (ref: PullRef) => Promise<Stack | null>
   /** Where you commented across a stack's PRs. Empty when GitHub would not say. */
