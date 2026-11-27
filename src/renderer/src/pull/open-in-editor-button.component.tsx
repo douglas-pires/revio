@@ -1,5 +1,6 @@
 import { useEffect, useRef, useState } from 'react'
 import { joinClassNames, readErrorMessage } from '../common/format.util.ts'
+import { ShortcutHint } from '../shortcuts/shortcut-hint.component.tsx'
 
 type EditorButtonState = { kind: 'idle' | 'busy' } | { kind: 'failed'; reason: string }
 
@@ -55,27 +56,28 @@ export function OpenInEditorButton({ onOpen }: { onOpen: () => Promise<void> }) 
   const button = useRef<HTMLButtonElement>(null)
   return (
     <span className="shrink-0">
-      <button
-        ref={button}
-        type="button"
-        data-open-in-editor=""
-        className={joinClassNames(
-          'btn btn-ghost py-0 text-[12px] whitespace-nowrap',
-          state.kind === 'failed' && 'text-danger',
-          state.kind !== 'failed' && 'text-muted hover:text-fg',
-        )}
-        title="Open this file in your editor, from your local clone of the repository"
-        disabled={state.kind === 'busy'}
-        onClick={() => {
-          setState({ kind: 'busy' })
-          onOpen().then(
-            () => setState({ kind: 'idle' }),
-            (failure) => setState({ kind: 'failed', reason: readErrorMessage(failure) }),
-          )
-        }}
-      >
-        {describeButtonState(state)}
-      </button>
+      <ShortcutHint action="open-in-editor" description="Open this file in your editor, from your local clone">
+        <button
+          ref={button}
+          type="button"
+          data-open-in-editor=""
+          className={joinClassNames(
+            'btn btn-ghost py-0 text-[12px] whitespace-nowrap',
+            state.kind === 'failed' && 'text-danger',
+            state.kind !== 'failed' && 'text-muted hover:text-fg',
+          )}
+          disabled={state.kind === 'busy'}
+          onClick={() => {
+            setState({ kind: 'busy' })
+            onOpen().then(
+              () => setState({ kind: 'idle' }),
+              (failure) => setState({ kind: 'failed', reason: readErrorMessage(failure) }),
+            )
+          }}
+        >
+          {describeButtonState(state)}
+        </button>
+      </ShortcutHint>
       {state.kind === 'failed' && (
         <FailureNote reason={state.reason} anchor={button} onClose={() => setState({ kind: 'idle' })} />
       )}

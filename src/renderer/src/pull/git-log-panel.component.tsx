@@ -1,4 +1,3 @@
-import { formatShortcut } from '@shared/shortcut.util.ts'
 import { type PointerEvent, type ReactNode, useEffect, useMemo, useRef, useState } from 'react'
 import { ErrorBanner } from '../common/error-banner.component.tsx'
 import { joinClassNames } from '../common/format.util.ts'
@@ -6,7 +5,7 @@ import { CommitDetailPanel } from '../gitlog/commit-detail.component.tsx'
 import { CommitFileDiff } from '../gitlog/commit-file-diff.component.tsx'
 import { CommitList } from '../gitlog/commit-list.component.tsx'
 import { ShortcutEditor } from '../shortcuts/shortcut-editor.component.tsx'
-import { useShortcuts } from '../shortcuts/shortcuts.context.ts'
+import { ShortcutHint } from '../shortcuts/shortcut-hint.component.tsx'
 import { listPathSuggestions } from './pull-git-log.util.ts'
 import { usePanelLayout } from './use-panel-layout.hook.ts'
 import { type CommitPick, type PullGitLogState, type PullLogSource, usePullGitLog } from './use-pull-git-log.hook.ts'
@@ -74,23 +73,19 @@ const readFileName = (path: string) => path.slice(path.lastIndexOf('/') + 1)
  * bar is left free for other tools to dock here.
  */
 function PanelBar(props: { open: boolean; onToggle: () => void; followedPath: string | null }) {
-  const shortcutHint = formatShortcut(useShortcuts().shortcuts['git-log'])
-  let title = 'Show or hide the git log'
-  if (shortcutHint) {
-    title = `${title} (${shortcutHint})`
-  }
   return (
     <div className="flex h-8 shrink-0 items-center gap-2 px-3 text-[12px] text-muted">
-      <button
-        type="button"
-        className="flex items-center gap-1.5 rounded px-1.5 py-0.5 font-semibold text-fg hover:bg-hover"
-        aria-expanded={props.open}
-        title={title}
-        onClick={props.onToggle}
-      >
-        <span className={joinClassNames('text-[10px] transition', !props.open && 'rotate-180')}>▾</span>
-        Git log
-      </button>
+      <ShortcutHint action="git-log" place="top">
+        <button
+          type="button"
+          className="flex items-center gap-1.5 rounded px-1.5 py-0.5 font-semibold text-fg hover:bg-hover"
+          aria-expanded={props.open}
+          onClick={props.onToggle}
+        >
+          <span className={joinClassNames('text-[10px] transition', !props.open && 'rotate-180')}>▾</span>
+          Git log
+        </button>
+      </ShortcutHint>
       <ShortcutEditor action="git-log" />
       {props.followedPath !== null && (
         <span className="ml-2 min-w-0 truncate" title={props.followedPath}>

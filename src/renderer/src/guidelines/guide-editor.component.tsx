@@ -2,6 +2,7 @@ import { formatShortcut, matchesShortcut } from '@shared/shortcut.util.ts'
 import { useId, useState } from 'react'
 import { Markdown } from '../common/markdown.component.tsx'
 import { SegmentedControl } from '../common/segmented-control.component.tsx'
+import { ShortcutHint } from '../shortcuts/shortcut-hint.component.tsx'
 import { useShortcuts } from '../shortcuts/shortcuts.context.ts'
 import { buildDefaultTitle, type Draft } from './guidelines.util.ts'
 
@@ -159,9 +160,11 @@ function GuideActions(props: {
           Delete
         </button>
       )}
-      <button type="button" className="btn btn-primary" onClick={props.onSave}>
-        Save
-      </button>
+      <ShortcutHint action="save-guide">
+        <button type="button" className="btn btn-primary" onClick={props.onSave}>
+          Save
+        </button>
+      </ShortcutHint>
     </>
   )
 }

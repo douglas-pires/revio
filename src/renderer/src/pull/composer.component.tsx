@@ -3,6 +3,7 @@ import { useEffect, useState } from 'react'
 import { joinClassNames } from '../common/format.util.ts'
 import { Markdown } from '../common/markdown.component.tsx'
 import { buildMarkdownLink } from '../common/markdown-link.util.ts'
+import { ShortcutHint } from '../shortcuts/shortcut-hint.component.tsx'
 import { useShortcuts } from '../shortcuts/shortcuts.context.ts'
 import { SuggestingTextBox } from '../suggestions/suggesting-text-box.component.tsx'
 import {
@@ -169,22 +170,27 @@ function ComposerButtons({
       <button type="button" className="btn btn-ghost" title="Close and throw away what you wrote" onClick={discard}>
         Cancel
       </button>
-      {props.onSubmitNow !== undefined && (
-        <button
-          type="button"
-          className={joinClassNames('btn', !props.onSubmit && 'btn-primary')}
-          disabled={!body.trim() || busy}
-          onClick={sendNow}
-        >
+      {props.onSubmitNow !== undefined && props.onSubmit !== undefined && (
+        <button type="button" className="btn" disabled={!body.trim() || busy} onClick={sendNow}>
           {Boolean(busy) && 'Sending…'}
           {!busy && 'Reply now'}
         </button>
       )}
+      {props.onSubmitNow !== undefined && props.onSubmit === undefined && (
+        <ShortcutHint action="send" description="Send the reply" place="top">
+          <button type="button" className="btn btn-primary" disabled={!body.trim() || busy} onClick={sendNow}>
+            {Boolean(busy) && 'Sending…'}
+            {!busy && 'Reply now'}
+          </button>
+        </ShortcutHint>
+      )}
       {props.onSubmit !== undefined && (
-        <button type="button" className="btn btn-primary" disabled={!body.trim()} onClick={submit}>
-          {Boolean(props.initial) && 'Update'}
-          {!props.initial && 'Add to review'}
-        </button>
+        <ShortcutHint action="send" description="Add the comment to your review" place="top">
+          <button type="button" className="btn btn-primary" disabled={!body.trim()} onClick={submit}>
+            {Boolean(props.initial) && 'Update'}
+            {!props.initial && 'Add to review'}
+          </button>
+        </ShortcutHint>
       )}
     </div>
   )

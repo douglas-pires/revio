@@ -14,6 +14,7 @@ import { Inbox } from './inbox/inbox.view.tsx'
 import { countPullsNeedingYou } from './my-pulls/my-pulls.util.ts'
 import { AnywherePage } from './palette/anywhere-page.component.tsx'
 import { Palette } from './palette/palette.component.tsx'
+import { ShortcutHint } from './shortcuts/shortcut-hint.component.tsx'
 import { ShortcutsContext } from './shortcuts/shortcuts.context.ts'
 import { ShortcutsDialog } from './shortcuts/shortcuts-dialog.component.tsx'
 import { useShortcut } from './shortcuts/use-shortcut.hook.ts'
@@ -173,9 +174,11 @@ function NavRail({
         <path d="M5 4h11l3 3v13H5zM9 9h6M9 13h6M9 17h4" />
       </NavButton>
       <div className="flex-1" />
-      <NavButton active={route.view === 'settings'} label="Settings" onClick={() => setRoute({ view: 'settings' })}>
-        <path d={SETTINGS_ICON} />
-      </NavButton>
+      <ShortcutHint action="settings" description="Settings" place="right">
+        <NavButton active={route.view === 'settings'} label="Settings" onClick={() => setRoute({ view: 'settings' })}>
+          <path d={SETTINGS_ICON} />
+        </NavButton>
+      </ShortcutHint>
     </nav>
   )
 }
