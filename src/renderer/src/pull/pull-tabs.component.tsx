@@ -1,5 +1,6 @@
 import type { PullDetail } from '@shared/pull.types.ts'
 import { BriefingPanel } from './briefing-panel.component.tsx'
+import { CommentableLinesContext } from './commentable-lines.context.ts'
 import { CommitsTab } from './commits-tab.component.tsx'
 import { FilesTab } from './files-tab.component.tsx'
 import { FindBar } from './find-bar.component.tsx'
@@ -7,6 +8,7 @@ import { OverviewTab } from './overview-tab.component.tsx'
 import { PullTabBar } from './pull-tab-bar.component.tsx'
 import { appendSummaryLine, markAsAi, toggleBetween } from './pull-view.util.ts'
 import { QuotedComment } from './quoted-comment.component.tsx'
+import { SinceReviewBanner } from './since-review-banner.component.tsx'
 import { TabPane } from './tab-pane.component.tsx'
 import { BLAME_STATES, PANEL_STATES, type PullViewState } from './use-pull-view.hook.ts'
 
@@ -71,10 +73,39 @@ function addToOpenChat(view: PullViewState) {
   return view.ask.addContext
 }
 
+/** While only the changes since your review show: comments only on new-side lines that are part of the PR. */
+function pickCommentableLines(view: PullViewState) {
+  if (!view.sinceReview.on) {
+    return null
+  }
+  return (path: string, side: string, line: number) => side === 'RIGHT' && Boolean(view.rightLines.get(path)?.has(line))
+}
+
+/** The switch's state for the toolbar, or null when you have not reviewed the PR or it has not moved on since. */
+function describeSinceSwitch(view: PullViewState) {
+  if (!view.sinceReview.available) {
+    return null
+  }
+  return {
+    on: view.sinceReview.on,
+    count: view.sinceReview.since?.files.length ?? null,
+    onToggle: view.sinceReview.toggle,
+  }
+}
+
 function FilesPane({ view, pr }: { view: PullViewState; pr: PullDetail }) {
   return (
+    <CommentableLinesContext value={pickCommentableLines(view)}>
+      <SinceReviewBanner sinceReview={view.sinceReview} />
+      <FilesList view={view} pr={pr} />
+    </CommentableLinesContext>
+  )
+}
+
+function FilesList({ view, pr }: { view: PullViewState; pr: PullDetail }) {
+  return (
     <FilesTab
-      files={view.orderedFiles}
+      files={view.shownFiles}
       view={view.view}
       repo={view.pull.repo}
       headSha={pr.headSha}
@@ -131,6 +162,7 @@ export function PullTabs({
         onToggleThreadsFolded={() => view.threadFold.setAll(!view.threadFold.all)}
         view={view.view}
         onView={view.changeView}
+        sinceReview={describeSinceSwitch(view)}
       />
       {Boolean(view.tab === 'files' && view.find.open) && <FindBar find={view.find} />}
       <TabPane active={view.tab === 'overview'}>

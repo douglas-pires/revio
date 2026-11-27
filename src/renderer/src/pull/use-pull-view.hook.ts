@@ -1,5 +1,5 @@
 import type { AskThread } from '@shared/claude.types.ts'
-import type { PullRef, ReviewEvent } from '@shared/pull.types.ts'
+import type { PullFile, PullRef, ReviewEvent } from '@shared/pull.types.ts'
 import { useCallback, useMemo, useState } from 'react'
 import { groupBy } from '../common/group.util.ts'
 import type { PullTarget } from '../common/navigation.types.ts'
@@ -20,6 +20,7 @@ import { usePullDetail } from './use-pull-detail.hook.ts'
 import { type PullLocalStateApi, usePullLocalState } from './use-pull-local-state.hook.ts'
 import { useQuickOpen } from './use-quick-open.hook.ts'
 import type { SetReaction } from './use-reactions.hook.ts'
+import { type SinceReviewState, useSinceReview } from './use-since-review.hook.ts'
 import { useThreadFoldState } from './use-thread-fold.hook.ts'
 
 /** Lookups over the PR and its local state that several parts of the view share. */
@@ -167,6 +168,14 @@ function useReactionSetter(pull: PullRef): SetReaction {
   return useCallback((subjectId, content, on) => globalThis.revio.setReaction(pull, subjectId, content, on), [pull])
 }
 
+/** The files the Files tab lists: only those changed since your review while that is on, else all of them. */
+function pickShownFiles(sinceReview: SinceReviewState, orderedFiles: PullFile[]) {
+  if (sinceReview.on) {
+    return sinceReview.files
+  }
+  return orderedFiles
+}
+
 /** How the diff can be laid out. */
 export const DIFF_VIEWS = ['unified', 'split'] as const satisfies readonly DiffView[]
 
@@ -205,13 +214,15 @@ export function usePullView(pullRef: PullRef, initialTarget: PullTarget | undefi
     nav.collapseFiles(record.briefing.ignore.map((skipped) => skipped.path))
   })
   const indexes = usePullIndexes(detail.pr, local.local)
-  const find = useDiffFind({ files: indexes.orderedFiles, jump: nav.jump, onFilesTab, showFiles: choices.showFiles })
+  const sinceReview = useSinceReview(pull, detail.pr)
+  const shownFiles = pickShownFiles(sinceReview, indexes.orderedFiles)
+  const find = useDiffFind({ files: shownFiles, jump: nav.jump, onFilesTab, showFiles: choices.showFiles })
 
   const setReaction = useReactionSetter(pull)
   const toggleViewed = useViewedToggle(local.markViewed, nav.setFileCollapsed)
   useFileKeyboardNav({
     enabled: detail.pr !== null && review.open === false,
-    files: indexes.orderedFiles,
+    files: shownFiles,
     current: nav.current,
     viewed: local.local.viewed,
     goTo: (path, expand) => nav.goTo(path, null, expand),
@@ -231,6 +242,8 @@ export function usePullView(pullRef: PullRef, initialTarget: PullTarget | undefi
     nav,
     threadFold,
     briefing,
+    sinceReview,
+    shownFiles,
     find,
     setReaction,
     toggleViewed,

@@ -62,6 +62,7 @@ export function makeDetail(over: Partial<PullDetail> = {}): PullDetail {
     viewer: 'me',
     myReview: null,
     lastReviewedAt: null,
+    lastReviewedSha: null,
     isDraft: false,
     additions: 1,
     deletions: 0,

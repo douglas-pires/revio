@@ -11,6 +11,10 @@ const TOGGLE_TITLES = {
     true: 'Stop showing who last changed each line',
     false: 'Show who last changed each line when you hover it',
   },
+  since: {
+    true: 'Show the whole PR again',
+    false: 'Show only what changed since your last review',
+  },
   fold: {
     true: 'Show every comment thread in the diff in full',
     false: 'Minimize every comment thread in the diff to one line, to keep the code in view',
@@ -31,11 +35,22 @@ const VIEWS = [
   { value: 'split', label: 'Split' },
 ] as const
 
-/** The files tab's controls: the comments panel, blame, minimised threads, the shortcuts and the diff layout. */
+/** The files tab's controls: only the changes since your review, the comments panel, blame, minimised threads, the shortcuts and the diff layout. */
 function FilesToolbar({ props }: { props: PullTabBarProps }) {
   const folded = String(props.threadsFolded) as 'true' | 'false'
+  const { sinceReview } = props
   return (
     <>
+      {sinceReview !== null && (
+        <ToggleButton
+          on={sinceReview.on}
+          onToggle={sinceReview.onToggle}
+          title={TOGGLE_TITLES.since[String(sinceReview.on) as 'true' | 'false']}
+          className="mr-3 @max-3xl:mr-1.5"
+        >
+          Since your review{sinceReview.count !== null && ` · ${sinceReview.count}`}
+        </ToggleButton>
+      )}
       <ToggleButton
         on={props.commentsPanelOpen}
         onToggle={props.onToggleCommentsPanel}
@@ -82,6 +97,8 @@ interface PullTabBarProps {
   onToggleBlame: () => void
   threadsFolded: boolean
   onToggleThreadsFolded: () => void
+  /** The switch to only the changes since your last review, with how many files changed; null when there is none. */
+  sinceReview: { on: boolean; count: number | null; onToggle: () => void } | null
 }
 
 export function PullTabBar(props: PullTabBarProps) {
