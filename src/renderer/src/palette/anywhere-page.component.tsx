@@ -17,7 +17,7 @@ export function AnywherePage({ go }: { go: (route: Route) => void }) {
     everywhere: true,
     actions: [
       ...SCREENS.map(({ view, label }) => ({ id: view, label, run: () => go({ view }) })),
-      ...buildShortcutEntries(['settings', 'show-shortcuts']),
+      ...buildShortcutEntries(['review-block', 'settings', 'show-shortcuts']),
     ],
   })
   return null

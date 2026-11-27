@@ -9,6 +9,12 @@ import { MascotLoading } from './common/mascot-loading.component.tsx'
 import type { OpenPull } from './common/navigation.types.ts'
 import { Notice } from './common/notice.component.tsx'
 import { useRouteHistory } from './common/use-route-history.hook.ts'
+import { useStoredChoice } from './common/use-stored-choice.hook.ts'
+import { ReviewBlockContext } from './focus/review-block.context.ts'
+import { BLOCK_MINUTES, type BlockMinutes } from './focus/review-block.util.ts'
+import { ReviewBlockBar } from './focus/review-block-bar.component.tsx'
+import { ReviewBlockPicker } from './focus/review-block-picker.component.tsx'
+import { useReviewBlock } from './focus/use-review-block.hook.ts'
 import { HighlighterContext, WorkerHighlighter } from './highlight/highlight.service.ts'
 import { Inbox } from './inbox/inbox.view.tsx'
 import { countPullsNeedingYou } from './my-pulls/my-pulls.util.ts'
@@ -128,10 +134,12 @@ function NavRail({
   history,
   inbox,
   mentions,
+  onFocus,
 }: {
   history: RouteHistory
   inbox: InboxData | null
   mentions: MentionsInbox | null
+  onFocus: () => void
 }) {
   const { route, go: setRoute } = history
   const staleCount = inbox?.requested.filter((pull) => pull.stale).length ?? 0
@@ -174,6 +182,11 @@ function NavRail({
         <path d="M5 4h11l3 3v13H5zM9 9h6M9 13h6M9 17h4" />
       </NavButton>
       <div className="flex-1" />
+      <ShortcutHint action="review-block" description="Set time aside to review" place="right">
+        <NavButton active={false} label="Focus" onClick={onFocus}>
+          <path d="M12 21a8 8 0 1 0 0-16 8 8 0 0 0 0 16zM12 9v4l2.5 2.5M10 2h4" />
+        </NavButton>
+      </ShortcutHint>
       <ShortcutHint action="settings" description="Settings" place="right">
         <NavButton active={route.view === 'settings'} label="Settings" onClick={() => setRoute({ view: 'settings' })}>
           <path d={SETTINGS_ICON} />
@@ -183,17 +196,51 @@ function NavRail({
   )
 }
 
+/** The review block, its shortcut, and the dialog that starts one with the length you pick. */
+function useFocusControls() {
+  const block = useReviewBlock()
+  const [picking, setPicking] = useState(false)
+  const [last, setLast] = useStoredChoice<`${BlockMinutes}`>(
+    'revio.reviewBlockMinutes',
+    BLOCK_MINUTES.map((minutes) => `${minutes}` as const),
+    '45',
+  )
+  const pick = () => setPicking(true)
+  useShortcut('review-block', () => {
+    if (block.focused) {
+      block.togglePause()
+    } else {
+      setPicking(true)
+    }
+  })
+  const start = (minutes: BlockMinutes) => {
+    setLast(`${minutes}`)
+    block.start(minutes)
+  }
+  return { block, picking, setPicking, last: Number(last) as BlockMinutes, pick, start }
+}
+
+/** The picker for a new block, while open. */
+function FocusPicker({ controls }: { controls: ReturnType<typeof useFocusControls> }) {
+  if (!controls.picking) {
+    return null
+  }
+  return <ReviewBlockPicker last={controls.last} onPick={controls.start} onClose={() => controls.setPicking(false)} />
+}
+
 /** The screen the route names. */
 function Screen({
   history,
   inbox,
   mentions,
   inboxSearch,
+  onReviewed,
 }: {
   history: RouteHistory
   inbox: InboxData | null
   mentions: MentionsInbox | null
   inboxSearch: [string, (text: string) => void]
+  onReviewed: () => void
 }) {
   const { route, go: setRoute } = history
   const openPull: OpenPull = (pull, target) =>
@@ -216,7 +263,10 @@ function Screen({
           pull={route.pull}
           initialTarget={route.target}
           onBack={goBack}
-          onReviewed={() => setRoute({ view: 'inbox' })}
+          onReviewed={() => {
+            onReviewed()
+            setRoute({ view: 'inbox' })
+          }}
           onEditGuidelines={(repo, path) => setRoute({ view: 'guidelines', repo, path })}
           onOpenPull={openPull}
         />
@@ -227,6 +277,43 @@ function Screen({
       {route.view === 'settings' && <Settings />}
       {route.view === 'whats-new' && <WhatsNew update={route.update} onDone={() => setRoute({ view: 'inbox' })} />}
     </Suspense>
+  )
+}
+
+/** The window: the review block's strip on top, the rail (hidden while you focus), and the screen. */
+function FocusLayout(props: {
+  history: RouteHistory
+  inbox: InboxData | null
+  mentions: MentionsInbox | null
+  inboxSearch: [string, (text: string) => void]
+  children: React.ReactNode
+}) {
+  const controls = useFocusControls()
+  const { block } = controls
+  return (
+    <ReviewBlockContext value={block}>
+      <div className="flex h-full flex-col">
+        <ReviewBlockBar state={block} onAnother={controls.pick} />
+        <div className="flex min-h-0 flex-1">
+          {!block.focused && (
+            <NavRail history={props.history} inbox={props.inbox} mentions={props.mentions} onFocus={controls.pick} />
+          )}
+          <main className="flex min-w-0 flex-1 flex-col">
+            {props.children}
+            <div className="min-h-0 flex-1">
+              <Screen
+                history={props.history}
+                inbox={props.inbox}
+                mentions={props.mentions}
+                inboxSearch={props.inboxSearch}
+                onReviewed={block.countReview}
+              />
+            </div>
+          </main>
+        </div>
+      </div>
+      <FocusPicker controls={controls} />
+    </ReviewBlockContext>
   )
 }
 
@@ -244,15 +331,9 @@ export function App() {
     <HighlighterContext value={highlighter}>
       <HistoryContext value={history}>
         <ShortcutsContext value={shortcuts}>
-          <div className="flex h-full">
-            <NavRail history={history} inbox={inbox} mentions={mentions} />
-            <main className="flex min-w-0 flex-1 flex-col">
-              <UpdateBanner status={updateStatus} />
-              <div className="min-h-0 flex-1">
-                <Screen history={history} inbox={inbox} mentions={mentions} inboxSearch={inboxSearch} />
-              </div>
-            </main>
-          </div>
+          <FocusLayout history={history} inbox={inbox} mentions={mentions} inboxSearch={inboxSearch}>
+            <UpdateBanner status={updateStatus} />
+          </FocusLayout>
           <SettingsShortcut history={history} />
           <AnywherePage go={history.go} />
           <Palette />
