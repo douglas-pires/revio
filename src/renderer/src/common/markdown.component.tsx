@@ -1,10 +1,12 @@
 import { isValidElement, memo, type ReactNode, useState } from 'react'
-import ReactMarkdown from 'react-markdown'
+import ReactMarkdown, { type ExtraProps } from 'react-markdown'
 import rehypeRaw from 'rehype-raw'
 import rehypeSanitize, { defaultSchema } from 'rehype-sanitize'
 import remarkGfm from 'remark-gfm'
 import { CodeBlock } from './code-block.component.tsx'
 import { MermaidBlock } from './mermaid-block.component.tsx'
+import { parsePermalink } from './permalink.util.ts'
+import { PermalinkCard } from './permalink-card.component.tsx'
 
 /**
  * GitHub-flavored markdown with the inline HTML people put in PR descriptions
@@ -83,6 +85,30 @@ function Img({
   )
 }
 
+/** The link a paragraph holds and nothing else, as markdown parsed it; null for any other paragraph. */
+function readLoneLink(node: ExtraProps['node']) {
+  const children = node?.children.filter((child) => !(child.type === 'text' && child.value.trim() === '')) ?? []
+  const [only] = children
+  if (children.length !== 1 || only?.type !== 'element' || only.tagName !== 'a') {
+    return null
+  }
+  const href = only.properties.href
+  if (typeof href !== 'string') {
+    return null
+  }
+  return href
+}
+
+/** A paragraph; one that is only a GitHub permalink shows the code it points to. */
+function Paragraph({ node, children }: { node: ExtraProps['node']; children?: ReactNode }) {
+  const href = readLoneLink(node)
+  const link = href === null ? null : parsePermalink(href)
+  if (href !== null && link !== null) {
+    return <PermalinkCard link={link} href={href} />
+  }
+  return <p>{children}</p>
+}
+
 /** The file extension, used as the language of a ```suggestion block on that file. */
 function readExtension(path: string | undefined) {
   if (!path?.includes('.')) {
@@ -137,6 +163,7 @@ export const Markdown = memo(function MarkdownView({
               {label}
             </a>
           ),
+          p: ({ node, children: text }) => <Paragraph node={node}>{text}</Paragraph>,
           pre: ({ children: code }) => <Pre codePath={codePath}>{code}</Pre>,
           img: ({ src: source, alt, width, height }) => (
             <Img src={keepString(source)} alt={alt} width={width} height={height} />
