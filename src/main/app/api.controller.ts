@@ -118,6 +118,7 @@ type PullMethods =
   | 'setReaction'
   | 'commentOnPull'
   | 'saveAsks'
+  | 'saveDismissedConcerns'
 
 function buildPullHandlers({ store, poller, pulls }: ApiDeps): Pick<ApiHandlers, PullMethods> {
   return {
@@ -155,6 +156,10 @@ function buildPullHandlers({ store, poller, pulls }: ApiDeps): Pick<ApiHandlers,
       pulls.forget(ref)
       return reactions
     },
+    saveDismissedConcerns: (ref, dismissed) =>
+      store.updatePull(buildPullKey(ref), (pullState) => {
+        pullState.dismissedConcerns = dismissed
+      }),
     saveAsks: (ref, asks) =>
       store.updatePull(buildPullKey(ref), (pullState) => {
         pullState.asks = asks
@@ -197,7 +202,8 @@ function buildClaudeHandlers({ store, pulls, window }: ApiDeps): Pick<ApiHandler
   const writeBriefing = async (ref: PullRef) => {
     const key = buildPullKey(ref)
     const { pr, guidelines } = await loadContext(ref)
-    const record = await generateBriefing(pr, guidelines, (message) =>
+    const dismissed = store.pull(key).dismissedConcerns ?? []
+    const record = await generateBriefing(pr, { guidelines, dismissed }, (message) =>
       window.send({ type: 'briefing-progress', key, message }),
     )
     store.updatePull(key, (pullState) => {

@@ -6,13 +6,31 @@ export interface FocusItem {
   reason: string
   priority: 'high' | 'medium' | 'low'
 }
+/** A possible problem the briefing raises. */
+export interface Concern {
+  title: string
+  detail: string
+  path: string
+  line: number | null
+  /** How sure Claude is; missing on briefings written before it was asked. */
+  confidence?: 'high' | 'medium' | 'low' | undefined
+  /** The code in the diff that shows the problem. */
+  evidence?: string | undefined
+}
+/** A concern you marked as not an issue on a PR, so a new briefing does not raise it again. */
+export interface DismissedConcern {
+  title: string
+  path: string
+  line: number | null
+  dismissedAt: string
+}
 export interface Briefing {
   gist: string
   intent: string
   risk: 'low' | 'medium' | 'high'
   focus: FocusItem[]
   ignore: { path: string; reason: string }[]
-  concerns: { title: string; detail: string; path: string; line: number | null }[]
+  concerns: Concern[]
   questions: string[]
   guidelineChecks: { guideline: string; status: 'ok' | 'concern' | 'unclear'; note: string }[]
 }

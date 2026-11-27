@@ -1,4 +1,4 @@
-import type { AskThread, BriefingRecord } from './claude.types.ts'
+import type { AskThread, BriefingRecord, DismissedConcern } from './claude.types.ts'
 import type { EditorInfo, EditorTarget } from './editor.types.ts'
 import type { Emoji } from './emoji.types.ts'
 import type { MainEvent } from './event.types.ts'
@@ -86,6 +86,8 @@ export interface RevioApi {
   /** Answers the last user message of `thread`. Streams text via `ask-delta` events. */
   askClaude: (ref: PullRef, thread: AskThread) => Promise<{ answer: string }>
   saveAsks: (ref: PullRef, threads: AskThread[]) => Promise<void>
+  /** The briefing concerns you marked as not an issue on the PR, kept out of later briefings. */
+  saveDismissedConcerns: (ref: PullRef, dismissed: DismissedConcern[]) => Promise<void>
 
   /** The result of the last update check. */
   getUpdateStatus: () => Promise<UpdateStatus>

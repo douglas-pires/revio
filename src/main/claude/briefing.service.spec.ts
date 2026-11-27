@@ -1,7 +1,7 @@
 import type { ResolvedGuideline } from '@shared/guideline.types.ts'
 import { describe, expect, it } from 'vitest'
 import { makeDetail, makeFile } from '../../../test/fixtures.ts'
-import { buildPrContext } from './briefing.service.ts'
+import { buildPrContext, describeDismissed } from './briefing.service.ts'
 
 const guide: ResolvedGuideline = {
   id: 'g',
@@ -60,5 +60,17 @@ describe('prContext', () => {
     expect(context).toContain('Fixes login.')
     expect(context).toContain('- bo on src/a.ts:3: why?')
     expect(context).not.toContain('<omitted_diffs')
+  })
+})
+
+describe('describeDismissed', () => {
+  it('lists the concerns you dismissed for Claude, or nothing', () => {
+    expect(describeDismissed([])).toBe('')
+    const text = describeDismissed([
+      { title: 'Missing null check', path: 'cart.ts', line: 12, dismissedAt: '' },
+      { title: 'Too long', path: 'page.ts', line: null, dismissedAt: '' },
+    ])
+    expect(text).toContain('- Missing null check (cart.ts:12)')
+    expect(text).toContain('- Too long (page.ts)')
   })
 })

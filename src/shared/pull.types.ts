@@ -1,4 +1,4 @@
-import type { AskThread, BriefingRecord } from './claude.types.ts'
+import type { AskThread, BriefingRecord, DismissedConcern } from './claude.types.ts'
 import type { ReactionSummary } from './reaction.types.ts'
 
 /** Which pull request: repository ("owner/name") and number. Any object with these fields qualifies. */
@@ -115,5 +115,7 @@ export interface PullLocalState {
   drafts: DraftComment[]
   viewed: Record<string, string>
   briefing?: BriefingRecord
+  /** Concerns you marked as not an issue, kept out of later briefings. */
+  dismissedConcerns?: DismissedConcern[]
   asks?: AskThread[]
 }
