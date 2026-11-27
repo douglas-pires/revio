@@ -91,6 +91,7 @@ function FilesPane({ view, pr }: { view: PullViewState; pr: PullDetail }) {
       collapsed={view.nav.collapsed}
       current={view.nav.current}
       onSelectFile={view.nav.select}
+      onFindUsages={view.setSymbolName}
       onToggleCollapsed={view.nav.setFileCollapsed}
       onToggleViewed={view.toggleViewed}
       onAddDraft={view.addDraft}

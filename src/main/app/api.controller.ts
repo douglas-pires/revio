@@ -1,10 +1,12 @@
 import { type ApiMethod, IPC, type RevioApi } from '@shared/api.contract.ts'
 import type { AskActivity, BriefingRecord } from '@shared/claude.types.ts'
+import type { FileExplanationRecord } from '@shared/explanation.types.ts'
 import { buildPullKey, type PullRef } from '@shared/pull.types.ts'
 import { ipcMain, shell } from 'electron'
 import { sendTestNotification } from '../alerts/notification.service.ts'
 import { ask } from '../claude/ask.service.ts'
 import { generateBriefing } from '../claude/briefing.service.ts'
+import { explainFile } from '../claude/explain.service.ts'
 import { InFlight } from '../common/in-flight.util.ts'
 import { isWebUrl } from '../common/web-url.util.ts'
 import type { EditorService } from '../editor/editor.service.ts'
@@ -24,9 +26,12 @@ import type { PullCache } from '../pulls/pull.cache.ts'
 import { fetchFileAt } from '../pulls/pull.service.ts'
 import { commentOnPull, replyToComment, submitReview } from '../pulls/review-submit.service.ts'
 import { setReaction } from '../reactions/reactions.service.ts'
+import { findUnfamiliarFiles } from '../reviews/familiarity.util.ts'
+import type { ReviewHistoryCache } from '../reviews/review-history.cache.ts'
 import { fetchStackComments } from '../stacks/stack-comments.service.ts'
 import { fetchStack } from '../stacks/stacks.service.ts'
 import type { store as appStore } from '../store/store.service.ts'
+import { findSymbol } from '../symbols/symbol-search.service.ts'
 import type { IcloudSync } from '../sync/icloud-sync.service.ts'
 import type { ThreadCache } from '../threads/threads.cache.ts'
 import { replyToThread, setThreadResolved } from '../threads/threads.service.ts'
@@ -120,7 +125,7 @@ type PullMethods =
   | 'saveAsks'
   | 'saveDismissedConcerns'
 
-function buildPullHandlers({ store, poller, pulls }: ApiDeps): Pick<ApiHandlers, PullMethods> {
+function buildPullHandlers({ store, poller, pulls, reviewHistory }: ApiDeps): Pick<ApiHandlers, PullMethods> {
   return {
     getPull: (ref, maxAgeMs = 0) => pulls.get(ref, maxAgeMs),
     getStack: (ref) => fetchStack(ref, poller.latest),
@@ -146,6 +151,7 @@ function buildPullHandlers({ store, poller, pulls }: ApiDeps): Pick<ApiHandlers,
       })
       // The review changed the PR; the next open should fetch it fresh.
       pulls.forget(input)
+      reviewHistory.forget()
       poller.poll()
       return result
     },
@@ -174,8 +180,9 @@ type HistoryMethods =
   | 'getCommitFiles'
   | 'getPullCommits'
   | 'getFileContent'
+  | 'findSymbol'
 
-function buildHistoryHandlers({ history }: ApiDeps): Pick<ApiHandlers, HistoryMethods> {
+function buildHistoryHandlers({ history, pulls }: ApiDeps): Pick<ApiHandlers, HistoryMethods> {
   return {
     getBlame: (at) => history.blame(at),
     getFileHistory: (ref, at) => history.fileHistory(ref, at),
@@ -183,10 +190,19 @@ function buildHistoryHandlers({ history }: ApiDeps): Pick<ApiHandlers, HistoryMe
     getCommitFiles: (at) => history.commitFiles(at),
     getPullCommits: (ref, headSha) => history.pullCommits(ref, headSha),
     getFileContent: (at) => fetchFileAt(at.repo, at.sha, at.path),
+    findSymbol: async (ref, name) =>
+      findSymbol({
+        octokit: await getGithubClient(),
+        pr: pulls.peek(ref) ?? (await pulls.get(ref)),
+        name,
+        loadFile: fetchFileAt,
+      }),
   }
 }
 
-function buildClaudeHandlers({ store, pulls, window }: ApiDeps): Pick<ApiHandlers, 'generateBriefing' | 'askClaude'> {
+type ClaudeMethods = 'generateBriefing' | 'askClaude' | 'explainFile' | 'listUnfamiliarFiles'
+
+function buildClaudeHandlers({ store, pulls, window, reviewHistory }: ApiDeps): Pick<ApiHandlers, ClaudeMethods> {
   /** The PR (cached if recent) and the review guides that apply to its files. */
   const loadContext = async (ref: PullRef) => {
     const pr = pulls.peek(ref) ?? (await pulls.get(ref))
@@ -211,7 +227,31 @@ function buildClaudeHandlers({ store, pulls, window }: ApiDeps): Pick<ApiHandler
     })
     return record
   }
+  const explanations = new InFlight<FileExplanationRecord>()
+  const writeExplanation = async (ref: PullRef, path: string) => {
+    const key = buildPullKey(ref)
+    const record = await explainFile({
+      octokit: await getGithubClient(),
+      pr: pulls.peek(ref) ?? (await pulls.get(ref)),
+      path,
+      loadFile: fetchFileAt,
+      onProgress: (message) => window.send({ type: 'explain-progress', key, path, message }),
+    })
+    store.updatePull(key, (pullState) => {
+      pullState.explanations = { ...pullState.explanations, [path]: record }
+    })
+    return record
+  }
   return {
+    explainFile: (ref, path) => explanations.run(`${buildPullKey(ref)}:${path}`, () => writeExplanation(ref, path)),
+    listUnfamiliarFiles: async (ref) => {
+      const pr = pulls.peek(ref) ?? (await pulls.get(ref))
+      return findUnfamiliarFiles(
+        ref.repo,
+        pr.files.map((file) => file.path),
+        await reviewHistory.get(),
+      )
+    },
     // One request per PR: asking again while it runs (after a reload, say) waits for the same briefing.
     generateBriefing: (ref) => briefings.run(buildPullKey(ref), () => writeBriefing(ref)),
     askClaude: async (ref, thread) => {
@@ -236,6 +276,8 @@ export interface ApiDeps {
   updates: UpdatePoller
   installer: UpdateInstaller
   threads: ThreadCache
+  /** The reviews you sent before. */
+  reviewHistory: ReviewHistoryCache
   mentions: MentionWatcher
   editor: EditorService
   sync: IcloudSync
@@ -256,7 +298,7 @@ export function registerApi(deps: ApiDeps) {
     downloadUpdate: () => deps.installer.download(),
     restartToUpdate: () => deps.installer.restart(),
     testNotification: () => sendTestNotification(() => deps.window.show()),
-    ...buildGuidelinesApi(deps.store, deps.poller),
+    ...buildGuidelinesApi(deps),
     ...buildClaudeHandlers(deps),
     ...buildGitLogApi(),
     ...buildFeedbackApi(deps.releaseSource),

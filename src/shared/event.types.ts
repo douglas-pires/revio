@@ -13,6 +13,8 @@ export type MainEvent =
   | { type: 'navigate'; direction: 'back' | 'forward' }
   | { type: 'update'; status: UpdateStatus }
   | { type: 'briefing-progress'; key: string; message: string }
+  /** What Claude is doing while it explains a file of a PR. */
+  | { type: 'explain-progress'; key: string; path: string; message: string }
   | { type: 'ask-delta'; threadId: string; text: string }
   /** What Claude is doing on a question, before and while the answer streams. */
   | { type: 'ask-activity'; threadId: string; activity: AskActivity }

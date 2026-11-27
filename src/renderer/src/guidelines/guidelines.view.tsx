@@ -1,3 +1,4 @@
+import { buildDefaultTitle } from '@shared/guide-title.util.ts'
 import type { Guideline } from '@shared/guideline.types.ts'
 import { useCallback, useEffect, useState } from 'react'
 import { EmptyState } from '../common/empty-state.component.tsx'
@@ -15,7 +16,7 @@ import {
 } from './guide-drafts.util.ts'
 import { GuideEditor } from './guide-editor.component.tsx'
 import { GuideList } from './guide-list.component.tsx'
-import { buildDefaultTitle, type Draft, makeNewDraft } from './guidelines.util.ts'
+import { type Draft, makeNewDraft } from './guidelines.util.ts'
 
 /** How long "Saved" shows after a save. */
 const SAVED_NOTICE_MS = 1500

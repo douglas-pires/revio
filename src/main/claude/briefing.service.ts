@@ -1,14 +1,9 @@
-import Anthropic from '@anthropic-ai/sdk'
-import { betaZodOutputFormat } from '@anthropic-ai/sdk/helpers/beta/zod'
 import type { Briefing, BriefingRecord, DismissedConcern } from '@shared/claude.types.ts'
 import type { ResolvedGuideline } from '@shared/guideline.types.ts'
 import type { PullDetail } from '@shared/pull.types.ts'
-import { app } from 'electron'
 import { z } from 'zod'
-import { env } from '../common/env.config.ts'
-import { runWithInput } from '../common/shell.util.ts'
 import { describeScope } from '../guidelines/guidelines.service.ts'
-import { store } from '../store/store.service.ts'
+import { requestJson } from './claude-json.service.ts'
 
 const BriefingSchema = z.object({
   gist: z.string().describe('2-4 sentences, markdown allowed: what this PR does and why, in plain words.'),
@@ -66,16 +61,9 @@ Never raise again a concern the reviewer dismissed, unless the code it was about
 /** ~4 chars/token; leaves plenty of headroom in a 1M context window. */
 const DIFF_BUDGET_CHARS = 1_200_000
 const MAX_BRIEFING_TOKENS = 16_000
-/** Ten minutes. */
-const CLI_TIMEOUT_MS = 600_000
-/** Progress lines from the CLI are cut to this length. */
-const MAX_PROGRESS_CHARS = 200
 /** The most recent review comments sent along, each cut to COMMENT_CHARS. */
 const RECENT_COMMENTS = 60
 const COMMENT_CHARS = 400
-const FENCED_JSON = /```(?:json)?\s*(?<json>[\s\S]*?)```/u
-
-const BACKEND_LABELS: Record<'api' | 'cli', string> = { api: 'the Anthropic API', cli: 'Claude Code' }
 
 /** Where a dismissed concern was: "cart.ts:12", or the file alone. */
 function describePlace(entry: DismissedConcern) {
@@ -100,80 +88,6 @@ function buildPrompt(pr: PullDetail, guidelines: ResolvedGuideline[], dismissed:
     prompt: `${context}${describeDismissed(dismissed)}\n\nBrief me on this pull request using the required JSON format.`,
     omitted,
   }
-}
-
-async function briefViaApi(prompt: string, model: string): Promise<Briefing> {
-  const apiKey = store.anthropicKey()
-  const client = new Anthropic({ ...(apiKey !== undefined && { apiKey }) })
-  const response = await client.beta.messages.parse({
-    model,
-    max_tokens: MAX_BRIEFING_TOKENS,
-    system: SYSTEM,
-    betas: ['server-side-fallback-2026-07-01'],
-    fallbacks: 'default',
-    thinking: { type: 'adaptive' },
-    output_config: { effort: 'medium', format: betaZodOutputFormat(BriefingSchema) },
-    messages: [{ role: 'user', content: prompt }],
-  })
-  if (response.stop_reason === 'refusal') {
-    throw new Error('Claude declined to brief this PR.')
-  }
-  if (response.stop_reason === 'max_tokens') {
-    throw new Error('Briefing was cut off (max_tokens). Try again.')
-  }
-  if (!response.parsed_output) {
-    throw new Error('Claude returned an unparseable briefing.')
-  }
-  return response.parsed_output
-}
-
-async function briefViaCli(prompt: string, model: string, onProgress: (message: string) => void): Promise<Briefing> {
-  // The CLI's validator does not know the draft-2020 meta-schema tag Zod emits.
-  const { $schema: _ignored, ...jsonSchema } = z.toJSONSchema(BriefingSchema, { target: 'draft-7' })
-  const schema = JSON.stringify(jsonSchema)
-  const output = await runWithInput(
-    'claude',
-    [
-      '-p',
-      '--output-format',
-      'json',
-      '--json-schema',
-      schema,
-      '--model',
-      model,
-      '--tools',
-      '',
-      '--system-prompt',
-      SYSTEM,
-      '--no-session-persistence',
-    ],
-    prompt,
-    {
-      cwd: app.getPath('temp'),
-      timeoutMs: CLI_TIMEOUT_MS,
-      onStderr: (line) => onProgress(line.trim().slice(0, MAX_PROGRESS_CHARS)),
-    },
-  )
-  const result = JSON.parse(output) as { is_error?: boolean; result?: string; structured_output?: unknown }
-  if (result.is_error) {
-    throw new Error(result.result || 'Claude Code returned an error')
-  }
-  const payload = result.structured_output ?? JSON.parse(extractJson(result.result ?? ''))
-  return BriefingSchema.parse(payload)
-}
-
-/** The JSON in a text answer: a fenced block, else the outermost braces, else the whole text. */
-function extractJson(text: string) {
-  const fenced = FENCED_JSON.exec(text)?.groups?.json
-  if (fenced) {
-    return fenced
-  }
-  const start = text.indexOf('{')
-  const end = text.lastIndexOf('}')
-  if (start >= 0 && end > start) {
-    return text.slice(start, end + 1)
-  }
-  return text
 }
 
 /** Which diffs fit the budget, smallest first so one huge generated file cannot crowd out the real changes. */
@@ -262,17 +176,6 @@ ${diffs}
   return { context: prompt, omitted }
 }
 
-export function pickBackend(): 'api' | 'cli' {
-  const settings = store.settings()
-  if (settings.claudeBackend !== 'auto') {
-    return settings.claudeBackend
-  }
-  if (store.anthropicKey() || env.ANTHROPIC_API_KEY) {
-    return 'api'
-  }
-  return 'cli'
-}
-
 /**
  * A briefing of the PR. Concerns you dismissed on it are sent along not to raise; one that comes back anyway is kept
  * in the record (so it can be brought back) and hidden on screen.
@@ -283,14 +186,21 @@ export async function generateBriefing(
   onProgress: (message: string) => void,
 ): Promise<BriefingRecord> {
   const { prompt, omitted } = buildPrompt(pr, context.guidelines, context.dismissed)
-  const backend = pickBackend()
-  const model = store.settings().claudeModel
-  onProgress(`Asking ${model} via ${BACKEND_LABELS[backend]}…`)
-  let briefing: Briefing
-  if (backend === 'api') {
-    briefing = await briefViaApi(prompt, model)
-  } else {
-    briefing = await briefViaCli(prompt, model, onProgress)
+  const { answer, backend, model } = await requestJson<Briefing>({
+    schema: BriefingSchema,
+    system: SYSTEM,
+    prompt,
+    maxTokens: MAX_BRIEFING_TOKENS,
+    effort: 'medium',
+    noun: 'briefing',
+    onProgress,
+  })
+  return {
+    headSha: pr.headSha,
+    createdAt: new Date().toISOString(),
+    backend,
+    model,
+    briefing: answer,
+    omittedFiles: omitted,
   }
-  return { headSha: pr.headSha, createdAt: new Date().toISOString(), backend, model, briefing, omittedFiles: omitted }
 }

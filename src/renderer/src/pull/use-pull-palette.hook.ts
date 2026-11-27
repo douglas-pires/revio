@@ -57,7 +57,7 @@ function listDisplayActions(view: PullViewState): PaletteAction[] {
 
 function listFilesActions(view: PullViewState): PaletteAction[] {
   return [
-    ...buildShortcutEntries(['toggle-viewed', 'unview', 'copy-file', 'open-in-editor', 'find']),
+    ...buildShortcutEntries(['toggle-viewed', 'unview', 'copy-file', 'open-in-editor', 'find', 'find-usages']),
     ...listDisplayActions(view),
   ]
 }

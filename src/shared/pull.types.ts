@@ -1,4 +1,5 @@
 import type { AskThread, BriefingRecord, DismissedConcern } from './claude.types.ts'
+import type { FileExplanationRecord } from './explanation.types.ts'
 import type { ReactionSummary } from './reaction.types.ts'
 
 /** Which pull request: repository ("owner/name") and number. Any object with these fields qualifies. */
@@ -118,4 +119,6 @@ export interface PullLocalState {
   /** Concerns you marked as not an issue, kept out of later briefings. */
   dismissedConcerns?: DismissedConcern[]
   asks?: AskThread[]
+  /** Claude's explanations of files, by path. */
+  explanations?: Record<string, FileExplanationRecord>
 }

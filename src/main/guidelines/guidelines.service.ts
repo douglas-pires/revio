@@ -1,6 +1,9 @@
 import { randomUUID } from 'node:crypto'
+import { buildDefaultTitle } from '@shared/guide-title.util.ts'
 import type { Guideline, ResolvedGuideline } from '@shared/guideline.types.ts'
+import type { GuideEntry } from '@shared/review-history.types.ts'
 import { store } from '../store/store.service.ts'
+import { appendGuideEntry } from './guide-entry.util.ts'
 
 const EDGE_SLASHES = /^\/+|\/+$/gu
 
@@ -63,6 +66,25 @@ export function saveGuideline(input: Omit<Guideline, 'id' | 'updatedAt'> & { id?
     store.setGuidelines([...list, guideline])
   }
   return guideline
+}
+
+/** Adds a bullet to the guide for the entry's repository and folder, starting that guide when there is none. */
+export function addGuideEntry(entry: GuideEntry): Guideline {
+  const repo = entry.repo.trim() || '*'
+  const path = buildGuidelineFolder(repo, entry.path)
+  const existing = store
+    .guidelines()
+    .find((guideline) => guideline.repo.toLowerCase() === repo.toLowerCase() && guideline.path === path)
+  if (existing) {
+    return saveGuideline({ ...existing, body: appendGuideEntry(existing.body, entry.text) })
+  }
+  return saveGuideline({
+    repo,
+    path,
+    title: buildDefaultTitle({ repo, path }),
+    body: appendGuideEntry('', entry.text),
+    enabled: true,
+  })
 }
 
 export function deleteGuideline(id: string) {
