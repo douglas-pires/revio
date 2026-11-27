@@ -1,6 +1,8 @@
+import { formatShortcut } from '@shared/shortcut.util.ts'
 import { InnerTabs } from '../common/inner-tabs.component.tsx'
 import { SegmentedControl } from '../common/segmented-control.component.tsx'
 import { ToggleButton } from '../common/toggle-button.component.tsx'
+import { useShortcuts } from '../shortcuts/shortcuts.context.ts'
 import type { DiffView } from './diff-file.types.ts'
 import { listPullTabs, type PullTab } from './pull-tabs.util.ts'
 
@@ -35,6 +37,14 @@ const VIEWS = [
   { value: 'split', label: 'Split' },
 ] as const
 
+/** The keys after a tooltip, " (S)", or nothing when the shortcut is turned off. */
+function describeKeys(shortcut: string) {
+  if (!shortcut) {
+    return ''
+  }
+  return ` (${formatShortcut(shortcut)})`
+}
+
 /** "Since your review", or "Since review" when a side panel narrows the bar. */
 function SinceLabel() {
   return (
@@ -49,6 +59,8 @@ function SinceLabel() {
 function FilesToolbar({ props }: { props: PullTabBarProps }) {
   const folded = String(props.threadsFolded) as 'true' | 'false'
   const { sinceReview } = props
+  const { shortcuts } = useShortcuts()
+  const sinceKeys = describeKeys(shortcuts['since-review'])
   return (
     <>
       {sinceReview === 'unchanged' && (
@@ -63,7 +75,7 @@ function FilesToolbar({ props }: { props: PullTabBarProps }) {
         <ToggleButton
           on={sinceReview.on}
           onToggle={sinceReview.onToggle}
-          title={TOGGLE_TITLES.since[String(sinceReview.on) as 'true' | 'false']}
+          title={`${TOGGLE_TITLES.since[String(sinceReview.on) as 'true' | 'false']}${sinceKeys}`}
           className="mr-3 @max-3xl:mr-1.5"
         >
           <SinceLabel />

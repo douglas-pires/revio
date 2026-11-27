@@ -5,6 +5,7 @@ import { groupBy } from '../common/group.util.ts'
 import type { PullTarget } from '../common/navigation.types.ts'
 import { useStoredChoice } from '../common/use-stored-choice.hook.ts'
 import type { MentionScope } from '../mentionables/mention-scope.context.ts'
+import { useShortcut } from '../shortcuts/use-shortcut.hook.ts'
 import { groupCommentThreads } from './comment-threads.util.ts'
 import type { AskSelection, DiffView } from './diff-file.types.ts'
 import { collectNewSideLines, computeInitialCollapsed, groupByDir } from './files.util.ts'
@@ -176,6 +177,17 @@ function pickShownFiles(sinceReview: SinceReviewState, orderedFiles: PullFile[])
   return orderedFiles
 }
 
+/** What the since-review shortcut does: switch the view and show Files changed; nothing when there is no switch. */
+function pickSinceShortcut(sinceReview: SinceReviewState, showFiles: () => void) {
+  if (!sinceReview.available) {
+    return null
+  }
+  return () => {
+    showFiles()
+    sinceReview.toggle()
+  }
+}
+
 /** How the diff can be laid out. */
 export const DIFF_VIEWS = ['unified', 'split'] as const satisfies readonly DiffView[]
 
@@ -216,6 +228,7 @@ export function usePullView(pullRef: PullRef, initialTarget: PullTarget | undefi
   const indexes = usePullIndexes(detail.pr, local.local)
   const sinceReview = useSinceReview(pull, detail.pr)
   const shownFiles = pickShownFiles(sinceReview, indexes.orderedFiles)
+  useShortcut('since-review', pickSinceShortcut(sinceReview, choices.showFiles))
   const find = useDiffFind({ files: shownFiles, jump: nav.jump, onFilesTab, showFiles: choices.showFiles })
 
   const setReaction = useReactionSetter(pull)

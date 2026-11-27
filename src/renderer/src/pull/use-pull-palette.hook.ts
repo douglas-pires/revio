@@ -22,12 +22,21 @@ function listReviewActions(view: PullViewState, pr: PullDetail): PaletteAction[]
   return [{ id: 'approve', label: 'Approve…', run: () => view.review.setOpen('APPROVE') }, finish]
 }
 
+/** Switching to only the changes since your review, when you reviewed the PR and it changed since. */
+function listSinceReviewAction(view: PullViewState): PaletteAction[] {
+  if (!view.sinceReview.available) {
+    return []
+  }
+  return buildShortcutEntries(['since-review'])
+}
+
 /** What you can do on any tab of the PR. */
 function listPullActions(view: PullViewState, pr: PullDetail): PaletteAction[] {
   return [
     ...listReviewActions(view, pr),
     ...listTabActions(view),
     ...buildShortcutEntries(['quick-open', 'git-log', 'copy-branch']),
+    ...listSinceReviewAction(view),
     { id: 'github', label: 'Open the PR on GitHub', run: () => globalThis.revio.openExternal(pr.url) },
   ]
 }
