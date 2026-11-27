@@ -34,6 +34,8 @@ export function useSinceReview(pull: PullRef, pr: PullDetail | null) {
   const files = useMemo(() => groupByDir(since?.files ?? []).flatMap(([, grouped]) => grouped), [since])
   return {
     available,
+    /** You reviewed the PR and it has not changed since. */
+    unchanged: Boolean(pr?.lastReviewedSha && pr.lastReviewedSha === pr.headSha),
     on: on && available,
     toggle: () => setOn(!on),
     since,

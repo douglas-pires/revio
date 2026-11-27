@@ -81,8 +81,14 @@ function pickCommentableLines(view: PullViewState) {
   return (path: string, side: string, line: number) => side === 'RIGHT' && Boolean(view.rightLines.get(path)?.has(line))
 }
 
-/** The switch's state for the toolbar, or null when you have not reviewed the PR or it has not moved on since. */
+/**
+ * The switch's state for the toolbar: "unchanged" when you reviewed the PR and nothing changed since, null when you
+ * have not reviewed it.
+ */
 function describeSinceSwitch(view: PullViewState) {
+  if (view.sinceReview.unchanged) {
+    return 'unchanged' as const
+  }
   if (!view.sinceReview.available) {
     return null
   }
