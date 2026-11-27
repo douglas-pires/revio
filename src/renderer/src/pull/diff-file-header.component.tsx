@@ -2,6 +2,7 @@ import type { FocusItem } from '@shared/claude.types.ts'
 import type { PullFile } from '@shared/pull.types.ts'
 import { CopyButton } from '../common/copy-button.component.tsx'
 import { joinClassNames } from '../common/format.util.ts'
+import { ShortcutHint } from '../shortcuts/shortcut-hint.component.tsx'
 import { ExplainButton } from './explain-button.component.tsx'
 import { describeRename } from './files.util.ts'
 import { OpenInEditorButton } from './open-in-editor-button.component.tsx'
@@ -61,13 +62,15 @@ export function DiffFileHeader(props: {
         {Boolean(props.file.previousPath) && <span className="text-muted">{props.file.previousPath} → </span>}
         {props.file.path}
       </span>
-      <CopyButton
-        text={props.file.path}
-        title="Copy path"
-        className="btn btn-ghost -ml-1 shrink-0 px-1 py-0 text-[12px]"
-      >
-        {''}
-      </CopyButton>
+      <ShortcutHint action="copy-file" description="Copy the file’s path">
+        <CopyButton
+          text={props.file.path}
+          label="Copy path"
+          className="btn btn-ghost -ml-1 shrink-0 px-1 py-0 text-[12px]"
+        >
+          {''}
+        </CopyButton>
+      </ShortcutHint>
       <span className="shrink-0 font-mono text-[11.5px] whitespace-nowrap">
         <span className="text-ok">+{props.file.additions}</span>{' '}
         <span className="text-danger">−{props.file.deletions}</span>
@@ -112,14 +115,16 @@ export function DiffFileHeader(props: {
       >
         + File comment
       </button>
-      <label className="flex shrink-0 cursor-pointer items-center gap-1.5 text-[12px] text-muted">
-        <input
-          type="checkbox"
-          checked={props.viewed}
-          onChange={(event) => props.onToggleViewed(event.target.checked)}
-        />
-        Viewed
-      </label>
+      <ShortcutHint action="toggle-viewed" description="Mark the file viewed, which folds it away">
+        <label className="flex shrink-0 cursor-pointer items-center gap-1.5 text-[12px] text-muted">
+          <input
+            type="checkbox"
+            checked={props.viewed}
+            onChange={(event) => props.onToggleViewed(event.target.checked)}
+          />
+          Viewed
+        </label>
+      </ShortcutHint>
     </div>
   )
 }

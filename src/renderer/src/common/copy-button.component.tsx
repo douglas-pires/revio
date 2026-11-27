@@ -12,8 +12,17 @@ const STATE_LOOK: Record<CopyState, { className: string; text: string }> = {
   failed: { className: 'text-danger', text: '✕ copy failed' },
 }
 
-/** Copies `text` to the clipboard; the icon after the label confirms for a moment. */
-export function CopyButton(props: { text: string; title: string; className?: string; children: React.ReactNode }) {
+/**
+ * Copies `text` to the clipboard; the icon after the label confirms for a moment. `title` is its tooltip; without one
+ * (when a shortcut hint explains it instead), `label` names it for screen readers.
+ */
+export function CopyButton(props: {
+  text: string
+  title?: string
+  label?: string
+  className?: string
+  children: React.ReactNode
+}) {
   const [state, setState] = useState<CopyState>('idle')
   useEffect(() => {
     if (state === 'idle') {
@@ -26,7 +35,7 @@ export function CopyButton(props: { text: string; title: string; className?: str
     <button
       type="button"
       title={props.title}
-      aria-label={props.title}
+      aria-label={props.label ?? props.title}
       className={joinClassNames('no-drag', props.className)}
       onClick={() =>
         navigator.clipboard.writeText(props.text).then(

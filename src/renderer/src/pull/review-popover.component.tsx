@@ -2,6 +2,7 @@ import type { PullDetail, ReviewEvent } from '@shared/pull.types.ts'
 import { formatShortcut, matchesShortcut } from '@shared/shortcut.util.ts'
 import { useState } from 'react'
 import { joinClassNames, readErrorMessage } from '../common/format.util.ts'
+import { ShortcutHint } from '../shortcuts/shortcut-hint.component.tsx'
 import { useShortcuts } from '../shortcuts/shortcuts.context.ts'
 import { SuggestingTextBox } from '../suggestions/suggesting-text-box.component.tsx'
 import { useCommentSuggesters } from './use-comment-suggesters.hook.ts'
@@ -188,9 +189,11 @@ export function ReviewPopover(props: {
           <button type="button" className="btn btn-ghost" onClick={props.onClose}>
             Cancel
           </button>
-          <button type="button" className="btn btn-primary" disabled={!canSubmit} onClick={submitIfReady}>
-            {submitLabel(event, busy)}
-          </button>
+          <ShortcutHint action="send" description="Submit the review" place="top">
+            <button type="button" className="btn btn-primary" disabled={!canSubmit} onClick={submitIfReady}>
+              {submitLabel(event, busy)}
+            </button>
+          </ShortcutHint>
         </div>
       </div>
     </div>
