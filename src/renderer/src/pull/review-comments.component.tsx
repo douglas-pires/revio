@@ -3,6 +3,7 @@ import { useCallback, useState } from 'react'
 import { CopyButton } from '../common/copy-button.component.tsx'
 import { countOf, formatAge } from '../common/format.util.ts'
 import { Markdown } from '../common/markdown.component.tsx'
+import { AddToGuideButton } from '../guidelines/add-to-guide-button.component.tsx'
 import { ClosedReply } from './closed-reply.component.tsx'
 import { Composer } from './composer.component.tsx'
 import { ReactionBar } from './reaction-bar.component.tsx'
@@ -150,10 +151,15 @@ function CommentView({ comment }: { comment: ReviewComment }) {
           >
             {formatAge(comment.createdAt)} ago
           </a>
+          <AddToGuideButton
+            path={comment.path}
+            comment={comment.body}
+            className="ml-auto text-[11px] text-muted opacity-0 hover:text-fg focus-visible:opacity-100 group-hover/comment:opacity-100"
+          />
           <CopyButton
             text={comment.url}
             title="Copy the comment's GitHub link"
-            className="ml-auto text-[11px] text-muted opacity-0 hover:text-fg focus-visible:opacity-100 group-hover/comment:opacity-100"
+            className="ml-2 text-[11px] text-muted opacity-0 hover:text-fg focus-visible:opacity-100 group-hover/comment:opacity-100"
           >
             Copy link
           </CopyButton>
@@ -244,6 +250,7 @@ export function DraftView({
           </span>
         )}
         <div className="flex-1" />
+        <AddToGuideButton path={draft.path} comment={draft.body} className="btn btn-ghost py-0" />
         <button type="button" className="btn btn-ghost py-0" onClick={() => setEditing(true)}>
           Edit
         </button>

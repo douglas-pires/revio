@@ -25,6 +25,11 @@ const ACTIONS = {
   unview: { label: 'Unview the file and select it', group: 'Files changed', defaultShortcut: 'Cmd+Shift+V' },
   'copy-file': { label: 'Copy the selected file’s path', group: 'Files changed', defaultShortcut: 'Cmd+Shift+C' },
   'open-in-editor': { label: 'Open in editor', group: 'Files changed', defaultShortcut: 'Cmd+O' },
+  'find-usages': {
+    label: 'Find where the selected name is defined and used (or ⌘-click it)',
+    group: 'Files changed',
+    defaultShortcut: 'Cmd+Shift+U',
+  },
 } as const satisfies Record<string, Omit<ShortcutAction, 'id'>>
 
 /** The two shortcuts that had a setting of their own before all of them could be changed. */

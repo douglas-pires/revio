@@ -2,6 +2,7 @@ import type { AskThread, BriefingRecord } from './claude.types.ts'
 import type { EditorInfo, EditorTarget } from './editor.types.ts'
 import type { Emoji } from './emoji.types.ts'
 import type { MainEvent } from './event.types.ts'
+import type { FileExplanationRecord } from './explanation.types.ts'
 import type { FeedbackInput, FeedbackResult, SystemInfo } from './feedback.types.ts'
 import type { CiState, CommitCheck, CommitDetail, LogPage, PullLogQuery } from './git-log.types.ts'
 import type { Guideline, ResolvedGuideline } from './guideline.types.ts'
@@ -11,7 +12,9 @@ import type { MentionsInbox } from './mention.types.ts'
 import type { Mentionable } from './mentionable.types.ts'
 import type { DraftComment, PullDetail, PullLocalState, PullRef, SinceReview, SubmitReviewInput } from './pull.types.ts'
 import type { ReactionContent, ReactionSummary } from './reaction.types.ts'
+import type { GuideEntry, SimilarComment } from './review-history.types.ts'
 import type { GithubAuthStatus, Settings, SettingsPatch, SyncStatus } from './settings.types.ts'
+import type { SymbolSearch } from './symbol.types.ts'
 import type { ThreadComment, ThreadsInbox } from './thread.types.ts'
 import type { UpdateStatus } from './update.types.ts'
 import type { ReleaseNotes, UnseenUpdate } from './whats-new.types.ts'
@@ -70,6 +73,8 @@ export interface RevioApi {
   getCommitFiles: (at: CommitRef) => Promise<CommitFile[]>
   /** The PR's commits, oldest first, as of `headSha`. */
   getPullCommits: (ref: PullRef, headSha: string) => Promise<PullCommit[]>
+  /** Where a name is defined and used, in the PR's files and elsewhere in the repository, read at the PR's head. */
+  findSymbol: (ref: PullRef, name: string) => Promise<SymbolSearch>
   /** A file's text at a commit, or null when it is missing, binary or too large. */
   getFileContent: (at: FileAtCommit) => Promise<string | null>
 
@@ -83,11 +88,19 @@ export interface RevioApi {
   deleteGuideline: (id: string) => Promise<void>
   resolveGuidelines: (repo: string, paths: string[]) => Promise<ResolvedGuideline[]>
   knownRepos: () => Promise<string[]>
+  /** Adds a line to the guide for a repository and folder, starting that guide when there is none. */
+  addGuideEntry: (entry: GuideEntry) => Promise<Guideline>
+  /** Comments you sent in past reviews that read like `body`, most alike first. */
+  findSimilarComments: (body: string) => Promise<SimilarComment[]>
 
   generateBriefing: (ref: PullRef) => Promise<BriefingRecord>
   /** Answers the last user message of `thread`. Streams text via `ask-delta` events. */
   askClaude: (ref: PullRef, thread: AskThread) => Promise<{ answer: string }>
   saveAsks: (ref: PullRef, threads: AskThread[]) => Promise<void>
+  /** Claude explains a file of the PR for a reviewer new to that code, and keeps the explanation. */
+  explainFile: (ref: PullRef, path: string) => Promise<FileExplanationRecord>
+  /** The PR's files in code you have not reviewed before; none when you never reviewed in the repository. */
+  listUnfamiliarFiles: (ref: PullRef) => Promise<string[]>
 
   /** The result of the last update check. */
   getUpdateStatus: () => Promise<UpdateStatus>

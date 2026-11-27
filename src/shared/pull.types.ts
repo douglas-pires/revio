@@ -1,4 +1,5 @@
 import type { AskThread, BriefingRecord } from './claude.types.ts'
+import type { FileExplanationRecord } from './explanation.types.ts'
 import type { ReactionSummary } from './reaction.types.ts'
 
 /** Which pull request: repository ("owner/name") and number. Any object with these fields qualifies. */
@@ -118,6 +119,8 @@ export interface PullLocalState {
   viewed: Record<string, string>
   briefing?: BriefingRecord
   asks?: AskThread[]
+  /** Claude's explanations of files, by path. */
+  explanations?: Record<string, FileExplanationRecord>
 }
 /** What changed in a PR since your last review: the diff from the commit you reviewed to the head. */
 export interface SinceReview {

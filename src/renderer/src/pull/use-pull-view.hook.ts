@@ -3,6 +3,7 @@ import type { PullFile, PullRef, ReviewEvent } from '@shared/pull.types.ts'
 import { useCallback, useMemo, useState } from 'react'
 import { groupBy } from '../common/group.util.ts'
 import type { PullTarget } from '../common/navigation.types.ts'
+import { showNotice } from '../common/notice.service.ts'
 import { useStoredChoice } from '../common/use-stored-choice.hook.ts'
 import type { MentionScope } from '../mentionables/mention-scope.context.ts'
 import { useShortcut } from '../shortcuts/use-shortcut.hook.ts'
@@ -13,6 +14,7 @@ import type { PullTab } from './pull-tabs.util.ts'
 import { quoteOf, readFileTarget, replyIdOf } from './pull-view.util.ts'
 import type { QuotedConversation } from './quoted-comment.component.tsx'
 import { readStackTab, rememberStackTab } from './stack-memory.util.ts'
+import { readSelectedName } from './symbol-word.util.ts'
 import { useBriefing } from './use-briefing.hook.ts'
 import { useDiffFind } from './use-diff-find.hook.ts'
 import { useFileKeyboardNav } from './use-file-keyboard-nav.hook.ts'
@@ -87,7 +89,18 @@ function useViewChoices(pull: PullRef) {
   const [commentsPanel, setCommentsPanel] = useStoredChoice('revio.commentsPanel', PANEL_STATES, 'open')
   const [blame, setBlame] = useStoredChoice('revio.blame', BLAME_STATES, 'off')
   /** The file whose history is open in the side panel. */
-  const [historyPath, setHistoryPath] = useState<string | null>(null)
+  const [historyPath, showHistory] = useState<string | null>(null)
+  /** The name whose definition and usages are open in the side panel. */
+  const [symbolName, showSymbol] = useState<string | null>(null)
+  /** One of the two panels at a time: opening either closes the other. */
+  const setHistoryPath = useCallback((path: string | null) => {
+    showSymbol(null)
+    showHistory(path)
+  }, [])
+  const setSymbolName = useCallback((name: string | null) => {
+    showHistory(null)
+    showSymbol(name)
+  }, [])
   const showFiles = useCallback(() => setTab('files'), [setTab])
   /** The ⌘P list of changed files. */
   const quickOpen = useQuickOpen(showFiles)
@@ -104,6 +117,8 @@ function useViewChoices(pull: PullRef) {
     setBlame,
     historyPath,
     setHistoryPath,
+    symbolName,
+    setSymbolName,
   }
 }
 
@@ -188,6 +203,21 @@ function pickSinceShortcut(sinceReview: SinceReviewState, showFiles: () => void)
   }
 }
 
+/** What the find-usages shortcut does on Files changed: open the selected name's usages, or say how. */
+function pickFindUsages(onFilesTab: boolean, setSymbolName: (name: string) => void) {
+  if (!onFilesTab) {
+    return null
+  }
+  return () => {
+    const name = readSelectedName(globalThis.getSelection()?.toString() ?? '')
+    if (name === null) {
+      showNotice('Select a name in the diff first, or ⌘-click it')
+    } else {
+      setSymbolName(name)
+    }
+  }
+}
+
 /** How the diff can be laid out. */
 export const DIFF_VIEWS = ['unified', 'split'] as const satisfies readonly DiffView[]
 
@@ -231,6 +261,7 @@ export function usePullView(pullRef: PullRef, initialTarget: PullTarget | undefi
   useShortcut('since-review', pickSinceShortcut(sinceReview, choices.showFiles))
   const find = useDiffFind({ files: shownFiles, jump: nav.jump, onFilesTab, showFiles: choices.showFiles })
 
+  useShortcut('find-usages', pickFindUsages(onFilesTab, choices.setSymbolName))
   const setReaction = useReactionSetter(pull)
   const toggleViewed = useViewedToggle(local.markViewed, nav.setFileCollapsed)
   useFileKeyboardNav({

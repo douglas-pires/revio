@@ -108,7 +108,8 @@ function FilesToolbar({ props }: { props: PullTabBarProps }) {
       </ToggleButton>
       {/* A reminder only, shown when the bar has room for it. */}
       <span className="ml-3 hidden shrink-0 self-center text-[11.5px] whitespace-nowrap text-muted @5xl:inline">
-        <kbd className="kbd">j</kbd>/<kbd className="kbd">k</kbd> files · <kbd className="kbd">v</kbd> viewed
+        <kbd className="kbd">j</kbd>/<kbd className="kbd">k</kbd> files · <kbd className="kbd">v</kbd> viewed ·{' '}
+        <kbd className="kbd">⌘</kbd>-click usages
       </span>
       <SegmentedControl segments={VIEWS} value={props.view} onChange={props.onView} className={GAP} />
     </>
