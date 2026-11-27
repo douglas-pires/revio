@@ -8,6 +8,7 @@ import { MergeStatusesContext } from '../common/merge-statuses.context.ts'
 import type { OpenPull } from '../common/navigation.types.ts'
 import { usePrefetchOnHover } from './use-prefetch-on-hover.hook.ts'
 import { describeVerdict } from './verdict-label.util.ts'
+import { isLastBlocker } from './waiting-on-you.util.ts'
 
 /** Size labels by changed lines (additions + deletions): below each limit, that label; XL above them all. */
 const SIZE_LIMITS = { XS: 50, S: 200, M: 600, L: 1500 } as const
@@ -66,7 +67,16 @@ function RowMergeChips({ pr }: { pr: PullSummary }) {
   if (!status) {
     return null
   }
-  return <MergeChips status={status} viewer={viewer} compact={true} />
+  return (
+    <>
+      {viewer !== undefined && isLastBlocker(status, viewer, pr.viaTeam) && (
+        <span className="chip shrink-0 bg-accent/15 text-accent" title="Only your review is left before this can merge">
+          you're the last one
+        </span>
+      )}
+      <MergeChips status={status} viewer={viewer} compact={true} />
+    </>
+  )
 }
 
 /** Opens the PR on GitHub, without opening it here. */
