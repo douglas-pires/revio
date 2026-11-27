@@ -66,6 +66,7 @@ const methods = [
   'generateBriefing',
   'askClaude',
   'saveAsks',
+  'saveDismissedConcerns',
   'explainFile',
   'listUnfamiliarFiles',
   'getUpdateStatus',

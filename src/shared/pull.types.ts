@@ -1,4 +1,4 @@
-import type { AskThread, BriefingRecord } from './claude.types.ts'
+import type { AskThread, BriefingRecord, DismissedConcern } from './claude.types.ts'
 import type { FileExplanationRecord } from './explanation.types.ts'
 import type { ReactionSummary } from './reaction.types.ts'
 
@@ -118,6 +118,8 @@ export interface PullLocalState {
   drafts: DraftComment[]
   viewed: Record<string, string>
   briefing?: BriefingRecord
+  /** Concerns you marked as not an issue, kept out of later briefings. */
+  dismissedConcerns?: DismissedConcern[]
   asks?: AskThread[]
   /** Claude's explanations of files, by path. */
   explanations?: Record<string, FileExplanationRecord>

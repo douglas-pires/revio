@@ -1,4 +1,4 @@
-import type { Briefing, BriefingRecord } from '@shared/claude.types.ts'
+import type { Briefing, BriefingRecord, Concern, DismissedConcern } from '@shared/claude.types.ts'
 import { formatAge, joinClassNames } from '../common/format.util.ts'
 import { Markdown } from '../common/markdown.component.tsx'
 import {
@@ -34,6 +34,10 @@ interface BriefingPanelProps {
   validLine: (path: string, line: number) => boolean
   /** The file's diff, for showing the code a concern points at. */
   patchOf: (path: string) => string | undefined
+  /** Concerns you marked as not an issue on this PR. */
+  dismissed: readonly DismissedConcern[]
+  onDismiss: (concern: Concern) => void
+  onRestore: (entry: DismissedConcern) => void
 }
 
 /** Status lines under the briefing's buttons: what Claude is doing, or why it failed. */

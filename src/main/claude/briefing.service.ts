@@ -1,4 +1,4 @@
-import type { Briefing, BriefingRecord } from '@shared/claude.types.ts'
+import type { Briefing, BriefingRecord, DismissedConcern } from '@shared/claude.types.ts'
 import type { ResolvedGuideline } from '@shared/guideline.types.ts'
 import type { PullDetail } from '@shared/pull.types.ts'
 import { z } from 'zod'
@@ -29,9 +29,15 @@ const BriefingSchema = z.object({
         detail: z.string(),
         path: z.string(),
         line: z.number().int().nullable().describe('Line on the new (RIGHT) side, or null.'),
+        confidence: z
+          .enum(['high', 'medium', 'low'])
+          .describe('high: the diff shows the bug. medium: likely, worth checking. low: a hunch worth a quick look.'),
+        evidence: z.string().describe('The few lines of the diff that show it, quoted exactly.'),
       }),
     )
-    .describe('Concrete potential problems worth checking. Only real, specific issues - no filler.'),
+    .describe(
+      'At most 5 concrete problems the diff shows, the surest first. An empty list is a good answer when nothing stands out; never pad it.',
+    ),
   questions: z.array(z.string()).describe('Questions worth asking the author.'),
   guidelineChecks: z.array(
     z.object({
@@ -47,7 +53,10 @@ Your job is triage, not the review itself: tell the reviewer what the PR is abou
 and what they can safely skip. The reviewer has written guidelines describing what matters to them; apply them,
 and let more specific (folder-level) guidelines override general ones for the files they cover.
 Be concrete and terse. Reference real paths from the diff. Never invent files or line numbers.
-If a concern is speculative, say what to verify rather than asserting a bug.`
+If a concern is speculative, say what to verify rather than asserting a bug.
+Reviewers stop reading tools that raise noise: raise a concern only when you can quote the code that shows it, rate
+your confidence honestly, and leave out style, naming and nitpicks unless a guideline asks for them.
+Never raise again a concern the reviewer dismissed, unless the code it was about has changed.`
 
 /** ~4 chars/token; leaves plenty of headroom in a 1M context window. */
 const DIFF_BUDGET_CHARS = 1_200_000
@@ -56,9 +65,29 @@ const MAX_BRIEFING_TOKENS = 16_000
 const RECENT_COMMENTS = 60
 const COMMENT_CHARS = 400
 
-function buildPrompt(pr: PullDetail, guidelines: ResolvedGuideline[]) {
+/** Where a dismissed concern was: "cart.ts:12", or the file alone. */
+function describePlace(entry: DismissedConcern) {
+  if (entry.line === null) {
+    return entry.path
+  }
+  return `${entry.path}:${entry.line}`
+}
+
+/** The concerns you dismissed on this PR, for Claude not to raise again; nothing when there are none. */
+export function describeDismissed(dismissed: readonly DismissedConcern[]) {
+  if (dismissed.length === 0) {
+    return ''
+  }
+  const listed = dismissed.map((entry) => `- ${entry.title} (${describePlace(entry)})`).join('\n')
+  return `\n\n<dismissed_by_reviewer reason="the reviewer marked these as not an issue">\n${listed}\n</dismissed_by_reviewer>`
+}
+
+function buildPrompt(pr: PullDetail, guidelines: ResolvedGuideline[], dismissed: readonly DismissedConcern[]) {
   const { context, omitted } = buildPrContext(pr, guidelines)
-  return { prompt: `${context}\n\nBrief me on this pull request using the required JSON format.`, omitted }
+  return {
+    prompt: `${context}${describeDismissed(dismissed)}\n\nBrief me on this pull request using the required JSON format.`,
+    omitted,
+  }
 }
 
 /** Which diffs fit the budget, smallest first so one huge generated file cannot crowd out the real changes. */
@@ -147,12 +176,16 @@ ${diffs}
   return { context: prompt, omitted }
 }
 
+/**
+ * A briefing of the PR. Concerns you dismissed on it are sent along not to raise; one that comes back anyway is kept
+ * in the record (so it can be brought back) and hidden on screen.
+ */
 export async function generateBriefing(
   pr: PullDetail,
-  guidelines: ResolvedGuideline[],
+  context: { guidelines: ResolvedGuideline[]; dismissed: readonly DismissedConcern[] },
   onProgress: (message: string) => void,
 ): Promise<BriefingRecord> {
-  const { prompt, omitted } = buildPrompt(pr, guidelines)
+  const { prompt, omitted } = buildPrompt(pr, context.guidelines, context.dismissed)
   const { answer, backend, model } = await requestJson<Briefing>({
     schema: BriefingSchema,
     system: SYSTEM,

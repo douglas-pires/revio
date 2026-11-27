@@ -23,6 +23,9 @@ function BriefingCard({ view, pr }: { view: PullViewState; pr: PullDetail }) {
       onJump={(path, line) => view.nav.goTo(path, line)}
       validLine={(path, line) => Boolean(view.rightLines.get(path)?.has(line))}
       patchOf={view.patchOf}
+      dismissed={view.local.dismissedConcerns ?? []}
+      onDismiss={view.dismissConcern}
+      onRestore={view.restoreConcern}
       onDraft={(path, line, body) => {
         view.addDraft({ path, line, side: 'RIGHT', body: markAsAi(body) })
         view.nav.goTo(path, line)

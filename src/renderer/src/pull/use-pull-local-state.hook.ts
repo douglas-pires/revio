@@ -1,4 +1,4 @@
-import type { AskThread, BriefingRecord } from '@shared/claude.types.ts'
+import type { AskThread, BriefingRecord, Concern, DismissedConcern } from '@shared/claude.types.ts'
 import type { DraftComment, PullLocalState, PullRef } from '@shared/pull.types.ts'
 import { type Dispatch, type SetStateAction, useCallback, useState } from 'react'
 import { saveThread, setViewed, updateDraftBody } from './pull-local-state.util.ts'
@@ -57,6 +57,33 @@ function useAskThreads(pull: PullRef, setLocal: SetLocal) {
   }
 }
 
+/** Briefing concerns you marked as not an issue: dismiss one, or bring it back; each saved through the main process. */
+function useDismissedConcerns(pull: PullRef, setLocal: SetLocal) {
+  const updateDismissed = useCallback(
+    (change: (dismissed: DismissedConcern[]) => DismissedConcern[]) =>
+      setLocal((current) => {
+        const dismissedConcerns = change(current.dismissedConcerns ?? [])
+        globalThis.revio.saveDismissedConcerns(pull, dismissedConcerns)
+        return { ...current, dismissedConcerns }
+      }),
+    [pull, setLocal],
+  )
+  return {
+    dismissConcern: useCallback(
+      (concern: Concern) =>
+        updateDismissed((dismissed) => [
+          ...dismissed,
+          { title: concern.title, path: concern.path, line: concern.line, dismissedAt: new Date().toISOString() },
+        ]),
+      [updateDismissed],
+    ),
+    restoreConcern: useCallback(
+      (entry: DismissedConcern) => updateDismissed((dismissed) => dismissed.filter((kept) => kept !== entry)),
+      [updateDismissed],
+    ),
+  }
+}
+
 /**
  * Local review state for one PR (drafts, viewed files, Claude chats, briefing), kept in React state
  * and persisted through the main process. Every updater is stable for the PR's lifetime.
@@ -84,6 +111,7 @@ export function usePullLocalState(pull: PullRef) {
     ...useDrafts(pull, setLocal),
     markViewed,
     ...useAskThreads(pull, setLocal),
+    ...useDismissedConcerns(pull, setLocal),
     setBriefingRecord,
   }
 }
