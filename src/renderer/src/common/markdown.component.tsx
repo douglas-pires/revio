@@ -5,6 +5,7 @@ import rehypeSanitize, { defaultSchema } from 'rehype-sanitize'
 import remarkGfm from 'remark-gfm'
 import { CodeBlock } from './code-block.component.tsx'
 import { MermaidBlock } from './mermaid-block.component.tsx'
+import { readImageSource } from './pasted-images.store.ts'
 
 /**
  * GitHub-flavored markdown with the inline HTML people put in PR descriptions
@@ -73,7 +74,7 @@ function Img({
   return (
     // biome-ignore lint/a11y/noNoninteractiveElementInteractions: onError swaps a broken image for a link; it is not a user interaction.
     <img
-      src={source}
+      src={readImageSource(source)}
       alt={alt}
       width={width}
       height={height}

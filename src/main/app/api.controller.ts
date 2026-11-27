@@ -22,6 +22,7 @@ import type { HistoryCache } from '../history/history.cache.ts'
 import type { InboxPoller } from '../inbox/inbox.poller.ts'
 import { listMentionables } from '../mentionables/mentionables.service.ts'
 import type { MentionWatcher } from '../mentions/mentions.watcher.ts'
+import { uploadImage } from '../pulls/image-upload.service.ts'
 import { fetchMergeStatus, MergeStatusCache } from '../pulls/merge-status.service.ts'
 import type { PullCache } from '../pulls/pull.cache.ts'
 import { fetchFileAt } from '../pulls/pull.service.ts'
@@ -126,6 +127,7 @@ type PullMethods =
   | 'submitReview'
   | 'replyToComment'
   | 'setReaction'
+  | 'uploadImage'
   | 'commentOnPull'
   | 'saveAsks'
   | 'saveDismissedConcerns'
@@ -168,6 +170,7 @@ function buildPullHandlers({ store, poller, pulls, reviewHistory }: ApiDeps): Pi
     },
     replyToComment: (ref, id, body) => replyToComment(ref, id, body),
     commentOnPull: (ref, body) => commentOnPull(ref, body),
+    uploadImage: async (repo, image) => uploadImage(await getGithubClient(), repo, image),
     setReaction: async (ref, subjectId, content, on) => {
       const reactions = await setReaction(await getGithubClient(), subjectId, content, on)
       pulls.forget(ref)

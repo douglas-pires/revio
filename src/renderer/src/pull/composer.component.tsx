@@ -15,6 +15,7 @@ import {
   useUnsentScope,
 } from './unsent-comments.util.ts'
 import { useCommentSuggesters } from './use-comment-suggesters.hook.ts'
+import { useImagePaste } from './use-image-paste.hook.ts'
 import type { LineSelection } from './use-line-selection.hook.ts'
 
 interface ComposerProps {
@@ -208,6 +209,7 @@ function ComposerTextBox(props: {
 }) {
   const { shortcuts } = useShortcuts()
   const suggesters = useCommentSuggesters()
+  const images = useImagePaste()
   return (
     <SuggestingTextBox
       suggesters={suggesters}
@@ -215,10 +217,15 @@ function ComposerTextBox(props: {
       autoFocus={true}
       aria-label={props.label}
       className="input max-h-[60vh] min-h-20 resize-y font-sans [field-sizing:content]"
-      placeholder={`Leave a comment (markdown). ${formatShortcut(shortcuts.send)} to ${submitVerb(props.addsToReview)}, Esc to close and keep it`}
+      placeholder={`Leave a comment (markdown; paste or drop images). ${formatShortcut(shortcuts.send)} to ${submitVerb(props.addsToReview)}, Esc to close and keep it`}
       value={props.body}
       onChange={(event) => props.onChange(event.target.value)}
-      onPaste={pasteAsLink}
+      onPaste={(event) => {
+        if (!images.onPaste(event)) {
+          pasteAsLink(event)
+        }
+      }}
+      onDrop={images.onDrop}
       onKeyDown={(event) => {
         if (matchesShortcut(event, shortcuts.send)) {
           event.preventDefault()

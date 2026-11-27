@@ -6,6 +6,7 @@ import { ShortcutHint } from '../shortcuts/shortcut-hint.component.tsx'
 import { useShortcuts } from '../shortcuts/shortcuts.context.ts'
 import { SuggestingTextBox } from '../suggestions/suggesting-text-box.component.tsx'
 import { useCommentSuggesters } from './use-comment-suggesters.hook.ts'
+import { useImagePaste } from './use-image-paste.hook.ts'
 
 type ReviewState = NonNullable<PullDetail['myReview']>['state']
 
@@ -155,6 +156,7 @@ export function ReviewPopover(props: {
   const empty = event === 'COMMENT' && !props.body.trim() && props.draftCount === 0
   const { shortcuts } = useShortcuts()
   const suggesters = useCommentSuggesters()
+  const images = useImagePaste()
   const canSubmit = !(busy || empty)
   const submitIfReady = () => {
     if (canSubmit) {
@@ -171,6 +173,8 @@ export function ReviewPopover(props: {
         placeholder={describeSummaryPlaceholder(event, shortcuts.send)}
         value={props.body}
         onChange={(changeEvent) => props.setBody(changeEvent.target.value)}
+        onPaste={images.onPaste}
+        onDrop={images.onDrop}
         onKeyDown={(keyEvent) => {
           if (matchesShortcut(keyEvent, shortcuts.send)) {
             keyEvent.preventDefault()
