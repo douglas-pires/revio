@@ -31,6 +31,7 @@ import {
 import { InboxSearch } from './inbox-search.component.tsx'
 import { InboxSection } from './inbox-section.component.tsx'
 import { StackList } from './stack-list.component.tsx'
+import { WaitingSummary } from './waiting-summary.component.tsx'
 
 const MODES = ['queue', 'stacks', 'threads'] as const
 
@@ -151,6 +152,7 @@ function QueueSections(props: {
   const mergeStatuses = useMergeStatuses([...props.requested, ...props.reviewed])
   return (
     <MergeStatusesContext value={{ statuses: mergeStatuses, viewer: props.viewer }}>
+      <WaitingSummary requested={props.requested} />
       <InboxSection
         title="Stale"
         hint="waiting longer than your stale threshold"
