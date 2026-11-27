@@ -8,7 +8,8 @@ import { fetchFileAt } from '../pulls/pull.service.ts'
 import { store } from '../store/store.service.ts'
 import { type AnswerStream, type AskStream, answerStream } from './ask-activity.util.ts'
 import { buildMessageText, buildQuestionText, buildSelectionBlock } from './ask-prompt.util.ts'
-import { buildPrContext, pickBackend } from './briefing.service.ts'
+import { buildPrContext } from './briefing.service.ts'
+import { pickBackend } from './claude-json.service.ts'
 
 const SYSTEM = `You are pairing with a code reviewer who is looking at one specific part of a pull request.
 They selected some lines of the diff and asked a question about them. You have the full file at the PR's head

@@ -21,6 +21,7 @@ import { findEditorLine, isInFocus } from './diff-file.util.ts'
 import { DiffFileHeader } from './diff-file-header.component.tsx'
 import type { DiffTableProps } from './diff-table.types.ts'
 import { FileComments } from './file-comments.component.tsx'
+import { FileExplanation } from './file-explanation.component.tsx'
 import { FocusReasons, OutdatedComments } from './file-notes.component.tsx'
 import type { CommentActions } from './review-comments.component.tsx'
 import { SplitDiff } from './split-diff.component.tsx'
@@ -59,9 +60,10 @@ function DiffTable({ hasPatch, view, table }: { hasPatch: boolean; view: DiffVie
   return <SplitDiff {...table} />
 }
 
-/** A file's expanded body: focus reasons, file-level and outdated comments, then the diff. */
+/** A file's expanded body: Claude's explanation when asked for, focus reasons, file-level and outdated comments, then the diff. */
 function DiffFileBody(props: {
   file: PullFile
+  headSha: string
   view: DiffView
   focus: readonly FocusItem[]
   index: FileCommentIndex
@@ -76,6 +78,7 @@ function DiffFileBody(props: {
   const { file } = props
   return (
     <>
+      <FileExplanation path={file.path} headSha={props.headSha} />
       <FocusReasons focus={props.focus} />
       <FileComments
         path={file.path}
@@ -236,6 +239,7 @@ export const DiffFile = memo(function DiffFileView(props: DiffFileProps) {
         <div ref={bodyHeight.ref}>
           <DiffFileBody
             file={file}
+            headSha={props.headSha}
             view={view}
             focus={props.focus}
             index={index}

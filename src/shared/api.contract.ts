@@ -2,6 +2,7 @@ import type { AskThread, BriefingRecord } from './claude.types.ts'
 import type { EditorInfo, EditorTarget } from './editor.types.ts'
 import type { Emoji } from './emoji.types.ts'
 import type { MainEvent } from './event.types.ts'
+import type { FileExplanationRecord } from './explanation.types.ts'
 import type { FeedbackInput, FeedbackResult, SystemInfo } from './feedback.types.ts'
 import type { CiState, CommitCheck, CommitDetail, LogPage, PullLogQuery } from './git-log.types.ts'
 import type { Guideline, ResolvedGuideline } from './guideline.types.ts'
@@ -91,6 +92,10 @@ export interface RevioApi {
   /** Answers the last user message of `thread`. Streams text via `ask-delta` events. */
   askClaude: (ref: PullRef, thread: AskThread) => Promise<{ answer: string }>
   saveAsks: (ref: PullRef, threads: AskThread[]) => Promise<void>
+  /** Claude explains a file of the PR for a reviewer new to that code, and keeps the explanation. */
+  explainFile: (ref: PullRef, path: string) => Promise<FileExplanationRecord>
+  /** The PR's files in code you have not reviewed before; none when you never reviewed in the repository. */
+  listUnfamiliarFiles: (ref: PullRef) => Promise<string[]>
 
   /** The result of the last update check. */
   getUpdateStatus: () => Promise<UpdateStatus>

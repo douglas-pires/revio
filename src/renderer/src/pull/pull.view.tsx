@@ -14,6 +14,7 @@ import { QuickOpen } from './quick-open.component.tsx'
 import { StackBar } from './stack-bar.component.tsx'
 import { UnsentScopeContext } from './unsent-comments.util.ts'
 import { useCopyShortcuts } from './use-copy-shortcuts.hook.ts'
+import { ExplanationsContext, useExplanations } from './use-explanations.hook.ts'
 import type { CommitPick } from './use-pull-git-log.hook.ts'
 import { usePullPalette } from './use-pull-palette.hook.ts'
 import { type PullViewState, usePullView } from './use-pull-view.hook.ts'
@@ -79,6 +80,7 @@ function PullViewHeader({ view, pr, props }: { view: PullViewState; pr: PullDeta
 
 export function PullView(props: PullViewProps) {
   const view = usePullView(props.pull, props.initialTarget)
+  const explanations = useExplanations(view.pull, view.local.explanations)
   const [commitPick, setCommitPick] = useState<CommitPick | null>(null)
   const { pr } = view
   useCopyShortcuts(pr, view.nav.current)
@@ -114,44 +116,46 @@ export function PullView(props: PullViewProps) {
         <UnsentScopeContext value={`${props.pull.repo}#${props.pull.number}`}>
           <MentionScopeContext value={view.mentionScope}>
             <ThreadFoldContext value={view.threadFold}>
-              <div className="flex h-full flex-col">
-                <PullViewHeader view={view} pr={pr} props={props} />
-                {view.stack !== null && <StackBar stack={view.stack} pull={view.pull} onOpen={props.onOpenPull} />}
-                <div className="flex min-h-0 flex-1">
-                  <FileTree
-                    files={pr.files}
-                    viewed={view.local.viewed}
-                    current={view.nav.current}
-                    focusPaths={view.focusPaths}
-                    ignorePaths={view.ignorePaths}
-                    draftCounts={view.draftCounts}
-                    onSelect={view.nav.goTo}
-                  />
-                  <PullTabs
-                    view={view}
-                    pr={pr}
-                    onEditGuidelines={props.onEditGuidelines}
-                    onOpenCommit={(sha) => setCommitPick({ sha })}
-                  />
-                  <PullSidePanels view={view} pr={pr} />
-                </div>
-                <GitLogPanel
-                  repo={view.pull.repo}
-                  headSha={pr.headSha}
-                  headRef={pr.headRef}
-                  files={view.orderedFiles}
-                  openPath={readOpenPath(view)}
-                  commitPick={commitPick}
-                />
-                {Boolean(view.quickOpen.open) && (
-                  <QuickOpen
+              <ExplanationsContext value={explanations}>
+                <div className="flex h-full flex-col">
+                  <PullViewHeader view={view} pr={pr} props={props} />
+                  {view.stack !== null && <StackBar stack={view.stack} pull={view.pull} onOpen={props.onOpenPull} />}
+                  <div className="flex min-h-0 flex-1">
+                    <FileTree
+                      files={pr.files}
+                      viewed={view.local.viewed}
+                      current={view.nav.current}
+                      focusPaths={view.focusPaths}
+                      ignorePaths={view.ignorePaths}
+                      draftCounts={view.draftCounts}
+                      onSelect={view.nav.goTo}
+                    />
+                    <PullTabs
+                      view={view}
+                      pr={pr}
+                      onEditGuidelines={props.onEditGuidelines}
+                      onOpenCommit={(sha) => setCommitPick({ sha })}
+                    />
+                    <PullSidePanels view={view} pr={pr} />
+                  </div>
+                  <GitLogPanel
+                    repo={view.pull.repo}
+                    headSha={pr.headSha}
+                    headRef={pr.headRef}
                     files={view.orderedFiles}
-                    viewed={view.local.viewed}
-                    onPick={(path) => view.nav.goTo(path)}
-                    onClose={view.quickOpen.close}
+                    openPath={readOpenPath(view)}
+                    commitPick={commitPick}
                   />
-                )}
-              </div>
+                  {Boolean(view.quickOpen.open) && (
+                    <QuickOpen
+                      files={view.orderedFiles}
+                      viewed={view.local.viewed}
+                      onPick={(path) => view.nav.goTo(path)}
+                      onClose={view.quickOpen.close}
+                    />
+                  )}
+                </div>
+              </ExplanationsContext>
             </ThreadFoldContext>
           </MentionScopeContext>
         </UnsentScopeContext>
