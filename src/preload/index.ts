@@ -52,6 +52,7 @@ const methods = [
   'getCommitFiles',
   'getPullCommits',
   'getFileContent',
+  'findSymbol',
   'listEditors',
   'openInEditor',
   'listGuidelines',
