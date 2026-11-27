@@ -6,6 +6,7 @@ import { buildMarkdownLink } from '../common/markdown-link.util.ts'
 import { ShortcutHint } from '../shortcuts/shortcut-hint.component.tsx'
 import { useShortcuts } from '../shortcuts/shortcuts.context.ts'
 import { SuggestingTextBox } from '../suggestions/suggesting-text-box.component.tsx'
+import { RepeatCommentHint } from './repeat-comment-hint.component.tsx'
 import {
   forgetUnsentComment,
   keepUnsentComment,
@@ -299,6 +300,7 @@ export function Composer(props: ComposerProps) {
           onClose={props.onCancel}
         />
       )}
+      {!preview && <RepeatCommentHint body={body} path={props.codePath} />}
       <ComposerButtons props={props} body={body} busy={busy} sendNow={sendNow} submit={submit} discard={discard} />
     </div>
   )

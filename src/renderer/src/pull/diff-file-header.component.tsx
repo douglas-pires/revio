@@ -3,6 +3,7 @@ import type { PullFile } from '@shared/pull.types.ts'
 import { CopyButton } from '../common/copy-button.component.tsx'
 import { joinClassNames } from '../common/format.util.ts'
 import { ShortcutHint } from '../shortcuts/shortcut-hint.component.tsx'
+import { ExplainButton } from './explain-button.component.tsx'
 import { describeRename } from './files.util.ts'
 import { OpenInEditorButton } from './open-in-editor-button.component.tsx'
 
@@ -96,6 +97,7 @@ export function DiffFileHeader(props: {
         </span>
       )}
       <div className="flex-1" />
+      <ExplainButton path={props.file.path} />
       <OpenInEditorButton onOpen={props.onOpenInEditor} />
       <button
         type="button"

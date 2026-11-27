@@ -1,10 +1,11 @@
+import { buildDefaultTitle } from '@shared/guide-title.util.ts'
 import { formatShortcut, matchesShortcut } from '@shared/shortcut.util.ts'
 import { useId, useState } from 'react'
 import { Markdown } from '../common/markdown.component.tsx'
 import { SegmentedControl } from '../common/segmented-control.component.tsx'
 import { ShortcutHint } from '../shortcuts/shortcut-hint.component.tsx'
 import { useShortcuts } from '../shortcuts/shortcuts.context.ts'
-import { buildDefaultTitle, type Draft } from './guidelines.util.ts'
+import type { Draft } from './guidelines.util.ts'
 
 type Change = (draft: Draft) => void
 

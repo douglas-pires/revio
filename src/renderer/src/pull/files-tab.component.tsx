@@ -4,6 +4,7 @@ import { EMPTY } from '../common/group.util.ts'
 import { DiffFile } from './diff-file.component.tsx'
 import type { DiffFileProps, DiffView } from './diff-file.types.ts'
 import { findFilePathAt } from './file-in-view.util.ts'
+import { readWordAtPoint } from './symbol-word.util.ts'
 
 type FileCallbacks = Pick<
   DiffFileProps,
@@ -35,6 +36,8 @@ export function FilesTab(
     current: string | null
     /** Clicking anywhere in a file makes it the current one, for v and j/k. */
     onSelectFile: (path: string) => void
+    /** ⌘-clicking a name opens where it is defined and used. */
+    onFindUsages: (name: string) => void
   },
 ) {
   return (
@@ -45,6 +48,17 @@ export function FilesTab(
         const path = findFilePathAt(event.target as Element)
         if (path !== null && path !== props.current) {
           props.onSelectFile(path)
+        }
+      }}
+      onClickCapture={(event) => {
+        if (!event.metaKey) {
+          return
+        }
+        const name = readWordAtPoint(event.clientX, event.clientY)
+        if (name !== null) {
+          event.preventDefault()
+          event.stopPropagation()
+          props.onFindUsages(name)
         }
       }}
     >
