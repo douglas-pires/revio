@@ -1,5 +1,6 @@
 import type { FocusRail, Settings, SettingsPatch } from '@shared/settings.types.ts'
 import { useCallback, useEffect, useState } from 'react'
+import { orderFocusShortcutsFirst } from '../focus/shortcut-order.util.ts'
 import { Row } from './settings-form.component.tsx'
 
 type Update = (patch: SettingsPatch) => Promise<void>
@@ -14,7 +15,7 @@ const RAIL_CHOICES: { value: FocusRail; label: string }[] = [
 function useShortcutNames() {
   const [names, setNames] = useState<string[] | null>(null)
   const reload = useCallback(() => {
-    globalThis.revio.listShortcuts().then(setNames)
+    globalThis.revio.listShortcuts().then((found) => setNames(orderFocusShortcutsFirst(found)))
   }, [])
   useEffect(reload, [reload])
   return { names, reload }
@@ -39,14 +40,38 @@ function ShortcutPicker(props: { label: string; value: string; names: string[]; 
   )
 }
 
+/** How to make the two shortcuts, since macOS lets apps change Focus only through Shortcuts. */
+function DoNotDisturbSteps() {
+  return (
+    <div className="flex flex-col gap-1.5 text-[12px] text-muted">
+      <p>Macs let apps change Focus only through Shortcuts, so this takes two small shortcuts:</p>
+      <ol className="list-decimal space-y-0.5 pl-5">
+        <li>
+          Make a new shortcut, add the <span className="text-fg">Set Focus</span> action, and set it to{' '}
+          <span className="text-fg">Turn Do Not Disturb On until Turned Off</span>. Name it, say, “Revio DND on”.
+        </li>
+        <li>
+          Make another that turns <span className="text-fg">Do Not Disturb Off</span>, named “Revio DND off”.
+        </li>
+        <li>Refresh the list and pick them above.</li>
+      </ol>
+      <p>
+        Revio runs the first when a block starts or resumes, and the second when it pauses or ends, or when you quit.
+      </p>
+      <div>
+        <button type="button" className="btn" onClick={() => globalThis.revio.openShortcutsApp()}>
+          Open Shortcuts
+        </button>
+      </div>
+    </div>
+  )
+}
+
 /** Which shortcuts turn Do Not Disturb on and off during a block, and how to make them. */
 function DoNotDisturbRow({ settings, update }: { settings: Settings; update: Update }) {
   const shortcuts = useShortcutNames()
   return (
-    <Row
-      label="Do Not Disturb"
-      hint="Macs can only change Focus through Shortcuts. In the Shortcuts app, make one shortcut with the “Set Focus” action turning Do Not Disturb on, and another turning it off, then pick them here. Revio runs the first when a block starts or resumes, and the second when it pauses or ends, or when you quit."
-    >
+    <Row label="Do Not Disturb">
       <div className="flex flex-col gap-2">
         <ShortcutPicker
           label="Turn on with"
@@ -65,6 +90,7 @@ function DoNotDisturbRow({ settings, update }: { settings: Settings; update: Upd
             Refresh the list
           </button>
         </div>
+        <DoNotDisturbSteps />
       </div>
     </Row>
   )

@@ -77,6 +77,7 @@ const methods = [
   'restartToUpdate',
   'testNotification',
   'listShortcuts',
+  'openShortcutsApp',
   'setDoNotDisturb',
   'getUnseenUpdate',
   'markUpdateSeen',

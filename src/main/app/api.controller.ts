@@ -313,6 +313,7 @@ export function registerApi(deps: ApiDeps) {
     restartToUpdate: () => deps.installer.restart(),
     testNotification: () => sendTestNotification(() => deps.window.show()),
     listShortcuts: () => listShortcuts(),
+    openShortcutsApp: () => shell.openExternal('shortcuts://create-shortcut'),
     setDoNotDisturb: (on) => deps.doNotDisturb.set(on),
     ...buildGuidelinesApi(deps),
     ...buildClaudeHandlers(deps),
