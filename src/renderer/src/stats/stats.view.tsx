@@ -102,14 +102,23 @@ function StatsBody({ data }: { data: StatsData }) {
   )
 }
 
+/** The screen under the header: the error, the mascot filling it while this scope's first stats load, or the stats. */
 function StatsContent({ state }: { state: StatsState }) {
   if (state.error) {
-    return <p className="card px-4 py-3 text-danger">{state.error}</p>
+    return (
+      <ScreenBody>
+        <p className="card px-4 py-3 text-danger">{state.error}</p>
+      </ScreenBody>
+    )
   }
   if (!(state.data && isStatsFor(state.data, state.scope, state.period))) {
     return <MascotLoading label="Reading PRs from GitHub… a large team can take a couple of minutes" />
   }
-  return <StatsBody data={state.data} />
+  return (
+    <ScreenBody>
+      <StatsBody data={state.data} />
+    </ScreenBody>
+  )
 }
 
 /** Review and delivery stats, Swarmia-style, for you, a team or a repository. */
@@ -135,9 +144,7 @@ export function Stats() {
         </ScreenHeader>
       }
     >
-      <ScreenBody>
-        <StatsContent state={state} />
-      </ScreenBody>
+      <StatsContent state={state} />
     </Screen>
   )
 }
