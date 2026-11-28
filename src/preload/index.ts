@@ -77,6 +77,8 @@ const methods = [
   'downloadUpdate',
   'restartToUpdate',
   'testNotification',
+  'getStats',
+  'listStatsTeams',
   'getUnseenUpdate',
   'markUpdateSeen',
   'listReleaseNotes',

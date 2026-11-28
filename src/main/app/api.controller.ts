@@ -13,7 +13,7 @@ import type { EditorService } from '../editor/editor.service.ts'
 import { listInstalledEditors } from '../editor/editor.service.ts'
 import { listEmojis } from '../emojis/emojis.service.ts'
 import { buildFeedbackApi } from '../feedback/feedback.api.ts'
-import { getGithubClient, resetClient } from '../github/github.client.ts'
+import { getGithubClient, getViewerLogin, resetClient } from '../github/github.client.ts'
 import type { GithubTokens } from '../github/github-tokens.service.ts'
 import { buildGitLogApi } from '../gitlog/git-log.api.ts'
 import { buildGuidelinesApi } from '../guidelines/guidelines.api.ts'
@@ -33,6 +33,8 @@ import { findUnfamiliarFiles } from '../reviews/familiarity.util.ts'
 import type { ReviewHistoryCache } from '../reviews/review-history.cache.ts'
 import { fetchStackComments } from '../stacks/stack-comments.service.ts'
 import { fetchStack } from '../stacks/stacks.service.ts'
+import type { StatsCache } from '../stats/stats.cache.ts'
+import { fetchStatsTeams } from '../stats/stats.service.ts'
 import type { store as appStore } from '../store/store.service.ts'
 import { findSymbol } from '../symbols/symbol-search.service.ts'
 import type { IcloudSync } from '../sync/icloud-sync.service.ts'
@@ -292,6 +294,8 @@ export interface ApiDeps {
   threads: ThreadCache
   /** The reviews you sent before. */
   reviewHistory: ReviewHistoryCache
+  /** Team, repository and your own stats. */
+  stats: StatsCache
   mentions: MentionWatcher
   editor: EditorService
   sync: IcloudSync
@@ -312,6 +316,8 @@ export function registerApi(deps: ApiDeps) {
     downloadUpdate: () => deps.installer.download(),
     restartToUpdate: () => deps.installer.restart(),
     testNotification: () => sendTestNotification(() => deps.window.show()),
+    getStats: (scope, days, fresh) => deps.stats.get(scope, days, fresh),
+    listStatsTeams: async () => fetchStatsTeams(await getGithubClient(), await getViewerLogin()),
     ...buildGuidelinesApi(deps),
     ...buildClaudeHandlers(deps),
     ...buildGitLogApi(),

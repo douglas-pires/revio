@@ -16,6 +16,7 @@ import type { DraftComment, PullDetail, PullLocalState, PullRef, SinceReview, Su
 import type { ReactionContent, ReactionSummary } from './reaction.types.ts'
 import type { GuideEntry, SimilarComment } from './review-history.types.ts'
 import type { GithubAuthStatus, Settings, SettingsPatch, SyncStatus } from './settings.types.ts'
+import type { StatsData, StatsPeriod, StatsScope, StatsTeams } from './stats.types.ts'
 import type { SymbolSearch } from './symbol.types.ts'
 import type { ThreadComment, ThreadsInbox } from './thread.types.ts'
 import type { UpdateStatus } from './update.types.ts'
@@ -121,6 +122,10 @@ export interface RevioApi {
   /** Quits, replaces Revio with the downloaded update and opens it again. */
   restartToUpdate: () => Promise<void>
 
+  /** The PRs behind the stats of a scope over the last `days`; `fresh` skips the half-hour copy. */
+  getStats: (scope: StatsScope, days: StatsPeriod, fresh: boolean) => Promise<StatsData>
+  /** The teams you are in, to pick for the stats. */
+  listStatsTeams: () => Promise<StatsTeams>
   /** Shows a sample notification; false when macOS refused it (notifications off for Revio). */
   testNotification: () => Promise<boolean>
   /** A page of a PR's git log, from GitHub. */
