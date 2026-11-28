@@ -5,15 +5,18 @@ import type { PullTarget } from './navigation.types.ts'
 /** Where the screen jumps to on arrival, which going back or forward should not repeat. */
 function dropTarget(route: Route): Route {
   if (route.view === 'pull' && route.target) {
-    return { view: 'pull', pull: route.pull }
+    return { view: 'pull', pull: route.pull, from: route.from }
   }
   return route
 }
 
-/** A screen of the app. */
+/** The screens that list PRs, which a PR opened from them stays under in the rail. */
+export type ListView = 'inbox' | 'my-pulls' | 'mentions'
+
+/** A screen of the app. A PR's `from` is the list it was opened from; none means the inbox. */
 export type Route =
   | { view: 'inbox' }
-  | { view: 'pull'; pull: PullRef; target?: PullTarget | undefined }
+  | { view: 'pull'; pull: PullRef; target?: PullTarget | undefined; from?: ListView | undefined }
   | { view: 'guidelines'; repo?: string | undefined; path?: string | undefined }
   | { view: 'mentions' }
   | { view: 'my-pulls' }
