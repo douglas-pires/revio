@@ -48,6 +48,7 @@ const methods = [
   'submitReview',
   'replyToComment',
   'setReaction',
+  'uploadImage',
   'commentOnPull',
   'getBlame',
   'getFileHistory',

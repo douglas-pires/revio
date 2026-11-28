@@ -11,6 +11,7 @@ import type { Inbox, Stack, StackPrComments } from './inbox.types.ts'
 import type { MentionsInbox } from './mention.types.ts'
 import type { Mentionable } from './mentionable.types.ts'
 import type { MergeStatus } from './merge-status.types.ts'
+import type { PastedImage } from './pasted-image.util.ts'
 import type { DraftComment, PullDetail, PullLocalState, PullRef, SinceReview, SubmitReviewInput } from './pull.types.ts'
 import type { ReactionContent, ReactionSummary } from './reaction.types.ts'
 import type { GuideEntry, SimilarComment } from './review-history.types.ts'
@@ -67,6 +68,8 @@ export interface RevioApi {
   commentOnPull: (ref: PullRef, body: string) => Promise<{ url: string }>
   /** Adds or removes your reaction on a review comment (by its GraphQL id) and returns its reactions after. */
   setReaction: (ref: PullRef, subjectId: string, content: ReactionContent, on: boolean) => Promise<ReactionSummary[]>
+  /** Uploads an image for a comment in a repository ("owner/name") and returns its URL. */
+  uploadImage: (repo: string, image: PastedImage) => Promise<string>
 
   /** Who last changed each line of a file at a commit. */
   getBlame: (at: FileAtCommit) => Promise<BlameRange[]>
