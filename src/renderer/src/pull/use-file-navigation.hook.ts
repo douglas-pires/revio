@@ -1,5 +1,6 @@
 import type { PullDetail } from '@shared/pull.types.ts'
 import { useCallback, useEffect, useRef, useState } from 'react'
+import { useFileScrollSpy } from './use-file-scroll-spy.hook.ts'
 import { type ScrollTarget, useScrollToTarget } from './use-scroll-to-target.hook.ts'
 
 /**
@@ -18,6 +19,7 @@ export function useFileNavigation(opts: {
   const [collapsed, setCollapsed] = useState<Record<string, boolean>>({})
   const [current, setCurrent] = useState<string | null>(null)
   const [scrollTarget, setScrollTarget] = useState<ScrollTarget | null>(null)
+  const { markMoved } = useFileScrollSpy({ active: opts.onFilesTab, current, setCurrent })
 
   /** Shows the files tab and scrolls to the target, opening its file unless `expand` is false. */
   const jump = useCallback(
@@ -26,13 +28,14 @@ export function useFileNavigation(opts: {
       if (target.commentId !== undefined) {
         onRevealComment?.(target.commentId)
       }
+      markMoved()
       setCurrent(target.path)
       if (expand) {
         setCollapsed((previousCollapsed) => ({ ...previousCollapsed, [target.path]: false }))
       }
       setScrollTarget(target)
     },
-    [showFiles, onRevealComment],
+    [showFiles, onRevealComment, markMoved],
   )
   const goTo = useCallback(
     (path: string, line: number | null = null, expand = true, commentId?: number) =>
@@ -67,7 +70,13 @@ export function useFileNavigation(opts: {
   )
 
   /** Makes a file current without scrolling, as clicking in it does. */
-  const select = useCallback((path: string) => setCurrent(path), [])
+  const select = useCallback(
+    (path: string) => {
+      markMoved()
+      setCurrent(path)
+    },
+    [markMoved],
+  )
 
   return { collapsed, replaceCollapsed: setCollapsed, setFileCollapsed, collapseFiles, current, select, goTo, jump }
 }

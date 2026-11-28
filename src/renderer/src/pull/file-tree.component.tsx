@@ -1,5 +1,5 @@
 import type { PullFile } from '@shared/pull.types.ts'
-import { memo } from 'react'
+import { memo, useEffect, useRef } from 'react'
 import { joinClassNames } from '../common/format.util.ts'
 import { PanelHeader } from '../common/panel-header.component.tsx'
 import { ResizablePanel } from '../common/resizable-panel.component.tsx'
@@ -7,6 +7,16 @@ import { groupByDir } from './files.util.ts'
 import { useUnsentPaths } from './unsent-comments.util.ts'
 
 const PERCENT = 100
+
+/** Scrolls the list just enough to show the current file's row, as the diff moves on to it. */
+function useCurrentRowInView(list: React.RefObject<HTMLUListElement | null>, current: string | null) {
+  useEffect(() => {
+    if (current === null) {
+      return
+    }
+    list.current?.querySelector(`[data-path="${CSS.escape(current)}"]`)?.scrollIntoView({ block: 'nearest' })
+  }, [list, current])
+}
 
 /** Sidebar list of changed files, grouped by folder, with viewed/focus/draft markers. */
 export const FileTree = memo(function FileTreeView(props: {
@@ -19,6 +29,8 @@ export const FileTree = memo(function FileTreeView(props: {
   onSelect: (path: string) => void
 }) {
   const unsentPaths = useUnsentPaths()
+  const list = useRef<HTMLUListElement>(null)
+  useCurrentRowInView(list, props.current)
   const viewedCount = props.files.filter((file) => props.viewed[file.path] === file.sha).length
   return (
     <ResizablePanel
@@ -44,7 +56,7 @@ export const FileTree = memo(function FileTreeView(props: {
           style={{ width: `${(viewedCount / Math.max(1, props.files.length)) * PERCENT}%` }}
         />
       </div>
-      <ul className="min-h-0 flex-1 overflow-y-auto px-1.5 pb-3">
+      <ul ref={list} className="min-h-0 flex-1 overflow-y-auto px-1.5 pb-3">
         {groupByDir(props.files).map(([directory, files]) => (
           <li key={directory} className="mb-1">
             {Boolean(directory) && (
@@ -62,6 +74,7 @@ export const FileTree = memo(function FileTreeView(props: {
                 <button
                   type="button"
                   key={file.path}
+                  data-path={file.path}
                   onClick={() => props.onSelect(file.path)}
                   title={file.path}
                   className={joinClassNames(
