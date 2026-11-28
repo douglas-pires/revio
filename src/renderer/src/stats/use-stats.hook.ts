@@ -2,38 +2,24 @@ import { STATS_PERIODS, type StatsData, type StatsScope, type StatsTeams } from 
 import { useCallback, useEffect, useRef, useState } from 'react'
 import { readErrorMessage } from '../common/format.util.ts'
 import { useStoredChoice } from '../common/use-stored-choice.hook.ts'
+import { readStoredScope, rememberScope } from './stats-scope-memory.util.ts'
 
-const SCOPE_KEY = 'revio.statsScope'
 const PERIOD_CHOICES = STATS_PERIODS.map((days) => `${days}` as const)
 
-function readStoredScope(): StatsScope {
-  try {
-    const stored = JSON.parse(localStorage.getItem(SCOPE_KEY) ?? 'null') as StatsScope | null
-    // A team scope from before several teams could be picked has no list: start again with your own.
-    if ((stored?.kind === 'team' && Array.isArray(stored.teams)) || stored?.kind === 'repo' || stored?.kind === 'me') {
-      return stored
-    }
-  } catch {
-    /* unreadable: start with your own stats */
-  }
-  return { kind: 'me' }
-}
-
-/** Whose stats are shown, remembered on this Mac (a convenience: storage failures are ignored). */
+/** Whose stats are shown, remembered with the teams and repository picked in each tab. */
 function useStoredScope() {
   const [scope, setScope] = useState(readStoredScope)
   const change = useCallback((next: StatsScope) => {
     setScope(next)
-    try {
-      localStorage.setItem(SCOPE_KEY, JSON.stringify(next))
-    } catch {
-      /* keep the in-memory choice */
-    }
+    rememberScope(next)
   }, [])
   return [scope, change] as const
 }
 
-/** The stats for the chosen scope and period: loading them, and loading them again fresh. */
+/**
+ * The stats for the chosen scope and period. The last ones fetched show at once (even after a restart), then a
+ * fresh copy replaces them when they are older than half an hour, or on Refresh.
+ */
 export function useStats() {
   const [scope, setScope] = useStoredScope()
   const [period, setPeriod] = useStoredChoice('revio.statsPeriod', PERIOD_CHOICES, '90')
@@ -44,13 +30,18 @@ export function useStats() {
   const load = useCallback(
     (fresh: boolean) => {
       const request = ++latestRequest.current
+      const isCurrent = () => request === latestRequest.current
+      const days = Number(period) as StatsData['days']
       setLoading(true)
       setError(null)
+      if (!fresh) {
+        globalThis.revio.getSavedStats(scope, days).then((saved) => saved && isCurrent() && setData(saved))
+      }
       globalThis.revio
-        .getStats(scope, Number(period) as StatsData['days'], fresh)
-        .then((next) => request === latestRequest.current && setData(next))
-        .catch((failure) => request === latestRequest.current && setError(readErrorMessage(failure)))
-        .finally(() => request === latestRequest.current && setLoading(false))
+        .getStats(scope, days, fresh)
+        .then((next) => isCurrent() && setData(next))
+        .catch((failure) => isCurrent() && setError(readErrorMessage(failure)))
+        .finally(() => isCurrent() && setLoading(false))
     },
     [scope, period],
   )

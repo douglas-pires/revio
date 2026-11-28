@@ -7,6 +7,7 @@ import { Screen, ScreenBody, ScreenHeader } from '../common/screen.component.tsx
 import { SegmentedControl } from '../common/segmented-control.component.tsx'
 import { CycleBar } from './cycle-bar.component.tsx'
 import { formatSpan } from './stats-format.util.ts'
+import { isStatsFor } from './stats-scope-memory.util.ts'
 import { StatsScopePicker } from './stats-scope-picker.component.tsx'
 import { type ComputedStats, computeStats } from './stats-summary.util.ts'
 import { ReviewBlocksCard, ReviewersTable, SizeTable } from './stats-tables.component.tsx'
@@ -19,15 +20,20 @@ const PERIODS = [
   { value: '180', label: '180 days' },
 ] as const
 
-/** Who the stats are about, for the subtitle. */
-function describeScope(scope: StatsScope, data: StatsData | null) {
+/** "1 person" or "6 people". */
+function describePeople(count: number) {
+  return count === 1 ? '1 person' : `${count} people`
+}
+
+/** Who the stats are about, for the subtitle; the head count only once this scope's stats are in. */
+function describeScope(scope: StatsScope, data: StatsData | null, period: string) {
   if (scope.kind === 'me') {
     return 'Your reviews and PRs'
   }
   if (scope.kind === 'team') {
-    const members = data?.people?.length
     const names = scope.teams.map((team) => team.name).join(', ')
-    return `${names}${members ? ` · ${members} people` : ''}`
+    const members = data && isStatsFor(data, scope, period) ? data.people?.length : undefined
+    return members ? `${names} · ${describePeople(members)}` : names
   }
   return `Everyone in ${scope.repo}`
 }
@@ -100,8 +106,7 @@ function StatsContent({ state }: { state: StatsState }) {
   if (state.error) {
     return <p className="card px-4 py-3 text-danger">{state.error}</p>
   }
-  const shown = state.data && JSON.stringify([state.data.scope, `${state.data.days}`])
-  if (!state.data || shown !== JSON.stringify([state.scope, state.period])) {
+  if (!(state.data && isStatsFor(state.data, state.scope, state.period))) {
     return <MascotLoading label="Reading PRs from GitHub… a large team can take a couple of minutes" />
   }
   return <StatsBody data={state.data} />
@@ -115,7 +120,7 @@ export function Stats() {
       header={
         <ScreenHeader
           title="Stats"
-          subtitle={describeScope(state.scope, state.data)}
+          subtitle={describeScope(state.scope, state.data, state.period)}
           actions={
             <>
               <span className="text-[12px] text-muted">{state.data && describeFreshness(state.data.fetchedAt)}</span>

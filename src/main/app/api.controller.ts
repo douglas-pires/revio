@@ -317,6 +317,7 @@ export function registerApi(deps: ApiDeps) {
     restartToUpdate: () => deps.installer.restart(),
     testNotification: () => sendTestNotification(() => deps.window.show()),
     getStats: (scope, days, fresh) => deps.stats.get(scope, days, fresh),
+    getSavedStats: (scope, days) => deps.stats.readSaved(scope, days),
     listStatsTeams: async () => fetchStatsTeams(await getGithubClient(), await getViewerLogin()),
     ...buildGuidelinesApi(deps),
     ...buildClaudeHandlers(deps),

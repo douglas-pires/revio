@@ -78,6 +78,7 @@ const methods = [
   'restartToUpdate',
   'testNotification',
   'getStats',
+  'getSavedStats',
   'listStatsTeams',
   'getUnseenUpdate',
   'markUpdateSeen',

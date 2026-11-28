@@ -124,6 +124,8 @@ export interface RevioApi {
 
   /** The PRs behind the stats of a scope over the last `days`; `fresh` skips the half-hour copy. */
   getStats: (scope: StatsScope, days: StatsPeriod, fresh: boolean) => Promise<StatsData>
+  /** The last stats fetched for a scope and period, however old, to show while fresh ones load; null for none. */
+  getSavedStats: (scope: StatsScope, days: StatsPeriod) => Promise<StatsData | null>
   /** The teams you are in, to pick for the stats. */
   listStatsTeams: () => Promise<StatsTeams>
   /** Shows a sample notification; false when macOS refused it (notifications off for Revio). */

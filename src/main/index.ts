@@ -58,8 +58,9 @@ const tokens = new GithubTokens({
 configureTokenResolver(() => tokens.resolve())
 const pulls = new PullCache(fetchPull)
 const history = new HistoryCache(getGithubClient)
-const stats = new StatsCache(async (scope, days) =>
-  fetchStats(await getGithubClient(), await getViewerLogin(), scope, days),
+const stats = new StatsCache(
+  async (scope, days) => fetchStats(await getGithubClient(), await getViewerLogin(), scope, days),
+  join(app.getPath('userData'), 'stats'),
 )
 const reviewHistory = new ReviewHistoryCache(async (days) =>
   fetchReviewHistory(await getGithubClient(), await getViewerLogin(), days),
