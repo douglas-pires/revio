@@ -30,8 +30,6 @@ export interface Settings {
   codeFolders: string[]
   /** What the left rail shows during a review block. */
   focusRail: FocusRail
-  /** Turn on Do Not Disturb while a review block runs. */
-  doNotDisturb: boolean
   /** Sync the synced settings and the review guides with your other Macs through iCloud Drive. */
   syncViaIcloud: boolean
   /** Secrets are never sent back to the renderer, only whether they are set. */

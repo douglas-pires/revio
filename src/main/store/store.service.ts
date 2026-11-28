@@ -53,7 +53,6 @@ const DEFAULT_SETTINGS: StoredSettings = {
   shortcuts: {},
   codeFolders: [],
   focusRail: 'quiet',
-  doNotDisturb: false,
   syncViaIcloud: false,
 }
 

@@ -8,7 +8,6 @@ import { AppWindow } from './app/app.window.ts'
 import { env } from './common/env.config.ts'
 import { runWithInput } from './common/shell.util.ts'
 import { EditorService } from './editor/editor.service.ts'
-import { DoNotDisturb } from './focus/do-not-disturb.service.ts'
 import { configureTokenResolver, getGithubClient, getViewerLogin } from './github/github.client.ts'
 import { GithubTokens } from './github/github-tokens.service.ts'
 import { HistoryCache } from './history/history.cache.ts'
@@ -118,9 +117,7 @@ const sync = new IcloudSync({
   onStatus: (status, applied) => window.send({ type: 'sync', status, applied }),
 })
 store.onSyncedChange(() => sync.localChanged())
-const doNotDisturb = new DoNotDisturb(() => store.settings().doNotDisturb)
 registerApi({
-  doNotDisturb,
   store,
   tokens,
   poller,
@@ -170,7 +167,6 @@ app.on('window-all-closed', () => {
 })
 
 app.on('before-quit', () => {
-  doNotDisturb.release()
   sync.flush()
   flush()
 })

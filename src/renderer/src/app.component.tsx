@@ -14,7 +14,6 @@ import { ReviewBlockContext } from './focus/review-block.context.ts'
 import { BLOCK_MINUTES, type BlockMinutes } from './focus/review-block.util.ts'
 import { ReviewBlockBar } from './focus/review-block-bar.component.tsx'
 import { ReviewBlockPicker } from './focus/review-block-picker.component.tsx'
-import { useDoNotDisturb } from './focus/use-do-not-disturb.hook.ts'
 import { useFocusRail } from './focus/use-focus-rail.hook.ts'
 import { useReviewBlock } from './focus/use-review-block.hook.ts'
 import { HighlighterContext, WorkerHighlighter } from './highlight/highlight.service.ts'
@@ -320,7 +319,6 @@ function FocusLayout(props: {
   const controls = useFocusControls()
   const { block } = controls
   const rail = useFocusRail(props.history.route.view)
-  useDoNotDisturb(block.running)
   const showsRail = !block.focused || rail !== 'hidden'
   return (
     <ReviewBlockContext value={block}>

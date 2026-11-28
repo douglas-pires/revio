@@ -13,7 +13,6 @@ import type { EditorService } from '../editor/editor.service.ts'
 import { listInstalledEditors } from '../editor/editor.service.ts'
 import { listEmojis } from '../emojis/emojis.service.ts'
 import { buildFeedbackApi } from '../feedback/feedback.api.ts'
-import { addDoNotDisturbShortcuts, type DoNotDisturb, isDoNotDisturbReady } from '../focus/do-not-disturb.service.ts'
 import { getGithubClient, resetClient } from '../github/github.client.ts'
 import type { GithubTokens } from '../github/github-tokens.service.ts'
 import { buildGitLogApi } from '../gitlog/git-log.api.ts'
@@ -294,8 +293,6 @@ export interface ApiDeps {
   editor: EditorService
   sync: IcloudSync
   window: AppWindow
-  /** Do Not Disturb during review blocks. */
-  doNotDisturb: DoNotDisturb
   /** Revio's own repository: where feedback goes. */
   releaseSource: ReleaseSource | null
 }
@@ -312,9 +309,6 @@ export function registerApi(deps: ApiDeps) {
     downloadUpdate: () => deps.installer.download(),
     restartToUpdate: () => deps.installer.restart(),
     testNotification: () => sendTestNotification(() => deps.window.show()),
-    isDoNotDisturbReady: () => isDoNotDisturbReady(),
-    addDoNotDisturbShortcuts: () => addDoNotDisturbShortcuts(),
-    setDoNotDisturb: (on) => deps.doNotDisturb.set(on),
     ...buildGuidelinesApi(deps),
     ...buildClaudeHandlers(deps),
     ...buildGitLogApi(),

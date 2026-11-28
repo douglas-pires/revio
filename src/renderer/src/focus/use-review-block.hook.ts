@@ -47,14 +47,6 @@ export function describeReviews(count: number) {
 function announceEnd(block: ReviewBlock) {
   const text = `Review block done: ${block.minutes} min, ${describeReviews(block.reviews)}`
   showNotice(text)
-  // Do Not Disturb would hold the notification back, so it goes off first.
-  globalThis.revio
-    .setDoNotDisturb(false)
-    .catch(() => undefined)
-    .then(() => showEndNotification(text))
-}
-
-function showEndNotification(text: string) {
   try {
     const notification = new Notification('Revio', { body: text })
     notification.onclick = () => globalThis.focus()
@@ -112,8 +104,6 @@ export function useReviewBlock() {
     over,
     /** Whether to hide what distracts from reviewing: while a block runs or is paused, not once it is over. */
     focused: block !== null && !over,
-    /** Whether the clock is going: focused and not paused. */
-    running: running && !over,
     start: useCallback((minutes: BlockMinutes) => update(() => startBlock(minutes, Date.now())), [update]),
     togglePause: useCallback(
       () =>

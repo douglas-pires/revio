@@ -6,7 +6,7 @@ import { usePalettePage } from '../palette/use-palette-page.hook.ts'
 const CATEGORIES = {
   github: { label: 'GitHub', hint: 'Account and which PRs count' },
   alerts: { label: 'Alerts', hint: 'Notifications and stale reviews' },
-  focus: { label: 'Focus', hint: 'Review blocks and Do Not Disturb' },
+  focus: { label: 'Focus', hint: 'Review blocks' },
   editor: { label: 'Editor', hint: 'Opening files on this Mac' },
   shortcuts: { label: 'Shortcuts', hint: 'Every shortcut and its keys' },
   claude: { label: 'Claude', hint: 'Connection and model' },
