@@ -76,6 +76,8 @@ const methods = [
   'downloadUpdate',
   'restartToUpdate',
   'testNotification',
+  'listShortcuts',
+  'setDoNotDisturb',
   'getUnseenUpdate',
   'markUpdateSeen',
   'listReleaseNotes',

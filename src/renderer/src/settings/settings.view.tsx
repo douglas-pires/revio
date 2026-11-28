@@ -8,6 +8,7 @@ import { ShortcutList } from '../shortcuts/shortcut-list.component.tsx'
 import { UpdateSettings } from '../updates/update-settings.component.tsx'
 import { EditorSettings } from './editor-settings.component.tsx'
 import { FeedbackSettings } from './feedback-settings.component.tsx'
+import { FocusSettings } from './focus-settings.component.tsx'
 import { GithubTokenSettings } from './github-token-settings.component.tsx'
 import { CategoryActions, CategoryNav, CategoryPane, SETTINGS_CATEGORIES } from './settings-categories.component.tsx'
 import { Group, Num, Row, Toggle } from './settings-form.component.tsx'
@@ -242,6 +243,11 @@ export function Settings() {
         </CategoryPane>
         <CategoryPane category="alerts" active={category}>
           <AlertsGroup key={`alerts-${revision}`} settings={settings} update={update} />
+        </CategoryPane>
+        <CategoryPane category="focus" active={category}>
+          <Group>
+            <FocusSettings settings={settings} update={update} />
+          </Group>
         </CategoryPane>
         <CategoryPane category="editor" active={category}>
           <Group>

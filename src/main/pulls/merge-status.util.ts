@@ -12,7 +12,7 @@ export const MERGE_STATUS_FIELDS = /* GraphQL */ `
   mergeable mergeStateStatus
   commits(last: 1) { nodes { commit { statusCheckRollup { state } } } }
 `
-export const THREAD_FIELDS = /* GraphQL */ `reviewThreads(first: 100) { nodes { isResolved } }`
+export const THREAD_FIELDS = /* GraphQL */ 'reviewThreads(first: 100) { nodes { isResolved } }'
 
 /** A PR's fields that a merge status is read from, as GraphQL returns them. */
 export interface RawMergeFields {

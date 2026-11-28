@@ -14,6 +14,8 @@ import { ReviewBlockContext } from './focus/review-block.context.ts'
 import { BLOCK_MINUTES, type BlockMinutes } from './focus/review-block.util.ts'
 import { ReviewBlockBar } from './focus/review-block-bar.component.tsx'
 import { ReviewBlockPicker } from './focus/review-block-picker.component.tsx'
+import { useDoNotDisturb } from './focus/use-do-not-disturb.hook.ts'
+import { useFocusRail } from './focus/use-focus-rail.hook.ts'
 import { useReviewBlock } from './focus/use-review-block.hook.ts'
 import { HighlighterContext, WorkerHighlighter } from './highlight/highlight.service.ts'
 import { Inbox } from './inbox/inbox.view.tsx'
@@ -129,24 +131,50 @@ function useLiveData(setRoute: RouteHistory['go']) {
   return { inbox, mentions }
 }
 
-/** The left rail: the screens, with counts on Inbox (red when something is stale) and Mentions. */
+/** What the Focus button does: start a block, or pause and resume the one going. */
+function describeFocusButton(focused: boolean) {
+  if (focused) {
+    return 'Pause or resume the review block'
+  }
+  return 'Set time aside to review'
+}
+
+/** The counts on the rail's screens; none while a review block keeps the rail quiet. */
+function countRailBadges(inbox: InboxData | null, mentions: MentionsInbox | null, quiet: boolean) {
+  if (quiet) {
+    return { requested: 0, needingYou: 0, newMentions: 0, stale: 0 }
+  }
+  return {
+    requested: inbox?.requested.length ?? 0,
+    needingYou: countPullsNeedingYou(inbox?.authored ?? []),
+    newMentions: mentions?.mentions.filter((mention) => mention.snippets.some((snippet) => snippet.isNew)).length ?? 0,
+    stale: inbox?.requested.filter((pull) => pull.stale).length ?? 0,
+  }
+}
+
+/**
+ * The left rail: the screens, with counts on Inbox (red when something is stale) and Mentions. `quiet` leaves the
+ * counts out during a review block; `focused` marks the Focus button, which then pauses and resumes the block.
+ */
 function NavRail({
   history,
   inbox,
   mentions,
+  quiet,
+  focused,
   onFocus,
 }: {
   history: RouteHistory
   inbox: InboxData | null
   mentions: MentionsInbox | null
+  quiet: boolean
+  focused: boolean
   onFocus: () => void
 }) {
   const { route, go: setRoute } = history
-  const staleCount = inbox?.requested.filter((pull) => pull.stale).length ?? 0
-  const newMentions =
-    mentions?.mentions.filter((mention) => mention.snippets.some((snippet) => snippet.isNew)).length ?? 0
+  const badges = countRailBadges(inbox, mentions, quiet)
   let inboxTone: 'danger' | 'accent' = 'accent'
-  if (staleCount > 0) {
+  if (badges.stale > 0) {
     inboxTone = 'danger'
   }
   return (
@@ -155,7 +183,7 @@ function NavRail({
         active={route.view === 'inbox' || route.view === 'pull'}
         label="Inbox"
         onClick={() => setRoute({ view: 'inbox' })}
-        badge={inbox?.requested.length}
+        badge={badges.requested}
         badgeTone={inboxTone}
       >
         <path d="M3 13h4l2 3h6l2-3h4M3 13l3-8h12l3 8v6H3z" />
@@ -164,7 +192,7 @@ function NavRail({
         active={route.view === 'my-pulls'}
         label="My PRs"
         onClick={() => setRoute({ view: 'my-pulls' })}
-        badge={countPullsNeedingYou(inbox?.authored ?? [])}
+        badge={badges.needingYou}
         badgeTone="danger"
       >
         <path d="M6 3v12M6 15a3 3 0 1 0 0 6 3 3 0 0 0 0-6zM18 21V9a3 3 0 0 0-3-3h-4M13 3l-2 3 2 3" />
@@ -173,7 +201,7 @@ function NavRail({
         active={route.view === 'mentions'}
         label="Mentions"
         onClick={() => setRoute({ view: 'mentions' })}
-        badge={newMentions}
+        badge={badges.newMentions}
         badgeTone="accent"
       >
         <path d="M16 12a4 4 0 1 1-8 0 4 4 0 0 1 8 0zM16 12v1.5a2.5 2.5 0 0 0 5 0V12a9 9 0 1 0-3.6 7.2" />
@@ -182,8 +210,8 @@ function NavRail({
         <path d="M5 4h11l3 3v13H5zM9 9h6M9 13h6M9 17h4" />
       </NavButton>
       <div className="flex-1" />
-      <ShortcutHint action="review-block" description="Set time aside to review" place="right">
-        <NavButton active={false} label="Focus" onClick={onFocus}>
+      <ShortcutHint action="review-block" description={describeFocusButton(focused)} place="right">
+        <NavButton active={focused} label="Focus" onClick={onFocus}>
           <path d="M12 21a8 8 0 1 0 0-16 8 8 0 0 0 0 16zM12 9v4l2.5 2.5M10 2h4" />
         </NavButton>
       </ShortcutHint>
@@ -205,14 +233,15 @@ function useFocusControls() {
     BLOCK_MINUTES.map((minutes) => `${minutes}` as const),
     '45',
   )
-  const pick = () => setPicking(true)
-  useShortcut('review-block', () => {
+  /** Starts a block (picking its length), or pauses and resumes the one going. */
+  const pick = () => {
     if (block.focused) {
       block.togglePause()
     } else {
       setPicking(true)
     }
-  })
+  }
+  useShortcut('review-block', pick)
   const start = (minutes: BlockMinutes) => {
     setLast(`${minutes}`)
     block.start(minutes)
@@ -290,13 +319,23 @@ function FocusLayout(props: {
 }) {
   const controls = useFocusControls()
   const { block } = controls
+  const rail = useFocusRail(props.history.route.view)
+  useDoNotDisturb(block.running)
+  const showsRail = !block.focused || rail !== 'hidden'
   return (
     <ReviewBlockContext value={block}>
       <div className="flex h-full flex-col">
         <ReviewBlockBar state={block} onAnother={controls.pick} />
         <div className="flex min-h-0 flex-1">
-          {!block.focused && (
-            <NavRail history={props.history} inbox={props.inbox} mentions={props.mentions} onFocus={controls.pick} />
+          {showsRail && (
+            <NavRail
+              history={props.history}
+              inbox={props.inbox}
+              mentions={props.mentions}
+              quiet={block.focused && rail === 'quiet'}
+              focused={block.focused}
+              onFocus={controls.pick}
+            />
           )}
           <main className="flex min-w-0 flex-1 flex-col">
             {props.children}
