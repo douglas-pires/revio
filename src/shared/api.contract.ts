@@ -118,11 +118,11 @@ export interface RevioApi {
   /** Quits, replaces Revio with the downloaded update and opens it again. */
   restartToUpdate: () => Promise<void>
 
-  /** Your shortcuts in the Shortcuts app, by name, to pick the Do Not Disturb ones from. */
-  listShortcuts: () => Promise<string[]>
-  /** Opens the Shortcuts app on a new shortcut, to make the Do Not Disturb ones. */
-  openShortcutsApp: () => Promise<void>
-  /** Turns Do Not Disturb on or off with the chosen shortcuts; nothing when none are chosen. */
+  /** Whether Revio's Do Not Disturb shortcuts are in the Shortcuts app. */
+  isDoNotDisturbReady: () => Promise<boolean>
+  /** Offers Revio's Do Not Disturb shortcuts to the Shortcuts app, which asks you to add them. */
+  addDoNotDisturbShortcuts: () => Promise<void>
+  /** Turns Do Not Disturb on or off for a review block; nothing while the switch is off. */
   setDoNotDisturb: (on: boolean) => Promise<void>
   /** Shows a sample notification; false when macOS refused it (notifications off for Revio). */
   testNotification: () => Promise<boolean>

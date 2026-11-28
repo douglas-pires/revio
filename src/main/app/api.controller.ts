@@ -13,7 +13,7 @@ import type { EditorService } from '../editor/editor.service.ts'
 import { listInstalledEditors } from '../editor/editor.service.ts'
 import { listEmojis } from '../emojis/emojis.service.ts'
 import { buildFeedbackApi } from '../feedback/feedback.api.ts'
-import { type DoNotDisturb, listShortcuts } from '../focus/do-not-disturb.service.ts'
+import { addDoNotDisturbShortcuts, type DoNotDisturb, isDoNotDisturbReady } from '../focus/do-not-disturb.service.ts'
 import { getGithubClient, resetClient } from '../github/github.client.ts'
 import type { GithubTokens } from '../github/github-tokens.service.ts'
 import { buildGitLogApi } from '../gitlog/git-log.api.ts'
@@ -312,8 +312,8 @@ export function registerApi(deps: ApiDeps) {
     downloadUpdate: () => deps.installer.download(),
     restartToUpdate: () => deps.installer.restart(),
     testNotification: () => sendTestNotification(() => deps.window.show()),
-    listShortcuts: () => listShortcuts(),
-    openShortcutsApp: () => shell.openExternal('shortcuts://create-shortcut'),
+    isDoNotDisturbReady: () => isDoNotDisturbReady(),
+    addDoNotDisturbShortcuts: () => addDoNotDisturbShortcuts(),
     setDoNotDisturb: (on) => deps.doNotDisturb.set(on),
     ...buildGuidelinesApi(deps),
     ...buildClaudeHandlers(deps),

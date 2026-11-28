@@ -53,8 +53,7 @@ const DEFAULT_SETTINGS: StoredSettings = {
   shortcuts: {},
   codeFolders: [],
   focusRail: 'quiet',
-  dndOnShortcut: '',
-  dndOffShortcut: '',
+  doNotDisturb: false,
   syncViaIcloud: false,
 }
 

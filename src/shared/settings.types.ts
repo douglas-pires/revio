@@ -30,10 +30,8 @@ export interface Settings {
   codeFolders: string[]
   /** What the left rail shows during a review block. */
   focusRail: FocusRail
-  /** The Shortcuts app shortcut that turns Do Not Disturb on when a block starts ("" = leave it alone). */
-  dndOnShortcut: string
-  /** The shortcut that turns it off again when the block ends or pauses. */
-  dndOffShortcut: string
+  /** Turn on Do Not Disturb while a review block runs. */
+  doNotDisturb: boolean
   /** Sync the synced settings and the review guides with your other Macs through iCloud Drive. */
   syncViaIcloud: boolean
   /** Secrets are never sent back to the renderer, only whether they are set. */

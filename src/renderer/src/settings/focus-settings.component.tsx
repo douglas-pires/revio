@@ -1,7 +1,7 @@
 import type { FocusRail, Settings, SettingsPatch } from '@shared/settings.types.ts'
 import { useCallback, useEffect, useState } from 'react'
-import { orderFocusShortcutsFirst } from '../focus/shortcut-order.util.ts'
-import { Row } from './settings-form.component.tsx'
+import { useAsyncAction } from '../common/use-async-action.hook.ts'
+import { Row, Toggle } from './settings-form.component.tsx'
 
 type Update = (patch: SettingsPatch) => Promise<void>
 
@@ -11,88 +11,77 @@ const RAIL_CHOICES: { value: FocusRail; label: string }[] = [
   { value: 'shown', label: 'Show it as usual' },
 ]
 
-/** Your shortcuts in the Shortcuts app; null while asking. `reload` asks again, after you make one. */
-function useShortcutNames() {
-  const [names, setNames] = useState<string[] | null>(null)
-  const reload = useCallback(() => {
-    globalThis.revio.listShortcuts().then((found) => setNames(orderFocusShortcutsFirst(found)))
+/** Whether Revio's shortcuts are in the Shortcuts app; null while asking. Asked again when you come back to Revio. */
+function useDoNotDisturbReady() {
+  const [ready, setReady] = useState<boolean | null>(null)
+  const recheck = useCallback(() => {
+    globalThis.revio.isDoNotDisturbReady().then(setReady)
   }, [])
-  useEffect(reload, [reload])
-  return { names, reload }
+  useEffect(() => {
+    recheck()
+    globalThis.addEventListener('focus', recheck)
+    return () => globalThis.removeEventListener('focus', recheck)
+  }, [recheck])
+  return ready
 }
 
-/** A list of your shortcuts to pick one from; "None" leaves Do Not Disturb alone. */
-function ShortcutPicker(props: { label: string; value: string; names: string[]; onChange: (name: string) => void }) {
-  // A chosen shortcut since renamed or deleted still shows, so it can be seen and changed.
-  const names = props.value && !props.names.includes(props.value) ? [props.value, ...props.names] : props.names
-  return (
-    <label className="flex items-center justify-between gap-3">
-      <span>{props.label}</span>
-      <select className="input w-64" value={props.value} onChange={(event) => props.onChange(event.target.value)}>
-        <option value="">None</option>
-        {names.map((name) => (
-          <option key={name} value={name}>
-            {name}
-          </option>
-        ))}
-      </select>
-    </label>
-  )
+/** Offering Revio's shortcuts to the Shortcuts app, and whether it was offered (so its windows are open). */
+function useShortcutOffer() {
+  const adding = useAsyncAction()
+  const [offered, setOffered] = useState(false)
+  const offer = () =>
+    adding.run(async () => {
+      await globalThis.revio.addDoNotDisturbShortcuts()
+      setOffered(true)
+    })
+  return { offer, offered, busy: adding.busy, error: adding.error }
 }
 
-/** How to make the two shortcuts, since macOS lets apps change Focus only through Shortcuts. */
-function DoNotDisturbSteps() {
+/** Under the switch, once it is on: that it is ready, or the one-time step macOS asks for. */
+function DoNotDisturbStatus({ ready, offer }: { ready: boolean | null; offer: ReturnType<typeof useShortcutOffer> }) {
+  if (ready === null) {
+    return null
+  }
+  if (ready) {
+    return <>Revio turns it on when a block starts or resumes, and off when it pauses or ends, or when you quit.</>
+  }
   return (
-    <div className="flex flex-col gap-1.5 text-[12px] text-muted">
-      <p>Macs let apps change Focus only through Shortcuts, so this takes two small shortcuts:</p>
-      <ol className="list-decimal space-y-0.5 pl-5">
-        <li>
-          Make a new shortcut, add the <span className="text-fg">Set Focus</span> action, and set it to{' '}
-          <span className="text-fg">Turn Do Not Disturb On until Turned Off</span>. Name it, say, “Revio DND on”.
-        </li>
-        <li>
-          Make another that turns <span className="text-fg">Do Not Disturb Off</span>, named “Revio DND off”.
-        </li>
-        <li>Refresh the list and pick them above.</li>
-      </ol>
-      <p>
-        Revio runs the first when a block starts or resumes, and the second when it pauses or ends, or when you quit.
-      </p>
-      <div>
-        <button type="button" className="btn" onClick={() => globalThis.revio.openShortcutsApp()}>
-          Open Shortcuts
-        </button>
-      </div>
+    <div className="flex flex-col items-start gap-1.5">
+      <span>
+        Macs only let apps change Do Not Disturb through Shortcuts, so Revio adds two of its own, once.
+        {offer.offered && ' Click “Add Shortcut” in each window the Shortcuts app opened.'}
+      </span>
+      <button type="button" className="btn" disabled={offer.busy} onClick={offer.offer}>
+        {offer.offered ? 'Open them again' : "Add Revio's shortcuts"}
+      </button>
+      {Boolean(offer.error) && <span className="text-danger">{offer.error}</span>}
     </div>
   )
 }
 
-/** Which shortcuts turn Do Not Disturb on and off during a block, and how to make them. */
-function DoNotDisturbRow({ settings, update }: { settings: Settings; update: Update }) {
-  const shortcuts = useShortcutNames()
+/** The Do Not Disturb switch for review blocks; turning it on offers Revio's shortcuts when they are missing. */
+function DoNotDisturbSwitch({ settings, update }: { settings: Settings; update: Update }) {
+  const ready = useDoNotDisturbReady()
+  const offer = useShortcutOffer()
+  const switchTo = (checked: boolean) => {
+    update({ doNotDisturb: checked })
+    if (checked && ready === false) {
+      offer.offer()
+    }
+  }
   return (
-    <Row label="Do Not Disturb">
-      <div className="flex flex-col gap-2">
-        <ShortcutPicker
-          label="Turn on with"
-          value={settings.dndOnShortcut}
-          names={shortcuts.names ?? []}
-          onChange={(name) => update({ dndOnShortcut: name })}
-        />
-        <ShortcutPicker
-          label="Turn off with"
-          value={settings.dndOffShortcut}
-          names={shortcuts.names ?? []}
-          onChange={(name) => update({ dndOffShortcut: name })}
-        />
-        <div>
-          <button type="button" className="btn btn-ghost" onClick={shortcuts.reload}>
-            Refresh the list
-          </button>
+    <div>
+      <Toggle
+        label="Turn on Do Not Disturb during a review block"
+        checked={settings.doNotDisturb}
+        onChange={switchTo}
+      />
+      {settings.doNotDisturb && (
+        <div className="-mt-1 px-4 pb-3 text-[12px] text-muted">
+          <DoNotDisturbStatus ready={ready} offer={offer} />
         </div>
-        <DoNotDisturbSteps />
-      </div>
-    </Row>
+      )}
+    </div>
   )
 }
 
@@ -113,7 +102,7 @@ export function FocusSettings({ settings, update }: { settings: Settings; update
           ))}
         </select>
       </Row>
-      <DoNotDisturbRow settings={settings} update={update} />
+      <DoNotDisturbSwitch settings={settings} update={update} />
     </>
   )
 }

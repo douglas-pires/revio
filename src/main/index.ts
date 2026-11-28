@@ -118,7 +118,7 @@ const sync = new IcloudSync({
   onStatus: (status, applied) => window.send({ type: 'sync', status, applied }),
 })
 store.onSyncedChange(() => sync.localChanged())
-const doNotDisturb = new DoNotDisturb(() => store.settings())
+const doNotDisturb = new DoNotDisturb(() => store.settings().doNotDisturb)
 registerApi({
   doNotDisturb,
   store,
