@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react'
+import { type ReactNode, useEffect, useState } from 'react'
 import { type Tok, useHighlighter } from '../highlight/highlight.service.ts'
 import { TokenText } from '../highlight/token-text.component.tsx'
 import { CopyButton } from './copy-button.component.tsx'
@@ -30,7 +30,13 @@ function useCodeTokens(language: string | undefined, code: string) {
 }
 
 /** A fenced code block: highlighted when the language is known, selectable, with a copy button. */
-export function CodeBlock(props: { code: string; language?: string | undefined; label?: string | undefined }) {
+export function CodeBlock(props: {
+  code: string
+  language?: string | undefined
+  label?: ReactNode
+  /** The number of the first line, to show line numbers as in the file; none when not given. */
+  firstLine?: number | undefined
+}) {
   const lines = useCodeTokens(props.language, props.code)
   return (
     <div className="not-prose group/code relative my-2 overflow-hidden rounded-md border border-line bg-panel-2">
@@ -48,6 +54,11 @@ export function CodeBlock(props: { code: string; language?: string | undefined; 
         <code>
           {numberLines(props.code).map((line) => (
             <div key={line.number}>
+              {props.firstLine !== undefined && (
+                <span className="mr-3 inline-block min-w-8 text-right text-muted select-none">
+                  {props.firstLine + line.number - 1}
+                </span>
+              )}
               <TokenText tokens={lines?.[line.number - 1]} text={line.text} />
             </div>
           ))}

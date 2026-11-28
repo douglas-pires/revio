@@ -24,6 +24,11 @@ const ACTIONS = {
   'toggle-viewed': { label: 'Mark the file viewed, or not', group: 'Files changed', defaultShortcut: 'V' },
   unview: { label: 'Unview the file and select it', group: 'Files changed', defaultShortcut: 'Cmd+Shift+V' },
   'copy-file': { label: 'Copy the selected file’s path', group: 'Files changed', defaultShortcut: 'Cmd+Shift+C' },
+  'copy-permalink': {
+    label: 'Copy a permalink to the selected lines',
+    group: 'Files changed',
+    defaultShortcut: 'Cmd+Shift+L',
+  },
   'open-in-editor': { label: 'Open in editor', group: 'Files changed', defaultShortcut: 'Cmd+O' },
   'next-commit': { label: 'Show the next commit on its own', group: 'Files changed', defaultShortcut: ']' },
   'previous-commit': { label: 'Show the previous commit on its own', group: 'Files changed', defaultShortcut: '[' },
