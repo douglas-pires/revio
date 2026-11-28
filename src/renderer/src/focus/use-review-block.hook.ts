@@ -10,6 +10,7 @@ import {
   resumeBlock,
   startBlock,
 } from './review-block.util.ts'
+import { rememberFinishedBlock } from './review-block-history.util.ts'
 
 const STORAGE_KEY = 'revio.reviewBlock'
 const TICK_MS = 1000
@@ -45,6 +46,7 @@ export function describeReviews(count: number) {
 
 /** Says the block is over, in the window and (when Revio is behind other windows) as a notification. */
 function announceEnd(block: ReviewBlock) {
+  rememberFinishedBlock(block, Date.now())
   const text = `Review block done: ${block.minutes} min, ${describeReviews(block.reviews)}`
   showNotice(text)
   try {

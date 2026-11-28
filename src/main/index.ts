@@ -21,6 +21,8 @@ import { fetchPull } from './pulls/pull.service.ts'
 import { ReviewHistoryCache } from './reviews/review-history.cache.ts'
 import { fetchReviewHistory } from './reviews/review-history.service.ts'
 import { StackFinder } from './stacks/stacks.service.ts'
+import { StatsCache } from './stats/stats.cache.ts'
+import { fetchStats } from './stats/stats.service.ts'
 import { flush, store } from './store/store.service.ts'
 import { ICLOUD_DRIVE, IcloudSync } from './sync/icloud-sync.service.ts'
 import { ThreadCache } from './threads/threads.cache.ts'
@@ -56,6 +58,10 @@ const tokens = new GithubTokens({
 configureTokenResolver(() => tokens.resolve())
 const pulls = new PullCache(fetchPull)
 const history = new HistoryCache(getGithubClient)
+const stats = new StatsCache(
+  async (scope, days) => fetchStats(await getGithubClient(), await getViewerLogin(), scope, days),
+  join(app.getPath('userData'), 'stats'),
+)
 const reviewHistory = new ReviewHistoryCache(async (days) =>
   fetchReviewHistory(await getGithubClient(), await getViewerLogin(), days),
 )
@@ -127,6 +133,7 @@ registerApi({
   installer,
   threads,
   reviewHistory,
+  stats,
   mentions,
   editor,
   sync,

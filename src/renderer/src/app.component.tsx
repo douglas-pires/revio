@@ -44,6 +44,8 @@ const Mentions = lazy(() => import('./mentions/mentions.view.tsx').then((module)
 
 const Settings = lazy(() => import('./settings/settings.view.tsx').then((module) => ({ default: module.Settings })))
 
+const Stats = lazy(() => import('./stats/stats.view.tsx').then((module) => ({ default: module.Stats })))
+
 const WhatsNew = lazy(() => import('./whats-new/whats-new.view.tsx').then((module) => ({ default: module.WhatsNew })))
 
 function NavButton(props: {
@@ -207,6 +209,9 @@ function NavRail({
       >
         <path d="M16 12a4 4 0 1 1-8 0 4 4 0 0 1 8 0zM16 12v1.5a2.5 2.5 0 0 0 5 0V12a9 9 0 1 0-3.6 7.2" />
       </NavButton>
+      <NavButton active={railView === 'stats'} label="Stats" onClick={() => setRoute({ view: 'stats' })}>
+        <path d="M4 20V10M10 20V4M16 20v-7M22 20H2" />
+      </NavButton>
       <NavButton active={railView === 'guidelines'} label="Guides" onClick={() => setRoute({ view: 'guidelines' })}>
         <path d="M5 4h11l3 3v13H5zM9 9h6M9 13h6M9 17h4" />
       </NavButton>
@@ -305,6 +310,7 @@ function Screen({
       {route.view === 'my-pulls' && <MyPulls inbox={inbox} onOpen={openPull} />}
       {route.view === 'mentions' && <Mentions mentions={mentions} onOpen={openPull} />}
       {route.view === 'settings' && <Settings />}
+      {route.view === 'stats' && <Stats />}
       {route.view === 'whats-new' && <WhatsNew update={route.update} onDone={() => setRoute({ view: 'inbox' })} />}
     </Suspense>
   )
