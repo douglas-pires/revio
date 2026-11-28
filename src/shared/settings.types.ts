@@ -1,6 +1,8 @@
 import type { ShortcutOverrides } from './shortcut-actions.util.ts'
 
 type ClaudeBackend = 'auto' | 'api' | 'cli'
+/** The left rail during a review block: without its counts, hidden, or as usual. */
+export type FocusRail = 'quiet' | 'hidden' | 'shown'
 export interface Settings {
   /** Poll GitHub every N minutes. */
   pollIntervalMinutes: number
@@ -26,6 +28,8 @@ export interface Settings {
   shortcuts: ShortcutOverrides
   /** Extra folders to look for local clones in, besides your home folder. */
   codeFolders: string[]
+  /** What the left rail shows during a review block. */
+  focusRail: FocusRail
   /** Sync the synced settings and the review guides with your other Macs through iCloud Drive. */
   syncViaIcloud: boolean
   /** Secrets are never sent back to the renderer, only whether they are set. */

@@ -6,6 +6,11 @@ const ACTIONS = {
   palette: { label: 'Show the actions for this screen', group: 'Anywhere', defaultShortcut: 'Cmd+K' },
   settings: { label: 'Open or leave the settings', group: 'Anywhere', defaultShortcut: 'Cmd+.' },
   search: { label: 'Search', group: 'Anywhere', defaultShortcut: '/' },
+  'review-block': {
+    label: 'Start a review block, or pause and resume it',
+    group: 'Anywhere',
+    defaultShortcut: 'Cmd+Shift+F',
+  },
   'save-guide': { label: 'Save the review guide', group: 'Anywhere', defaultShortcut: 'Cmd+S' },
   'git-log': { label: 'Show or hide the git log', group: 'Pull request', defaultShortcut: 'Ctrl+G' },
   'quick-open': { label: 'Go to a changed file', group: 'Pull request', defaultShortcut: 'Cmd+P' },

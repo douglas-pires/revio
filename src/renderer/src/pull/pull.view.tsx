@@ -3,6 +3,7 @@ import { useState } from 'react'
 import { ErrorBanner } from '../common/error-banner.component.tsx'
 import type { OpenPull, PullTarget } from '../common/navigation.types.ts'
 import { Screen, ScreenBody, ScreenHeader } from '../common/screen.component.tsx'
+import { useFocused } from '../focus/review-block.context.ts'
 import { MentionScopeContext } from '../mentionables/mention-scope.context.ts'
 import { FileTree } from './file-tree.component.tsx'
 import { GitLogPanel } from './git-log-panel.component.tsx'
@@ -84,6 +85,7 @@ export function PullView(props: PullViewProps) {
   const explanations = useExplanations(view.pull, view.local.explanations)
   const [commitPick, setCommitPick] = useState<CommitPick | null>(null)
   const { pr } = view
+  const focused = useFocused()
   useCopyShortcuts(pr, view.nav.current)
   usePullPalette(view)
   if (view.error) {
@@ -120,8 +122,10 @@ export function PullView(props: PullViewProps) {
               <ExplanationsContext value={explanations}>
                 <div className="flex h-full flex-col">
                   <PullViewHeader view={view} pr={pr} props={props} />
-                  <MergeBar pull={view.pull} fetchedAt={pr.fetchedAt} viewer={pr.viewer} />
-                  {view.stack !== null && <StackBar stack={view.stack} pull={view.pull} onOpen={props.onOpenPull} />}
+                  {!focused && <MergeBar pull={view.pull} fetchedAt={pr.fetchedAt} viewer={pr.viewer} />}
+                  {!focused && view.stack !== null && (
+                    <StackBar stack={view.stack} pull={view.pull} onOpen={props.onOpenPull} />
+                  )}
                   <div className="flex min-h-0 flex-1">
                     <FileTree
                       files={view.shownFiles}
@@ -140,14 +144,16 @@ export function PullView(props: PullViewProps) {
                     />
                     <PullSidePanels view={view} pr={pr} />
                   </div>
-                  <GitLogPanel
-                    repo={view.pull.repo}
-                    headSha={pr.headSha}
-                    headRef={pr.headRef}
-                    files={view.orderedFiles}
-                    openPath={readOpenPath(view)}
-                    commitPick={commitPick}
-                  />
+                  {!focused && (
+                    <GitLogPanel
+                      repo={view.pull.repo}
+                      headSha={pr.headSha}
+                      headRef={pr.headRef}
+                      files={view.orderedFiles}
+                      openPath={readOpenPath(view)}
+                      commitPick={commitPick}
+                    />
+                  )}
                   {Boolean(view.quickOpen.open) && (
                     <QuickOpen
                       files={view.shownFiles}
