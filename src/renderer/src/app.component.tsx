@@ -8,6 +8,7 @@ import { HistoryContext } from './common/history.context.ts'
 import { MascotLoading } from './common/mascot-loading.component.tsx'
 import type { OpenPull } from './common/navigation.types.ts'
 import { Notice } from './common/notice.component.tsx'
+import { pickRailView, readListOrigin } from './common/rail-view.util.ts'
 import { useRouteHistory } from './common/use-route-history.hook.ts'
 import { useStoredChoice } from './common/use-stored-choice.hook.ts'
 import { ReviewBlockContext } from './focus/review-block.context.ts'
@@ -171,6 +172,7 @@ function NavRail({
   onFocus: () => void
 }) {
   const { route, go: setRoute } = history
+  const railView = pickRailView(route)
   const badges = countRailBadges(inbox, mentions, quiet)
   let inboxTone: 'danger' | 'accent' = 'accent'
   if (badges.stale > 0) {
@@ -179,7 +181,7 @@ function NavRail({
   return (
     <nav className="drag flex w-[68px] shrink-0 flex-col items-center gap-1 border-r border-line bg-panel pt-11 pb-3">
       <NavButton
-        active={route.view === 'inbox' || route.view === 'pull'}
+        active={railView === 'inbox'}
         label="Inbox"
         onClick={() => setRoute({ view: 'inbox' })}
         badge={badges.requested}
@@ -188,7 +190,7 @@ function NavRail({
         <path d="M3 13h4l2 3h6l2-3h4M3 13l3-8h12l3 8v6H3z" />
       </NavButton>
       <NavButton
-        active={route.view === 'my-pulls'}
+        active={railView === 'my-pulls'}
         label="My PRs"
         onClick={() => setRoute({ view: 'my-pulls' })}
         badge={badges.needingYou}
@@ -197,7 +199,7 @@ function NavRail({
         <path d="M6 3v12M6 15a3 3 0 1 0 0 6 3 3 0 0 0 0-6zM18 21V9a3 3 0 0 0-3-3h-4M13 3l-2 3 2 3" />
       </NavButton>
       <NavButton
-        active={route.view === 'mentions'}
+        active={railView === 'mentions'}
         label="Mentions"
         onClick={() => setRoute({ view: 'mentions' })}
         badge={badges.newMentions}
@@ -205,7 +207,7 @@ function NavRail({
       >
         <path d="M16 12a4 4 0 1 1-8 0 4 4 0 0 1 8 0zM16 12v1.5a2.5 2.5 0 0 0 5 0V12a9 9 0 1 0-3.6 7.2" />
       </NavButton>
-      <NavButton active={route.view === 'guidelines'} label="Guides" onClick={() => setRoute({ view: 'guidelines' })}>
+      <NavButton active={railView === 'guidelines'} label="Guides" onClick={() => setRoute({ view: 'guidelines' })}>
         <path d="M5 4h11l3 3v13H5zM9 9h6M9 13h6M9 17h4" />
       </NavButton>
       <div className="flex-1" />
@@ -215,7 +217,7 @@ function NavRail({
         </NavButton>
       </ShortcutHint>
       <ShortcutHint action="settings" description="Settings" place="right">
-        <NavButton active={route.view === 'settings'} label="Settings" onClick={() => setRoute({ view: 'settings' })}>
+        <NavButton active={railView === 'settings'} label="Settings" onClick={() => setRoute({ view: 'settings' })}>
           <path d={SETTINGS_ICON} />
         </NavButton>
       </ShortcutHint>
@@ -272,7 +274,7 @@ function Screen({
 }) {
   const { route, go: setRoute } = history
   const openPull: OpenPull = (pull, target) =>
-    setRoute({ view: 'pull', pull: { repo: pull.repo, number: pull.number }, target })
+    setRoute({ view: 'pull', pull: { repo: pull.repo, number: pull.number }, target, from: readListOrigin(route) })
   const goBack = () => {
     if (history.canGoBack) {
       history.back()
